@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/specforge-logo.png" alt="SpecForge" width="280" />
+  <img src="assets/specforge-logo.png" alt="SpecForge" width="380" />
 </p>
 
 # SpecForge
