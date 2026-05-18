@@ -23,24 +23,32 @@ Validate implementation against specs. Archive on approval.
 
 If status is not `checking`: "Feature `<name>` is in status `<status>`. Complete `sf-build <name>` first."
 
-## Step 1: Traceability Analysis
+## Step 1: Traceability Analysis — MANDATORY
+
+This step is non-negotiable. Every check MUST produce the full matrix.
+"All tests pass" is not a substitute. A check without this matrix is invalid.
 
 For each requirement in `requirements.md`:
 1. Is there at least one task that implements it? (check traceability table in `tasks.md`)
 2. Is that task marked as complete? (check `[x]` in `tasks.md`)
-3. Is there a test that validates it? (check test files in the codebase)
+3. **Verify the implementation exists in code** — actually locate the code that
+   implements this requirement. A checked-off task without corresponding code
+   in the codebase is a gap.
+4. Is there a test that validates it? (check test files in the codebase)
 
 Build the traceability matrix:
 
 ```markdown
 ## Traceability Matrix
 
-| Requirement | Task(s) | Implemented | Tested | Status |
-|-------------|---------|-------------|--------|--------|
-| R1          | T1, T2  | ✅          | ✅     | ✅ PASS |
-| R2          | T3      | ✅          | ❌     | ⚠️ NO TEST |
-| R3          | —       | ❌          | ❌     | ❌ MISSING |
+| Requirement | Task(s) | Implemented | Code Location | Tested | Status |
+|-------------|---------|-------------|---------------|--------|--------|
+| R1          | T1, T2  | ✅          | src/foo.py:42 | ✅     | ✅ PASS |
+| R2          | T3      | ✅          | src/bar.py:10 | ❌     | ⚠️ NO TEST |
+| R3          | —       | ❌          | —             | ❌     | ❌ MISSING |
 ```
+
+**If any requirement has status ❌ MISSING, the verdict CANNOT be APPROVE.**
 
 ## Step 2: Gap Analysis
 
@@ -49,6 +57,9 @@ Check for:
 - **Missing tests:** implemented requirements without test coverage
 - **Orphan code:** code that doesn't trace to any requirement (may be fine, but flag it)
 - **Design deviations:** implementation that doesn't match `design.md`
+- **Failed operations in build logs:** review each `progress/wave-<n>.md` for
+  operations that failed during build. Any wave marked DIRTY is a red flag —
+  verify the failed operation was resolved, not skipped.
 
 ## Step 3: Constitution Compliance (if constitution exists)
 
