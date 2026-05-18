@@ -22,6 +22,36 @@ When the user references a file, URL, or artifact as input:
 - The skill integrates it explicitly.
 - If unreadable → stop and report. Never guess.
 
+## Process Integrity — MANDATORY
+
+These rules are non-negotiable. They apply to every feature, every wave, every task.
+Violating them is a process failure regardless of whether tests pass.
+
+### Gates are not optional
+Every 🔴 GATE defined in a skill MUST pause and wait for explicit user approval.
+NEVER propose combining gates, skipping gates, or doing "approve + build in one step".
+NEVER offer shortcuts like "shall I build directly?" or "approve and continue?".
+The user may request compression — present all artefacts together — but the gate
+still exists as an explicit approval checkpoint before proceeding.
+
+### Errors halt execution
+If any operation fails during sf-build (file edit, file creation, test run, command):
+1. STOP immediately. Do not continue to the next task or wave.
+2. Report the failure to the user with exact error details.
+3. Wait for instructions before proceeding.
+A wave with failed operations CANNOT be marked as complete.
+"Working around" a failure by skipping the failed task is a process violation.
+
+### Test pass ≠ done
+"All tests pass" is necessary but not sufficient. A feature is complete only when
+sf-check produces a full traceability matrix showing every requirement has both
+implementation AND validation. Test count alone is never evidence of completion.
+
+### No self-granted shortcuts
+As features accumulate in a session, the temptation to optimize the process grows.
+Resist it. Feature 22 gets the same ceremony as feature 1. Small features are the
+most dangerous — they create false confidence that leads to skipped verification.
+
 ## Session Protocol
 
 **On start**: read `.ai/session.md` if it exists — resume from there.
