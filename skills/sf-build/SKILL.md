@@ -60,8 +60,17 @@ For each wave:
 
 For each task in the wave:
 1. Implement the code changes
-2. Mark the task as `[x]` in `tasks.md`
-3. Note what was done in the wave progress log
+2. **Verify each change landed** — if a file edit fails (old text not found,
+   wrong file, merge conflict), STOP. Report the failure to the user immediately.
+   Do not proceed to the next task. Do not work around the failure.
+3. Mark the task as `[x]` in `tasks.md` ONLY after verified implementation
+4. Note what was done in the wave progress log
+
+**⛔ FAILURE PROTOCOL**: If any operation fails during a wave:
+- Log the failure in the wave progress with exact error details
+- Report to the user: "Task T[n] failed: [error]. Wave [n] cannot continue."
+- Wait for user decision: fix and retry, or restructure the wave
+- A task with a failed operation stays `[ ]` — never mark incomplete work as done
 
 ### 2b. Log Progress
 
@@ -80,7 +89,15 @@ using `templates/progress.tmpl.md`:
 
 ## Issues Encountered
 - [any problems, deviations from plan]
+
+## Operations Audit
+- File edits attempted: [count] | Succeeded: [count] | Failed: [count]
+- Files created: [list]
+- Tests run: [pass/fail/skip counts]
+- **Wave integrity: [CLEAN — all operations succeeded | DIRTY — see failures above]**
 ```
+
+**⛔ A wave with integrity DIRTY cannot pass the gate.**
 
 ### 2c. Gate
 
@@ -93,13 +110,16 @@ using `templates/progress.tmpl.md`:
 
 After all waves complete:
 
-1. Update `features.json` status to `checking`
-2. Append to `specforge/history.md`:
+1. **Self-audit**: Verify every task in `tasks.md` is marked `[x]`. If any task
+   is still `[ ]`, the build is NOT complete — report the gap.
+2. Update `features.json` status to `checking`
+3. Append to `specforge/history.md`:
    ```
    ## [date] — Feature built: <name>
    - Waves: [count] | Tasks: [completed]/[total]
    ```
-3. Inform: "Feature `<name>` built. Use `sf-check <name>` to validate."
+4. **Proceed directly to sf-check.** Do not ask. Do not wait. Load the sf-check
+   skill and execute it. The build→check transition is automatic.
 
 ## Resuming a Paused Build
 
