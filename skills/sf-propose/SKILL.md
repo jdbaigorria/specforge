@@ -252,6 +252,7 @@ Structure:
 
 Every task must trace to at least one requirement.
 Every requirement must be covered by at least one task.
+If any requirement has no task, add one or flag it to the user.
 
 → 🔴 **GATE**: Present `tasks.md` to the user.
 - "Approved" → update `features.json` status to `approved`
