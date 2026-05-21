@@ -12,6 +12,18 @@ description: >
 
 Validate implementation against specs. Archive on approval.
 
+## Invocation Modes
+
+### `sf-check` (no argument)
+List features ready to check:
+- Features in status `checking` → "Ready to validate"
+- No features → "Nothing to check. Complete `sf-build <name>` first."
+
+Ask: "Which feature do you want to validate?"
+
+### `sf-check <name>`
+Normal flow: validate the named feature.
+
 ## Pre-flight
 
 1. Read `specforge/features.json` — verify status is `checking`
@@ -19,24 +31,26 @@ Validate implementation against specs. Archive on approval.
 3. Read the feature's `tasks.md`
 4. Read the feature's `design.md`
 5. Read the feature's `progress/` logs
-6. If `specforge/constitution.md` exists, read it — validate against principles
+6. Read the feature's `failures.md` if it exists — known issues from build
+7. If `specforge/constitution.md` exists, read it — validate against principles
 
-If status is not `checking`: "Feature `<name>` is in status `<status>`. Complete `sf-build <name>` first."
+If status is not `checking`:
+"Feature `<name>` is in status `<status>`. Complete `sf-build <name>` first."
 
-## Step 1: Traceability Analysis — MANDATORY
+## Step 1: Traceability Analysis
 
 This step is non-negotiable. Every check MUST produce the full matrix.
 "All tests pass" is not a substitute. A check without this matrix is invalid.
 
 For each requirement in `requirements.md`:
-1. Is there at least one task that implements it? (check traceability table in `tasks.md`)
-2. Is that task marked as complete? (check `[x]` in `tasks.md`)
+1. Is there a task that implements it? (check traceability table in `tasks.md`)
+2. Is that task marked complete? (check `[x]` in `tasks.md`)
 3. **Verify the implementation exists in code** — actually locate the code that
    implements this requirement. A checked-off task without corresponding code
    in the codebase is a gap.
-4. Is there a test that validates it? (check test files in the codebase)
+4. Is there a test that validates it? (check test files in codebase)
 
-Build the traceability matrix:
+Build the matrix:
 
 ```markdown
 ## Traceability Matrix
@@ -61,39 +75,71 @@ Check for:
   operations that failed during build. Any wave marked DIRTY is a red flag —
   verify the failed operation was resolved, not skipped.
 
+### Cross-reference with failures.md
+
+If `failures.md` exists, verify:
+- Were any failures resolved during later waves? Update their status.
+- Are unresolved failures consistent with gaps found in traceability?
+- Do failure root causes point to spec issues (→ REVISE) or implementation
+  issues (→ fix and re-check)?
+
 ## Step 3: Constitution Compliance (if constitution exists)
 
 For each principle in `constitution.md`:
 - Does the implementation respect this principle?
 - Are there violations?
 
-Example:
-```
-Principle: "Privacy by default — no data leaves the device"
-Check: Does the feature send data to external services? → VIOLATION
-```
-
 ## Step 4: Verdict
 
 ### APPROVE
-All requirements implemented + tested. No constitution violations.
-No critical gaps.
+All requirements implemented + tested. No constitution violations. No critical gaps.
 
 ### APPROVE WITH NOTES
-All requirements implemented. Minor gaps (e.g., missing edge case test).
-Notes document what should be addressed later.
+All requirements implemented. Minor gaps documented for future.
 
 ### REVISE
-Significant gaps: missing implementations, constitution violations,
-or untested critical paths.
+Significant gaps. Produces structured failure analysis.
 
 ## Step 5: Present Review
 
 Generate `specforge/features/<name>/review.md` using `templates/review.tmpl.md`.
 
+### When verdict is REVISE
+
+The review must include a structured **Failure Analysis** section:
+
+```markdown
+## Failure Analysis
+
+### Why This Feature Didn't Pass
+
+**Root cause category**: [spec gap | design mismatch | implementation error | external dependency]
+
+### Specific Failures
+
+#### F1: [title]
+- **Requirement**: R[n]
+- **What was expected**: [from spec]
+- **What happened**: [actual behavior]
+- **Why**: [root cause]
+- **Fix category**: [amend spec | change design | fix implementation | needs research]
+- **Recommended action**: [specific, actionable step]
+
+#### F2: ...
+
+### Recommended Path Forward
+
+1. [Most impactful fix first]
+2. [Next fix]
+3. [If spec needs amending: "Edit requirements.md → resync will cascade to design and tasks"]
+```
+
+This gives the user a clear map of what went wrong, why, and exactly what to do
+about it — not just "gaps found, go back to build."
+
 → 🔴 **GATE**: Present the review to the user.
 - User accepts APPROVE → proceed to archive
-- User accepts REVISE → indicate what to fix, return to `sf-build`
+- User accepts REVISE → follow the recommended path
 - User overrides verdict → respect the override, log it
 
 ## Step 6: Archive (on APPROVE)
@@ -109,12 +155,23 @@ Read `references/archive.md` for detailed procedure.
    - Verdict: [APPROVE / APPROVE WITH NOTES]
    - Requirements: [count] | Tasks: [count] | Coverage: [%]
    ```
+4. Update `specforge/roadmap.md` if it exists (mark feature as completed)
 
-## Backprop (cross-feature learning)
+## Step 7: Backprop (cross-feature learning)
 
 Read `references/backprop.md` for the full pattern.
 
-**Quick summary:** If the same type of issue appears in 3+ features:
-- Promote it to a project invariant in `constitution.md`
-- Example: "Missing error handling in API endpoints" found 3 times
-  → Add principle: "Every API endpoint must have explicit error handling"
+If the same type of issue appears in 3+ features → promote to invariant
+in `constitution.md`.
+
+Check `failures.md` from this and previous features for recurring patterns.
+
+## Rules
+
+- Be adversarial during check. Your job is to find problems.
+- REVISE must include actionable failure analysis — not just "stuff is missing."
+- Cross-reference failures.md with gap analysis — they should tell the same story.
+- Don't be lenient with ACs. Partial ≠ pass.
+- Don't invent gaps. Style differences aren't gaps.
+- Don't use REJECT as escape. If fixable with REVISE, use REVISE.
+- Don't skip backprop. Cumulative value.
