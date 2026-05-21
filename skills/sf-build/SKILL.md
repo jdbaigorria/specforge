@@ -11,15 +11,28 @@ description: >
 
 Plan and execute implementation from approved specs. Human gate after each wave.
 
+## Invocation Modes
+
+### `sf-build` (no argument)
+List features ready to build:
+- Features in status `approved` → "Ready to build"
+- Features in status `building` → "Paused, can resume"
+- No features in either → "Nothing to build. Run `sf-propose <name>` first."
+
+Ask: "Which feature do you want to build?"
+
+### `sf-build <name>`
+Normal flow: plan + execute the named feature.
+
 ## Pre-flight
 
-1. Read `specforge/features.json` — verify the feature status is `approved`
+1. Read `specforge/features.json` — verify the feature status is `approved` or `building`
 2. Read the feature's `tasks.md` — this is the execution plan
 3. Read the feature's `design.md` — this is the architectural guide
 4. Read the feature's `requirements.md` — for traceability during implementation
 5. If `.ai/project.md` and `.ai/conventions.md` exist, read them — follow conventions
 
-If status is not `approved`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
+If status is not `approved` or `building`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
 
 ## Step 1: Generate Execution Plan
 
@@ -74,7 +87,7 @@ For each task in the wave:
 
 ### 2b. Log Progress
 
-Create/update `specforge/features/<name>/progress/wave-<n>.md`
+Create/update `specforge/features/<name>/progress/wave-<n>.md`:
 using `templates/progress.tmpl.md`:
 
 ```markdown
@@ -106,7 +119,51 @@ using `templates/progress.tmpl.md`:
 - "Fix X" → address issue, re-present wave
 - "Stop" → pause, update status to `building` in features.json
 
-## Step 3: Completion
+## Step 3: Handle Failures
+
+When a task fails and can't be resolved within the wave:
+
+### Log the failure
+
+Create or update `specforge/features/<name>/failures.md`:
+
+```markdown
+# <Feature Name> — Failures
+
+## F1: [failure title]
+**Date**: [date]
+**Task**: T[n] (Wave [n])
+**Requirement**: R[n]
+
+### What failed
+[Specific behavior that didn't work]
+
+### Why it failed
+[Root cause — spec issue, design mismatch, technical limitation, or unknown]
+
+### What was attempted
+1. [Fix attempt 1 — what and result]
+2. [Fix attempt 2 — what and result]
+
+### Impact
+- [What downstream tasks are blocked]
+- [What requirements are affected]
+
+### Recommended action
+- [ ] [Specific action: amend spec / change design / investigate further]
+```
+
+Failures that are fixed within the wave (minor issues) go in the wave progress
+log, not in failures.md. Only persistent failures that affect the build's
+completeness get their own entry.
+
+→ 🔴 **GATE**: Present failure to user. User decides:
+- Fix and retry
+- Skip and continue (task stays `[ ]`)
+- Pause build
+- Return to propose to amend specs
+
+## Step 4: Completion
 
 After all waves complete:
 
@@ -117,13 +174,22 @@ After all waves complete:
    ```
    ## [date] — Feature built: <name>
    - Waves: [count] | Tasks: [completed]/[total]
+   - Failures: [count unresolved, or "none"]
    ```
-4. **Proceed directly to sf-check.** Do not ask. Do not wait. Load the sf-check
-   skill and execute it. The build→check transition is automatic.
+4. If `failures.md` exists with unresolved entries:
+   ```
+   ⚠ Feature built with [N] unresolved failures. See failures.md.
+   sf-check will flag these in the gap analysis.
+   ```
+5. If unresolved failures exist:
+   Inform: "Feature <name> built with [N] unresolved failures. Proceeding to
+   sf-check — it will flag these in the gap analysis."
+   Proceed to sf-check anyway. The failures will surface in the review.
 
 ## Resuming a Paused Build
 
 If a feature has status `building`:
 1. Read `progress/` to find last completed wave
-2. Show the user what's done and what remains
-3. Resume from the next incomplete wave
+2. Read `failures.md` if it exists — show unresolved failures
+3. Show the user what's done and what remains
+4. Resume from the next incomplete wave
