@@ -1,0 +1,13 @@
+{
+  "name": "specforge",
+  "owner": {
+    "name": "Javier Baigorria"
+  },
+  "plugins": [
+    {
+      "name": "specforge",
+      "source": "./",
+      "description": "Spec-Driven Development: gated feature pipeline + audit + support skills."
+    }
+  ]
+}

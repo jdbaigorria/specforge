@@ -65,9 +65,16 @@ ln -s /path/to/specforge/skills ~/.claude/skills
 ln -s /path/to/specforge/skills .claude/skills
 ```
 
-> Distribution as a Claude Code plugin (`.claude-plugin/`, installable via
-> `/plugin marketplace add` + `/plugin install`) is planned — see the roadmap in
-> `SPECFORGE-REVIEW.es.md` (v0.3, packaging).
+> **Plugin install (Claude Code).** This repo ships a plugin skeleton under
+> `.claude-plugin/` (`plugin.json` + `marketplace.json`), so it can be added as a
+> marketplace and installed directly:
+>
+> ```
+> /plugin marketplace add <owner>/specforge
+> /plugin install specforge
+> ```
+>
+> Validate the manifest with `/plugin` before publishing — the schema may evolve.
 
 ---
 
