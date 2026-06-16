@@ -11,7 +11,7 @@ If an issue type is found in **3 or more features**:
 1. Identify the pattern
 2. Formulate a principle or check
 3. Add it to `specforge/constitution.md` as a new principle
-4. Future `sdd-check` runs validate against this invariant
+4. Future `sf-check` runs validate against this invariant
 
 ## Examples
 

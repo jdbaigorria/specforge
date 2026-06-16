@@ -1,9 +1,9 @@
-# Task Planning (formerly sdd-map)
+# Task Planning
 
 ## Purpose
 
 Organize tasks from `tasks.md` into executable waves based on dependencies.
-This is the first step of `sdd-build`, always executed before implementation.
+This is the first step of `sf-build`, always executed before implementation.
 
 ## Wave Organization Rules
 

@@ -1,6 +1,6 @@
 # {{feature_name}} — Wave {{wave_number}}: {{wave_theme}}
 
-> Executed by SpecForge on {{date}} via `sdd-build`.
+> Executed by SpecForge on {{date}} via `sf-build`.
 
 ## Completed Tasks
 

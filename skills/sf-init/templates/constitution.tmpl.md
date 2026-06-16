@@ -36,10 +36,10 @@ What this project deliberately does NOT do:
 
 ## Invariants
 
-Project-wide rules discovered through backprop (added automatically by `sdd-check`):
+Project-wide rules discovered through backprop (added automatically by `sf-check`):
 
 <!-- This section starts empty. Rules are promoted here when a pattern
-     appears in 3+ features. See sdd-check/references/backprop.md -->
+     appears in 3+ features. See sf-check/references/backprop.md -->
 
 ---
 *Last updated: {{date}}*

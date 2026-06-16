@@ -76,4 +76,4 @@ If a build was paused mid-wave:
 - **Never modify specs during build.** If specs need changes, pause and
   escalate to the human. Specs are the contract; build fulfills them.
 - **Always log.** Even if a wave is trivial, write the progress file.
-  It's the audit trail that `sdd-check` uses.
+  It's the audit trail that `sf-check` uses.
