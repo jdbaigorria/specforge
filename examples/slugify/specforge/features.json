@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "features": [
+    {
+      "name": "slugify",
+      "status": "done",
+      "workflow": "requirements-first",
+      "created": "2026-06-16",
+      "completed": "2026-06-16",
+      "gates": [
+        { "phase": "requirements", "result": "approve", "by": "user", "at": "2026-06-16T14:02:00Z", "comment": null },
+        { "phase": "design",       "result": "approve", "by": "user", "at": "2026-06-16T14:09:00Z", "comment": null },
+        { "phase": "tasks",        "result": "approve", "by": "user", "at": "2026-06-16T14:15:00Z", "comment": null },
+        { "phase": "plan",         "result": "approve", "by": "user", "at": "2026-06-16T14:20:00Z", "comment": null },
+        { "phase": "wave-0",       "result": "approve", "by": "user", "at": "2026-06-16T14:35:00Z", "comment": null },
+        { "phase": "verdict",      "result": "approve", "by": "user", "at": "2026-06-16T14:40:00Z", "comment": null }
+      ]
+    }
+  ]
+}

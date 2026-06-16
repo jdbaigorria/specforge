@@ -260,15 +260,30 @@ If any requirement has no task, add one or flag it to the user.
 
 ### Step 5: Update Feature Registry
 
-Update `specforge/features.json`:
+Update `specforge/features.json`. The registry is the **source of truth** for
+status and gates (F10). Each gate the user approved in this run is appended to
+the `gates[]` ledger — this is the auditable record that a gate actually
+happened, not a claim in a markdown header.
+
 ```json
 {
   "name": "<feature-name>",
   "status": "approved",
   "workflow": "requirements-first",
-  "created": "<date>"
+  "created": "<date>",
+  "completed": null,
+  "gates": [
+    { "phase": "requirements", "result": "approve", "by": "user", "at": "<iso-8601>", "comment": null },
+    { "phase": "design",       "result": "approve", "by": "user", "at": "<iso-8601>", "comment": null },
+    { "phase": "tasks",        "result": "approve", "by": "user", "at": "<iso-8601>", "comment": null }
+  ]
 }
 ```
+
+Record the real result of each gate: `approve`, `reject`, or `change` (with the
+request in `comment`). Never write a gate entry the user did not actually give.
+If a downstream gate reopened (F23), mark the affected feature `status` back and
+the stale gate is re-recorded on re-approval.
 
 Append to `specforge/history.md`:
 ```

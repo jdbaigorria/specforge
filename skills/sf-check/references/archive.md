@@ -18,14 +18,24 @@ specforge/archive/<YYYY-MM-DD>-<feature-name>/
 
 ### 2. Update Feature Registry
 
-In `features.json`, set:
+In `features.json`, set the final status, completion date, and append the
+verdict gate to the `gates[]` ledger (F10). Don't overwrite earlier gates —
+append:
 ```json
 {
   "name": "<feature-name>",
   "status": "done",
-  "completed": "<date>"
+  "completed": "<date>",
+  "gates": [
+    "... earlier requirements/design/tasks/plan/wave gates ...",
+    { "phase": "verdict", "result": "approve", "by": "user", "at": "<iso-8601>", "comment": "<verdict notes if APPROVE WITH NOTES>" }
+  ]
 }
 ```
+
+`result` records the real verdict reply: `approve`, `approve-with-notes`, or
+`revise`. A `revise` verdict means the feature is NOT archived — it loops back to
+`sf-build`, so no `completed` date is set.
 
 ### 3. Append to History
 

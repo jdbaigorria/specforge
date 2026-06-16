@@ -165,6 +165,11 @@ completeness get their own entry.
 
 ## Step 4: Completion
 
+Record each gate as it passes (F10): append a `{ "phase": "plan", ... }` entry
+to the feature's `gates[]` ledger when the plan gate is approved, and a
+`{ "phase": "wave-N", ... }` entry for each wave gate. The ledger is the
+auditable record of what was actually approved.
+
 After all waves complete:
 
 1. **Self-audit**: Verify every task in `tasks.md` is marked `[x]`. If any task
