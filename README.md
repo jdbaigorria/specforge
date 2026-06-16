@@ -42,7 +42,7 @@ A 4-skill feature pipeline + `sf-audit` for project-wide review + support skills
 This is the per-feature loop. Two more pieces sit alongside it:
 `sf-audit` runs a project-wide adversarial review (constitution vs reality,
 cross-feature consistency), and a set of [support skills](SUPPORT-SKILLS.md)
-(`think`, `triage`, `grill-me`, `tdd`, `documenter`, and more) complement the
+(`sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, and more) complement the
 pipeline without being part of it.
 
 Detailed flow with gates:
@@ -166,10 +166,10 @@ ask for approval, so anything with a gate must stay inline.
 
 Support skills follow the same rule, decided by **interactivity, not tier**:
 
-- **Gated or iterative** (`grill-me`, `product-owner`, `tdd`) → inline.
+- **Gated or iterative** (`sfx-grill-me`, `sfx-product-owner`, `sfx-tdd`) → inline.
 - **Pure transform** — takes input, returns output, no human turn in the middle
-  (`documenter`, `explain`, `aws-architect`, `data-engineer`, `triage`,
-  `github`) → may be delegated to a sub-agent **where the harness supports it**,
+  (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`, `sfx-data-engineer`, `sfx-triage`,
+  `sfx-github`) → may be delegated to a sub-agent **where the harness supports it**,
   falling back to inline otherwise. Delegation is an optional, per-harness
   optimization, not part of the portable core.
 
@@ -334,9 +334,9 @@ consistency, drift, and accumulated gaps.
 
 Standalone skills that complement the pipeline but are not part of it. They work
 without `specforge/` initialized and produce artefacts in `.ai/`. See
-[SUPPORT-SKILLS.md](SUPPORT-SKILLS.md) for the full reference: `think`,
-`triage`, `grill-me`, `tdd`, `documenter`, `explain`, `product-owner`,
-`aws-architect`, `data-engineer`, `github`.
+[SUPPORT-SKILLS.md](SUPPORT-SKILLS.md) for the full reference: `sfx-think`,
+`sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
+`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`.
 
 ---
 

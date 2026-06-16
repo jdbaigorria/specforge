@@ -1,5 +1,5 @@
 ---
-name: github
+name: sfx-github
 description: >
   Execute git workflow: branch, commit, push, PR, merge. Trigger: "/github", "/git",
   "create a PR", "push this", "branch for", "commit", "merge", "release".

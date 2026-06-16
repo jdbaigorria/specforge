@@ -1,5 +1,5 @@
 ---
-name: aws-architect
+name: sfx-aws-architect
 description: >
   Design AWS infrastructure with cost, security, reliability, and scalability in mind.
   Produce an architecture document. Trigger: "/aws-architect", "design the infra",

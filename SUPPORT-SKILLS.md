@@ -20,23 +20,23 @@ portable default is always inline.
 
 | Skill | Mode | Purpose | Artifact |
 |-------|------|---------|----------|
-| [triage](#triage) | delegate | Investigate bugs, find root cause, produce fix plan | `.ai/triages/{slug}.md` |
-| [documenter](#documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
-| [explain](#explain) | delegate | Teach concepts with Feynman method | `.ai/explanations/{slug}.md` (optional) |
-| [product-owner](#product-owner) | inline | Define product briefs with MoSCoW priorities | `.ai/briefs/{slug}.md` |
-| [aws-architect](#aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `.ai/architectures/{slug}.md` |
-| [data-engineer](#data-engineer) | delegate | Design data pipelines with quality gates | `.ai/data-designs/{slug}.md` |
-| [grill-me](#grill-me) | inline | Stress-test a plan through relentless interviewing | `.ai/grills/{slug}.md` (optional) |
-| [tdd](#tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
-| [github](#github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
+| [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `.ai/triages/{slug}.md` |
+| [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
+| [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `.ai/explanations/{slug}.md` (optional) |
+| [sfx-product-owner](#sfx-product-owner) | inline | Define product briefs with MoSCoW priorities | `.ai/briefs/{slug}.md` |
+| [sfx-aws-architect](#sfx-aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `.ai/architectures/{slug}.md` |
+| [sfx-data-engineer](#sfx-data-engineer) | delegate | Design data pipelines with quality gates | `.ai/data-designs/{slug}.md` |
+| [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `.ai/grills/{slug}.md` (optional) |
+| [sfx-tdd](#sfx-tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
+| [sfx-github](#sfx-github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
 
 ---
 
-## triage
+## sfx-triage
 
 Investigate a bug systematically. No fixes without understanding the root cause first.
 
-**Triggers:** `/triage`, `/triage <description>`, "there's a bug", "this is broken", "why is this failing"
+**Triggers:** `/sfx-triage`, `/sfx-triage <description>`, "there's a bug", "this is broken", "why is this failing"
 
 **Flow:**
 1. Gather symptoms (observed vs expected, reproduction steps, frequency)
@@ -59,17 +59,17 @@ Investigate a bug systematically. No fixes without understanding the root cause 
 
 ---
 
-## documenter
+## sfx-documenter
 
 Generate exhaustive documentation from code. Every function gets an example. Every edge case gets documented.
 
-**Triggers:** `/documenter`, "document this", "generate docs", "API docs", "how-to guide", "create a README for"
+**Triggers:** `/sfx-documenter`, "document this", "generate docs", "API docs", "how-to guide", "create a README for"
 
 **Modes:**
-- `/documenter <path>` — Document a specific file or module
-- `/documenter --api <path>` — API reference (signatures, params, returns, examples)
-- `/documenter --guide <topic>` — How-to guide (narrative, step-by-step)
-- `/documenter --project` — Full project docs (README + architecture + API + guides)
+- `/sfx-documenter <path>` — Document a specific file or module
+- `/sfx-documenter --api <path>` — API reference (signatures, params, returns, examples)
+- `/sfx-documenter --guide <topic>` — How-to guide (narrative, step-by-step)
+- `/sfx-documenter --project` — Full project docs (README + architecture + API + guides)
 
 **Key rules:**
 - Every public function/class/endpoint gets a runnable example — no exceptions
@@ -86,11 +86,11 @@ Generate exhaustive documentation from code. Every function gets an example. Eve
 
 ---
 
-## explain
+## sfx-explain
 
 Explain any concept using the Feynman method. Simple language, analogies from everyday life, concrete examples.
 
-**Triggers:** `/explain`, `/explain <topic>`, "how does X work", "I don't understand", "teach me", "break it down"
+**Triggers:** `/sfx-explain`, `/sfx-explain <topic>`, "how does X work", "I don't understand", "teach me", "break it down"
 
 **Flow:**
 1. Core idea in one sentence (no jargon)
@@ -112,11 +112,11 @@ Explain any concept using the Feynman method. Simple language, analogies from ev
 
 ---
 
-## product-owner
+## sfx-product-owner
 
 Define product requirements. Translate vague ideas into testable user stories with MoSCoW priorities.
 
-**Triggers:** `/product-owner`, `/brief`, "user story", "requirements", "what should we build", "define MVP"
+**Triggers:** `/sfx-product-owner`, `/brief`, "user story", "requirements", "what should we build", "define MVP"
 
 **Flags:** `--from <path>` to import an existing PRD or document as primary input
 
@@ -138,11 +138,11 @@ Define product requirements. Translate vague ideas into testable user stories wi
 
 ---
 
-## aws-architect
+## sfx-aws-architect
 
 Design AWS infrastructure evaluated through the Well-Architected Framework. Every service choice justified with tradeoffs and cost.
 
-**Triggers:** `/aws-architect`, "design the infra", "how should I deploy", "what AWS services", "architecture for"
+**Triggers:** `/sfx-aws-architect`, "design the infra", "how should I deploy", "what AWS services", "architecture for"
 
 **Flow:**
 1. Clarify requirements (workload, scale, budget, compliance, team)
@@ -161,11 +161,11 @@ Design AWS infrastructure evaluated through the Well-Architected Framework. Ever
 
 ---
 
-## data-engineer
+## sfx-data-engineer
 
 Design data pipelines with quality gates, idempotency, and observability built in.
 
-**Triggers:** `/data-engineer`, "data pipeline", "ETL", "data model", "schema design", "data quality"
+**Triggers:** `/sfx-data-engineer`, "data pipeline", "ETL", "data model", "schema design", "data quality"
 
 **Flow:**
 1. Understand the data (source, destination, transformations, quality, freshness)
@@ -185,11 +185,11 @@ Design data pipelines with quality gates, idempotency, and observability built i
 
 ---
 
-## grill-me
+## sfx-grill-me
 
 Stress-test a plan, design, or decision through relentless interviewing. Walk down every branch of the decision tree.
 
-**Triggers:** `/grill-me`, `/grill-me <artifact>`, "grill me", "stress-test this plan", "poke holes in this"
+**Triggers:** `/sfx-grill-me`, `/sfx-grill-me <artifact>`, "grill me", "stress-test this plan", "poke holes in this"
 
 **Flow:**
 1. Read the target (artifact, topic, or pasted plan)
@@ -210,11 +210,11 @@ Stress-test a plan, design, or decision through relentless interviewing. Walk do
 
 ---
 
-## tdd
+## sfx-tdd
 
 Implement code using strict Test-Driven Development. One failing test, one minimal implementation, one cycle.
 
-**Triggers:** `/tdd`, `/tdd <task>`, "tdd this", "use TDD", "red-green-refactor"
+**Triggers:** `/sfx-tdd`, `/sfx-tdd <task>`, "tdd this", "use TDD", "red-green-refactor"
 
 **Flow:**
 1. Plan: identify interface changes, list 3-7 behaviors to test, check testability
@@ -232,11 +232,11 @@ Implement code using strict Test-Driven Development. One failing test, one minim
 
 ---
 
-## github
+## sfx-github
 
 Execute standardized git workflow. Branch, commit, PR, merge — clean and quiet.
 
-**Triggers:** `/github`, `/git`, "create a PR", "push this", "commit", "merge"
+**Triggers:** `/sfx-github`, `/git`, "create a PR", "push this", "commit", "merge"
 
 **Conventions:**
 - Branches: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/`

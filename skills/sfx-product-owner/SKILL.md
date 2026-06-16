@@ -1,5 +1,5 @@
 ---
-name: product-owner
+name: sfx-product-owner
 description: >
   Define product requirements through structured thinking. Generate a brief with user stories,
   priorities, and acceptance criteria. Trigger: "/product-owner", "/brief", "user story",

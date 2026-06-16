@@ -18,10 +18,10 @@ with a gate or back-and-forth must run inline.
 
 - The 5 SpecForge pipeline skills (`sf-propose`, `sf-build`, `sf-check`,
   plus `sf-init`'s gated conversations) and any iterative support skill
-  (`grill-me`, `product-owner`, `tdd`) → **inline**. The conversation is the
+  (`sfx-grill-me`, `sfx-product-owner`, `sfx-tdd`) → **inline**. The conversation is the
   workspace.
-- Pure-transform support skills (`documenter`, `explain`, `aws-architect`,
-  `data-engineer`, `triage`, `github`) → may be **delegated** to a sub-agent
+- Pure-transform support skills (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`,
+  `sfx-data-engineer`, `sfx-triage`, `sfx-github`) → may be **delegated** to a sub-agent
   where the harness supports it, falling back to inline otherwise. This is an
   optional, per-harness optimization, never required.
 
@@ -134,30 +134,33 @@ sf-check      → Validate against specs + archive on approve
 sf-audit      → Project-wide adversarial audit: constitution vs reality, cross-feature consistency
 ```
 
+Support skills carry the `sfx-` prefix (eXtras). Typing `sf` lists the whole
+suite; `sfx` filters to support.
+
 ### Thinking & Analysis
 ```
-think         → Debate ideas, explore options, reach documented conclusions
-triage        → Investigate bugs: root cause + fix plan + test case
-grill-me      → Stress-test a plan through relentless interviewing
-explain       → Teach concepts with Feynman method
+sfx-think         → Debate ideas, explore options, reach documented conclusions
+sfx-triage        → Investigate bugs: root cause + fix plan + test case
+sfx-grill-me      → Stress-test a plan through relentless interviewing
+sfx-explain       → Teach concepts with Feynman method
 ```
 
 ### Creation & Documentation
 ```
-product-owner → Define product briefs with MoSCoW priorities
-documenter    → Generate exhaustive docs from code with examples
-tdd           → Implement with Red-Green-Refactor discipline
+sfx-product-owner → Define product briefs with MoSCoW priorities
+sfx-documenter    → Generate exhaustive docs from code with examples
+sfx-tdd           → Implement with Red-Green-Refactor discipline
 ```
 
 ### Infrastructure & Design
 ```
-aws-architect → Design AWS infra with tradeoffs and cost
-data-engineer → Design data pipelines with quality gates
+sfx-aws-architect → Design AWS infra with tradeoffs and cost
+sfx-data-engineer → Design data pipelines with quality gates
 ```
 
 ### Operations
 ```
-github        → Git workflow: branch, commit, PR, merge
+sfx-github        → Git workflow: branch, commit, PR, merge
 ```
 
 ## Commands

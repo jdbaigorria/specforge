@@ -42,7 +42,7 @@ Un pipeline de 4 skills por feature + `sf-audit` para revisión transversal del 
 Este es el loop por feature. Al lado hay dos piezas más: `sf-audit` corre una
 revisión adversarial de todo el proyecto (constitución vs realidad, consistencia
 entre features), y un conjunto de [skills de soporte](SUPPORT-SKILLS.es.md)
-(`think`, `triage`, `grill-me`, `tdd`, `documenter`, y más) complementan el
+(`sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, y más) complementan el
 pipeline sin ser parte de él.
 
 Flujo detallado con gates:
@@ -168,10 +168,10 @@ puede frenar a pedir aprobación, así que todo lo que tiene gate debe ser inlin
 Los skills de soporte siguen la misma regla, decidida por **interactividad, no
 por tier**:
 
-- **Con gate o iterativos** (`grill-me`, `product-owner`, `tdd`) → inline.
+- **Con gate o iterativos** (`sfx-grill-me`, `sfx-product-owner`, `sfx-tdd`) → inline.
 - **Transform puro** — entra X, sale Y, sin turno humano en el medio
-  (`documenter`, `explain`, `aws-architect`, `data-engineer`, `triage`,
-  `github`) → pueden delegarse a un sub-agente **donde el harness lo soporte**,
+  (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`, `sfx-data-engineer`, `sfx-triage`,
+  `sfx-github`) → pueden delegarse a un sub-agente **donde el harness lo soporte**,
   con fallback a inline. La delegación es una optimización opcional y per-harness,
   no parte del core portable.
 
@@ -337,8 +337,8 @@ consistencia entre features, drift y gaps acumulados.
 Skills standalone que complementan el pipeline pero no son parte de él. Funcionan
 sin `specforge/` inicializado y producen artefactos en `.ai/`. Ver
 [SUPPORT-SKILLS.es.md](SUPPORT-SKILLS.es.md) para la referencia completa:
-`think`, `triage`, `grill-me`, `tdd`, `documenter`, `explain`, `product-owner`,
-`aws-architect`, `data-engineer`, `github`.
+`sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
+`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`.
 
 ---
 

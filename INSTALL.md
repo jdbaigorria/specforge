@@ -9,8 +9,8 @@ The suite has two tiers:
 
 - **Pipeline + audit** (`sf-init`, `sf-propose`, `sf-build`, `sf-check`,
   `sf-audit`) — the SpecForge workflow.
-- **Support skills** (`triage`, `documenter`, `explain`, `product-owner`,
-  `aws-architect`, `data-engineer`, `grill-me`, `tdd`, `github`, `think`) —
+- **Support skills** (`sfx-triage`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
+  `sfx-aws-architect`, `sfx-data-engineer`, `sfx-grill-me`, `sfx-tdd`, `sfx-github`, `sfx-think`) —
   standalone helpers that don't require `specforge/` to be initialized.
 
 You can install all of them or only the pipeline.

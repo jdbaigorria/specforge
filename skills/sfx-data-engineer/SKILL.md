@@ -1,5 +1,5 @@
 ---
-name: data-engineer
+name: sfx-data-engineer
 description: >
   Design data pipelines and schemas with quality, observability, and idempotency in mind.
   Produce a pipeline design document. Trigger: "/data-engineer", "data pipeline", "ETL",

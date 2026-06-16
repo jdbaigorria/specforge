@@ -1,5 +1,5 @@
 ---
-name: explain
+name: sfx-explain
 description: >
   Explain a concept clearly using the Feynman method. Simple language, analogies,
   build from basics, concrete examples. Use when the user says "explain", "why does",

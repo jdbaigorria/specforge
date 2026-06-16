@@ -1,5 +1,5 @@
 ---
-name: grill-me
+name: sfx-grill-me
 description: >
   Interview the user relentlessly about a plan, design, or artifact until reaching shared
   understanding. Walk down every branch of the decision tree. Trigger: "/grill-me",

@@ -1,5 +1,5 @@
 ---
-name: think
+name: sfx-think
 description: >
   Debate an idea, explore possibilities, evaluate approaches before committing to a plan.
   Open-ended thinking with structured conclusions. Use when the user wants to think through

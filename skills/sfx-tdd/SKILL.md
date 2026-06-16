@@ -1,5 +1,5 @@
 ---
-name: tdd
+name: sfx-tdd
 description: >
   Implement code using test-driven development. Red-Green-Refactor, one vertical slice at a
   time. Trigger: "/tdd", "/tdd <task>", "tdd this", "use TDD", "red-green-refactor".
