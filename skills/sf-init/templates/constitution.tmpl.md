@@ -10,6 +10,11 @@
 
 ## Principles
 
+<!-- Project-specific principles only. The universal engineering principles
+     (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven
+     Execution) live in AGENT.md — do NOT copy them here. List only this
+     project's own invariants, or an explicit override of a universal one. -->
+
 1. **{{principle_1_name}}** — {{principle_1_explanation}}
 2. **{{principle_2_name}}** — {{principle_2_explanation}}
 3. **{{principle_3_name}}** — {{principle_3_explanation}}

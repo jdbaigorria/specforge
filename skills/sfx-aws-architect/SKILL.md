@@ -10,7 +10,7 @@ description: >
 
 Design AWS infrastructure. Evaluate through Well-Architected Framework lens. Justify every choice with tradeoffs.
 
-**Always produces** `.ai/architectures/{slug}.md`. Model: opus.
+**Always produces** `specforge/context/architectures/{slug}.md`. Model: opus.
 
 ## Step 1: Clarify Requirements
 
@@ -21,7 +21,7 @@ Ask only what's not clear:
 - **Compliance**: GDPR, HIPAA, SOC2, data residency
 - **Team**: size, AWS experience, on-call capacity
 
-Read `.ai/project.md` for stack context if exists.
+Read `specforge/context/project.md` for stack context if exists.
 
 ## Step 2: Design with Tradeoffs
 
@@ -34,7 +34,7 @@ For each service choice, state:
 
 ## Step 3: Write Artifact
 
-Generate `.ai/architectures/{slug}.md` using `templates/architecture.tmpl.md`.
+Generate `specforge/context/architectures/{slug}.md` using `templates/architecture.tmpl.md`.
 
 Only include sections relevant to the design's complexity. A static site doesn't need Multi-region Reliability. A HIPAA-compliant API does.
 
@@ -43,7 +43,7 @@ Only include sections relevant to the design's complexity. A static site doesn't
 ```
 ## Architecture: {name}
 
-**Artifact**: .ai/architectures/{slug}.md
+**Artifact**: specforge/context/architectures/{slug}.md
 **Pattern**: {e.g., "Serverless API", "Event-driven microservices"}
 **Services**: {count}
 **Est. cost**: ${N}/month

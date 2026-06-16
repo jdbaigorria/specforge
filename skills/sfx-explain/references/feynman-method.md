@@ -64,7 +64,7 @@ Abstract explanations fail. The example IS the explanation for most people.
 - **Real, not toy.** Don't explain database indexing with a 3-row table.
   Use a scenario with 10 million rows where it actually matters.
 - **Runnable.** If it's code, it should work. Pseudocode is a cop-out.
-- **In the user's stack.** If `.ai/project.md` says Python, show Python.
+- **In the user's stack.** If `specforge/context/project.md` says Python, show Python.
   If it says TypeScript, show TypeScript. Unfamiliar syntax adds cognitive
   load that competes with the concept you're teaching.
 - **Show the before AND after.** "Without this concept" vs "with this concept"

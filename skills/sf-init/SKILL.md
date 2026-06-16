@@ -17,23 +17,30 @@ Initialize a SpecForge project. Detect context, scaffold structure, generate fou
 
 ## Step 1: Scaffold (automatic, no gate)
 
-Create the directory structure:
+Create the directory structure. One visible root, `specforge/`, holds
+everything; machine state hides in `specforge/.state/`:
 
 ```
 specforge/
-├── features.json           # Feature registry (empty array)
+├── features.json           # Feature registry (source of truth)
+├── history.md              # Append-only project log
 ├── features/               # One folder per feature
 ├── archive/                # Completed features
-└── history.md              # Append-only project log
-.ai/
-├── project.md              # Stack, architecture (brownfield: inferred; greenfield: from constitution)
-├── conventions.md           # Code conventions (brownfield: inferred; greenfield: defined by user)
-└── compact-rules.md         # Condensed rules for sub-agents
+├── audits/                 # sf-audit reports
+├── context/                # Project context + skill outputs (visible)
+│   ├── project.md          # Stack, architecture (brownfield: inferred; greenfield: from constitution)
+│   ├── conventions.md      # Code conventions (brownfield: inferred; greenfield: defined by user)
+│   └── compact-rules.md    # Condensed rules for sub-agents
+└── .state/                 # Hidden machine state (not human-edited)
+    └── session.md          # Session cache / recovery (created on first checkpoint)
 ```
 
-Initialize `features.json`:
+`constitution.md` and `roadmap.md` are added later (constitution in Step 3;
+roadmap when `sf-propose --all` runs).
+
+Initialize `features.json` with a schema version so the registry can evolve:
 ```json
-{ "features": [] }
+{ "schema_version": "1.0", "features": [] }
 ```
 
 ## Step 2: Detect project type
@@ -71,8 +78,8 @@ package.json/pyproject.toml = brownfield), skip the question and inform:
    → 🔴 **GATE**: Present to user. Wait for approval or changes.
 
 2. **Project context:** From the constitution conversation, extract stack and
-   architecture decisions. Generate `.ai/project.md` using `templates/project.tmpl.md`.
-   Generate `.ai/conventions.md` with the conventions the user stated or agreed to.
+   architecture decisions. Generate `specforge/context/project.md` using `templates/project.tmpl.md`.
+   Generate `specforge/context/conventions.md` with the conventions the user stated or agreed to.
    → 🔴 **GATE**: Present both documents. Wait for approval or changes.
 
 If `--from <path>` was provided, read the file first and use it as primary input
@@ -83,7 +90,7 @@ about what's missing (principles, anti-goals, constraints not covered in the doc
 
 1. **Onboard:** Read `references/onboard.md` for detailed instructions.
    Analyze the existing codebase: detect stack, frameworks, patterns, conventions.
-   Generate `.ai/project.md` and `.ai/conventions.md` using templates.
+   Generate `specforge/context/project.md` and `specforge/context/conventions.md` using templates.
    → 🔴 **GATE**: Present both documents. Wait for approval or changes.
 
 2. **Constitution:** Read `references/constitution.md` for detailed instructions.

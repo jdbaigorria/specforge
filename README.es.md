@@ -82,12 +82,17 @@ propaga los cambios en cascada.
 
 ### Estructura de directorios
 
+Una sola raíz visible, `specforge/`, contiene todo. Los artefactos de revisión
+(requirements, design, review) quedan visibles para que funcionen los gates
+humanos; el estado de máquina se oculta en `specforge/.state/`.
+
 ```
 mi-proyecto/
-├── specforge/
+├── specforge/                       # Raíz única visible de SpecForge
 │   ├── features.json                # Registro de features (tracker de estado)
 │   ├── constitution.md              # Principios del proyecto + identidad
 │   ├── history.md                   # Log del proyecto (append-only)
+│   ├── roadmap.md                   # Roadmap de features
 │   ├── features/
 │   │   └── agregar-tareas/
 │   │       ├── requirements.md
@@ -99,14 +104,16 @@ mi-proyecto/
 │   │           ├── plan.md
 │   │           ├── wave-0.md
 │   │           └── wave-1.md
-│   └── archive/
-│       └── 2026-05-12-agregar-auth/
-│
-├── .ai/
-│   ├── project.md                   # Stack, arquitectura
-│   ├── conventions.md               # Convenciones de código
-│   ├── compact-rules.md             # Reglas condensadas para sub-agentes
-│   └── session.md                   # Continuidad de sesión
+│   ├── archive/
+│   │   └── 2026-05-12-agregar-auth/
+│   ├── audits/                      # Reportes de sf-audit
+│   ├── context/                     # Contexto del proyecto + outputs de skills (visible)
+│   │   ├── project.md               # Stack, arquitectura
+│   │   ├── conventions.md           # Convenciones de código
+│   │   ├── compact-rules.md         # Reglas condensadas para sub-agentes
+│   │   └── thinks/ triages/ briefs/ grills/ …   # artefactos de skills de soporte
+│   └── .state/                      # Estado de máquina oculto (no se edita a mano)
+│       └── session.md               # Caché/recovery de sesión (no source of truth)
 │
 └── src/                             # Tu código
 ```
@@ -196,19 +203,19 @@ Scaffoldea el proyecto y genera el contexto fundacional.
 **Flujo greenfield:**
 1. Scaffolding de directorios (automático)
 2. Conversación de constitución: identidad, principios, constraints, anti-goals → 🔴 GATE
-3. Generar `.ai/project.md` + `.ai/conventions.md` del contexto → 🔴 GATE
+3. Generar `specforge/context/project.md` + `specforge/context/conventions.md` del contexto → 🔴 GATE
 
 **Flujo brownfield:**
 1. Scaffolding de directorios (automático)
-2. Onboard: analizar codebase → `.ai/project.md` + `.ai/conventions.md` → 🔴 GATE
+2. Onboard: analizar codebase → `specforge/context/project.md` + `specforge/context/conventions.md` → 🔴 GATE
 3. Conversación de constitución: principios y anti-goals (más corta, stack ya conocido) → 🔴 GATE
 
 **Produce:**
 - `specforge/constitution.md` — identidad del proyecto, principios, constraints, anti-goals
 - `specforge/features.json` — registro vacío
 - `specforge/history.md` — log del proyecto (primera entrada)
-- `.ai/project.md` — contexto de stack y arquitectura
-- `.ai/conventions.md` — estándares de código
+- `specforge/context/project.md` — contexto de stack y arquitectura
+- `specforge/context/conventions.md` — estándares de código
 
 ---
 
@@ -335,7 +342,7 @@ consistencia entre features, drift y gaps acumulados.
 ### Skills de soporte
 
 Skills standalone que complementan el pipeline pero no son parte de él. Funcionan
-sin `specforge/` inicializado y producen artefactos en `.ai/`. Ver
+sin `specforge/` inicializado y producen artefactos en `specforge/context/`. Ver
 [SUPPORT-SKILLS.es.md](SUPPORT-SKILLS.es.md) para la referencia completa:
 `sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
 `sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`.
@@ -349,8 +356,8 @@ sin `specforge/` inicializado y producen artefactos en `.ai/`. Ver
 ```
 sf-init produce:
   specforge/constitution.md
-  .ai/project.md
-  .ai/conventions.md
+  specforge/context/project.md
+  specforge/context/conventions.md
 
 sf-propose produce (por feature):
   specforge/features/<nombre>/requirements.md
@@ -371,8 +378,8 @@ sf-check produce (por feature):
 | Artefacto | Creado por | Leído por |
 |-----------|-----------|-----------|
 | constitution.md | sf-init | sf-propose (constraints), sf-check (compliance) |
-| .ai/project.md | sf-init | sf-propose (contexto de stack), sf-build (convenciones) |
-| .ai/conventions.md | sf-init | sf-build (estándares de código) |
+| specforge/context/project.md | sf-init | sf-propose (contexto de stack), sf-build (convenciones) |
+| specforge/context/conventions.md | sf-init | sf-build (estándares de código) |
 | requirements.md | sf-propose | sf-build (trazabilidad), sf-check (validación) |
 | design.md | sf-propose | sf-build (guía de arquitectura), sf-check (adherencia) |
 | tasks.md | sf-propose | sf-build (ejecución), sf-check (trazabilidad) |
@@ -460,7 +467,7 @@ Después de la promoción, sf-check valida cada feature futura contra el nuevo i
 
   Scaffolding...
   ✓ specforge/ creado
-  ✓ .ai/ creado
+  ✓ specforge/context/ creado
   Proyecto greenfield detectado.
 
   Definamos tu proyecto.
@@ -681,8 +688,12 @@ REVISE te devuelve a sf-build con correcciones específicas. Si el spec en sí e
 mal, editalo directamente y la detección de resync propagará los cambios.
 
 **¿Puedo tener múltiples features activas a la vez?**
-Sí. Cada feature tiene su propia carpeta. `features.json` trackea estados de forma
-independiente.
+Todavía no — en esta versión el flujo es **serial**: una feature activa a la vez,
+el resto queda `queued` en `features.json`. Así los gates y el checkpoint de
+sesión quedan sin ambigüedad. Cada feature igual tiene su propia carpeta, así que
+el paralelismo es una capacidad futura planificada (`active_feature` rastreado +
+secciones de sesión por feature); por ahora, archivá o aparcá la feature actual
+antes de arrancar otra.
 
 **¿En qué se diferencia de OpenSpec / Spec Kit / CaveKit?**
 SpecForge combina: constitución + identidad de Spec Kit, organización por cambios

@@ -34,7 +34,7 @@ project as well as a new team member after a thorough onboarding.
 - Business rules encoded in code
 - Domain-specific vocabulary
 
-## Output: .ai/project.md
+## Output: specforge/context/project.md
 
 ```markdown
 # Project Context
@@ -64,7 +64,7 @@ project as well as a new team member after a thorough onboarding.
 [Key entities, business rules, vocabulary if applicable]
 ```
 
-## Output: .ai/conventions.md
+## Output: specforge/context/conventions.md
 
 ```markdown
 # Code Conventions

@@ -14,7 +14,7 @@ description: >
 
 Investigate a bug. Find root cause. Produce fix plan with test strategy.
 
-**Always produces an artifact** at `.ai/triages/{slug}.md`.
+**Always produces an artifact** at `specforge/context/triages/{slug}.md`.
 
 ## The Iron Law
 
@@ -47,8 +47,8 @@ the symptom until you find where actual behavior diverges from expected. Check
 recent git changes in affected areas — regressions are common.
 
 Context to read if available (don't require any of these):
-- `.ai/project.md` — stack, architecture
-- `.ai/conventions.md` — patterns
+- `specforge/context/project.md` — stack, architecture
+- `specforge/context/conventions.md` — patterns
 - `specforge/` specs — expected behavior per spec (if SpecForge is initialized)
 - Source code in the affected area
 
@@ -74,7 +74,7 @@ Test each hypothesis starting with most likely:
 
 Read `references/fix-plan.md` for fix strategy and TDD approach.
 
-Generate `.ai/triages/{slug}.md` using `templates/triage.tmpl.md`.
+Generate `specforge/context/triages/{slug}.md` using `templates/triage.tmpl.md`.
 
 The artifact covers:
 - Symptoms (the 5 dimensions from Step 1)

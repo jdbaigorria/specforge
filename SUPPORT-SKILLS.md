@@ -4,7 +4,7 @@
 
 # SpecForge — Support Skills
 
-Standalone skills that complement the SpecForge pipeline. Each works independently — none require `specforge/` to be initialized. They produce artifacts in `.ai/` or interact conversationally.
+Standalone skills that complement the SpecForge pipeline. Each works independently — none require `specforge/` to be initialized. They produce artifacts in `specforge/context/` or interact conversationally.
 
 ---
 
@@ -20,13 +20,13 @@ portable default is always inline.
 
 | Skill | Mode | Purpose | Artifact |
 |-------|------|---------|----------|
-| [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `.ai/triages/{slug}.md` |
+| [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
-| [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `.ai/explanations/{slug}.md` (optional) |
-| [sfx-product-owner](#sfx-product-owner) | inline | Define product briefs with MoSCoW priorities | `.ai/briefs/{slug}.md` |
-| [sfx-aws-architect](#sfx-aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `.ai/architectures/{slug}.md` |
-| [sfx-data-engineer](#sfx-data-engineer) | delegate | Design data pipelines with quality gates | `.ai/data-designs/{slug}.md` |
-| [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `.ai/grills/{slug}.md` (optional) |
+| [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `specforge/context/explanations/{slug}.md` (optional) |
+| [sfx-product-owner](#sfx-product-owner) | inline | Define product briefs with MoSCoW priorities | `specforge/context/briefs/{slug}.md` |
+| [sfx-aws-architect](#sfx-aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `specforge/context/architectures/{slug}.md` |
+| [sfx-data-engineer](#sfx-data-engineer) | delegate | Design data pipelines with quality gates | `specforge/context/data-designs/{slug}.md` |
+| [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `specforge/context/grills/{slug}.md` (optional) |
 | [sfx-tdd](#sfx-tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
 | [sfx-github](#sfx-github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
 
@@ -51,7 +51,7 @@ Investigate a bug systematically. No fixes without understanding the root cause 
 - Root cause found → write the failing test BEFORE the fix recommendation
 - Unresolved is a valid outcome — document what was tested and what remains
 
-**Output:** `.ai/triages/{slug}.md` — symptoms, investigation trace, hypotheses tested, root cause, fix plan with TDD test, risks.
+**Output:** `specforge/context/triages/{slug}.md` — symptoms, investigation trace, hypotheses tested, root cause, fix plan with TDD test, risks.
 
 **References:** `references/investigation.md` (methodology), `references/fix-plan.md` (TDD fix strategy)
 
@@ -106,7 +106,7 @@ Explain any concept using the Feynman method. Simple language, analogies from ev
 - Always name tradeoffs — "no downsides" means you haven't understood it
 - Code examples must be runnable, not pseudocode
 
-**Output:** Conversational. Optionally saved to `.ai/explanations/{slug}.md` if user requests.
+**Output:** Conversational. Optionally saved to `specforge/context/explanations/{slug}.md` if user requests.
 
 **References:** `references/feynman-method.md` (detailed teaching methodology with examples and anti-patterns)
 
@@ -132,7 +132,7 @@ Define product requirements. Translate vague ideas into testable user stories wi
 - Always include "Won't" items — explicit exclusion prevents scope creep
 - With --from: extract what exists, ask only what's missing
 
-**Output:** `.ai/briefs/{slug}.md` — problem, metric, persona, MoSCoW scope, user stories with acceptance criteria.
+**Output:** `specforge/context/briefs/{slug}.md` — problem, metric, persona, MoSCoW scope, user stories with acceptance criteria.
 
 **Template:** `templates/brief.tmpl.md`
 
@@ -155,7 +155,7 @@ Design AWS infrastructure evaluated through the Well-Architected Framework. Ever
 - Never recommend a service without explaining why not a simpler alternative
 - Security is never optional — IAM, encryption, network isolation always included
 
-**Output:** `.ai/architectures/{slug}.md` — requirements, services with rationale, data flow, security, scaling, cost breakdown, risks, decisions log.
+**Output:** `specforge/context/architectures/{slug}.md` — requirements, services with rationale, data flow, security, scaling, cost breakdown, risks, decisions log.
 
 **Template:** `templates/architecture.tmpl.md`
 
@@ -179,7 +179,7 @@ Design data pipelines with quality gates, idempotency, and observability built i
 - Observability is not optional — metrics, alerts, lineage always included
 - If volume doesn't justify streaming, use batch
 
-**Output:** `.ai/data-designs/{slug}.md` — data contract, schema, stages, quality gates, idempotency, backfill, observability, storage design.
+**Output:** `specforge/context/data-designs/{slug}.md` — data contract, schema, stages, quality gates, idempotency, backfill, observability, storage design.
 
 **Template:** `templates/pipeline.tmpl.md`
 
@@ -206,7 +206,7 @@ Stress-test a plan, design, or decision through relentless interviewing. Walk do
 - 3 consecutive "I don't know" → pause, suggest research first
 - Never lecture — extract the user's thinking, don't teach
 
-**Output:** Summary always returned. Full transcript optionally saved to `.ai/grills/{slug}.md`.
+**Output:** Summary always returned. Full transcript optionally saved to `specforge/context/grills/{slug}.md`.
 
 ---
 

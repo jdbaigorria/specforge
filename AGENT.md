@@ -25,6 +25,22 @@ with a gate or back-and-forth must run inline.
   where the harness supports it, falling back to inline otherwise. This is an
   optional, per-harness optimization, never required.
 
+## Engineering Principles
+
+Universal, framework-level. They apply to every project and every phase — written
+once here, never copied into per-project constitutions. A project's
+`constitution.md` holds only its own invariants and may override one of these
+when justified; backprop accumulates learned invariants on top.
+
+1. **Think Before Coding.** Understand the problem, explore the code, and plan
+   before writing. The gate-driven pipeline is this principle made structural.
+2. **Simplicity First.** The simplest solution that satisfies the spec wins. No
+   speculative abstraction, no ceremony without purpose.
+3. **Surgical Changes.** Make minimal, targeted edits. Don't refactor unrelated
+   code or expand scope mid-task.
+4. **Goal-Driven Execution.** Every action serves the stated goal. When the goal
+   is met, stop — don't gold-plate.
+
 ## External Input
 
 When the user references a file, URL, or artifact as input:
@@ -71,6 +87,22 @@ Rules:
 - The user may request presenting multiple artefacts together, but each
   artefact still gets its own gate line in the block.
 
+**Loop-back semantics (F23).** The reply at any gate means:
+
+- `approve` → advance to the next phase.
+- `reject` → discard this artefact and regenerate it from scratch. Re-present the
+  same gate.
+- `change X` → modify only what X indicates; do not regenerate the whole
+  artefact. Re-present the same gate. If the change invalidates a downstream
+  artefact that was already approved (e.g. editing requirements after design
+  passed), that downstream gate **reopens**: mark it `stale` in `features.json`
+  and re-run that phase before proceeding.
+
+**Concurrency (F22).** The flow is **serial**: one active feature at a time. A
+second feature cannot start until the active one is archived or parked; queued
+features stay `queued` in `features.json`. (Parallel features are a planned
+future capability, not this version.)
+
 ### sf-propose Gates
 
 Three mandatory gates, in order:
@@ -114,9 +146,12 @@ Execution rules:
 
 ## Session Protocol
 
-**On start**: read `.ai/session.md` if it exists — resume from there.
-**On checkpoint**: after completing a SpecForge phase, save state to `.ai/session.md`.
-**On close**: save full session summary to `.ai/session.md`.
+`specforge/.state/session.md` is a **cache/recovery checkpoint, not a source of
+truth** (F21). If it ever disagrees with `features.json`, `features.json` wins.
+
+**On start**: read `specforge/.state/session.md` if it exists — resume from there.
+**On checkpoint**: after completing a SpecForge phase, save state to `specforge/.state/session.md`.
+**On close**: save full session summary to `specforge/.state/session.md`.
 
 ## Anti-Telephone Game
 
@@ -174,14 +209,30 @@ Lightweight inline operations. No skill file needed.
 
 ## Artifacts Live Here
 
+One visible root, `specforge/`. Review artefacts stay visible so the human gates
+work; machine state hides in `specforge/.state/`.
+
 ```
-specforge/          → SpecForge pipeline artifacts (features, archive, constitution, audits)
-.ai/                → Project context + skill outputs (thinks, triages, briefs, etc.)
+specforge/                  → single visible SpecForge root
+  ├── features.json         → feature registry + gate ledger (source of truth)
+  ├── constitution.md       → project invariants
+  ├── history.md            → append-only project log
+  ├── roadmap.md            → feature roadmap
+  ├── features/ archive/ audits/   → pipeline artefacts (gate-reviewed, visible)
+  ├── context/              → project context + skill outputs
+  │                           (project.md, conventions.md, compact-rules.md,
+  │                            thinks/, triages/, briefs/, …)
+  └── .state/               → hidden machine state (session cache, not human-edited)
 ```
+
+**Source of truth (F2):** Markdown artefacts under `specforge/` are authoritative;
+`features.json` is the authoritative registry of features and gates;
+`specforge/.state/session.md` is only a cache/recovery pointer — never a source
+of truth. If they disagree, `features.json` + the Markdown win.
 
 ## Post-Compaction Recovery
 
 If context was compacted:
-1. Read `.ai/session.md` for session state
+1. Read `specforge/.state/session.md` for session state
 2. Read `specforge/features.json` for feature statuses
 3. Resume from there

@@ -4,7 +4,7 @@
 
 # SpecForge — Skills de Soporte
 
-Skills independientes que complementan el pipeline de SpecForge. Cada uno funciona por su cuenta — ninguno requiere que `specforge/` esté inicializado. Producen artefactos en `.ai/` o interactúan de forma conversacional.
+Skills independientes que complementan el pipeline de SpecForge. Cada uno funciona por su cuenta — ninguno requiere que `specforge/` esté inicializado. Producen artefactos en `specforge/context/` o interactúan de forma conversacional.
 
 ---
 
@@ -20,13 +20,13 @@ default portable es siempre inline.
 
 | Skill | Modo | Propósito | Artefacto |
 |-------|------|-----------|-----------|
-| [sfx-triage](#sfx-triage) | delegado | Investigar bugs, encontrar root cause, plan de fix | `.ai/triages/{slug}.md` |
+| [sfx-triage](#sfx-triage) | delegado | Investigar bugs, encontrar root cause, plan de fix | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegado | Generar docs exhaustivos del código con ejemplos | `docs/` o inline |
-| [sfx-explain](#sfx-explain) | delegado | Enseñar conceptos con método Feynman | `.ai/explanations/{slug}.md` (opcional) |
-| [sfx-product-owner](#sfx-product-owner) | inline | Definir briefs de producto con prioridades MoSCoW | `.ai/briefs/{slug}.md` |
-| [sfx-aws-architect](#sfx-aws-architect) | delegado | Diseñar infraestructura AWS con tradeoffs | `.ai/architectures/{slug}.md` |
-| [sfx-data-engineer](#sfx-data-engineer) | delegado | Diseñar pipelines de datos con quality gates | `.ai/data-designs/{slug}.md` |
-| [sfx-grill-me](#sfx-grill-me) | inline | Stress-test de un plan mediante entrevista implacable | `.ai/grills/{slug}.md` (opcional) |
+| [sfx-explain](#sfx-explain) | delegado | Enseñar conceptos con método Feynman | `specforge/context/explanations/{slug}.md` (opcional) |
+| [sfx-product-owner](#sfx-product-owner) | inline | Definir briefs de producto con prioridades MoSCoW | `specforge/context/briefs/{slug}.md` |
+| [sfx-aws-architect](#sfx-aws-architect) | delegado | Diseñar infraestructura AWS con tradeoffs | `specforge/context/architectures/{slug}.md` |
+| [sfx-data-engineer](#sfx-data-engineer) | delegado | Diseñar pipelines de datos con quality gates | `specforge/context/data-designs/{slug}.md` |
+| [sfx-grill-me](#sfx-grill-me) | inline | Stress-test de un plan mediante entrevista implacable | `specforge/context/grills/{slug}.md` (opcional) |
 | [sfx-tdd](#sfx-tdd) | inline | Implementar código con disciplina Red-Green-Refactor | código + tests |
 | [sfx-github](#sfx-github) | delegado | Ejecutar workflow git: branch, commit, PR, merge | estado git |
 
@@ -51,7 +51,7 @@ Investigar un bug sistemáticamente. Nada de fixes sin entender primero la causa
 - Root cause encontrada → escribir el test que falla ANTES de recomendar el fix
 - No resuelto es un resultado válido — documentar qué se probó y qué queda pendiente
 
-**Output:** `.ai/triages/{slug}.md` — síntomas, traza de investigación, hipótesis, root cause, plan de fix con test TDD, riesgos.
+**Output:** `specforge/context/triages/{slug}.md` — síntomas, traza de investigación, hipótesis, root cause, plan de fix con test TDD, riesgos.
 
 **Referencias:** `references/investigation.md` (metodología), `references/fix-plan.md` (estrategia de fix TDD)
 
@@ -106,7 +106,7 @@ Explicar cualquier concepto usando el método Feynman. Lenguaje simple, analogí
 - Siempre nombrar tradeoffs — "no tiene desventajas" significa que no lo entendiste bien
 - Los ejemplos de código deben ser ejecutables, no pseudocódigo
 
-**Output:** Conversacional. Opcionalmente guardado en `.ai/explanations/{slug}.md` si el usuario lo pide.
+**Output:** Conversacional. Opcionalmente guardado en `specforge/context/explanations/{slug}.md` si el usuario lo pide.
 
 **Referencias:** `references/feynman-method.md` (metodología detallada con ejemplos y anti-patrones)
 
@@ -132,7 +132,7 @@ Definir requerimientos de producto. Traducir ideas vagas en user stories testeab
 - Siempre incluir items "Won't" — la exclusión explícita previene scope creep
 - Con --from: extraer lo que existe, preguntar solo lo que falta
 
-**Output:** `.ai/briefs/{slug}.md` — problema, métrica, persona, scope MoSCoW, user stories con criterios de aceptación.
+**Output:** `specforge/context/briefs/{slug}.md` — problema, métrica, persona, scope MoSCoW, user stories con criterios de aceptación.
 
 **Template:** `templates/brief.tmpl.md`
 
@@ -155,7 +155,7 @@ Diseñar infraestructura AWS evaluada con el Well-Architected Framework. Cada se
 - Nunca recomendar un servicio sin explicar por qué no uno más simple
 - Seguridad nunca es opcional — IAM, encryption, network isolation siempre
 
-**Output:** `.ai/architectures/{slug}.md` — requerimientos, servicios con justificación, data flow, seguridad, scaling, desglose de costos, riesgos, log de decisiones.
+**Output:** `specforge/context/architectures/{slug}.md` — requerimientos, servicios con justificación, data flow, seguridad, scaling, desglose de costos, riesgos, log de decisiones.
 
 **Template:** `templates/architecture.tmpl.md`
 
@@ -179,7 +179,7 @@ Diseñar pipelines de datos con quality gates, idempotencia y observabilidad inc
 - Observabilidad no es opcional — métricas, alertas, lineage siempre
 - Si el volumen no justifica streaming, usar batch
 
-**Output:** `.ai/data-designs/{slug}.md` — data contract, schema, stages, quality gates, idempotencia, backfill, observabilidad, diseño de storage.
+**Output:** `specforge/context/data-designs/{slug}.md` — data contract, schema, stages, quality gates, idempotencia, backfill, observabilidad, diseño de storage.
 
 **Template:** `templates/pipeline.tmpl.md`
 
@@ -206,7 +206,7 @@ Stress-test de un plan, diseño o decisión a través de entrevista implacable. 
 - 3 "no sé" consecutivos → pausar, sugerir investigar primero
 - Nunca sermonear — extraer el pensamiento del usuario, no enseñar
 
-**Output:** Resumen siempre retornado. Transcripción completa guardada opcionalmente en `.ai/grills/{slug}.md`.
+**Output:** Resumen siempre retornado. Transcripción completa guardada opcionalmente en `specforge/context/grills/{slug}.md`.
 
 ---
 

@@ -100,7 +100,7 @@ docs/
 ## Generation process
 
 1. Read all source code to understand the project structure
-2. Read `.ai/project.md` and `.ai/conventions.md` if available
+2. Read `specforge/context/project.md` and `specforge/context/conventions.md` if available
 3. Read existing tests to extract usage patterns
 4. Read existing documentation to avoid contradictions
 5. Generate README first (it frames everything else)

@@ -37,7 +37,7 @@ Reverse-engineer specs from existing code. Read `references/from-code.md` before
 1. Verify `specforge/` exists. If not: "Run `sf-init` first."
 2. Read `specforge/features.json` to check for naming conflicts.
 3. If `specforge/constitution.md` exists, read it — principles guide spec generation.
-4. If `.ai/project.md` exists, read it — stack context informs design.
+4. If `specforge/context/project.md` exists, read it — stack context informs design.
 
 ## --all: Product Decomposition
 

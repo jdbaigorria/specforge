@@ -11,7 +11,7 @@ description: >
 
 Translate vague ideas into testable requirements. Think in problems, not solutions. Prioritize with MoSCoW.
 
-**Always produces** `.ai/briefs/{slug}.md`.
+**Always produces** `specforge/context/briefs/{slug}.md`.
 
 ## Arguments
 
@@ -63,7 +63,7 @@ For each Must, write story with acceptance criteria:
 
 ## Step 4: Write Artifact
 
-Generate `.ai/briefs/{slug}.md` using `templates/brief.tmpl.md`.
+Generate `specforge/context/briefs/{slug}.md` using `templates/brief.tmpl.md`.
 
 ## Rules
 

@@ -10,7 +10,7 @@ description: >
 
 Design data systems that are reliable, observable, and maintainable. Think in data contracts, lineage, quality gates, and idempotency.
 
-**Always produces** `.ai/data-designs/{slug}.md`. Model: opus.
+**Always produces** `specforge/context/data-designs/{slug}.md`. Model: opus.
 
 ## Step 1: Understand the Data
 
@@ -22,7 +22,7 @@ Clarify what's not obvious:
 - **Freshness**: real-time, near-real-time, hourly, daily, on-demand
 - **History**: retention needs, reprocessing requirements
 
-Read `.ai/project.md` for stack context if exists.
+Read `specforge/context/project.md` for stack context if exists.
 
 ## Step 2: Design the Pipeline
 
@@ -35,7 +35,7 @@ For each pipeline, define:
 
 ## Step 3: Write Artifact
 
-Generate `.ai/data-designs/{slug}.md` using `templates/pipeline.tmpl.md`.
+Generate `specforge/context/data-designs/{slug}.md` using `templates/pipeline.tmpl.md`.
 
 Only include sections relevant to the pipeline's complexity. A simple CSV-to-DB loader doesn't need Streaming considerations. A real-time event pipeline does.
 
@@ -44,7 +44,7 @@ Only include sections relevant to the pipeline's complexity. A simple CSV-to-DB 
 ```
 ## Pipeline: {name}
 
-**Artifact**: .ai/data-designs/{slug}.md
+**Artifact**: specforge/context/data-designs/{slug}.md
 **Type**: {batch | streaming | hybrid}
 **Volume**: {records/day}
 **Latency**: {SLA}

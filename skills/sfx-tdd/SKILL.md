@@ -33,7 +33,7 @@ Horizontal (WRONG): all tests first, all impl second.
 
 ## Step 2: Context
 
-Read: `.ai/compact-rules.md`, `.ai/project.md` (test runner), specs (acceptance criteria), design.md, existing code.
+Read: `specforge/context/compact-rules.md`, `specforge/context/project.md` (test runner), specs (acceptance criteria), design.md, existing code.
 
 ## Step 3: Plan
 

@@ -30,7 +30,7 @@ Normal flow: plan + execute the named feature.
 2. Read the feature's `tasks.md` — this is the execution plan
 3. Read the feature's `design.md` — this is the architectural guide
 4. Read the feature's `requirements.md` — for traceability during implementation
-5. If `.ai/project.md` and `.ai/conventions.md` exist, read them — follow conventions
+5. If `specforge/context/project.md` and `specforge/context/conventions.md` exist, read them — follow conventions
 
 If status is not `approved` or `building`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
 

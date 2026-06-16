@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-- `.ai/project.md` and `.ai/conventions.md` must exist (run `sf-init` first)
+- `specforge/context/project.md` and `specforge/context/conventions.md` must exist (run `sf-init` first)
 - The codebase must be readable and reasonably organized
 
 ## Flow

@@ -29,7 +29,7 @@ For each task:
 1. **Read** the task description, expected output, and file list from `tasks.md`
 2. **Read** the relevant requirement(s) from `requirements.md`
 3. **Read** the relevant component(s) from `design.md`
-4. **Implement** following `.ai/conventions.md` if it exists
+4. **Implement** following `specforge/context/conventions.md` if it exists
 5. **Write tests** as specified in the task
 6. **Mark** the task as `[x]` in `tasks.md`
 7. **Log** what was done in the wave progress file
