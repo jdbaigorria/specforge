@@ -20,6 +20,7 @@ portable default is always inline.
 
 | Skill | Mode | Purpose | Artifact |
 |-------|------|---------|----------|
+| [sfx-think](#sfx-think) | inline | Debate an idea, explore options, reach a documented conclusion | `specforge/context/thinks/{slug}.md` |
 | [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
 | [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `specforge/context/explanations/{slug}.md` (optional) |
@@ -29,6 +30,31 @@ portable default is always inline.
 | [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `specforge/context/grills/{slug}.md` (optional) |
 | [sfx-tdd](#sfx-tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
 | [sfx-github](#sfx-github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
+
+---
+
+## sfx-think
+
+Debate an idea, explore options, and reach a documented conclusion. The space
+between "I have a vague idea" and "I'm ready to specify" — not propose (no
+requirements/tasks), not explain (not teaching), not grill-me (not stress-testing
+an existing plan).
+
+**Triggers:** `/sfx-think`, `/sfx-think <topic>`, "let's think about", "should I use X or Y", "I'm considering", "pros and cons of", "evaluate this approach"
+
+**Flow:**
+1. Identify the type of thinking (decision, exploration, validation, strategy)
+2. Debate: play devil's advocate, offer unconsidered alternatives, ground in specifics
+3. Converge when the direction is clear (5-10 exchanges is the sweet spot)
+4. Summarize the conclusion, then write the artifact
+
+**Key rules:**
+- Challenge the user's initial leaning — stress-test it, don't just agree
+- Offer at least one alternative the user didn't consider
+- Ground abstract debate in concrete specifics from the user's context
+- "We don't know enough yet" is a valid conclusion — document what's needed to decide
+
+**Output:** `specforge/context/thinks/{slug}.md` — topic, options with pros/cons, the conclusion with rationale, alternatives rejected, next steps. Default is to save (unlike explain/grill-me).
 
 ---
 

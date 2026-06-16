@@ -20,6 +20,7 @@ default portable es siempre inline.
 
 | Skill | Modo | Propósito | Artefacto |
 |-------|------|-----------|-----------|
+| [sfx-think](#sfx-think) | inline | Debatir una idea, explorar opciones, llegar a una conclusión documentada | `specforge/context/thinks/{slug}.md` |
 | [sfx-triage](#sfx-triage) | delegado | Investigar bugs, encontrar root cause, plan de fix | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegado | Generar docs exhaustivos del código con ejemplos | `docs/` o inline |
 | [sfx-explain](#sfx-explain) | delegado | Enseñar conceptos con método Feynman | `specforge/context/explanations/{slug}.md` (opcional) |
@@ -29,6 +30,31 @@ default portable es siempre inline.
 | [sfx-grill-me](#sfx-grill-me) | inline | Stress-test de un plan mediante entrevista implacable | `specforge/context/grills/{slug}.md` (opcional) |
 | [sfx-tdd](#sfx-tdd) | inline | Implementar código con disciplina Red-Green-Refactor | código + tests |
 | [sfx-github](#sfx-github) | delegado | Ejecutar workflow git: branch, commit, PR, merge | estado git |
+
+---
+
+## sfx-think
+
+Debatir una idea, explorar opciones y llegar a una conclusión documentada. El
+espacio entre "tengo una idea vaga" y "estoy listo para especificar" — no es
+propose (sin requirements/tasks), no es explain (no enseña), no es grill-me (no
+hace stress-test de un plan existente).
+
+**Triggers:** `/sfx-think`, `/sfx-think <tema>`, "pensemos en", "uso X o Y", "estoy considerando", "pros y contras de", "evaluá este enfoque"
+
+**Flujo:**
+1. Identificar el tipo de pensamiento (decisión, exploración, validación, estrategia)
+2. Debatir: abogado del diablo, ofrecer alternativas no consideradas, aterrizar en específicos
+3. Converger cuando la dirección está clara (5-10 intercambios es el punto justo)
+4. Resumir la conclusión, luego escribir el artefacto
+
+**Reglas clave:**
+- Desafiar la inclinación inicial del usuario — stress-testearla, no solo asentir
+- Ofrecer al menos una alternativa que el usuario no consideró
+- Aterrizar el debate abstracto en específicos concretos del contexto del usuario
+- "Todavía no sabemos lo suficiente" es una conclusión válida — documentar qué falta para decidir
+
+**Output:** `specforge/context/thinks/{slug}.md` — tema, opciones con pros/contras, la conclusión con rationale, alternativas rechazadas, próximos pasos. Por default se guarda (a diferencia de explain/grill-me).
 
 ---
 
