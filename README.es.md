@@ -6,7 +6,9 @@
 
 Framework de Spec-Driven Development. La especificación es el producto — el código es un subproducto regenerable.
 
-4 skills. Revelación progresiva. Gate humano en cada artefacto. Cero ceremonia sin propósito.
+Un pipeline de 4 skills por feature + `sf-audit` para revisión transversal del proyecto + skills de soporte. Revelación progresiva. Gate humano en cada artefacto. Cero ceremonia sin propósito.
+
+**Instalación:** ver [INSTALL.md](INSTALL.md). **Licencia:** [MIT](LICENSE).
 
 ---
 
@@ -34,8 +36,14 @@ Framework de Spec-Driven Development. La especificación es el producto — el c
   + contexto  diseño          wave por wave  + archivar
               tareas
 
-  4 skills. Cada uno produce artefactos. Gate humano 🔴 en cada artefacto.
+  El loop por feature: 4 skills. Cada uno produce artefactos. Gate humano 🔴 en cada artefacto.
 ```
+
+Este es el loop por feature. Al lado hay dos piezas más: `sf-audit` corre una
+revisión adversarial de todo el proyecto (constitución vs realidad, consistencia
+entre features), y un conjunto de [skills de soporte](SUPPORT-SKILLS.es.md)
+(`think`, `triage`, `grill-me`, `tdd`, `documenter`, y más) complementan el
+pipeline sin ser parte de él.
 
 Flujo detallado con gates:
 
@@ -152,9 +160,20 @@ sf-check/
 
 ### Modelo de ejecución
 
-Los 4 skills corren **inline** — en el contexto principal de la conversación.
-No se delegan a sub-agentes porque cada artefacto tiene un gate humano que
-requiere interacción.
+Los 4 skills del pipeline corren **inline** — en el contexto principal de la
+conversación. No se delegan a sub-agentes porque cada artefacto tiene un gate
+humano que requiere interacción. Un sub-agente corre en un contexto aislado y no
+puede frenar a pedir aprobación, así que todo lo que tiene gate debe ser inline.
+
+Los skills de soporte siguen la misma regla, decidida por **interactividad, no
+por tier**:
+
+- **Con gate o iterativos** (`grill-me`, `product-owner`, `tdd`) → inline.
+- **Transform puro** — entra X, sale Y, sin turno humano en el medio
+  (`documenter`, `explain`, `aws-architect`, `data-engineer`, `triage`,
+  `github`) → pueden delegarse a un sub-agente **donde el harness lo soporte**,
+  con fallback a inline. La delegación es una optimización opcional y per-harness,
+  no parte del core portable.
 
 Principio anti-teléfono-descompuesto: los artefactos viven en disco. Cuando un
 skill necesita contexto de un artefacto anterior, lee el archivo — no depende
@@ -296,6 +315,30 @@ puede anular. La anulación queda logueada en el review.
 - `specforge/archive/<fecha>-<nombre>/` — archivo completo de la feature (si approve)
 - `specforge/history.md` actualizado — entrada de completitud
 - `specforge/constitution.md` actualizado — si backprop promueve un nuevo invariante
+
+---
+
+### sf-audit
+
+Auditoría adversarial de todo el proyecto. No es parte del loop por feature —
+toma distancia y revisa el proyecto entero: constitución vs realidad,
+consistencia entre features, drift y gaps acumulados.
+
+| | |
+|---|---|
+| **Triggers** | `sf-audit`, "auditá el proyecto", "¿sigue siendo cierta la constitución?" |
+| **Alcance** | Todas las features + constitución, no una feature sola |
+| **Produce** | `specforge/audits/<fecha>.md` — hallazgos, severidad, recomendaciones |
+
+---
+
+### Skills de soporte
+
+Skills standalone que complementan el pipeline pero no son parte de él. Funcionan
+sin `specforge/` inicializado y producen artefactos en `.ai/`. Ver
+[SUPPORT-SKILLS.es.md](SUPPORT-SKILLS.es.md) para la referencia completa:
+`think`, `triage`, `grill-me`, `tdd`, `documenter`, `explain`, `product-owner`,
+`aws-architect`, `data-engineer`, `github`.
 
 ---
 
@@ -620,11 +663,14 @@ y los artefactos downstream necesitan actualizarse.
 
 ## FAQ
 
-**¿Por qué solo 4 skills en vez de 10?**
+**¿Por qué el pipeline de features es solo 4 skills?**
 Revelación progresiva. Las capacidades que antes eran skills separados (clarify,
 research, map, archive, explore, constitute) ahora viven como references dentro
-de los 4 skills core. Se cargan bajo demanda. Menos overhead de contexto, menos
-carga cognitiva.
+de los 4 skills del pipeline. Se cargan bajo demanda. Menos overhead de contexto,
+menos carga cognitiva. El pipeline es deliberadamente chico — pero no es todo el
+framework: `sf-audit` agrega revisión transversal, y los
+[skills de soporte](SUPPORT-SKILLS.es.md) cubren pensamiento, triage, TDD, docs
+y diseño de infra alrededor.
 
 **¿Puedo usar SpecForge con cualquier agente de IA?**
 Sí. Los skills son archivos markdown. Cualquier agente que lea markdown puede

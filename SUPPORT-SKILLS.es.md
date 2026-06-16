@@ -10,11 +10,19 @@ Skills independientes que complementan el pipeline de SpecForge. Cada uno funcio
 
 ## Resumen de Skills
 
+**El modo se decide por interactividad, no por tier.** Un sub-agente corre en un
+contexto aislado y no puede frenar a preguntarle al usuario, así que cualquier
+skill con gate o ida y vuelta debe correr **inline**. Los skills que son
+transforms puros (entra X, sale Y, sin turno humano en el medio) se marcan
+**delegado**: *pueden* delegarse a un sub-agente donde el harness lo soporte, con
+fallback a inline. La delegación es una optimización opcional y per-harness — el
+default portable es siempre inline.
+
 | Skill | Modo | Propósito | Artefacto |
 |-------|------|-----------|-----------|
-| [triage](#triage) | inline | Investigar bugs, encontrar root cause, plan de fix | `.ai/triages/{slug}.md` |
-| [documenter](#documenter) | inline | Generar docs exhaustivos del código con ejemplos | `docs/` o inline |
-| [explain](#explain) | inline | Enseñar conceptos con método Feynman | `.ai/explanations/{slug}.md` (opcional) |
+| [triage](#triage) | delegado | Investigar bugs, encontrar root cause, plan de fix | `.ai/triages/{slug}.md` |
+| [documenter](#documenter) | delegado | Generar docs exhaustivos del código con ejemplos | `docs/` o inline |
+| [explain](#explain) | delegado | Enseñar conceptos con método Feynman | `.ai/explanations/{slug}.md` (opcional) |
 | [product-owner](#product-owner) | inline | Definir briefs de producto con prioridades MoSCoW | `.ai/briefs/{slug}.md` |
 | [aws-architect](#aws-architect) | delegado | Diseñar infraestructura AWS con tradeoffs | `.ai/architectures/{slug}.md` |
 | [data-engineer](#data-engineer) | delegado | Diseñar pipelines de datos con quality gates | `.ai/data-designs/{slug}.md` |

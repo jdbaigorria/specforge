@@ -6,7 +6,9 @@
 
 Spec-Driven Development framework. The specification is the product — code is a regenerable byproduct.
 
-4 skills. Progressive disclosure. Human gate on every artefact. No ceremony without purpose.
+A 4-skill feature pipeline + `sf-audit` for project-wide review + support skills. Progressive disclosure. Human gate on every artefact. No ceremony without purpose.
+
+**Install:** see [INSTALL.md](INSTALL.md). **License:** [MIT](LICENSE).
 
 ---
 
@@ -34,8 +36,14 @@ Spec-Driven Development framework. The specification is the product — code is 
   + context   design          wave by wave  + archive
               tasks
 
-  4 skills. Each produces artefacts. Human gate 🔴 on every artefact.
+  The feature loop: 4 skills. Each produces artefacts. Human gate 🔴 on every artefact.
 ```
+
+This is the per-feature loop. Two more pieces sit alongside it:
+`sf-audit` runs a project-wide adversarial review (constitution vs reality,
+cross-feature consistency), and a set of [support skills](SUPPORT-SKILLS.md)
+(`think`, `triage`, `grill-me`, `tdd`, `documenter`, and more) complement the
+pipeline without being part of it.
 
 Detailed flow with gates:
 
@@ -151,9 +159,19 @@ sf-check/
 
 ### Execution model
 
-All 4 skills run **inline** — in the main conversation context. No sub-agent
-delegation for SpecForge skills because every artefact has a human gate that
-requires interaction.
+The 4 pipeline skills run **inline** — in the main conversation context. No
+sub-agent delegation for them, because every artefact has a human gate that
+requires interaction. A sub-agent runs in an isolated context and cannot stop to
+ask for approval, so anything with a gate must stay inline.
+
+Support skills follow the same rule, decided by **interactivity, not tier**:
+
+- **Gated or iterative** (`grill-me`, `product-owner`, `tdd`) → inline.
+- **Pure transform** — takes input, returns output, no human turn in the middle
+  (`documenter`, `explain`, `aws-architect`, `data-engineer`, `triage`,
+  `github`) → may be delegated to a sub-agent **where the harness supports it**,
+  falling back to inline otherwise. Delegation is an optional, per-harness
+  optimization, not part of the portable core.
 
 The anti-telephone-game principle: artefacts live on disk. When a skill needs
 context from a previous artefact, it reads the file — it doesn't rely on
@@ -295,6 +313,30 @@ they can override. The override is logged in the review.
 - `specforge/archive/<date>-<name>/` — complete feature archive (on approve)
 - Updated `specforge/history.md` — completion entry
 - Updated `specforge/constitution.md` — if backprop promotes a new invariant
+
+---
+
+### sf-audit
+
+Project-wide adversarial audit. Not part of the per-feature loop — it steps back
+and reviews the whole project: constitution vs reality, cross-feature
+consistency, drift, and accumulated gaps.
+
+| | |
+|---|---|
+| **Triggers** | `sf-audit`, "audit the project", "is the constitution still true" |
+| **Scope** | All features + constitution, not a single feature |
+| **Produces** | `specforge/audits/<date>.md` — findings, severity, recommendations |
+
+---
+
+### Support skills
+
+Standalone skills that complement the pipeline but are not part of it. They work
+without `specforge/` initialized and produce artefacts in `.ai/`. See
+[SUPPORT-SKILLS.md](SUPPORT-SKILLS.md) for the full reference: `think`,
+`triage`, `grill-me`, `tdd`, `documenter`, `explain`, `product-owner`,
+`aws-architect`, `data-engineer`, `github`.
 
 ---
 
@@ -617,10 +659,13 @@ downstream artefacts need to catch up.
 
 ## FAQ
 
-**Why only 4 skills instead of 10?**
+**Why is the feature pipeline only 4 skills?**
 Progressive disclosure. Capabilities that were separate skills (clarify, research,
-map, archive, explore, constitute) now live as references inside the 4 core skills.
-They load on demand. Less context overhead, less cognitive load.
+map, archive, explore, constitute) now live as references inside the 4 pipeline
+skills. They load on demand. Less context overhead, less cognitive load. The
+pipeline is deliberately small — but it is not the whole framework: `sf-audit`
+adds project-wide review, and the [support skills](SUPPORT-SKILLS.md) cover
+thinking, triage, TDD, docs, and infra design around it.
 
 **Can I use SpecForge with any AI agent?**
 Yes. Skills are markdown files. Any agent that reads markdown can execute them.

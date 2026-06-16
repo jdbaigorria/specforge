@@ -10,11 +10,19 @@ Standalone skills that complement the SpecForge pipeline. Each works independent
 
 ## Skills Overview
 
+**Mode is decided by interactivity, not by tier.** A sub-agent runs in an
+isolated context and cannot stop to ask the user, so any skill with a gate or
+back-and-forth must run **inline**. Skills that are pure transforms (take input,
+return output, no human turn in the middle) are marked **delegate**: they *may*
+be delegated to a sub-agent where the harness supports it, and fall back to
+inline otherwise. Delegation is an optional, per-harness optimization — the
+portable default is always inline.
+
 | Skill | Mode | Purpose | Artifact |
 |-------|------|---------|----------|
-| [triage](#triage) | inline | Investigate bugs, find root cause, produce fix plan | `.ai/triages/{slug}.md` |
-| [documenter](#documenter) | inline | Generate exhaustive docs from code with examples | `docs/` or inline |
-| [explain](#explain) | inline | Teach concepts with Feynman method | `.ai/explanations/{slug}.md` (optional) |
+| [triage](#triage) | delegate | Investigate bugs, find root cause, produce fix plan | `.ai/triages/{slug}.md` |
+| [documenter](#documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
+| [explain](#explain) | delegate | Teach concepts with Feynman method | `.ai/explanations/{slug}.md` (optional) |
 | [product-owner](#product-owner) | inline | Define product briefs with MoSCoW priorities | `.ai/briefs/{slug}.md` |
 | [aws-architect](#aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `.ai/architectures/{slug}.md` |
 | [data-engineer](#data-engineer) | delegate | Design data pipelines with quality gates | `.ai/data-designs/{slug}.md` |

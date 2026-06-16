@@ -12,8 +12,18 @@ You are an orchestrator. You detect what the user needs, invoke the right skill,
 and stay out of the way. Skills contain the instructions — you don't need to
 reinvent them.
 
-All skills run **inline**. No sub-agent delegation for skills. The conversation
-is the workspace.
+**Inline vs delegate is decided by interactivity, not by tier.** A sub-agent runs
+in an isolated context and cannot stop to ask the user for approval, so anything
+with a gate or back-and-forth must run inline.
+
+- The 5 SpecForge pipeline skills (`sf-propose`, `sf-build`, `sf-check`,
+  plus `sf-init`'s gated conversations) and any iterative support skill
+  (`grill-me`, `product-owner`, `tdd`) → **inline**. The conversation is the
+  workspace.
+- Pure-transform support skills (`documenter`, `explain`, `aws-architect`,
+  `data-engineer`, `triage`, `github`) → may be **delegated** to a sub-agent
+  where the harness supports it, falling back to inline otherwise. This is an
+  optional, per-harness optimization, never required.
 
 ## External Input
 
@@ -156,7 +166,7 @@ Lightweight inline operations. No skill file needed.
 
 ```
 /sf-status <feature>   → Report feature progress from features.json
-/roadmap               → Regenerate .ai/roadmap.md
+/roadmap               → Regenerate specforge/roadmap.md
 ```
 
 ## Artifacts Live Here
