@@ -101,6 +101,3 @@ Bad records: {{strategy_quarantine_dlq_alert_skip}}
 ## Open Questions
 
 - [ ] {{question}}
-
----
-*Approved by: {{approver}} on {{date}}*

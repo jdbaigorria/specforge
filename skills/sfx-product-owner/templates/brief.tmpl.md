@@ -51,6 +51,3 @@
 
 - {{decision_needed_from_stakeholder}}
 - {{assumption_to_validate}}
-
----
-*Approved by: {{approver}} on {{approval_date}}*

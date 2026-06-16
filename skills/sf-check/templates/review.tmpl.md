@@ -42,7 +42,7 @@
 | Privacy by default | ✅ PASS | No external data transmission |
 | Offline-first | ⚠️ PARTIAL | Works offline but sync requires connection |
 
-If no constitution: "N/A — no constitution defined." -->
+If no constitution.md exists, omit this whole section — don't write "N/A". -->
 
 ## Design Adherence
 

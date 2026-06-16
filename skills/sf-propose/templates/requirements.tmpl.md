@@ -56,6 +56,3 @@ What this feature deliberately does NOT do:
 
 - **Depends on:** {{dependencies}} <!-- Other features, services, or libraries -->
 - **Depended by:** {{dependents}} <!-- Features that will build on this one -->
-
----
-*Approved by: {{approver}} on {{approval_date}}*

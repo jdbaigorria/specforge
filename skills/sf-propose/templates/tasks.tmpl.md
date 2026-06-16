@@ -57,6 +57,3 @@ Before approving this task plan, verify:
 - [ ] Wave dependencies are correct (no circular, no missing)
 - [ ] Each task has clear expected output and file list
 - [ ] Test files are identified for each task
-
----
-*Approved by: {{approver}} on {{approval_date}}*

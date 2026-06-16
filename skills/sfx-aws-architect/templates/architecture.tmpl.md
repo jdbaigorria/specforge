@@ -73,6 +73,3 @@
 ## Open Questions
 
 - [ ] {{question}}
-
----
-*Approved by: {{approver}} on {{date}}*

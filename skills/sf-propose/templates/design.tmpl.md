@@ -91,17 +91,14 @@ POST /api/v1/resource
 | Integration | {{integration_target}} | {{integration_approach}} |
 | E2E | {{e2e_target}} | {{e2e_approach}} |
 
-## Security Considerations
+<!-- Optional sections — include ONLY when relevant; OMIT the heading entirely
+     otherwise. Do not write "N/A". No ceremony without purpose.
 
-{{security_notes}}
-<!-- Authentication, authorization, input validation, data protection.
-     If not applicable, write "N/A — no security-sensitive surfaces." -->
+  ## Security Considerations
+  Include only if the feature has security-sensitive surfaces (auth, untrusted
+  input, secrets, data protection). {{security_notes}}
 
-## Performance Considerations
-
-{{performance_notes}}
-<!-- Expected load, latency targets, caching strategy.
-     If not applicable, write "N/A — no performance-sensitive paths." -->
-
----
-*Approved by: {{approver}} on {{approval_date}}*
+  ## Performance Considerations
+  Include only if the feature has performance-sensitive paths (hot loops, large
+  data, latency targets, caching). {{performance_notes}}
+-->
