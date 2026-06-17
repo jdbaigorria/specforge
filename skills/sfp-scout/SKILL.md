@@ -1,0 +1,111 @@
+---
+name: sfp-scout
+description: >
+  De-risk a product idea before it becomes a project. The "from zero" front-end of SpecForge:
+  research the landscape (web + GitHub + docs via MCP), stress-test the idea, and produce a
+  visible discovery brief with a proceed/pivot/kill verdict and traceable product-requirement
+  IDs that feed sf-init. Use for greenfield only, when the idea is still fuzzy: "scout this idea",
+  "should I build X", "is this worth building", "de-risk this", "research this product idea",
+  "/sfp-scout", "explore this product". NOT validation — AI cannot prove demand; it gathers
+  evidence and surfaces risk. Requires the research MCPs (see references/tooling.md); without
+  them it will not fabricate research.
+---
+
+# sfp-scout
+
+The product-creation companion (`sfp-` = product tier). SDD is strong once you
+know what to build; `sfp-scout` covers the step before that — **fuzzy idea →
+evidence → de-risked brief** — so SpecForge spans the whole arc from zero to a
+maintained feature, not just delivery.
+
+**Framing, non-negotiable:** this **de-risks**, it does not **validate**. AI
+cannot prove market demand or willingness to pay. It can gather evidence, compare
+alternatives, find gaps, and stress-test assumptions. Say so; never present
+research as proof.
+
+**Scope:** greenfield only. Brownfield goes straight to `sf-init`.
+
+## Step 0: Tooling check (gate on evidence)
+
+`sfp-scout` runs on real evidence, so it needs the research MCPs (web search,
+GitHub, docs — see `references/tooling.md`). Check they're available:
+
+- **Available** → proceed with retrieved evidence.
+- **Missing** → do NOT silently invent competitors from training data (that is
+  the false-validation trap). Either: (a) tell the user which MCPs to enable and
+  stop, or (b) with explicit consent, run a **degraded pass** where every claim
+  is marked `model-prior` (unverified) and the brief is stamped "low-evidence."
+
+## Step 1: Capture the idea
+
+One short exchange: what is it, who is it for, what problem, what outcome. Don't
+over-interview here — the grilling comes after there's evidence to grill against.
+
+## Step 2: Research (provenance per claim)
+
+Use the MCPs to map the landscape: similar products, comparable GitHub repos,
+what they solve, what they miss, demand/saturation signals. Write
+`specforge/product/<slug>/research.md`.
+
+**Every claim carries provenance** (`references/provenance.md`):
+
+- `retrieved` — backed by a real source, with the link.
+- `model-prior` — from training, **unverified**, flagged as such.
+
+A research doc that blurs these lies with confidence. Keep them separate.
+
+## Step 3: De-risk (compose think + grill-me)
+
+This is where `sfx-think` and `sfx-grill-me` are composed (not replaced — they
+stay standalone):
+
+- **think** the solution space: differentiator, alternatives the user didn't
+  consider, MVP boundary.
+- **grill-me** the assumptions: who exactly, why now, what kills this, what has
+  to be true. Ground every challenge in the Step 2 evidence.
+
+Track decisions and rejected directions in
+`specforge/product/<slug>/decision-log.md`.
+
+## Step 4: Synthesize the discovery brief
+
+Write `specforge/product/<slug>/discovery-brief.md` (template
+`templates/discovery-brief.tmpl.md`). It is the **lightweight** product doc — no
+13-section PRD. Crucially, it states **product requirements with stable IDs**
+(`PR1`, `PR2`, …) so traceability extends upward (see
+`references/traceability.md`):
+
+```
+PR-requirement → roadmap feature → feature requirement → task → code → test
+```
+
+## Step 5: Verdict + gate
+
+The verdict is first-class and includes **kill**:
+
+- **proceed** — evidence supports building; differentiator is real.
+- **pivot** — the gap is elsewhere; reframe the idea.
+- **kill** — crowded/served/weak; the best outcome is not to build. Say it plainly.
+
+```
+───────────────────────────────────────
+🔴 GATE — discovery: <proceed | pivot | kill> for "<idea>"
+Evidence: <retrieved N / model-prior M>  ·  Differentiator: <one line>
+Awaiting approval. Reply: approve / reject / change X
+───────────────────────────────────────
+```
+
+## Step 6: Handoff
+
+On approved **proceed** → next step is `sf-init --from
+specforge/product/<slug>/discovery-brief.md`. `sf-init` seeds the constitution
+from the brief; `sf-propose --all` derives the roadmap from the `PR#` ids,
+carrying the traceability into the spec pipeline.
+
+## Rules
+
+- De-risk, never claim validation. Name what AI cannot know.
+- No evidence tools → no fabricated research. Gate on tooling.
+- Provenance on every claim. `model-prior` is allowed but always labelled.
+- `kill` is a success. The point is to avoid building the wrong thing.
+- Greenfield only. The brief is lightweight and feeds `sf-init --from`.

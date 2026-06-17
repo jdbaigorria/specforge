@@ -83,6 +83,15 @@ Generated from constitution on [date].
 [feature-B depends on feature-A because...]
 ```
 
+**Trace to product requirements (F27).** If the project was seeded from an
+`sfp-scout` discovery brief, derive each roadmap feature from the product
+requirements: tag it with which `PR#` it serves, e.g. `1. auth — login/logout
+(serves: PR1, PR3)`. Record `"serves": ["PR1","PR3"]` on the feature in
+`features.json`. This extends the traceability spine upward —
+`PR# → feature → R# → task → code → test` — so product intent stays linked to
+shipped code (no telephone game). Features with no discovery origin (brownfield)
+just omit `serves`.
+
 → 🔴 **GATE**: Present roadmap. User approves, reorders, or adjusts.
 
 ### Step A4: Propose each feature

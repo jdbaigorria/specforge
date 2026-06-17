@@ -25,7 +25,6 @@ default portable es siempre inline.
 | [sfx-triage](#sfx-triage) | delegado | Investigar bugs, encontrar root cause, plan de fix | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegado | Generar docs exhaustivos del código con ejemplos | `docs/` o inline |
 | [sfx-explain](#sfx-explain) | delegado | Enseñar conceptos con método Feynman | `specforge/context/explanations/{slug}.md` (opcional) |
-| [sfx-product-owner](#sfx-product-owner) | inline | Definir briefs de producto con prioridades MoSCoW | `specforge/context/briefs/{slug}.md` |
 | [sfx-aws-architect](#sfx-aws-architect) | delegado | Diseñar infraestructura AWS con tradeoffs | `specforge/context/architectures/{slug}.md` |
 | [sfx-data-engineer](#sfx-data-engineer) | delegado | Diseñar pipelines de datos con quality gates | `specforge/context/data-designs/{slug}.md` |
 | [sfx-grill-me](#sfx-grill-me) | inline | Stress-test de un plan mediante entrevista implacable | `specforge/context/grills/{slug}.md` (opcional) |
@@ -165,31 +164,6 @@ Explicar cualquier concepto usando el método Feynman. Lenguaje simple, analogí
 
 **Referencias:** `references/feynman-method.md` (metodología detallada con ejemplos y anti-patrones)
 
----
-
-## sfx-product-owner
-
-Definir requerimientos de producto. Traducir ideas vagas en user stories testeables con prioridades MoSCoW.
-
-**Triggers:** `/sfx-product-owner`, `/brief`, "user story", "requerimientos", "qué construimos", "definir MVP"
-
-**Flags:** `--from <path>` para importar un PRD o documento existente como input
-
-**Flujo:**
-1. Entender el problema (quién, qué, por qué, cómo medir)
-2. Scope con MoSCoW (Must 3-5 items, Should, Could, Won't)
-3. Escribir user stories con criterios de aceptación GIVEN/WHEN/THEN
-4. Generar brief
-
-**Reglas clave:**
-- Empezar por el problema, no por la solución
-- Las métricas deben ser números medibles
-- Siempre incluir items "Won't" — la exclusión explícita previene scope creep
-- Con --from: extraer lo que existe, preguntar solo lo que falta
-
-**Output:** `specforge/context/briefs/{slug}.md` — problema, métrica, persona, scope MoSCoW, user stories con criterios de aceptación.
-
-**Template:** `templates/brief.tmpl.md`
 
 ---
 

@@ -176,7 +176,7 @@ puede frenar a pedir aprobación, así que todo lo que tiene gate debe ser inlin
 Los skills de soporte siguen la misma regla, decidida por **interactividad, no
 por tier**:
 
-- **Con gate o iterativos** (`sfx-grill-me`, `sfx-product-owner`, `sfx-tdd`) → inline.
+- **Con gate o iterativos** (`sfx-grill-me`, `sfx-tdd`) → inline.
 - **Transform puro** — entra X, sale Y, sin turno humano en el medio
   (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`, `sfx-data-engineer`, `sfx-triage`,
   `sfx-github`) → pueden delegarse a un sub-agente **donde el harness lo soporte**,
@@ -190,6 +190,25 @@ del historial de conversación. El context window lleva referencias, no payloads
 ---
 
 ## Referencia de skills
+
+### sfp-scout (tier de producto, opcional)
+
+El front-end desde-cero. De-riskea una idea difusa antes de que sea un proyecto —
+investiga el landscape, la stress-testea, decide proceed/pivot/kill. Solo
+greenfield; brownfield va directo a `sf-init`.
+
+| | |
+|---|---|
+| **Triggers** | `sfp-scout`, "¿debería construir X?", "¿vale la pena esto?", "de-riskeá esta idea" |
+| **Necesita** | los MCPs de research (web/GitHub/docs) — sin ellos no fabrica research |
+| **Produce** | `specforge/product/<slug>/` — research, discovery brief (con ids `PR#`), decision log |
+| **Handoff** | en *proceed* → `sf-init --from <brief>`; los ids `PR#` fluyen al roadmap |
+
+De-risk, no validación — junta evidencia y expone riesgo; no puede probar demanda.
+Sus product requirements (`PR#`) están en la cima de la espina de trazabilidad:
+`PR# → feature → R# → task → code → test`.
+
+---
 
 ### sf-init
 
@@ -365,7 +384,7 @@ spec divergió antes de que se vuelva mentira.
 Skills standalone que complementan el pipeline pero no son parte de él. Funcionan
 sin `specforge/` inicializado y producen artefactos en `specforge/context/`. Ver
 [SUPPORT-SKILLS.es.md](SUPPORT-SKILLS.es.md) para la referencia completa:
-`sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
+`sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`,
 `sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`, `sfx-journal`.
 
 ---
@@ -750,11 +769,17 @@ antes de arrancar otra.
 
 **¿En qué se diferencia de OpenSpec / Spec Kit / CaveKit?**
 SpecForge combina: constitución + identidad de Spec Kit, organización por cambios
-de OpenSpec, ejecución por waves + backprop de CaveKit. La arquitectura de 4 skills,
-gates humanos en cada artefacto, notación EARS, detección de resync, y revelación
-progresiva son exclusivos de SpecForge.
+de OpenSpec, ejecución por waves + backprop de CaveKit. Gates humanos en cada
+artefacto, notación EARS, detección de resync, specs vivas con detección de drift,
+y revelación progresiva son exclusivos de SpecForge. Y donde las herramientas SDD
+(Spec Kit incluido) son más fuertes una vez que ya *sabés* qué construir,
+SpecForge además cubre el paso anterior — `sfp-scout` de-riskea una idea difusa
+desde cero — abarcando el arco completo: idea → de-riskeada → spec → build → check
+→ mantenida viva.
 
-**¿Dónde está la fase de product owner / visión?**
-Integrada en sf-init. La conversación de constitución captura identidad (qué, quién,
-por qué), principios y anti-goals. Es la fase de definición de producto — simplemente
-no necesita un skill separado.
+**¿Me ayuda a descubrir QUÉ construir, o solo a construir un spec ya conocido?**
+Ambos. Para una idea clara, arrancás en `sf-init`. Para una difusa, arrancás en
+`sfp-scout`: investiga el landscape (vía los MCPs de research), stress-testea la
+idea, y devuelve un discovery brief con veredicto proceed/pivot/**kill** — y hace
+handoff a `sf-init`. De-riskea; no pretende validar demanda. La visión/identidad
+en sí la sigue capturando la conversación de constitución de `sf-init`.

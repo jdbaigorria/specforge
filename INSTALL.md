@@ -5,13 +5,16 @@ are plain markdown — any agent that can load skills from a directory can run
 them. Installation is just making `skills/` (and `AGENT.md`) visible to your
 agent.
 
-The suite has two tiers:
+The suite has three tiers:
 
 - **Pipeline + audit** (`sf-init`, `sf-propose`, `sf-build`, `sf-check`,
-  `sf-audit`) — the SpecForge workflow.
-- **Support skills** (`sfx-triage`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
-  `sfx-aws-architect`, `sfx-data-engineer`, `sfx-grill-me`, `sfx-tdd`, `sfx-github`, `sfx-think`) —
-  standalone helpers that don't require `specforge/` to be initialized.
+  `sf-amend`, `sf-audit`) — the SpecForge SDD workflow.
+- **Product, from-zero** (`sfp-scout`) — the optional discovery front-end. Needs
+  the research MCPs (see `skills/sfp-scout/references/tooling.md`).
+- **Support skills** (`sfx-triage`, `sfx-documenter`, `sfx-explain`, `sfx-think`,
+  `sfx-grill-me`, `sfx-tdd`, `sfx-journal`, `sfx-aws-architect`,
+  `sfx-data-engineer`, `sfx-github`) — standalone helpers that don't require
+  `specforge/` to be initialized.
 
 You can install all of them or only the pipeline.
 

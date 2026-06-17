@@ -25,7 +25,6 @@ portable default is always inline.
 | [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
 | [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `specforge/context/explanations/{slug}.md` (optional) |
-| [sfx-product-owner](#sfx-product-owner) | inline | Define product briefs with MoSCoW priorities | `specforge/context/briefs/{slug}.md` |
 | [sfx-aws-architect](#sfx-aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `specforge/context/architectures/{slug}.md` |
 | [sfx-data-engineer](#sfx-data-engineer) | delegate | Design data pipelines with quality gates | `specforge/context/data-designs/{slug}.md` |
 | [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `specforge/context/grills/{slug}.md` (optional) |
@@ -164,32 +163,6 @@ Explain any concept using the Feynman method. Simple language, analogies from ev
 **Output:** Conversational. Optionally saved to `specforge/context/explanations/{slug}.md` if user requests.
 
 **References:** `references/feynman-method.md` (detailed teaching methodology with examples and anti-patterns)
-
----
-
-## sfx-product-owner
-
-Define product requirements. Translate vague ideas into testable user stories with MoSCoW priorities.
-
-**Triggers:** `/sfx-product-owner`, `/brief`, "user story", "requirements", "what should we build", "define MVP"
-
-**Flags:** `--from <path>` to import an existing PRD or document as primary input
-
-**Flow:**
-1. Understand the problem (who, what, why, how to measure)
-2. Scope with MoSCoW (Must 3-5 items, Should, Could, Won't)
-3. Write user stories with GIVEN/WHEN/THEN acceptance criteria
-4. Generate brief
-
-**Key rules:**
-- Start with the problem, not the solution
-- Metrics must be measurable numbers
-- Always include "Won't" items — explicit exclusion prevents scope creep
-- With --from: extract what exists, ask only what's missing
-
-**Output:** `specforge/context/briefs/{slug}.md` — problem, metric, persona, MoSCoW scope, user stories with acceptance criteria.
-
-**Template:** `templates/brief.tmpl.md`
 
 ---
 

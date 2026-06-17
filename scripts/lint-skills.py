@@ -34,7 +34,7 @@ PRODUCT_DOCS = [
     "INSTALL.md",
 ]
 
-NAME_RE = re.compile(r"^sfx?-[a-z][a-z0-9-]*$")
+NAME_RE = re.compile(r"^sf[xp]?-[a-z][a-z0-9-]*$")
 DESC_MAX = 1024
 
 # `sf-*` / `sfx-*` tokens that are NOT skills (commands, planned/future skills).
@@ -54,7 +54,7 @@ NON_SKILL_TOKENS = {
     "sf-init",        # also a skill, listed for safety
 }
 
-TOKEN_RE = re.compile(r"\bsfx?-[a-z][a-z0-9-]*\b")
+TOKEN_RE = re.compile(r"\bsf[xp]?-[a-z][a-z0-9-]*\b")
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 

@@ -18,7 +18,7 @@ with a gate or back-and-forth must run inline.
 
 - The SpecForge pipeline skills (`sf-propose`, `sf-build`, `sf-check`, `sf-amend`,
   plus `sf-init`'s gated conversations) and any iterative support skill
-  (`sfx-grill-me`, `sfx-product-owner`, `sfx-tdd`) → **inline**. The conversation is the
+  (`sfx-grill-me`, `sfx-tdd`) → **inline**. The conversation is the
   workspace.
 - Pure-transform support skills (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`,
   `sfx-data-engineer`, `sfx-triage`, `sfx-github`) → may be **delegated** to a sub-agent
@@ -206,7 +206,23 @@ it reads the file. Don't carry artifact content in conversation — carry refere
 
 ## Skills
 
-### SpecForge Pipeline
+Three tiers: `sf-` (the SDD workflow), `sfp-` (product, the from-zero front-end),
+`sfx-` (support extras). Greenfield can start at `sfp-scout`; brownfield starts at
+`sf-init`.
+
+### Product (from-zero, optional) — `sfp-`
+```
+sfp-scout     → De-risk a fuzzy idea (research + grilling) → discovery brief with
+                proceed/pivot/kill + traceable PR# ids → hands off to sf-init --from
+```
+
+`sfp-scout` is greenfield-only and tooling-gated (needs the research MCPs; it
+won't fabricate research without them). It composes `sfx-think` + `sfx-grill-me`
+and produces a visible brief in `specforge/product/<slug>/`. Its product
+requirements (`PR#`) extend the traceability spine upward:
+`PR# → roadmap feature → feature requirement → task → code → test`.
+
+### SpecForge Pipeline — `sf-`
 ```
 sf-init       → Scaffold project + constitution (greenfield) or onboard (brownfield)
 sf-propose    → Requirements + design + tasks for a feature (--design-first, --from-code)
@@ -235,7 +251,6 @@ sfx-journal       → Capture evidence-anchored learnings → consolidate → pr
 
 ### Creation & Documentation
 ```
-sfx-product-owner → Define product briefs with MoSCoW priorities
 sfx-documenter    → Generate exhaustive docs from code with examples
 sfx-tdd           → Implement with Red-Green-Refactor discipline
 ```

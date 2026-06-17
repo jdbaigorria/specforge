@@ -86,6 +86,12 @@ If `--from <path>` was provided, read the file first and use it as primary input
 for the constitution conversation. Pre-fill what you can extract from it, then ask
 about what's missing (principles, anti-goals, constraints not covered in the document).
 
+**From a discovery brief (greenfield, F27).** When `--from` points at an
+`sfp-scout` discovery brief, it carries **product requirements with stable ids**
+(`PR1`, `PR2`, …). Preserve those ids: record the `PR#` set so `sf-propose --all`
+can derive the roadmap from them with traceable links (`serves: [PR#]`). This is
+the top of the traceability spine — don't paraphrase the `PR#` away.
+
 ### Brownfield
 
 1. **Onboard:** Read `references/onboard.md` for detailed instructions.
