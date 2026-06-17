@@ -103,6 +103,14 @@ second feature cannot start until the active one is archived or parked; queued
 features stay `queued` in `features.json`. (Parallel features are a planned
 future capability, not this version.)
 
+**Enforcement (F29, optional).** When the enforcement hooks are installed (see
+`hooks/`), gates become **hard**: a `PreToolUse` hook denies writing `design.md`
+without the `requirements` gate, `tasks.md` without `design`, and any direct
+write to `specforge/.state/`, reading the `features.json` gate ledger. This is a
+safety rail on top of the cooperative protocol, not a replacement for it — follow
+the gates as written; the hook only catches slips. It fails open and is a no-op
+outside a SpecForge project.
+
 ### sf-propose Gates
 
 Three mandatory gates, in order:

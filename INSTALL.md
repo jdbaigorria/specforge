@@ -106,6 +106,12 @@ recheck step 2.
 
 - **Portability:** the core is markdown + cooperative gates, so it runs on any
   markdown-capable agent. Optional enforcement (hooks) and delegation are
-  per-harness layers added later — they don't change the install above.
+  per-harness layers — they don't change the install above.
+- **Hard gates (optional, F29):** installing via the Claude Code plugin also
+  activates the enforcement hooks in `hooks/` — `PreToolUse` denies skipping a
+  gate or editing `specforge/.state/`, and `SessionStart` restores session +
+  compact-rules context (including after compaction). It needs `python3` on PATH,
+  fails open on error, and is a no-op outside a SpecForge project. Other harnesses
+  drive the same engine through the portable contract in `hooks/README.md`.
 - **Updating:** if you symlinked, `git pull` in `/path/to/specforge` updates the
   skills in place. If you copied, re-copy after pulling.
