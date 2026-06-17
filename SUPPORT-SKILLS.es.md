@@ -21,6 +21,7 @@ default portable es siempre inline.
 | Skill | Modo | Propósito | Artefacto |
 |-------|------|-----------|-----------|
 | [sfx-think](#sfx-think) | inline | Debatir una idea, explorar opciones, llegar a una conclusión documentada | `specforge/context/thinks/{slug}.md` |
+| [sfx-journal](#sfx-journal) | inline | Capturar aprendizajes anclados a evidencia, consolidar, proponer backprop | `specforge/context/journal/{date}.md` + `specforge/learnings.md` |
 | [sfx-triage](#sfx-triage) | delegado | Investigar bugs, encontrar root cause, plan de fix | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegado | Generar docs exhaustivos del código con ejemplos | `docs/` o inline |
 | [sfx-explain](#sfx-explain) | delegado | Enseñar conceptos con método Feynman | `specforge/context/explanations/{slug}.md` (opcional) |
@@ -55,6 +56,34 @@ hace stress-test de un plan existente).
 - "Todavía no sabemos lo suficiente" es una conclusión válida — documentar qué falta para decidir
 
 **Output:** `specforge/context/thinks/{slug}.md` — tema, opciones con pros/contras, la conclusión con rationale, alternativas rechazadas, próximos pasos. Por default se guarda (a diferencia de explain/grill-me).
+
+---
+
+## sfx-journal
+
+Convertir lo que realmente pasó en una sesión en conocimiento durable y curado —
+sin que crezca en ruido. Tres niveles: journal (crudo, por sesión) → consolidar
+(deduplicado, chico) → promover (gateado, a la constitución).
+
+**Triggers:** `/sfx-journal`, `/sfx-journal consolidate`, "journaleá esto", "capturá lo que aprendimos", "qué salió mal", "registrá esta lección", "consolidá aprendizajes"
+
+**Flujo:**
+1. Capturar — solo observaciones ancladas a evidencia (gate rechazado, error→fix, corrección del usuario, error repetido). Sin evidencia → sin entrada.
+2. Juzgar — cada candidato debe estar anclado, ser generalizable y accionable; delegar el juez a un sub-agente fresco donde se soporte. Descartar el resto.
+3. Escribir la entrada cruda en `specforge/context/journal/{date}.md` con `[[wikilinks]]`.
+4. Consolidar en `specforge/learnings.md` (chico, curado, inyectado cada sesión): primera vez = nota, recurrente (~3×) = candidato a promoción, dedup siempre.
+5. Promover — patrones recurrentes propuestos como invariantes de la constitución en un gate 🔴 (backprop, nunca automático).
+
+**Reglas clave:**
+- Evidencia o no pasó — anclar cada nota a un evento real.
+- "Qué salió mal + cómo se resolvió" vale más que una lista simétrica bien/mal.
+- `learnings.md` es curado y chico (se inyecta cada sesión); el firehose queda en `journal/`.
+- Aprendizajes de proyecto vs hábitos meta-agente son capas distintas — no mezclar.
+- Markdown es el source of truth; ICM es un motor opcional de recall/consolidación, nunca una segunda verdad.
+
+**Output:** `specforge/context/journal/{date}.md` (crudo, vault compatible con Obsidian vía wikilinks) + `specforge/learnings.md` (consolidado). Las promociones van a `constitution.md` tras el gate.
+
+**Referencias:** `references/consolidation.md` (rúbrica del juez, reglas de consolidación, capas, vault).
 
 ---
 

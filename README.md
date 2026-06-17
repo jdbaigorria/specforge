@@ -92,6 +92,7 @@ my-project/
 │   ├── constitution.md              # Project principles + identity
 │   ├── history.md                   # Append-only project log
 │   ├── roadmap.md                   # Feature roadmap
+│   ├── learnings.md                 # Consolidated, evidence-anchored learnings (injected each session)
 │   ├── features/
 │   │   └── add-task-manager/
 │   │       ├── requirements.md
@@ -110,7 +111,7 @@ my-project/
 │   │   ├── project.md               # Stack, architecture (brownfield inferred)
 │   │   ├── conventions.md           # Code conventions
 │   │   ├── compact-rules.md         # Condensed rules for sub-agents
-│   │   └── thinks/ triages/ briefs/ grills/ …   # support-skill artefacts
+│   │   └── thinks/ triages/ briefs/ grills/ journal/ …  # support-skill artefacts
 │   └── .state/                      # Hidden machine state (not human-edited)
 │       └── session.md               # Session cache / recovery (not source of truth)
 │
@@ -343,7 +344,7 @@ Standalone skills that complement the pipeline but are not part of it. They work
 without `specforge/` initialized and produce artefacts in `specforge/context/`. See
 [SUPPORT-SKILLS.md](SUPPORT-SKILLS.md) for the full reference: `sfx-think`,
 `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
-`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`.
+`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`, `sfx-journal`.
 
 ---
 

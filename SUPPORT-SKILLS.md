@@ -21,6 +21,7 @@ portable default is always inline.
 | Skill | Mode | Purpose | Artifact |
 |-------|------|---------|----------|
 | [sfx-think](#sfx-think) | inline | Debate an idea, explore options, reach a documented conclusion | `specforge/context/thinks/{slug}.md` |
+| [sfx-journal](#sfx-journal) | inline | Capture evidence-anchored learnings, consolidate, propose backprop | `specforge/context/journal/{date}.md` + `specforge/learnings.md` |
 | [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
 | [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `specforge/context/explanations/{slug}.md` (optional) |
@@ -55,6 +56,34 @@ an existing plan).
 - "We don't know enough yet" is a valid conclusion — document what's needed to decide
 
 **Output:** `specforge/context/thinks/{slug}.md` — topic, options with pros/cons, the conclusion with rationale, alternatives rejected, next steps. Default is to save (unlike explain/grill-me).
+
+---
+
+## sfx-journal
+
+Turn what actually happened in a session into durable, curated knowledge —
+without growing into noise. Three levels: journal (raw, per session) →
+consolidate (deduped, small) → promote (gated, into the constitution).
+
+**Triggers:** `/sfx-journal`, `/sfx-journal consolidate`, "journal this", "capture what we learned", "what went wrong", "log this lesson", "consolidate learnings"
+
+**Flow:**
+1. Capture — evidence-anchored observations only (rejected gate, error→fix, user correction, repeated mistake). No evidence → no entry.
+2. Judge — each candidate must be anchored, generalizable, and actionable; delegate the judge to a fresh sub-agent where supported. Drop the rest.
+3. Write the raw entry to `specforge/context/journal/{date}.md` with `[[wikilinks]]`.
+4. Consolidate into `specforge/learnings.md` (small, curated, injected each session): first occurrence = note, recurring (~3×) = promotion candidate, dedup always.
+5. Promote — recurring patterns proposed as constitution invariants at a 🔴 gate (backprop, never automatic).
+
+**Key rules:**
+- Evidence or it didn't happen — anchor every note to a real event.
+- "What went wrong + how it resolved" beats a symmetric good/bad list.
+- `learnings.md` is curated and small (it's injected every session); the firehose stays in `journal/`.
+- Project learnings vs meta-agent habits are different layers — don't mix them.
+- Markdown is the source of truth; ICM is an optional recall/consolidation engine, never a second truth.
+
+**Output:** `specforge/context/journal/{date}.md` (raw, Obsidian-compatible vault with wikilinks) + `specforge/learnings.md` (consolidated). Promotions land in `constitution.md` after the gate.
+
+**References:** `references/consolidation.md` (judge rubric, consolidation rules, layers, vault).
 
 ---
 

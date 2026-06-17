@@ -110,6 +110,9 @@ def session_context(project_dir: str) -> str:
     rules = sf / "context" / "compact-rules.md"
     if rules.exists():
         chunks.append("## SpecForge compact-rules — project invariants\n\n" + rules.read_text(encoding="utf-8"))
+    learnings = sf / "learnings.md"
+    if learnings.exists():
+        chunks.append("## SpecForge learnings — consolidated, evidence-anchored\n\n" + learnings.read_text(encoding="utf-8"))
     return "\n\n".join(chunks)
 
 

@@ -13,7 +13,7 @@ All decisions are made by `specforge_enforce.py`, which is **harness-agnostic**.
 |-------|-----------|
 | `PreToolUse` (Write/Edit) | **Hard-deny** writing `design.md` without the `requirements` gate approved, or `tasks.md` without the `design` gate — read from the `features.json` gate ledger (F10). Gates cannot be skipped. |
 | `PreToolUse` (Write/Edit) | **Hard-deny** direct writes to `specforge/.state/` (machine state). Protects the source-of-truth boundary (F2/F25). |
-| `SessionStart` | Inject `specforge/.state/session.md` + `specforge/context/compact-rules.md` as context — on startup, resume, **and after compaction**. Restores project state without the agent having to remember (F21/F7). |
+| `SessionStart` | Inject `specforge/.state/session.md` + `specforge/context/compact-rules.md` + `specforge/learnings.md` as context — on startup, resume, **and after compaction**. Restores project state and consolidated learnings without the agent having to remember (F21/F7/F31). |
 | `SessionEnd` / `PreCompact` | Append a timestamped continuity marker to `session.md`. (The rich summary stays the agent's job — a command hook has no conversation access.) |
 
 Two safety properties, by design:

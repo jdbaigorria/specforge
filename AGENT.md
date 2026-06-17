@@ -197,6 +197,7 @@ sfx-think         → Debate ideas, explore options, reach documented conclusion
 sfx-triage        → Investigate bugs: root cause + fix plan + test case
 sfx-grill-me      → Stress-test a plan through relentless interviewing
 sfx-explain       → Teach concepts with Feynman method
+sfx-journal       → Capture evidence-anchored learnings → consolidate → propose backprop
 ```
 
 ### Creation & Documentation
@@ -237,6 +238,7 @@ specforge/                  → single visible SpecForge root
   ├── constitution.md       → project invariants
   ├── history.md            → append-only project log
   ├── roadmap.md            → feature roadmap
+  ├── learnings.md          → consolidated evidence-anchored learnings (injected each session)
   ├── features/ archive/ audits/   → pipeline artefacts (gate-reviewed, visible)
   ├── context/              → project context + skill outputs
   │                           (project.md, conventions.md, compact-rules.md,

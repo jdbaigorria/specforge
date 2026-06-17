@@ -93,6 +93,7 @@ mi-proyecto/
 │   ├── constitution.md              # Principios del proyecto + identidad
 │   ├── history.md                   # Log del proyecto (append-only)
 │   ├── roadmap.md                   # Roadmap de features
+│   ├── learnings.md                 # Aprendizajes consolidados y anclados a evidencia (inyectados cada sesión)
 │   ├── features/
 │   │   └── agregar-tareas/
 │   │       ├── requirements.md
@@ -111,7 +112,7 @@ mi-proyecto/
 │   │   ├── project.md               # Stack, arquitectura
 │   │   ├── conventions.md           # Convenciones de código
 │   │   ├── compact-rules.md         # Reglas condensadas para sub-agentes
-│   │   └── thinks/ triages/ briefs/ grills/ …   # artefactos de skills de soporte
+│   │   └── thinks/ triages/ briefs/ grills/ journal/ …  # artefactos de skills de soporte
 │   └── .state/                      # Estado de máquina oculto (no se edita a mano)
 │       └── session.md               # Caché/recovery de sesión (no source of truth)
 │
@@ -345,7 +346,7 @@ Skills standalone que complementan el pipeline pero no son parte de él. Funcion
 sin `specforge/` inicializado y producen artefactos en `specforge/context/`. Ver
 [SUPPORT-SKILLS.es.md](SUPPORT-SKILLS.es.md) para la referencia completa:
 `sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`, `sfx-product-owner`,
-`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`.
+`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`, `sfx-journal`.
 
 ---
 
