@@ -8,11 +8,11 @@
       "command": "uvx",
       "args": ["mcp-server-fetch"]
     },
-    "exa": {
+    "tavily": {
       "command": "npx",
-      "args": ["-y", "exa-mcp-server"],
+      "args": ["-y", "tavily-mcp"],
       "env": {
-        "EXA_API_KEY": "${EXA_API_KEY}"
+        "TAVILY_API_KEY": "${TAVILY_API_KEY}"
       }
     },
     "github": {

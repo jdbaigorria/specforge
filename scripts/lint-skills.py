@@ -45,6 +45,8 @@ NON_SKILL_TOKENS = {
     "sf-amend",       # planned (F33)
     "sf-discover",    # planned (F27)
     "sf-prd",         # planned (F27)
+    "sfp-po",         # possible future: optional formal PRD skill
+    "sfp-prd",        # possible future: optional formal PRD skill
     "sf-lint",        # planned CLI command
     "sf-gate",        # planned CLI command
     "sf-traceability",

@@ -44,8 +44,10 @@ over-interview here — the grilling comes after there's evidence to grill again
 ## Step 2: Research (provenance per claim)
 
 Use the MCPs to map the landscape: similar products, comparable GitHub repos,
-what they solve, what they miss, demand/saturation signals. Write
-`specforge/product/<slug>/research.md`.
+what they solve, what they miss, demand/saturation signals. Hunt for **demand
+evidence** (real complaints on Reddit/HN, weaknesses in incumbent reviews, news
+trends) per `references/method.md` — that is the closest thing to proof of demand,
+and it must be `retrieved`, not imagined. Write `specforge/product/<slug>/research.md`.
 
 **Every claim carries provenance** (`references/provenance.md`):
 
@@ -57,10 +59,11 @@ A research doc that blurs these lies with confidence. Keep them separate.
 ## Step 3: De-risk (compose think + grill-me)
 
 This is where `sfx-think` and `sfx-grill-me` are composed (not replaced — they
-stay standalone):
+stay standalone), using the method in `references/method.md` (JTBD, gap analysis,
+positioning, blind spots):
 
-- **think** the solution space: differentiator, alternatives the user didn't
-  consider, MVP boundary.
+- **think** the solution space: frame the **JTBD**, the differentiator, the gap
+  the incumbents structurally skip, the MVP boundary.
 - **grill-me** the assumptions: who exactly, why now, what kills this, what has
   to be true. Ground every challenge in the Step 2 evidence.
 
@@ -109,3 +112,11 @@ carrying the traceability into the spec pipeline.
 - Provenance on every claim. `model-prior` is allowed but always labelled.
 - `kill` is a success. The point is to avoid building the wrong thing.
 - Greenfield only. The brief is lightweight and feeds `sf-init --from`.
+
+<!-- Possible future upgrade (not in scope): an OPTIONAL sfp-po skill that turns
+     the brief into a formal 13-section PRD (personas, journeys, success metrics…)
+     for large/stakeholder products. Deliberately kept out of scout to preserve
+     "no ceremony without purpose": the lightweight brief + PR# ids are the SDD
+     input. The heavy PRD would be opt-in, never the default, and must not become
+     a third translation layer between brief and sf-propose. -->
+
