@@ -700,6 +700,17 @@ framework: `sf-audit` agrega revisión transversal, y los
 [skills de soporte](SUPPORT-SKILLS.es.md) cubren pensamiento, triage, TDD, docs
 y diseño de infra alrededor.
 
+**¿No es overkill el pipeline completo para un typo o un ajuste de config?**
+Para eso hay dos carriles (F34). `sf-propose` arranca clasificando el cambio y
+proponiendo un carril **lite** para ediciones triviales y de bajo riesgo — un
+`change.md` combinado, un gate, build, un check mínimo — versus el carril
+**standard** completo. No elegís el carril para saltarte trabajo; el framework lo
+propone y vos lo aprobás en un gate, y queda registrado en `features.json`. Lite
+igual escribe un test y un `trace.json`, así que sigue dentro de drift detection
+— menos ceremonia, no menos integridad. Si un cambio lite resulta más grande de
+lo que parecía, se promueve a standard en pleno vuelo (el escape hatch solo va
+hacia arriba).
+
 **¿Qué pasa con un spec después de archivar la feature? ¿No envejece?**
 Ese es el modo de falla clásico de SDD, y SpecForge trata el spec archivado como
 **documento vivo**, no como snapshot congelado (el snapshot histórico ya lo da el

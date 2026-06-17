@@ -695,6 +695,16 @@ pipeline is deliberately small — but it is not the whole framework: `sf-audit`
 adds project-wide review, and the [support skills](SUPPORT-SKILLS.md) cover
 thinking, triage, TDD, docs, and infra design around it.
 
+**Isn't the full pipeline overkill for a typo or a config tweak?**
+That's why there are two lanes (F34). `sf-propose` opens by classifying the
+change and proposing a **lite** lane for trivial, low-risk edits — one combined
+`change.md`, one gate, build, a minimal check — versus the **standard** full
+flow. You don't pick the lane to skip work; the framework proposes it and you
+approve it at a gate, and it's recorded in `features.json`. Lite still writes a
+test and a `trace.json`, so it stays inside drift detection — lighter ceremony,
+not lower integrity. If a lite change turns out bigger than it looked, it's
+promoted to standard mid-flight (the escape hatch only goes up).
+
 **What happens to a spec after the feature is archived? Doesn't it go stale?**
 That's the classic SDD failure, and SpecForge treats the archived spec as a
 **living document**, not a frozen snapshot (the historical snapshot is just the

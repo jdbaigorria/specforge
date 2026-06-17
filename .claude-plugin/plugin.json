@@ -1,6 +1,6 @@
 {
   "name": "specforge",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Spec-Driven Development framework: a 4-skill feature pipeline (sf-init → sf-propose → sf-build → sf-check) plus sf-audit and sfx-* support skills, with a human gate on every artefact and requirement-to-test traceability.",
   "author": {
     "name": "Javier Baigorria"

@@ -37,6 +37,12 @@ Normal flow: validate the named feature.
 If status is not `checking`:
 "Feature `<name>` is in status `<status>`. Complete `sf-build <name>` first."
 
+**Lite lane.** If `features.json` has `"lane": "lite"`, read `change.md` instead
+of requirements/design/tasks. The check is **minimal but still real**: build the
+trivial matrix (one requirement → one change → one test) and **still emit
+`trace.json`** so the change stays inside drift detection (F33). Lite means
+lighter ceremony, not lower integrity.
+
 ## Step 1: Traceability Analysis
 
 This step is non-negotiable. Every check MUST produce the full matrix.

@@ -5,9 +5,11 @@
       "name": "slugify",
       "status": "done",
       "workflow": "requirements-first",
+      "lane": "standard",
       "created": "2026-06-16",
       "completed": "2026-06-16",
       "gates": [
+        { "phase": "lane",         "result": "approve", "by": "user", "at": "2026-06-16T14:00:00Z", "comment": "standard" },
         { "phase": "requirements", "result": "approve", "by": "user", "at": "2026-06-16T14:02:00Z", "comment": null },
         { "phase": "design",       "result": "approve", "by": "user", "at": "2026-06-16T14:09:00Z", "comment": null },
         { "phase": "tasks",        "result": "approve", "by": "user", "at": "2026-06-16T14:15:00Z", "comment": null },

@@ -114,6 +114,15 @@ second feature cannot start until the active one is archived or parked; queued
 features stay `queued` in `features.json`. (Parallel features are a planned
 future capability, not this version.)
 
+**Ceremony lanes (F34).** Not every change deserves the full pipeline, but the
+agent never self-grants a shortcut. `sf-propose` opens with a **lane gate**: it
+classifies size/risk and proposes **lite** (one combined `change.md`, one spec
+gate, build, minimal check) or **standard** (the full flow). The human approves
+the lane; it's recorded in `features.json` (`"lane"`). Lite still emits
+`trace.json` and a test — lighter ceremony, not lower integrity. The escape hatch
+runs **only upward**: a lite change that grows is promoted to standard and stops
+at a gate; nothing degrades from standard to lite on its own.
+
 **Enforcement (F29, optional).** When the enforcement hooks are installed (see
 `hooks/`), gates become **hard**: a `PreToolUse` hook denies writing `design.md`
 without the `requirements` gate, `tasks.md` without `design`, and any direct
@@ -157,8 +166,11 @@ Execution rules:
 - **Errors halt execution.** Failed edit, failed test, failed command → STOP.
   Report with exact error. Wait for instructions. Never work around a failure.
 - **Test pass ≠ done.** Test count is never evidence of completion.
-- **No self-granted shortcuts.** Feature 22 gets the same ceremony as feature 1.
-  Small features are the most dangerous — false confidence leads to skipped verification.
+- **No self-granted shortcuts.** The ceremony *level* is chosen at the lane gate
+  (human-approved, F34) — never self-granted by momentum. Within a lane, no
+  skipping: a lite change still gets its gate, test, and trace; a standard
+  feature gets the full pipeline. Small features are the most dangerous — false
+  confidence leads to skipped verification.
 - **No momentum drift.** The process does not degrade with session length.
   If you notice yourself wanting to optimize the process, that is the signal
   to follow it more carefully, not less.
