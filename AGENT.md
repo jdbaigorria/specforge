@@ -16,7 +16,7 @@ reinvent them.
 in an isolated context and cannot stop to ask the user for approval, so anything
 with a gate or back-and-forth must run inline.
 
-- The 5 SpecForge pipeline skills (`sf-propose`, `sf-build`, `sf-check`,
+- The SpecForge pipeline skills (`sf-propose`, `sf-build`, `sf-check`, `sf-amend`,
   plus `sf-init`'s gated conversations) and any iterative support skill
   (`sfx-grill-me`, `sfx-product-owner`, `sfx-tdd`) → **inline**. The conversation is the
   workspace.
@@ -184,9 +184,15 @@ it reads the file. Don't carry artifact content in conversation — carry refere
 sf-init       → Scaffold project + constitution (greenfield) or onboard (brownfield)
 sf-propose    → Requirements + design + tasks for a feature (--design-first, --from-code)
 sf-build      → Plan + execute waves with gate after each
-sf-check      → Validate against specs + archive on approve
+sf-check      → Validate against specs + archive on approve (emits trace.json)
+sf-amend      → Modify a shipped/archived feature via a delta mini-pipeline (edits trace in place)
 sf-audit      → Project-wide adversarial audit: constitution vs reality, cross-feature consistency
 ```
+
+Archived specs are **living documents** (F33): `archive` seals a feature with a
+live link to code (`trace.json`), not a freeze. Use `sf-amend` to change a
+shipped feature; run `scripts/check-drift.py` (later `sf doctor --drift`) to catch
+the spec and code diverging.
 
 Support skills carry the `sfx-` prefix (eXtras). Typing `sf` lists the whole
 suite; `sfx` filters to support.

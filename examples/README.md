@@ -27,5 +27,17 @@ What to look at:
 The feature is in `archive/` because it completed. A feature still in flight
 would live under `specforge/features/<name>/` with the same file set.
 
-> This is illustrative content, not a runnable package — the point is the shape
-> of the artefacts and the traceability chain.
+It also ships the **real code** the spec describes (`src/texttools/slug.py` +
+`tests/test_slug.py`), so the traceability chain is complete and verifiable:
+
+```sh
+# drift check — every requirement's code anchor still exists (F33)
+python3 ../../scripts/check-drift.py .
+
+# run the spec's acceptance tests
+PYTHONPATH=src python3 -m doctest src/texttools/slug.py -v
+```
+
+`archive/2026-06-16-slugify/trace.json` is the structured matrix that links each
+requirement (R1–R4) to its `path:symbol` and test — the live link drift detection
+reads.

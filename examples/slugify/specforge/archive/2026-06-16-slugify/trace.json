@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "feature": "slugify",
+  "requirements": {
+    "R1": { "code": ["src/texttools/slug.py:slugify"], "test": ["tests/test_slug.py::test_basic"], "status": "ok" },
+    "R2": { "code": ["src/texttools/slug.py:slugify"], "test": ["tests/test_slug.py::test_accents"], "status": "ok" },
+    "R3": { "code": ["src/texttools/slug.py:slugify"], "test": ["tests/test_slug.py::test_punctuation_collapse"], "status": "ok" },
+    "R4": { "code": ["src/texttools/slug.py:slugify"], "test": ["tests/test_slug.py::test_empty"], "status": "ok" }
+  }
+}

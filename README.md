@@ -338,6 +338,26 @@ consistency, drift, and accumulated gaps.
 
 ---
 
+### sf-amend
+
+Modify a feature that already shipped, without forking a parallel spec. Archived
+specs are **living documents** — `sf-amend` runs a delta mini-pipeline
+(propose-delta → gate → build → check) that edits the existing requirements,
+design, tasks, and `trace.json` in place.
+
+| | |
+|---|---|
+| **Triggers** | `sf-amend <feature>`, "change the shipped feature", "the archived spec is out of date" |
+| **vs sf-propose** | amend changes an existing capability; propose creates a new one |
+| **Edits in place** | one evolving traceability matrix per feature — never a second parallel spec |
+
+Pair it with drift detection: `scripts/check-drift.py` (later `sf doctor --drift`)
+reads each archived feature's `trace.json` and flags requirements whose code
+anchor vanished or whose test fails — so you find out the spec drifted before it
+becomes a lie.
+
+---
+
 ### Support skills
 
 Standalone skills that complement the pipeline but are not part of it. They work
@@ -674,6 +694,16 @@ skills. They load on demand. Less context overhead, less cognitive load. The
 pipeline is deliberately small — but it is not the whole framework: `sf-audit`
 adds project-wide review, and the [support skills](SUPPORT-SKILLS.md) cover
 thinking, triage, TDD, docs, and infra design around it.
+
+**What happens to a spec after the feature is archived? Doesn't it go stale?**
+That's the classic SDD failure, and SpecForge treats the archived spec as a
+**living document**, not a frozen snapshot (the historical snapshot is just the
+git commit). `archive` seals the feature with a live link to code — `trace.json`,
+the structured matrix mapping each requirement to its `path:symbol` and test. To
+change a shipped feature you run `sf-amend`, which edits that spec and matrix in
+place instead of forking a parallel one. And `scripts/check-drift.py` reads
+`trace.json` to tell you when code moved out from under a requirement — cheaply,
+because it only checks the exact anchors, not the whole repo.
 
 **Can I use SpecForge with any AI agent?**
 Yes. Skills are markdown files. Any agent that reads markdown can execute them.

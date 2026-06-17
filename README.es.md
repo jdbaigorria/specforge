@@ -340,6 +340,26 @@ consistencia entre features, drift y gaps acumulados.
 
 ---
 
+### sf-amend
+
+Modificar una feature ya enviada sin forkear un spec paralelo. Los specs
+archivados son **documentos vivos** — `sf-amend` corre un mini-pipeline delta
+(propose-delta → gate → build → check) que edita los requirements, design, tasks
+y `trace.json` existentes en su lugar.
+
+| | |
+|---|---|
+| **Triggers** | `sf-amend <feature>`, "cambiar la feature enviada", "el spec archivado quedó viejo" |
+| **vs sf-propose** | amend cambia una capacidad existente; propose crea una nueva |
+| **Edita en su lugar** | una sola matriz de trazabilidad que evoluciona por feature — nunca un spec paralelo |
+
+Combinalo con detección de drift: `scripts/check-drift.py` (luego `sf doctor
+--drift`) lee el `trace.json` de cada feature archivada y marca los requirements
+cuyo anclaje de código desapareció o cuyo test falla — así te enterás de que el
+spec divergió antes de que se vuelva mentira.
+
+---
+
 ### Skills de soporte
 
 Skills standalone que complementan el pipeline pero no son parte de él. Funcionan
@@ -679,6 +699,16 @@ menos carga cognitiva. El pipeline es deliberadamente chico — pero no es todo 
 framework: `sf-audit` agrega revisión transversal, y los
 [skills de soporte](SUPPORT-SKILLS.es.md) cubren pensamiento, triage, TDD, docs
 y diseño de infra alrededor.
+
+**¿Qué pasa con un spec después de archivar la feature? ¿No envejece?**
+Ese es el modo de falla clásico de SDD, y SpecForge trata el spec archivado como
+**documento vivo**, no como snapshot congelado (el snapshot histórico ya lo da el
+commit de git). `archive` sella la feature con un vínculo vivo al código —
+`trace.json`, la matriz estructurada que mapea cada requirement a su `path:símbolo`
+y test. Para cambiar una feature enviada corrés `sf-amend`, que edita ese spec y
+esa matriz en su lugar en vez de forkear uno paralelo. Y `scripts/check-drift.py`
+lee el `trace.json` para avisarte cuando el código se movió de abajo de un
+requirement — barato, porque solo chequea los anclajes exactos, no el repo entero.
 
 **¿Puedo usar SpecForge con cualquier agente de IA?**
 Sí. Los skills son archivos markdown. Cualquier agente que lea markdown puede

@@ -5,16 +5,25 @@
 ### 1. Copy to Archive
 ```
 specforge/archive/<YYYY-MM-DD>-<feature-name>/
-├── requirements.md     # Final approved version
+├── requirements.md     # Living contract (NOT frozen — see below)
 ├── design.md           # Final approved version
 ├── tasks.md            # All tasks marked [x]
-├── review.md           # Verdict document
+├── review.md           # Verdict document (historical)
+├── trace.json          # Structured matrix — the live link to code (F33)
 └── progress/           # All wave logs
     ├── plan.md
     ├── wave-0.md
     ├── wave-1.md
     └── ...
 ```
+
+**Archive seals with a live link, it does not freeze (F33).** Git already holds
+the historical snapshot (this archive commit). So the archived spec stays a
+*living document*: `review.md` is the historical verdict, but `requirements.md`
+remains the current contract and `trace.json` is its live link to the code. To
+change a shipped feature, use `sf-amend <name>` — never hand-edit the archive
+into a parallel truth. Drift detection (`scripts/check-drift.py`) reads
+`trace.json` to catch the spec and code diverging over time.
 
 ### 2. Update Feature Registry
 

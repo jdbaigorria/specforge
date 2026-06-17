@@ -64,6 +64,32 @@ Build the matrix:
 
 **If any requirement has status ❌ MISSING, the verdict CANNOT be APPROVE.**
 
+### Emit the structured matrix (`trace.json`)
+
+The markdown matrix above is the human-readable contract. Also write the same
+anchors in machine-readable form so drift can be checked later without
+re-analyzing the repo (F33). Write `specforge/features/<name>/trace.json`:
+
+```json
+{
+  "schema_version": "1.0",
+  "feature": "<name>",
+  "requirements": {
+    "R1": { "code": ["src/foo.py:funcname"], "test": ["tests/test_foo.py::test_case"], "status": "ok" },
+    "R2": { "code": ["src/bar.py:Klass.method"], "test": [], "status": "no-test" }
+  }
+}
+```
+
+- `code` entries are `path:symbol` — the exact anchor, **not a line number**
+  (lines drift, symbols are stable).
+- `test` entries are runnable test ids.
+- `status`: `ok` | `no-test` | `missing`.
+
+This file travels with the feature into the archive and is what drift detection
+(`scripts/check-drift.py`) reads. Keep it consistent with the markdown matrix —
+they describe the same thing.
+
 ## Step 2: Gap Analysis
 
 Check for:
