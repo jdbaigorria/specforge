@@ -1,5 +1,6 @@
 {
   "name": "specforge",
+  "description": "SpecForge — a Spec-Driven Development skill suite: gated feature pipeline, project audit, and support skills.",
   "owner": {
     "name": "Javier Baigorria"
   },
