@@ -715,6 +715,16 @@ place instead of forking a parallel one. And `scripts/check-drift.py` reads
 `trace.json` to tell you when code moved out from under a requirement — cheaply,
 because it only checks the exact anchors, not the whole repo.
 
+**Does this work for a team, or only solo? How does it relate to PR review?**
+It works for a team without building its own permission system — it leans on
+git/PR (F35/F36). The creation gates (propose/build) belong to the author on a
+`feature/<slug>` branch; the **verdict gate maps to the PR approval** — the
+artefacts travel in the PR, so the reviewer approves code and spec together (map,
+don't duplicate). Ownership is `owners` in the constitution + git `CODEOWNERS`.
+The git convention is one branch per feature, one commit per wave, `archive` =
+merge. And `sfx-github` can export the roadmap to issues **one-way** (the tracker
+indexes *what*, SpecForge owns the detail — no fragile bidirectional sync).
+
 **Can I use SpecForge with any AI agent?**
 Yes. Skills are markdown files. Any agent that reads markdown can execute them.
 The AGENT.md orchestrator targets Claude Code but the skills are agent-agnostic.

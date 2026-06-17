@@ -46,5 +46,13 @@ Project-wide rules discovered through backprop (added automatically by `sf-check
 <!-- This section starts empty. Rules are promoted here when a pattern
      appears in 3+ features. See sf-check/references/backprop.md -->
 
+## Owners
+
+<!-- Team mode (F35). Who may approve changes to invariants (the highest-stakes
+     edits). Omit this section for a single-player project. Everything else is
+     governed by git CODEOWNERS. -->
+
+- {{owner_or_team}}
+
 ---
 *Last updated: {{date}}*

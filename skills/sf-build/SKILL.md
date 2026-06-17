@@ -177,6 +177,12 @@ to the feature's `gates[]` ledger when the plan gate is approved, and a
 `{ "phase": "wave-N", ... }` entry for each wave gate. The ledger is the
 auditable record of what was actually approved.
 
+**Team mode (F36, optional).** If the project follows the git convention, each
+passing wave becomes one commit (`feat(<slug>): wave N — <tasks done>`) on the
+`feature/<slug>` branch — the git history is the build op-log. See
+`skills/sfx-github/references/specforge-integration.md`. Solo projects can ignore
+this.
+
 After all waves complete:
 
 1. **Self-audit**: Verify every task in `tasks.md` is marked `[x]`. If any task

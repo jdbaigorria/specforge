@@ -721,6 +721,17 @@ esa matriz en su lugar en vez de forkear uno paralelo. Y `scripts/check-drift.py
 lee el `trace.json` para avisarte cuando el código se movió de abajo de un
 requirement — barato, porque solo chequea los anclajes exactos, no el repo entero.
 
+**¿Funciona para un equipo, o solo individual? ¿Cómo se relaciona con el code review del PR?**
+Funciona en equipo sin construir un sistema de permisos propio — se apoya en
+git/PR (F35/F36). Los gates de creación (propose/build) son del autor en una
+branch `feature/<slug>`; el **gate de veredicto se mapea al approve del PR** —
+los artefactos viajan en el PR, así que el reviewer aprueba código y spec juntos
+(mapear, no duplicar). El ownership es `owners` en la constitución + `CODEOWNERS`
+de git. La convención git es una branch por feature, un commit por wave,
+`archive` = merge. Y `sfx-github` puede exportar el roadmap a issues **en una
+dirección** (el tracker indexa el *qué*, SpecForge tiene el detalle — sin sync
+bidireccional frágil).
+
 **¿Puedo usar SpecForge con cualquier agente de IA?**
 Sí. Los skills son archivos markdown. Cualquier agente que lea markdown puede
 ejecutarlos. El AGENT.md está pensado para Claude Code pero los skills son agnósticos.

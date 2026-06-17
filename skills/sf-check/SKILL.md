@@ -174,6 +174,12 @@ about it — not just "gaps found, go back to build."
 - User accepts REVISE → follow the recommended path
 - User overrides verdict → respect the override, log it
 
+**Team mode (F35).** When the feature is on a `feature/<slug>` branch with a PR,
+this verdict gate **maps to the PR approval** — the reviewer approves code and
+spec together. Don't run a separate verdict gate *and* a PR review; the PR
+approval satisfies it, and `archive` corresponds to the merge. See
+`skills/sfx-github/references/specforge-integration.md`.
+
 ## Step 6: Archive (on APPROVE)
 
 Read `references/archive.md` for detailed procedure.

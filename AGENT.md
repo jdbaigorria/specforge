@@ -123,6 +123,21 @@ the lane; it's recorded in `features.json` (`"lane"`). Lite still emits
 runs **only upward**: a lite change that grows is promoted to standard and stops
 at a gate; nothing degrades from standard to lite on its own.
 
+**Team mode (F35/F36, optional).** SpecForge is single-player by default, but it
+doesn't build its own permission system — it leans on git/PR. In a team:
+
+- **Creation gates** (propose/build) belong to the **author**, on a
+  `feature/<slug>` branch.
+- The **verdict gate** (`sf-check`) maps to **the PR approval** — the artefacts
+  travel in the PR, so the reviewer approves code and spec together. Map, don't
+  duplicate; don't run a separate verdict gate *and* a PR review.
+- **Ownership:** `owners` in `constitution.md` (who approves invariant changes)
+  + git `CODEOWNERS` for the rest.
+- **Git mapping:** `feature/<slug>` branch, one commit per wave, `archive` =
+  merge to main — the git history is the build op-log. **Roadmap → issues** is a
+  one-way export (`sfx-github`); never sync back. See
+  `skills/sfx-github/references/specforge-integration.md`.
+
 **Enforcement (F29, optional).** When the enforcement hooks are installed (see
 `hooks/`), gates become **hard**: a `PreToolUse` hook denies writing `design.md`
 without the `requirements` gate, `tasks.md` without `design`, and any direct
