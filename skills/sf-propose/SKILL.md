@@ -306,6 +306,7 @@ happened, not a claim in a markdown header.
   "status": "approved",
   "workflow": "requirements-first",
   "lane": "standard",
+  "depends_on": [],
   "created": "<date>",
   "completed": null,
   "gates": [
@@ -318,6 +319,10 @@ happened, not a claim in a markdown header.
 
 For a **lite** feature, `"lane": "lite"` and the gates are just `lane` → `change`
 → `plan`/`wave` → `verdict` (no separate requirements/design/tasks gates).
+
+`depends_on` lists the feature names this one needs first (captured from the
+roadmap during `--all`, or stated by the user). It drives the critical-path
+ordering and blocker view in `/sf-status` (F37). Default `[]`.
 ```
 
 Record the real result of each gate: `approve`, `reject`, or `change` (with the

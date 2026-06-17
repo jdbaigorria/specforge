@@ -241,7 +241,10 @@ sfx-github        → Git workflow: branch, commit, PR, merge
 Lightweight inline operations. No skill file needed.
 
 ```
-/sf-status <feature>   → Report feature progress from features.json
+/sf-status <feature>   → Report one feature's progress from features.json
+/sf-status             → Project health view: per-feature lane/status/phase, drift,
+                         gaps, blockers + dependency-ordered critical path.
+                         Render with `scripts/sf-status.py` (later `sf status`).
 /roadmap               → Regenerate specforge/roadmap.md
 ```
 

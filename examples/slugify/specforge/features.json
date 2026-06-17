@@ -6,6 +6,7 @@
       "status": "done",
       "workflow": "requirements-first",
       "lane": "standard",
+      "depends_on": [],
       "created": "2026-06-16",
       "completed": "2026-06-16",
       "gates": [
@@ -17,6 +18,24 @@
         { "phase": "wave-0",       "result": "approve", "by": "user", "at": "2026-06-16T14:35:00Z", "comment": null },
         { "phase": "verdict",      "result": "approve", "by": "user", "at": "2026-06-16T14:40:00Z", "comment": null }
       ]
+    },
+    {
+      "name": "truncate",
+      "status": "planned",
+      "lane": null,
+      "depends_on": ["slugify"],
+      "created": "2026-06-16",
+      "completed": null,
+      "gates": []
+    },
+    {
+      "name": "normalize",
+      "status": "planned",
+      "lane": null,
+      "depends_on": [],
+      "created": "2026-06-16",
+      "completed": null,
+      "gates": []
     }
   ]
 }

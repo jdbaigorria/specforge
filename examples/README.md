@@ -31,6 +31,9 @@ It also ships the **real code** the spec describes (`src/texttools/slug.py` +
 `tests/test_slug.py`), so the traceability chain is complete and verifiable:
 
 ```sh
+# project health view — per-feature status, drift, blockers, critical path (F37)
+python3 ../../scripts/sf-status.py .
+
 # drift check — every requirement's code anchor still exists (F33)
 python3 ../../scripts/check-drift.py .
 
