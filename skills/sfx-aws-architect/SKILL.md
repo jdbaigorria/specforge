@@ -1,5 +1,6 @@
 ---
 name: sfx-aws-architect
+delegate: true
 description: >
   Design AWS infrastructure with cost, security, reliability, and scalability in mind.
   Produce an architecture document. Trigger: "/aws-architect", "design the infra",

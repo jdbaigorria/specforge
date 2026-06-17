@@ -1,5 +1,6 @@
 ---
 name: sfx-triage
+delegate: true
 description: >
   Investigate a bug systematically. Find root cause. Produce a fix plan with test strategy.
   Use when the user reports a bug, error, or unexpected behavior in any codebase — with or

@@ -1,5 +1,6 @@
 ---
 name: sfx-documenter
+delegate: true
 description: >
   Generate exhaustive documentation from code with examples, type signatures, edge cases, and
   usage guides. Use when the user says "document this", "generate docs", "write documentation",

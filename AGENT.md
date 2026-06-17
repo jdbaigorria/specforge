@@ -23,7 +23,18 @@ with a gate or back-and-forth must run inline.
 - Pure-transform support skills (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`,
   `sfx-data-engineer`, `sfx-triage`, `sfx-github`) → may be **delegated** to a sub-agent
   where the harness supports it, falling back to inline otherwise. This is an
-  optional, per-harness optimization, never required.
+  optional, per-harness optimization, never required. These skills carry
+  `delegate: true` in their frontmatter so tooling can identify them.
+
+**How to delegate (where the harness has sub-agents).** For a `delegate: true`
+skill, spawn a sub-agent, tell it which skill to run and give it the input
+(paths, not pasted content), let it run autonomously, and take back only its
+final artifact (the doc, the design, the triage report). The sub-agent's reads,
+exploration, and drafts stay in its own context — only the distilled result
+returns. That is the win: a `sfx-documenter` run that reads 40 files pollutes the
+main context inline, but as a sub-agent the main thread receives just the doc.
+If there are no sub-agents, run the skill inline — same result, more context
+used. Never delegate a skill that needs a gate or user back-and-forth.
 
 ## Engineering Principles
 
