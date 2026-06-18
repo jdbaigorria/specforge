@@ -42,6 +42,8 @@ func run(args []string) int {
 		return runPlan(rest)
 	case "review":
 		return runReview(rest)
+	case "save":
+		return runSave(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -71,6 +73,7 @@ commands:
   constitution  render/validate constitution.json (constitution render|validate)
   plan    render/validate plan.json (plan render|validate --feature=NAME)
   review  render/validate review.json (review render|validate --feature=NAME)
+  save    validate JSON from stdin, then write it + render md (save <artifact> --feature=NAME --json -)
   help    show this message
 `)
 }
