@@ -27,6 +27,7 @@ type waveContext struct {
 	RequirementRefs []string           `json:"requirement_refs_in_scope"`
 	Requirements    []requirement      `json:"requirements_in_scope,omitempty"` // cuerpos, si hay requirements.json
 	ComponentRefs   []string           `json:"component_refs_in_scope"`
+	Components      []component        `json:"components_in_scope,omitempty"` // cuerpos, si hay design.json
 	FilesInScope    []string           `json:"files_in_scope"`
 	PriorWaves      []priorWaveSummary `json:"prior_waves"`
 	Note            string             `json:"note,omitempty"`
@@ -91,11 +92,12 @@ func contextForWave(projectDir, feature string, n int) int {
 		return 2
 	}
 
-	// requirements.json es OPCIONAL: si existe, el slice trae los cuerpos de los
-	// R# en scope; si no, solo los IDs (con una nota).
+	// requirements.json y design.json son OPCIONALES: si existen, el slice trae
+	// los cuerpos de los R#/C# en scope; si no, solo los IDs (con una nota).
 	reqByID := loadRequirementsMap(projectDir, feature)
+	compByID := loadDesignMap(projectDir, feature)
 
-	ctx, ok := buildWaveContext(tf, reqByID, feature, n)
+	ctx, ok := buildWaveContext(tf, reqByID, compByID, feature, n)
 	if !ok {
 		fmt.Fprintf(os.Stderr, "sf context: wave %d not found in %s\n", n, feature)
 		return 4
@@ -132,10 +134,29 @@ func loadRequirementsMap(projectDir, feature string) map[string]requirement {
 	return m
 }
 
-// buildWaveContext computa el slice (función pura → fácil de testear). reqByID
-// puede ser nil (no hay requirements.json): en ese caso solo van los IDs.
-// Devuelve (ctx, false) si la wave N no existe.
-func buildWaveContext(tf tasksFile, reqByID map[string]requirement, feature string, n int) (waveContext, bool) {
+// loadDesignMap lee design.json (opcional) y devuelve un índice id→component, o
+// nil si no existe / no parsea.
+func loadDesignMap(projectDir, feature string) map[string]component {
+	path := filepath.Join(projectDir, "specforge", "features", feature, "design.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var df designFile
+	if json.Unmarshal(data, &df) != nil {
+		return nil
+	}
+	m := make(map[string]component, len(df.Components))
+	for _, c := range df.Components {
+		m[c.ID] = c
+	}
+	return m
+}
+
+// buildWaveContext computa el slice (función pura → fácil de testear). reqByID y
+// compByID pueden ser nil (no hay requirements.json/design.json): en ese caso
+// van solo los IDs. Devuelve (ctx, false) si la wave N no existe.
+func buildWaveContext(tf tasksFile, reqByID map[string]requirement, compByID map[string]component, feature string, n int) (waveContext, bool) {
 	// Buscamos la wave objetivo.
 	var target *wave
 	for i := range tf.Waves {
@@ -178,28 +199,44 @@ func buildWaveContext(tf tasksFile, reqByID map[string]requirement, feature stri
 	sort.Slice(prior, func(i, j int) bool { return prior[i].N < prior[j].N })
 
 	reqRefs := uniqSorted(reqs)
+	compRefs := uniqSorted(comps)
 
-	// Si tenemos requirements.json, adjuntamos los CUERPOS de los R# en scope —
-	// el ahorro real: el LLM recibe solo esos requirements, no el archivo entero.
-	var bodies []requirement
+	// Si tenemos requirements.json/design.json, adjuntamos los CUERPOS de los
+	// R#/C# en scope — el ahorro real: el LLM recibe solo esos, no el archivo
+	// entero.
+	var reqBodies []requirement
 	for _, id := range reqRefs {
 		if r, ok := reqByID[id]; ok {
-			bodies = append(bodies, r)
+			reqBodies = append(reqBodies, r)
+		}
+	}
+	var compBodies []component
+	for _, id := range compRefs {
+		if c, ok := compByID[id]; ok {
+			compBodies = append(compBodies, c)
 		}
 	}
 
-	// Nota honesta solo cuando faltan los cuerpos.
-	note := ""
+	// Nota honesta listando qué artefactos faltan (solo van sus IDs).
+	var missing []string
 	if len(reqByID) == 0 {
-		note = "requirements.json not found — only IDs in scope (bodies still in markdown)."
+		missing = append(missing, "requirements.json")
+	}
+	if len(compByID) == 0 {
+		missing = append(missing, "design.json")
+	}
+	note := ""
+	if len(missing) > 0 {
+		note = "not structured (only IDs in scope): " + strings.Join(missing, ", ")
 	}
 
 	return waveContext{
 		Feature:         feature,
 		Wave:            *target,
 		RequirementRefs: reqRefs,
-		Requirements:    bodies,
-		ComponentRefs:   uniqSorted(comps),
+		Requirements:    reqBodies,
+		ComponentRefs:   compRefs,
+		Components:      compBodies,
 		FilesInScope:    uniqSorted(files),
 		PriorWaves:      prior,
 		Note:            note,

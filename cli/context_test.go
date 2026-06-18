@@ -25,14 +25,22 @@ func TestBuildWaveContext(t *testing.T) {
 	reqByID := map[string]requirement{
 		"R1": {ID: "R1", EarsType: "event", Trigger: "user runs add", Behavior: "create a task"},
 	}
+	// compByID con C3 (el componente referenciado por la task T2 de la wave 1).
+	compByID := map[string]component{
+		"C3": {ID: "C3", Name: "AddCommand"},
+	}
 
-	ctx, ok := buildWaveContext(tf, reqByID, "f", 1)
+	ctx, ok := buildWaveContext(tf, reqByID, compByID, "f", 1)
 	if !ok {
 		t.Fatal("wave 1 should be found")
 	}
 	// R1 está en reqByID → su cuerpo viaja; R2 no → solo queda como ref.
 	if len(ctx.Requirements) != 1 || ctx.Requirements[0].ID != "R1" {
 		t.Errorf("Requirements=%v, want [R1 body]", ctx.Requirements)
+	}
+	// C3 está en compByID → su cuerpo viaja.
+	if len(ctx.Components) != 1 || ctx.Components[0].ID != "C3" {
+		t.Errorf("Components=%v, want [C3 body]", ctx.Components)
 	}
 	// R1 aparece dos veces → debe deduplicarse, y quedar ordenado.
 	if !reflect.DeepEqual(ctx.RequirementRefs, []string{"R1", "R2"}) {
@@ -46,7 +54,7 @@ func TestBuildWaveContext(t *testing.T) {
 		t.Errorf("status histogram=%v, want done:1", ctx.PriorWaves[0].Statuses)
 	}
 
-	if _, ok := buildWaveContext(tf, nil, "f", 9); ok {
+	if _, ok := buildWaveContext(tf, nil, nil, "f", 9); ok {
 		t.Errorf("wave 9 should not be found")
 	}
 }

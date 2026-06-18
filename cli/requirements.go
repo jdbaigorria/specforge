@@ -92,9 +92,10 @@ func runRequirements(args []string) int {
 	}
 }
 
-// parseReqFlags extrae --feature, --stdout y el project dir (compartido por
-// render y validate; validate ignora stdout).
-func parseReqFlags(args []string) (projectDir, feature string, toStdout bool, ok bool) {
+// parseArtifactFlags extrae --feature, --stdout y el project dir. Es compartido
+// por los artefactos JSON-first (requirements, design, ...). `cmd` solo se usa
+// para los mensajes de error.
+func parseArtifactFlags(cmd string, args []string) (projectDir, feature string, toStdout bool, ok bool) {
 	projectDir = "."
 	for _, a := range args {
 		switch {
@@ -103,21 +104,21 @@ func parseReqFlags(args []string) (projectDir, feature string, toStdout bool, ok
 		case a == "--stdout":
 			toStdout = true
 		case strings.HasPrefix(a, "-"):
-			fmt.Fprintf(os.Stderr, "sf requirements: unknown flag %q\n", a)
+			fmt.Fprintf(os.Stderr, "sf %s: unknown flag %q\n", cmd, a)
 			return "", "", false, false
 		default:
 			projectDir = a
 		}
 	}
 	if feature == "" {
-		fmt.Fprintln(os.Stderr, "sf requirements: --feature=NAME is required")
+		fmt.Fprintf(os.Stderr, "sf %s: --feature=NAME is required\n", cmd)
 		return "", "", false, false
 	}
 	return projectDir, feature, toStdout, true
 }
 
 func reqRenderCmd(args []string) int {
-	projectDir, feature, toStdout, ok := parseReqFlags(args)
+	projectDir, feature, toStdout, ok := parseArtifactFlags("requirements", args)
 	if !ok {
 		return 2
 	}
@@ -125,7 +126,7 @@ func reqRenderCmd(args []string) int {
 }
 
 func reqValidateCmd(args []string) int {
-	projectDir, feature, _, ok := parseReqFlags(args)
+	projectDir, feature, _, ok := parseArtifactFlags("requirements", args)
 	if !ok {
 		return 2
 	}
