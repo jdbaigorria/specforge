@@ -372,8 +372,8 @@ y `trace.json` existentes en su lugar.
 | **vs sf-propose** | amend cambia una capacidad existente; propose crea una nueva |
 | **Edita en su lugar** | una sola matriz de trazabilidad que evoluciona por feature — nunca un spec paralelo |
 
-Combinalo con detección de drift: `scripts/check-drift.py` (luego `sf doctor
---drift`) lee el `trace.json` de cada feature archivada y marca los requirements
+Combinalo con detección de drift: `sf doctor --drift`
+lee el `trace.json` de cada feature archivada y marca los requirements
 cuyo anclaje de código desapareció o cuyo test falla — así te enterás de que el
 spec divergió antes de que se vuelva mentira.
 
@@ -736,7 +736,7 @@ Ese es el modo de falla clásico de SDD, y SpecForge trata el spec archivado com
 commit de git). `archive` sella la feature con un vínculo vivo al código —
 `trace.json`, la matriz estructurada que mapea cada requirement a su `path:símbolo`
 y test. Para cambiar una feature enviada corrés `sf-amend`, que edita ese spec y
-esa matriz en su lugar en vez de forkear uno paralelo. Y `scripts/check-drift.py`
+esa matriz en su lugar en vez de forkear uno paralelo. Y `sf doctor --drift`
 lee el `trace.json` para avisarte cuando el código se movió de abajo de un
 requirement — barato, porque solo chequea los anclajes exactos, no el repo entero.
 

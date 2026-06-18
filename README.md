@@ -370,7 +370,7 @@ design, tasks, and `trace.json` in place.
 | **vs sf-propose** | amend changes an existing capability; propose creates a new one |
 | **Edits in place** | one evolving traceability matrix per feature — never a second parallel spec |
 
-Pair it with drift detection: `scripts/check-drift.py` (later `sf doctor --drift`)
+Pair it with drift detection: `sf doctor --drift`
 reads each archived feature's `trace.json` and flags requirements whose code
 anchor vanished or whose test fails — so you find out the spec drifted before it
 becomes a lie.
@@ -730,7 +730,7 @@ That's the classic SDD failure, and SpecForge treats the archived spec as a
 git commit). `archive` seals the feature with a live link to code — `trace.json`,
 the structured matrix mapping each requirement to its `path:symbol` and test. To
 change a shipped feature you run `sf-amend`, which edits that spec and matrix in
-place instead of forking a parallel one. And `scripts/check-drift.py` reads
+place instead of forking a parallel one. And `sf doctor --drift` reads
 `trace.json` to tell you when code moved out from under a requirement — cheaply,
 because it only checks the exact anchors, not the whole repo.
 

@@ -234,7 +234,7 @@ sf-audit      → Project-wide adversarial audit: constitution vs reality, cross
 
 Archived specs are **living documents** (F33): `archive` seals a feature with a
 live link to code (`trace.json`), not a freeze. Use `sf-amend` to change a
-shipped feature; run `scripts/check-drift.py` (later `sf doctor --drift`) to catch
+shipped feature; run `sf doctor --drift` to catch
 the spec and code diverging.
 
 Support skills carry the `sfx-` prefix (eXtras). Typing `sf` lists the whole
@@ -274,7 +274,7 @@ Lightweight inline operations. No skill file needed.
 /sf-status <feature>   → Report one feature's progress from features.json
 /sf-status             → Project health view: per-feature lane/status/phase, drift,
                          gaps, blockers + dependency-ordered critical path.
-                         Render with `scripts/sf-status.py` (later `sf status`).
+                         Render with `sf status`.
 /roadmap               → Regenerate specforge/roadmap.md
 ```
 

@@ -93,7 +93,7 @@ re-analyzing the repo (F33). Write `specforge/features/<name>/trace.json`:
 - `status`: `ok` | `no-test` | `missing`.
 
 This file travels with the feature into the archive and is what drift detection
-(`scripts/check-drift.py`) reads. Keep it consistent with the markdown matrix —
+(`sf doctor --drift`) reads. Keep it consistent with the markdown matrix —
 they describe the same thing.
 
 ## Step 2: Gap Analysis

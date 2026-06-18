@@ -22,7 +22,7 @@ the historical snapshot (this archive commit). So the archived spec stays a
 *living document*: `review.md` is the historical verdict, but `requirements.md`
 remains the current contract and `trace.json` is its live link to the code. To
 change a shipped feature, use `sf-amend <name>` — never hand-edit the archive
-into a parallel truth. Drift detection (`scripts/check-drift.py`) reads
+into a parallel truth. Drift detection (`sf doctor --drift`) reads
 `trace.json` to catch the spec and code diverging over time.
 
 ### 2. Update Feature Registry
