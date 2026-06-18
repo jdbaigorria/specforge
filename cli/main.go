@@ -28,6 +28,12 @@ func run(args []string) int {
 		return runGate(rest)
 	case "trace":
 		return runTrace(rest)
+	case "tasks":
+		return runTasks(rest)
+	case "context":
+		return runContext(rest)
+	case "requirements":
+		return runRequirements(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -50,6 +56,9 @@ commands:
   doctor  detect drift between archived specs and code (--drift)
   gate    show the gate ledger (gate status [--feature=NAME])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
+  tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
+  context emit the minimal JSON slice for a wave (context for-wave --feature=NAME --n=N)
+  requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   help    show this message
 `)
 }
