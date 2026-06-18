@@ -36,6 +36,12 @@ func run(args []string) int {
 		return runRequirements(rest)
 	case "design":
 		return runDesign(rest)
+	case "constitution":
+		return runConstitution(rest)
+	case "plan":
+		return runPlan(rest)
+	case "review":
+		return runReview(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -62,6 +68,9 @@ commands:
   context emit the minimal JSON slice for a wave (context for-wave --feature=NAME --n=N)
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)
+  constitution  render/validate constitution.json (constitution render|validate)
+  plan    render/validate plan.json (plan render|validate --feature=NAME)
+  review  render/validate review.json (review render|validate --feature=NAME)
   help    show this message
 `)
 }
