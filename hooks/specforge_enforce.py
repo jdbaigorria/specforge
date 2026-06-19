@@ -48,6 +48,10 @@ UPSTREAM_OF = {"design": "requirements", "tasks": "design"}
 # en el hook, N turnos es el proxy del umbral.
 FULL_SLICE_EVERY = 10
 
+# Conciliador de memoria (paso 4): qué estados cuentan como "archivada" para
+# disparar el nudge del journal.
+ARCHIVED_STATUSES = {"done", "archived"}
+
 
 # ── Portable core ────────────────────────────────────────────────────────────
 
@@ -245,6 +249,68 @@ def user_prompt_context(project_dir: str, session_id: str) -> str:
     return _render_full(cc) if mode == "full" else breadcrumb
 
 
+# ── Memory reconciler (Stop nudge) ───────────────────────────────────────────
+#
+# Cuando una feature queda archivada SIN lecciones en el journal, el hook Stop
+# nudgea UNA vez: "extraé lecciones y guardá con sf journal add". Decisión del
+# debate: nudge-once, no hard-block. Como Stop solo puede comunicar bloqueando,
+# bloqueamos a lo sumo una vez por feature (registrado en .state) y después
+# stand-down — recuerda una vez, nunca atrapa en loop.
+
+
+def _journaled_features(sf_dir: Path) -> set:
+    """Features que YA tienen una entrada en specforge/journal/ (leemos el campo
+    `feature` del .json, robusto ante nombres con guiones)."""
+    out: set = set()
+    jdir = sf_dir / "journal"
+    if jdir.is_dir():
+        for p in jdir.glob("*.json"):
+            try:
+                out.add(json.loads(p.read_text(encoding="utf-8")).get("feature", ""))
+            except (OSError, json.JSONDecodeError):
+                pass
+    return out
+
+
+def pick_journal_nudge(features: list, journaled: set, nudged: set) -> str | None:
+    """PURA (testeable): primera feature archivada que no esté journaleada ni ya
+    nudgeada, o None."""
+    for f in features:
+        name = f.get("name", "")
+        if f.get("status") in ARCHIVED_STATUSES and name and name not in journaled and name not in nudged:
+            return name
+    return None
+
+
+def stop_nudge(project_dir: str) -> str | None:
+    """Decide a qué feature nudgear en Stop (una sola vez), y lo registra."""
+    sf = _specforge_root(project_dir)
+    if sf is None:
+        return None
+    try:
+        features = json.loads((sf / "features.json").read_text(encoding="utf-8")).get("features", [])
+    except (OSError, json.JSONDecodeError):
+        return None
+    st = _hook_state(sf)
+    nudged = set(st.get("journal_nudged", []))
+    target = pick_journal_nudge(features, _journaled_features(sf), nudged)
+    if target is None:
+        return None
+    nudged.add(target)  # nudge-once: lo marcamos antes de devolver
+    st["journal_nudged"] = sorted(nudged)
+    _save_hook_state(sf, st)
+    return target
+
+
+def _journal_nudge_reason(feature: str) -> str:
+    return (
+        f"Feature `{feature}` quedó archivada sin lecciones registradas. "
+        f"Extraé las lecciones durables y guardalas con:\n"
+        f"  sf journal add --feature={feature} --json -\n"
+        f"(Recordatorio único — no volverá a aparecer.)"
+    )
+
+
 # ── Adapters ─────────────────────────────────────────────────────────────────
 
 def _project_dir(payload: dict) -> str:
@@ -278,6 +344,16 @@ def run_claude_code(event: str, payload: dict) -> int:
                 "additionalContext": ctx,
             }}))
         return 0
+    if event == "Stop":
+        # stop_hook_active = ya estamos en una continuación forzada por un Stop
+        # hook → no volver a bloquear (evita loops); nuestro nudge-once por feature
+        # ya lo evita, esto es defensa extra.
+        if payload.get("stop_hook_active"):
+            return 0
+        target = stop_nudge(_project_dir(payload))
+        if target:
+            print(json.dumps({"decision": "block", "reason": _journal_nudge_reason(target)}))
+        return 0
     if event == "SessionEnd":
         mark_session(_project_dir(payload), "session ended")
         return 0
@@ -297,6 +373,12 @@ def run_generic(payload: dict) -> int:
         print(json.dumps({"decision": "allow", "context": session_context(pd)}))
     elif event == "user_prompt_submit":
         print(json.dumps({"decision": "allow", "context": user_prompt_context(pd, payload.get("session_id", ""))}))
+    elif event == "stop":
+        target = stop_nudge(pd)
+        if target:
+            print(json.dumps({"decision": "block", "reason": _journal_nudge_reason(target)}))
+        else:
+            print(json.dumps({"decision": "allow"}))
     elif event == "session_end":
         mark_session(pd, "session ended")
         print(json.dumps({"decision": "allow"}))
@@ -394,6 +476,21 @@ def selftest() -> int:
     # sin cambio pero alcanzó el backstop de N turnos → full, reset
     check(decide_injection(["f", "build", 0], ["f", "build", 0], 10, 10) == ("full", 0),
           "backstop N turnos → full")
+
+    # ── pick_journal_nudge (conciliador, pura) ──
+    feats = [
+        {"name": "old", "status": "done"},
+        {"name": "cur", "status": "building"},
+        {"name": "add-export", "status": "archived"},  # nombre con guion
+    ]
+    check(pick_journal_nudge(feats, set(), set()) == "old",
+          "primera archivada sin journal → nudge")
+    check(pick_journal_nudge(feats, {"old"}, set()) == "add-export",
+          "ya journaleada se saltea (respeta nombres con guion)")
+    check(pick_journal_nudge(feats, {"old", "add-export"}, set()) is None,
+          "todas journaleadas → None")
+    check(pick_journal_nudge(feats, set(), {"old"}) == "add-export",
+          "ya nudgeada se saltea (nudge-once)")
 
     print(f"\n{'OK' if not failures else 'FAILED'}: {failures} failure(s).")
     return 1 if failures else 0
