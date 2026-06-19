@@ -7,3 +7,12 @@ SPECFORGE-REVIEW.es.md
 CLI-SPEC.md
 swarm.md
 update-sf.md
+
+# local learning notes — never commit
+GO-CHEATSHEET.es.md
+
+# local design docs — never commit
+HOOK-CLI-MAP.es.md
+
+# local research / experiments — never commit
+eval/
