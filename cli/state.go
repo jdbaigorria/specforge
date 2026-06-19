@@ -230,3 +230,141 @@ func indexFeatures(ff featuresFile) map[string]*feature {
 	}
 	return m
 }
+
+// ----------------------------------------------------------------------------
+// `sf context current` — el slice de la fase ACTUAL, listo para que un hook lo
+// inyecte. Cuelga de computeCurrentState: primero "¿dónde estoy?", después "acá
+// está lo que necesitás para este paso".
+//
+// Dos tiers de inyección (decisión #1 del debate):
+//   - breadcrumb (barato, cada turno): una línea que recuerda "estás en
+//     SpecForge, feature X, fase Y". Combate el "me olvidé de SpecForge".
+//   - slice completo (caro, solo en triggers): el contexto del paso. Hoy el
+//     slice "rico" existe para build (reusa el de la wave); las fases de spec
+//     traen el breadcrumb + qué artefactos hay disponibles (el cuerpo lo pide
+//     el skill cuando lo necesita). Es honesto: no inventamos riqueza que no
+//     diseñamos todavía.
+// ----------------------------------------------------------------------------
+
+// currentContext es el JSON que emite `sf context current`.
+type currentContext struct {
+	Breadcrumb string       `json:"breadcrumb"`
+	Feature    string       `json:"feature,omitempty"`
+	Phase      string       `json:"phase,omitempty"`
+	Wave       *int         `json:"wave,omitempty"`
+	WaveSlice  *waveContext `json:"wave_slice,omitempty"`          // solo en fase build
+	Artifacts  []string     `json:"available_artifacts,omitempty"` // archivos .json que existen
+	Note       string       `json:"note,omitempty"`
+}
+
+// runContextCurrent parsea los flags de `current` y emite el contexto actual.
+// Lo llama runContext (context.go) cuando el sub-comando es "current".
+func runContextCurrent(args []string) int {
+	projectDir := "."
+	breadcrumbOnly := false
+	for _, a := range args {
+		switch {
+		case a == "--breadcrumb":
+			breadcrumbOnly = true
+		case strings.HasPrefix(a, "-"):
+			fmt.Fprintf(os.Stderr, "sf context current: unknown flag %q\n", a)
+			return 2
+		default:
+			projectDir = a
+		}
+	}
+	return contextCurrent(projectDir, breadcrumbOnly)
+}
+
+// contextCurrent computa el estado, arma el breadcrumb y (salvo --breadcrumb) el
+// slice completo.
+func contextCurrent(projectDir string, breadcrumbOnly bool) int {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf context: cannot read features.json under %s (%v)\n", projectDir, err)
+		return 4
+	}
+	var ff featuresFile
+	if err := json.Unmarshal(data, &ff); err != nil {
+		fmt.Fprintf(os.Stderr, "sf context: invalid features.json (%v)\n", err)
+		return 2
+	}
+	st := computeCurrentState(ff, projectDir)
+
+	// Tier barato: solo la línea, en texto plano (no JSON). Es lo que un hook
+	// inyectaría cada turno.
+	if breadcrumbOnly {
+		fmt.Println(buildBreadcrumb(st, projectDir))
+		return 0
+	}
+
+	// Tier completo: JSON con el slice del paso.
+	cc := buildCurrentContext(st, projectDir)
+	out, err := json.MarshalIndent(cc, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf context: marshal failed (%v)\n", err)
+		return 1
+	}
+	fmt.Println(string(out))
+	return 0
+}
+
+// buildCurrentContext arma el slice completo (función separada del print → fácil
+// de testear: devuelve el struct sin tocar stdout).
+func buildCurrentContext(st currentState, projectDir string) currentContext {
+	cc := currentContext{
+		Breadcrumb: buildBreadcrumb(st, projectDir),
+		Feature:    st.Feature,
+		Phase:      st.Phase,
+		Wave:       st.Wave,
+		Note:       st.Note,
+	}
+	if st.Feature == "" {
+		return cc // sin feature activa: solo el breadcrumb/nota
+	}
+	cc.Artifacts = availableArtifacts(projectDir, st.Feature)
+	// En build adjuntamos el slice de la wave actual (el slice "rico" que ya
+	// teníamos en context.go).
+	if st.Phase == "build" && st.Wave != nil {
+		if ws, ok := loadWaveContext(projectDir, st.Feature, *st.Wave); ok {
+			cc.WaveSlice = &ws
+		} else {
+			cc.Note = appendNote(cc.Note, fmt.Sprintf("wave %d slice unavailable (missing/invalid tasks.json?)", *st.Wave))
+		}
+	}
+	return cc
+}
+
+// buildBreadcrumb arma la línea de orientación. Si no hay feature activa, la nota
+// de computeCurrentState ya explica por qué.
+func buildBreadcrumb(st currentState, projectDir string) string {
+	if st.Feature == "" {
+		return "SpecForge: " + st.Note
+	}
+	b := fmt.Sprintf("SpecForge: feature `%s`, fase `%s`", st.Feature, st.Phase)
+	if st.Wave != nil {
+		b += fmt.Sprintf(" (wave %d)", *st.Wave)
+	}
+	return b + " · slice completo: `sf context current`"
+}
+
+// availableArtifacts lista qué artefactos .json existen para la feature (rutas
+// relativas a su carpeta). El breadcrumb orienta; esto dice qué hay para leer.
+func availableArtifacts(projectDir, feature string) []string {
+	dir := filepath.Join(projectDir, "specforge", "features", feature)
+	var found []string
+	for _, name := range []string{"requirements.json", "design.json", "tasks.json", "plan.json", "review.json"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			found = append(found, name)
+		}
+	}
+	return found
+}
+
+// appendNote concatena notas con "; ", tolerando que la primera esté vacía.
+func appendNote(existing, add string) string {
+	if existing == "" {
+		return add
+	}
+	return existing + "; " + add
+}

@@ -40,15 +40,34 @@ type priorWaveSummary struct {
 	Statuses  map[string]int `json:"statuses"` // histograma: {"done":2,"pending":1}
 }
 
-// runContext es el punto de entrada de `sf context ...`. Hoy la única sub-acción
-// es `for-wave`.
+// runContext es el punto de entrada de `sf context ...`. Despacha por
+// sub-comando: `for-wave` (slice de una wave puntual) y `current` (slice de la
+// fase/wave ACTUAL, derivada de sf state current — vive en state.go).
 func runContext(args []string) int {
-	if len(args) == 0 || args[0] != "for-wave" {
-		fmt.Fprintln(os.Stderr, "usage: sf context for-wave --feature=NAME --n=N [project_dir]")
+	if len(args) == 0 {
+		contextUsage()
 		return 2
 	}
-	args = args[1:] // descartamos "for-wave"
+	sub, rest := args[0], args[1:]
+	switch sub {
+	case "for-wave":
+		return contextForWaveCmd(rest)
+	case "current":
+		return runContextCurrent(rest) // definido en state.go: cuelga de computeCurrentState
+	default:
+		fmt.Fprintf(os.Stderr, "sf context: unknown sub-command %q\n\n", sub)
+		contextUsage()
+		return 2
+	}
+}
 
+func contextUsage() {
+	fmt.Fprintln(os.Stderr, "usage: sf context for-wave --feature=NAME --n=N [project_dir]")
+	fmt.Fprintln(os.Stderr, "       sf context current [--breadcrumb] [project_dir]")
+}
+
+// contextForWaveCmd parsea los flags de `for-wave` y emite el slice de la wave N.
+func contextForWaveCmd(args []string) int {
 	projectDir := "."
 	feature := ""
 	n := -1
@@ -72,37 +91,19 @@ func runContext(args []string) int {
 		}
 	}
 	if feature == "" || n < 0 {
-		fmt.Fprintln(os.Stderr, "usage: sf context for-wave --feature=NAME --n=N [project_dir]")
+		contextUsage()
 		return 2
 	}
 	return contextForWave(projectDir, feature, n)
 }
 
-// contextForWave lee tasks.json, computa el slice y lo imprime como JSON.
+// contextForWave computa el slice de la wave y lo imprime como JSON.
 func contextForWave(projectDir, feature string, n int) int {
-	jsonPath := filepath.Join(projectDir, "specforge", "features", feature, "tasks.json")
-	data, err := os.ReadFile(jsonPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf context: cannot read %s (%v)\n", jsonPath, err)
-		return 4
-	}
-	var tf tasksFile
-	if err := json.Unmarshal(data, &tf); err != nil {
-		fmt.Fprintf(os.Stderr, "sf context: invalid tasks.json (%v)\n", err)
-		return 2
-	}
-
-	// requirements.json y design.json son OPCIONALES: si existen, el slice trae
-	// los cuerpos de los R#/C# en scope; si no, solo los IDs (con una nota).
-	reqByID := loadRequirementsMap(projectDir, feature)
-	compByID := loadDesignMap(projectDir, feature)
-
-	ctx, ok := buildWaveContext(tf, reqByID, compByID, feature, n)
+	ctx, ok := loadWaveContext(projectDir, feature, n)
 	if !ok {
-		fmt.Fprintf(os.Stderr, "sf context: wave %d not found in %s\n", n, feature)
+		fmt.Fprintf(os.Stderr, "sf context: cannot build wave %d slice for %s (missing/invalid tasks.json, or wave not found)\n", n, feature)
 		return 4
 	}
-
 	// MarshalIndent serializa con sangría (lo opuesto de Unmarshal). "" de prefijo
 	// y "  " de sangría = JSON pretty de 2 espacios.
 	out, err := json.MarshalIndent(ctx, "", "  ")
@@ -112,6 +113,26 @@ func contextForWave(projectDir, feature string, n int) int {
 	}
 	fmt.Println(string(out))
 	return 0
+}
+
+// loadWaveContext lee tasks.json (+ requirements.json/design.json OPCIONALES) y
+// computa el slice de la wave n. Función reutilizable: la usan tanto `for-wave`
+// como `current`. Devuelve (_, false) si no hay/no parsea tasks.json o la wave
+// no existe — degradación segura para que `current` no explote en esos casos.
+func loadWaveContext(projectDir, feature string, n int) (waveContext, bool) {
+	jsonPath := filepath.Join(projectDir, "specforge", "features", feature, "tasks.json")
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return waveContext{}, false
+	}
+	var tf tasksFile
+	if json.Unmarshal(data, &tf) != nil {
+		return waveContext{}, false
+	}
+	// Si existen, el slice trae los CUERPOS de los R#/C# en scope; si no, solo IDs.
+	reqByID := loadRequirementsMap(projectDir, feature)
+	compByID := loadDesignMap(projectDir, feature)
+	return buildWaveContext(tf, reqByID, compByID, feature, n)
 }
 
 // loadRequirementsMap lee requirements.json y devuelve un índice id→requirement.
