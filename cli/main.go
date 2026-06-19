@@ -32,6 +32,8 @@ func run(args []string) int {
 		return runTasks(rest)
 	case "context":
 		return runContext(rest)
+	case "state":
+		return runState(rest)
 	case "requirements":
 		return runRequirements(rest)
 	case "design":
@@ -68,6 +70,7 @@ commands:
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit the minimal JSON slice for a wave (context for-wave --feature=NAME --n=N)
+  state   emit the current feature/phase/wave as JSON (state current) — the brain hooks consult
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)
   constitution  render/validate constitution.json (constitution render|validate)
