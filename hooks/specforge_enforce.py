@@ -39,8 +39,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 APPROVED = {"approve", "approve-with-notes"}
-DOWNSTREAM = re.compile(r"specforge/features/([^/]+)/(design|tasks)\.md$")
-UPSTREAM_OF = {"design": "requirements", "tasks": "design"}
+ACTIVE_STATUSES = {"approved", "building"}  # "en curso" (serial, F22)
+UPSTREAM_OF = {"design": "requirements", "tasks": "design", "plan": "tasks"}
+
+# Ruta-relativa → (feature, artefacto). Reconoce .json Y .md (JSON-first: la
+# fuente es .json, el .md es render); plan vive bajo progress/.
+ARTIFACT_RE = re.compile(
+    r"specforge/features/([^/]+)/(?:progress/)?(requirements|design|tasks|plan)\.(?:json|md)$"
+)
 
 # Trigger del slice (decisión #1 del debate): el slice COMPLETO se re-inyecta
 # on-step-change y, como backstop de saliencia, cada N turnos sin cambio. El
@@ -77,6 +83,21 @@ def gate_approved(sf_dir: Path, feature: str, phase: str) -> bool:
     return False
 
 
+def _artifact_target(rel: str):
+    """(feature, artefacto) si rel es un artefacto gateable, o None."""
+    m = ARTIFACT_RE.match(rel)
+    return (m.group(1), m.group(2)) if m else None
+
+
+def _active_features(sf_dir: Path) -> list:
+    """Nombres de features 'en curso' (status approved/building) — para el serial."""
+    try:
+        data = json.loads((sf_dir / "features.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [f.get("name", "") for f in data.get("features", []) if f.get("status") in ACTIVE_STATUSES]
+
+
 def decide_pre_tool_use(project_dir: str, file_path: str | None) -> tuple[str, str | None]:
     """Return ("deny", reason) or ("allow", None) for a Write/Edit on file_path."""
     if not file_path:
@@ -100,17 +121,32 @@ def decide_pre_tool_use(project_dir: str, file_path: str | None) -> tuple[str, s
             "features.json is the source of truth; let the session protocol manage state.",
         )
 
-    m = DOWNSTREAM.match(rel)
-    if m:
-        feature, artefact = m.group(1), m.group(2)
-        required = UPSTREAM_OF[artefact]
-        if not gate_approved(sf, feature, required):
+    target = _artifact_target(rel)
+    if target is None:
+        return ("allow", None)
+    feature, artefact = target
+
+    # Serial (F22 / #4): no arrancar una 2da feature mientras otra está en curso.
+    # El PRIMER artefacto de una feature es requirements → lo interceptamos ahí.
+    if artefact == "requirements":
+        others = [n for n in _active_features(sf) if n and n != feature]
+        if others:
             return (
                 "deny",
-                f"Cannot write {artefact}.md for '{feature}': the {required} gate is "
-                f"not approved in features.json. Present {required} at a 🔴 gate and get "
-                f"approval first — gates cannot be skipped.",
+                f"Serial flow: feature '{others[0]}' is still active. Finish and archive "
+                f"it before starting '{feature}' — one active feature at a time (F22).",
             )
+        return ("allow", None)
+
+    # Cadena de gates: el artefacto downstream necesita su upstream aprobado.
+    required = UPSTREAM_OF.get(artefact)
+    if required and not gate_approved(sf, feature, required):
+        return (
+            "deny",
+            f"Cannot write {artefact} for '{feature}': the {required} gate is not "
+            f"approved in features.json. Present {required} at a 🔴 gate and get "
+            f"approval first — gates cannot be skipped.",
+        )
     return ("allow", None)
 
 
@@ -452,6 +488,41 @@ def selftest() -> int:
               "design.md allowed after requirements gate")
         check(decide_pre_tool_use(str(proj), str(feats / "tasks.md"))[0] == "deny",
               "tasks.md denied without design gate")
+        # JSON-first: el .json (la fuente) se gatea igual que el .md
+        check(decide_pre_tool_use(str(proj), str(feats / "tasks.json"))[0] == "deny",
+              "tasks.json denied too (json-first source)")
+        # plan necesita el gate de tasks (y vive bajo progress/)
+        check(decide_pre_tool_use(str(proj), str(feats / "progress" / "plan.md"))[0] == "deny",
+              "plan denied without tasks gate")
+
+        # cadena completa aprobada → plan permitido
+        reg.write_text(json.dumps({"schema_version": "1.0", "features": [
+            {"name": "x", "gates": [
+                {"phase": "requirements", "result": "approve"},
+                {"phase": "design", "result": "approve"},
+                {"phase": "tasks", "result": "approve"},
+            ]}
+        ]}))
+        check(decide_pre_tool_use(str(proj), str(feats / "progress" / "plan.json"))[0] == "allow",
+              "plan.json allowed after tasks gate")
+
+        # Serial (F22): con 'y' en curso, arrancar 'z' (su requirements) se deniega;
+        # el requirements de la propia feature activa sí se permite.
+        reg.write_text(json.dumps({"schema_version": "1.0", "features": [
+            {"name": "y", "status": "building"},
+            {"name": "z", "status": "planned"},
+        ]}))
+        zreq = proj / "specforge" / "features" / "z" / "requirements.md"
+        yreq = proj / "specforge" / "features" / "y" / "requirements.md"
+        check(decide_pre_tool_use(str(proj), str(zreq))[0] == "deny",
+              "serial: 2nd feature's requirements denied while another active")
+        check(decide_pre_tool_use(str(proj), str(yreq))[0] == "allow",
+              "serial: active feature's own requirements allowed")
+        reg.write_text(json.dumps({"schema_version": "1.0", "features": [
+            {"name": "z", "status": "planned"},
+        ]}))
+        check(decide_pre_tool_use(str(proj), str(zreq))[0] == "allow",
+              "serial: requirements allowed when none active")
 
         # .state/ is always denied
         check(decide_pre_tool_use(str(proj), str(proj / "specforge" / ".state" / "session.md"))[0] == "deny",

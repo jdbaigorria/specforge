@@ -11,7 +11,8 @@ All decisions are made by `specforge_enforce.py`, which is **harness-agnostic**.
 
 | Event | Behaviour |
 |-------|-----------|
-| `PreToolUse` (Write/Edit) | **Hard-deny** writing `design.md` without the `requirements` gate approved, or `tasks.md` without the `design` gate — read from the `features.json` gate ledger (F10). Gates cannot be skipped. |
+| `PreToolUse` (Write/Edit) | **Hard-deny** writing a downstream artifact whose upstream gate isn't approved — `design`←`requirements`, `tasks`←`design`, `plan`←`tasks` — read from the `features.json` gate ledger (F10). Gates the `.json` source **and** the `.md` render (JSON-first). Gates cannot be skipped. |
+| `PreToolUse` (Write/Edit) | **Serial flow (F22).** Hard-deny creating a new feature's `requirements` while another feature is `approved`/`building`. One active feature at a time, so `sf state current` stays unambiguous. |
 | `PreToolUse` (Write/Edit) | **Hard-deny** direct writes to `specforge/.state/` (machine state). Protects the source-of-truth boundary (F2/F25). |
 | `SessionStart` | Inject `specforge/.state/session.md` + `specforge/context/compact-rules.md` + `specforge/learnings.md` as context — on startup, resume, **and after compaction**. Restores project state and consolidated learnings without the agent having to remember (F21/F7/F31). |
 | `UserPromptSubmit` | Inject the current step's slice via `sf context current` so the spec doesn't dilute as context fills. Cheap **breadcrumb** every turn; full slice on **step-change** or every `FULL_SLICE_EVERY` turns (salience backstop). Per-session trigger state lives in `specforge/.state/hook-context.json`. Requires the `sf` binary — absent ⇒ injects nothing (fail open). |
