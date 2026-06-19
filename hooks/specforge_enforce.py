@@ -9,8 +9,10 @@ the first adapter; a new harness = a new translate pair, not new logic.
 Portable contract (`--harness generic`): read one JSON object on stdin and emit
 one JSON object on stdout.
 
-  in:  {"event": "pre_tool_use"|"session_start"|"session_end"|"pre_compact",
-        "project_dir": "/abs/path", "tool": "Write", "file_path": "/abs/or/rel"}
+  in:  {"event": "pre_tool_use"|"session_start"|"session_end"|"pre_compact"
+              |"user_prompt_submit",
+        "project_dir": "/abs/path", "tool": "Write", "file_path": "/abs/or/rel",
+        "session_id": "..."}
   out: {"decision": "deny"|"allow", "reason": "...", "context": "..."}
 
 Design choices:
@@ -18,7 +20,9 @@ Design choices:
   Enforcement is a safety rail, not a tripwire.
 - **No-op outside SpecForge.** If `<project>/specforge/` doesn't exist, allow
   everything — the plugin can be installed globally without interfering.
-- Stdlib only (no deps), so it runs wherever python3 does.
+- Stdlib only (no deps), so it runs wherever python3 does. The one runtime
+  dependency is the `sf` binary, used ONLY by user_prompt_submit to fetch the
+  current slice; if `sf` is absent the hook injects nothing (fail open).
 
 Self-test: `python3 hooks/specforge_enforce.py --selftest`
 """
@@ -28,6 +32,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +41,12 @@ from pathlib import Path
 APPROVED = {"approve", "approve-with-notes"}
 DOWNSTREAM = re.compile(r"specforge/features/([^/]+)/(design|tasks)\.md$")
 UPSTREAM_OF = {"design": "requirements", "tasks": "design"}
+
+# Trigger del slice (decisión #1 del debate): el slice COMPLETO se re-inyecta
+# on-step-change y, como backstop de saliencia, cada N turnos sin cambio. El
+# resto de los turnos va solo el breadcrumb (barato). Sin gauge de % de contexto
+# en el hook, N turnos es el proxy del umbral.
+FULL_SLICE_EVERY = 10
 
 
 # ── Portable core ────────────────────────────────────────────────────────────
@@ -133,6 +145,106 @@ def mark_session(project_dir: str, note: str) -> None:
         fh.write(f"\n<!-- {note} @ {ts} -->\n")
 
 
+# ── Slice injection (UserPromptSubmit) ───────────────────────────────────────
+#
+# El hook NO computa el slice: llama a `sf context current` (el cerebro). Así no
+# duplicamos la lógica de estado en Python (evita "segunda verdad", F2). Si `sf`
+# no está instalado, no inyectamos nada (fail open).
+
+
+def _sf_bin() -> str | None:
+    """Ubica el binario sf: override por env, o en el PATH."""
+    return os.environ.get("SPECFORGE_SF_BIN") or shutil.which("sf")
+
+
+def _run_sf(args: list[str]) -> str | None:
+    """Corre `sf <args>` y devuelve stdout, o None ante cualquier fallo."""
+    sf = _sf_bin()
+    if not sf:
+        return None
+    try:
+        res = subprocess.run([sf, *args], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return res.stdout if res.returncode == 0 else None
+
+
+def _hook_state(sf_dir: Path) -> dict:
+    """Estado del hook por sesión, en specforge/.state/ (la máquina lo posee; el
+    LLM tiene prohibido escribir ahí)."""
+    p = sf_dir / ".state" / "hook-context.json"
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_hook_state(sf_dir: Path, data: dict) -> None:
+    state = sf_dir / ".state"
+    try:
+        state.mkdir(parents=True, exist_ok=True)
+        (state / "hook-context.json").write_text(
+            json.dumps(data, indent=2), encoding="utf-8"
+        )
+    except OSError:
+        pass  # fail open: si no podemos persistir, el peor caso es re-inyectar de más
+
+
+def decide_injection(key: list, last_key: list, turns: int, full_every: int) -> tuple[str, int]:
+    """PURA (testeable): dado el estado actual vs el último inyectado y el contador
+    de turnos sin cambio, decide qué inyectar este turno.
+
+    Devuelve ("full"|"breadcrumb", turns_para_guardar). "full" en on-step-change
+    o al llegar al backstop de N turnos; reinicia el contador. Si no, "breadcrumb"
+    y suma 1.
+    """
+    changed = list(key) != list(last_key)
+    if changed or turns >= full_every:
+        return ("full", 0)
+    return ("breadcrumb", turns + 1)
+
+
+def _render_full(cc: dict) -> str:
+    """Envuelve el slice como contexto inyectable, rotulado como autoritativo
+    (decisión #1: el más reciente reemplaza a los anteriores del transcript)."""
+    return (
+        "## SpecForge — current step (re-grounding; supersedes earlier slices)\n\n"
+        + cc.get("breadcrumb", "")
+        + "\n\n```json\n"
+        + json.dumps(cc, indent=2, ensure_ascii=False)
+        + "\n```"
+    )
+
+
+def user_prompt_context(project_dir: str, session_id: str) -> str:
+    """Decide e arma lo que se inyecta en UserPromptSubmit. "" = nada (fail open)."""
+    sf_dir = _specforge_root(project_dir)
+    if sf_dir is None:
+        return ""  # no es un proyecto SpecForge
+    out = _run_sf(["context", "current", project_dir])
+    if not out:
+        return ""  # sf ausente o error → no inyectamos
+    try:
+        cc = json.loads(out)
+    except json.JSONDecodeError:
+        return ""
+    breadcrumb = cc.get("breadcrumb", "")
+    if not cc.get("feature"):
+        return breadcrumb  # sin feature activa: solo la línea, sin gastar en slice
+
+    # Clave de estado: feature/phase/wave. Si cambió → on-step-change.
+    key = [cc.get("feature"), cc.get("phase"), cc.get("wave")]
+    st = _hook_state(sf_dir)
+    entry = st.get(session_id) or {}
+    mode, turns_next = decide_injection(
+        key, entry.get("key", []), int(entry.get("turns_since_full", 0)), FULL_SLICE_EVERY
+    )
+    st[session_id] = {"key": key, "turns_since_full": turns_next}
+    _save_hook_state(sf_dir, st)
+
+    return _render_full(cc) if mode == "full" else breadcrumb
+
+
 # ── Adapters ─────────────────────────────────────────────────────────────────
 
 def _project_dir(payload: dict) -> str:
@@ -158,6 +270,14 @@ def run_claude_code(event: str, payload: dict) -> int:
                 "additionalContext": ctx,
             }}))
         return 0
+    if event == "UserPromptSubmit":
+        ctx = user_prompt_context(_project_dir(payload), payload.get("session_id", ""))
+        if ctx:
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": ctx,
+            }}))
+        return 0
     if event == "SessionEnd":
         mark_session(_project_dir(payload), "session ended")
         return 0
@@ -175,6 +295,8 @@ def run_generic(payload: dict) -> int:
         print(json.dumps({"decision": decision, "reason": reason}))
     elif event == "session_start":
         print(json.dumps({"decision": "allow", "context": session_context(pd)}))
+    elif event == "user_prompt_submit":
+        print(json.dumps({"decision": "allow", "context": user_prompt_context(pd, payload.get("session_id", ""))}))
     elif event == "session_end":
         mark_session(pd, "session ended")
         print(json.dumps({"decision": "allow"}))
@@ -261,6 +383,17 @@ def selftest() -> int:
         with tempfile.TemporaryDirectory() as d2:
             check(decide_pre_tool_use(d2, str(Path(d2) / "specforge" / "features" / "y" / "design.md"))[0] == "allow",
                   "non-SpecForge project: no-op allow")
+
+    # ── decide_injection (trigger del slice, pura) ──
+    # estado igual y contador bajo → solo breadcrumb, contador++
+    check(decide_injection(["f", "build", 1], ["f", "build", 1], 3, 10) == ("breadcrumb", 4),
+          "sin cambio + turnos bajos → breadcrumb")
+    # estado cambió → slice completo, contador a 0
+    check(decide_injection(["f", "design", None], ["f", "requirements", None], 2, 10) == ("full", 0),
+          "on-step-change → full")
+    # sin cambio pero alcanzó el backstop de N turnos → full, reset
+    check(decide_injection(["f", "build", 0], ["f", "build", 0], 10, 10) == ("full", 0),
+          "backstop N turnos → full")
 
     print(f"\n{'OK' if not failures else 'FAILED'}: {failures} failure(s).")
     return 1 if failures else 0
