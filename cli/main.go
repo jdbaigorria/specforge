@@ -46,6 +46,8 @@ func run(args []string) int {
 		return runReview(rest)
 	case "save":
 		return runSave(rest)
+	case "journal":
+		return runJournal(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -77,6 +79,7 @@ commands:
   plan    render/validate plan.json (plan render|validate --feature=NAME)
   review  render/validate review.json (review render|validate --feature=NAME)
   save    validate JSON from stdin, then write it + render md (save <artifact> --feature=NAME --json -)
+  journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json -)
   help    show this message
 `)
 }
