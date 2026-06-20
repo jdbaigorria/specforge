@@ -71,7 +71,7 @@ commands:
   gate    show the gate ledger (gate status [--feature=NAME])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
-  context emit the minimal JSON slice (context for-wave --feature=NAME --n=N | context current [--breadcrumb])
+  context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
   state   emit the current feature/phase/wave as JSON (state current) — the brain hooks consult
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)

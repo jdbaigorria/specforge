@@ -17,21 +17,37 @@ import (
 // así que NO usa --feature, solo el project dir.
 // ----------------------------------------------------------------------------
 
-// Modelo de constitution.json (CLI-SPEC §4.8).
+// Modelo de constitution.json (CLI-SPEC §4.8). JSON-first: los principios pasan
+// de strings sueltos a objetos estructurados con id + statement + applies_to. El
+// `applies_to` es el mapeo fase→principio (paso 6): dice en qué fases el auditor
+// de calidad debe chequear ese principio.
 type constitutionFile struct {
 	SchemaVersion string      `json:"schema_version"`
 	IdentityMD    string      `json:"identity_md"`
-	Principles    []string    `json:"principles"`
+	Principles    []principle `json:"principles"`
 	Constraints   []string    `json:"constraints"`
 	AntiGoals     []string    `json:"anti_goals"`
 	Invariants    []invariant `json:"invariants"`
 }
 
+type principle struct {
+	ID        string   `json:"id"`
+	Statement string   `json:"statement"`
+	AppliesTo []string `json:"applies_to,omitempty"` // fases donde el auditor lo chequea
+}
+
 type invariant struct {
 	ID           string   `json:"id"`
 	Rule         string   `json:"rule"`
+	AppliesTo    []string `json:"applies_to,omitempty"`
 	PromotedFrom []string `json:"promoted_from"`
 	At           string   `json:"at"`
+}
+
+// auditablePhases: las fases que un auditor de calidad puede chequear. applies_to
+// solo puede apuntar acá (lane/verdict son meta, no se auditan por principio).
+var auditablePhases = map[string]bool{
+	"requirements": true, "design": true, "tasks": true, "plan": true, "build": true,
 }
 
 //go:embed templates/constitution.tmpl.md
@@ -144,6 +160,28 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	if strings.TrimSpace(cf.IdentityMD) == "" {
 		rep.warnf("identity_md is empty")
 	}
+
+	// Principios: id único + statement + applies_to válido.
+	seenP := map[string]bool{}
+	for i, p := range cf.Principles {
+		label := p.ID
+		if label == "" {
+			label = fmt.Sprintf("principle #%d", i+1)
+		}
+		switch {
+		case p.ID == "":
+			rep.errorf("principle #%d: empty id", i+1)
+		case seenP[p.ID]:
+			rep.errorf("duplicate principle id %s", p.ID)
+		default:
+			seenP[p.ID] = true
+		}
+		if strings.TrimSpace(p.Statement) == "" {
+			rep.errorf("%s: empty statement", label)
+		}
+		checkAppliesTo(label, p.AppliesTo, rep)
+	}
+
 	seen := map[string]bool{}
 	for _, inv := range cf.Invariants {
 		switch {
@@ -160,5 +198,38 @@ func checkConstitution(cf constitutionFile, rep *report) {
 		if strings.TrimSpace(inv.Rule) == "" {
 			rep.errorf("%s: empty rule", inv.ID)
 		}
+		checkAppliesTo(orDash(inv.ID), inv.AppliesTo, rep)
 	}
+}
+
+// checkAppliesTo valida el mapeo fase→regla. Dos roles del debate:
+//   - WARN si no hay applies_to → la regla no la chequea ningún auditor de fase
+//     (solo la atrapa sf-audit). Es el "lint WARN" sobre la constitución.
+//   - ERROR si apunta a una fase inexistente → gate estructural (determinista)
+//     sobre la constitución misma: lo hermético envuelve lo cooperativo.
+func checkAppliesTo(label string, appliesTo []string, rep *report) {
+	if len(appliesTo) == 0 {
+		rep.warnf("%s: no applies_to — won't be checked by any phase auditor (only by sf-audit)", label)
+		return
+	}
+	for _, ph := range appliesTo {
+		if !auditablePhases[ph] {
+			rep.errorf("%s: applies_to references unknown phase %q", label, ph)
+		}
+	}
+}
+
+// loadConstitutionQuiet lee constitution.json SIN imprimir (a diferencia de
+// readConstitutionFile). Devuelve (cf, false) si no existe o no parsea — lo usa
+// for-judge para degradar con una nota en vez de fallar.
+func loadConstitutionQuiet(projectDir string) (constitutionFile, bool) {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return constitutionFile{}, false
+	}
+	var cf constitutionFile
+	if json.Unmarshal(data, &cf) != nil {
+		return constitutionFile{}, false
+	}
+	return cf, true
 }

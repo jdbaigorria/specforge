@@ -54,6 +54,8 @@ func runContext(args []string) int {
 		return contextForWaveCmd(rest)
 	case "current":
 		return runContextCurrent(rest) // definido en state.go: cuelga de computeCurrentState
+	case "for-judge":
+		return contextForJudgeCmd(rest) // definido en judge.go: material del auditor de fase
 	default:
 		fmt.Fprintf(os.Stderr, "sf context: unknown sub-command %q\n\n", sub)
 		contextUsage()
@@ -64,6 +66,7 @@ func runContext(args []string) int {
 func contextUsage() {
 	fmt.Fprintln(os.Stderr, "usage: sf context for-wave --feature=NAME --n=N [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf context current [--breadcrumb] [project_dir]")
+	fmt.Fprintln(os.Stderr, "       sf context for-judge --phase=PHASE --feature=NAME [project_dir]")
 }
 
 // contextForWaveCmd parsea los flags de `for-wave` y emite el slice de la wave N.

@@ -3,7 +3,7 @@
 {{ . }}
 {{ end }}{{ if .Principles }}
 ## Principles
-{{ range .Principles }}- {{ . }}
+{{ range .Principles }}- **{{ .ID }}** {{ .Statement }}{{ if .AppliesTo }} _(audits: {{ list .AppliesTo }})_{{ end }}
 {{ end }}{{ end }}{{ if .Constraints }}
 ## Constraints
 {{ range .Constraints }}- {{ . }}
@@ -12,5 +12,5 @@
 {{ range .AntiGoals }}- {{ . }}
 {{ end }}{{ end }}{{ if .Invariants }}
 ## Invariants
-{{ range .Invariants }}- **{{ .ID }}** {{ .Rule }}{{ with .At }} ({{ . }}){{ end }}
+{{ range .Invariants }}- **{{ .ID }}** {{ .Rule }}{{ if .AppliesTo }} _(audits: {{ list .AppliesTo }})_{{ end }}{{ with .At }} ({{ . }}){{ end }}
 {{ end }}{{ end -}}
