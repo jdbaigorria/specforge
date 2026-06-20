@@ -29,6 +29,7 @@ type constitutionFile struct {
 	AntiGoals     []string     `json:"anti_goals"`
 	Invariants    []invariant  `json:"invariants"`
 	Audit         *auditConfig `json:"audit,omitempty"` // config del auditor de fase (paso 6)
+	Build         *buildConfig `json:"build,omitempty"` // config de ejecución del build
 }
 
 // auditConfig gobierna el tier calidad (opt-in). Puntero → si el proyecto no lo
@@ -37,7 +38,15 @@ type auditConfig struct {
 	Phase string `json:"phase"` // off | nudge | block (default: off)
 }
 
+// buildConfig elige cómo ejecutar el build: inline (en el main context, lo de
+// siempre), single (un subagente fresco para todo el build) o per-wave (un
+// subagente fresco por wave, con checkpoint automático entre waves).
+type buildConfig struct {
+	Mode string `json:"mode"` // inline | single | per-wave (default: inline)
+}
+
 var auditPhaseModes = map[string]bool{"off": true, "nudge": true, "block": true}
+var buildModes = map[string]bool{"inline": true, "single": true, "per-wave": true}
 
 type principle struct {
 	ID        string   `json:"id"`
@@ -213,6 +222,10 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	// Config del auditor de fase: si está, el modo debe ser off|nudge|block.
 	if cf.Audit != nil && cf.Audit.Phase != "" && !auditPhaseModes[cf.Audit.Phase] {
 		rep.errorf("audit.phase must be off|nudge|block, got %q", cf.Audit.Phase)
+	}
+	// Config del build: si está, el modo debe ser inline|single|per-wave.
+	if cf.Build != nil && cf.Build.Mode != "" && !buildModes[cf.Build.Mode] {
+		rep.errorf("build.mode must be inline|single|per-wave, got %q", cf.Build.Mode)
 	}
 }
 

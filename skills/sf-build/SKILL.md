@@ -31,6 +31,7 @@ Normal flow: plan + execute the named feature.
 3. Read the feature's `design.md` — this is the architectural guide
 4. Read the feature's `requirements.md` — for traceability during implementation
 5. If `specforge/context/project.md` and `specforge/context/conventions.md` exist, read them — follow conventions
+6. Read `build.mode` from `constitution.json` (`inline` | `single` | `per-wave`, default `inline`) — it decides how Step 2 executes (see "Execution strategy" below)
 
 If status is not `approved` or `building`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
 
@@ -67,10 +68,80 @@ Estimated scope: [files touched, rough complexity]
 Save as `specforge/features/<name>/progress/plan.md`.
 
 → 🔴 **GATE**: Present the execution plan. Wait for approval.
-- "Approved" → proceed to Wave 0
+- "Approved" → proceed per the execution strategy below
 - Changes requested → adjust plan, re-present
 
-## Step 2: Execute Wave by Wave
+The plan gate is also the **spawn authorization**: when `build.mode` is `single`
+or `per-wave`, approving the plan is what authorizes launching the build
+subagent(s). The human is present at this gate, so the spawn is safe.
+
+## Execution strategy (`build.mode`)
+
+Choose how to execute the approved waves based on `build.mode` (default `inline`):
+
+- **`inline`** (default) — execute waves in THIS context, human gate after each
+  wave. This is **Step 2** below; classic sf-build, unchanged.
+- **`single`** — run the WHOLE build in one fresh subagent. Keeps the main
+  context clean (build is where most tokens burn). Recommended once you trust the
+  design + tasks to be a complete handoff.
+- **`per-wave`** — run EACH wave in its own fresh subagent, sequentially. For
+  large features (**> 3-4 waves**) or high-risk designs: each wave starts fresh,
+  so context degradation never accumulates across waves. If `mode` is `single`
+  but the plan has > 4 waves, suggest `per-wave` to the user.
+
+### Why a subagent (single / per-wave)
+
+Freshness is the point: a build subagent starts at ~0% context, escaping the
+degradation that hits a long main session. The main agent stays a thin conductor.
+
+- **Seed (what the subagent gets).** For `single`: design + tasks + conventions +
+  project context. For `per-wave`, the slice for wave N — deterministic:
+  ```
+  sf context for-wave --feature=<name> --n=<N>
+  ```
+  It already carries the wave's tasks, the requirement/component refs in scope,
+  the files, and a summary of prior waves (the handoff). The CODE is NOT in the
+  seed — the subagent has tools and reads the repo; it only needs to know where.
+
+- **Handoff (how waves communicate).** Through ARTIFACTS, never the conversation.
+  Each wave subagent marks tasks `[x]` in `tasks.md`, writes `progress/wave-N.md`,
+  and leaves code on disk. Wave N+1 is seeded with `sf context for-wave --n=N+1`,
+  which reports waves `0..N` as done. No subagent stays alive to carry state — the
+  state lives in `tasks.json` + git.
+
+- **Return (what comes back).** A THIN summary only — tasks completed, test
+  results, deviations. NOT the subagent's transcript (that would refill the
+  context we're keeping clean). The detail stays in `progress/wave-N.md` + git.
+
+### Inter-wave checkpoint (`per-wave`)
+
+Between waves run an AUTOMATED checkpoint — do NOT ask the human every wave (that
+trains rubber-stamping):
+1. Run the project's tests for the work done so far.
+2. If `trace.json` exists, run `sf doctor --drift --feature=<name>`.
+
+All green → launch the next wave's subagent automatically. Any failure → STOP and
+escalate to the human with the failing detail. A per-wave human gate is
+**optional** (max control); the default is automated + escalate-on-failure.
+
+### Escalation (inside a subagent)
+
+- Small gap the design didn't anticipate → record a deviation in
+  `progress/wave-N.md` (and `sf journal add` later), then continue.
+- Gap that INVALIDATES the design → stop and escalate to the main/human; do not
+  improvise an architectural decision alone.
+
+### Observability
+
+The main agent loses the play-by-play. Mitigate it like the phase judge: the
+subagent logs its decisions to `progress/wave-N.md` (and `trace.json` at check
+time) as it goes — visibility deferred to the artifact, not the conversation.
+
+For `single`/`per-wave`, the subagent(s) still follow Step 2's per-task and
+failure protocols internally; when they finish, resume at **Step 4: Completion**
+with the thin summary, recording each `wave-N` gate in `gates[]`.
+
+## Step 2: Execute Wave by Wave (`inline` mode)
 
 Read `references/wave-execution.md` for detailed execution strategy.
 

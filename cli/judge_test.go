@@ -99,6 +99,25 @@ func TestAuditConfig(t *testing.T) {
 	}
 }
 
+// TestBuildConfig: build.mode valida (inline|single|per-wave) y round-trips.
+func TestBuildConfig(t *testing.T) {
+	var rep report
+	checkConstitution(constitutionFile{IdentityMD: "x", Build: &buildConfig{Mode: "swarm"}}, &rep)
+	if len(rep.errors) != 1 {
+		t.Errorf("errors=%v, want 1 (build.mode inválido)", rep.errors)
+	}
+
+	in := constitutionFile{IdentityMD: "x", Build: &buildConfig{Mode: "per-wave"}}
+	data, _ := json.Marshal(in)
+	var out constitutionFile
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Build == nil || out.Build.Mode != "per-wave" {
+		t.Errorf("round-trip perdió build.mode: %+v", out.Build)
+	}
+}
+
 // TestContextForJudge: integración — escribe constitution.json + design.json en
 // un dir temporal y confirma que el material del juez trae el artefacto y SOLO
 // los principios de la fase.
