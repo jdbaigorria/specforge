@@ -118,24 +118,41 @@ func contextForWave(projectDir, feature string, n int) int {
 	return 0
 }
 
-// loadWaveContext lee tasks.json (+ requirements.json/design.json OPCIONALES) y
-// computa el slice de la wave n. Función reutilizable: la usan tanto `for-wave`
-// como `current`. Devuelve (_, false) si no hay/no parsea tasks.json o la wave
-// no existe — degradación segura para que `current` no explote en esos casos.
+// loadWaveContext arma el slice de la wave n. La MEMBRESÍA (qué tasks en la wave)
+// sale de plan.json (computado); los CUERPOS de las tasks, de tasks.json. Función
+// reutilizable: la usan `for-wave` y `current`. Devuelve (_, false) si falta el
+// plan o tasks — degradación segura.
 func loadWaveContext(projectDir, feature string, n int) (waveContext, bool) {
-	jsonPath := filepath.Join(projectDir, "specforge", "features", feature, "tasks.json")
-	data, err := os.ReadFile(jsonPath)
-	if err != nil {
-		return waveContext{}, false
+	pf := readPlanQuiet(projectDir, feature)
+	if len(pf.Waves) == 0 {
+		return waveContext{}, false // sin plan computado no hay waves
 	}
-	var tf tasksFile
-	if json.Unmarshal(data, &tf) != nil {
+	tasksByID, ok := loadTasksMap(projectDir, feature)
+	if !ok {
 		return waveContext{}, false
 	}
 	// Si existen, el slice trae los CUERPOS de los R#/C# en scope; si no, solo IDs.
 	reqByID := loadRequirementsMap(projectDir, feature)
 	compByID := loadDesignMap(projectDir, feature)
-	return buildWaveContext(tf, reqByID, compByID, feature, n)
+	return buildWaveContext(pf, tasksByID, reqByID, compByID, feature, n)
+}
+
+// loadTasksMap lee tasks.json (plano) a un índice id→task. (false si falta/rompe.)
+func loadTasksMap(projectDir, feature string) (map[string]task, bool) {
+	path := filepath.Join(projectDir, "specforge", "features", feature, "tasks.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, false
+	}
+	var tf tasksFile
+	if json.Unmarshal(data, &tf) != nil {
+		return nil, false
+	}
+	m := make(map[string]task, len(tf.Tasks))
+	for _, t := range tf.Tasks {
+		m[t.ID] = t
+	}
+	return m, true
 }
 
 // loadRequirementsMap lee requirements.json y devuelve un índice id→requirement.
@@ -177,15 +194,16 @@ func loadDesignMap(projectDir, feature string) map[string]component {
 	return m
 }
 
-// buildWaveContext computa el slice (función pura → fácil de testear). reqByID y
-// compByID pueden ser nil (no hay requirements.json/design.json): en ese caso
-// van solo los IDs. Devuelve (ctx, false) si la wave N no existe.
-func buildWaveContext(tf tasksFile, reqByID map[string]requirement, compByID map[string]component, feature string, n int) (waveContext, bool) {
-	// Buscamos la wave objetivo.
-	var target *wave
-	for i := range tf.Waves {
-		if tf.Waves[i].N == n {
-			target = &tf.Waves[i]
+// buildWaveContext computa el slice (función pura → fácil de testear). La
+// membresía sale del plan (pf); los cuerpos de las tasks, del índice tasksByID.
+// reqByID/compByID pueden ser nil (van solo los IDs). (ctx, false) si la wave N
+// no existe en el plan.
+func buildWaveContext(pf planFile, tasksByID map[string]task, reqByID map[string]requirement, compByID map[string]component, feature string, n int) (waveContext, bool) {
+	// Buscamos la wave objetivo en el plan.
+	var target *planWave
+	for i := range pf.Waves {
+		if pf.Waves[i].N == n {
+			target = &pf.Waves[i]
 			break
 		}
 	}
@@ -193,27 +211,35 @@ func buildWaveContext(tf tasksFile, reqByID map[string]requirement, compByID map
 		return waveContext{}, false
 	}
 
-	// Juntamos refs y archivos de las tasks de ESTA wave. El `...` expande cada
-	// slice en los argumentos de append.
+	// Ensamblamos la wave: traemos el CUERPO de cada task por id y juntamos sus
+	// refs/archivos. El `...` expande cada slice en los argumentos de append.
+	var tasks []task
 	var reqs, comps, files []string
-	for _, tk := range target.Tasks {
+	for _, id := range target.Tasks {
+		tk, ok := tasksByID[id]
+		if !ok {
+			continue // id en el plan sin cuerpo en tasks.json (lo caza sf plan validate)
+		}
+		tasks = append(tasks, tk)
 		reqs = append(reqs, tk.RequirementRefs...)
 		comps = append(comps, tk.ComponentRefs...)
 		files = append(files, tk.FilesTouched...)
 	}
+	assembled := wave{N: target.N, Name: target.Name, Tasks: tasks}
 
 	// Resumen compacto de las waves anteriores (n menor): conteo + histograma de
-	// status. El LLM no necesita el detalle de lo ya hecho, solo el panorama.
+	// status (el status sale del cuerpo en tasksByID). El LLM no necesita el
+	// detalle de lo ya hecho, solo el panorama.
 	prior := []priorWaveSummary{}
-	for _, w := range tf.Waves {
+	for _, w := range pf.Waves {
 		if w.N >= n {
 			continue
 		}
 		statuses := map[string]int{}
-		for _, tk := range w.Tasks {
-			s := tk.Status
-			if s == "" {
-				s = "pending"
+		for _, id := range w.Tasks {
+			s := "pending"
+			if tk, ok := tasksByID[id]; ok && tk.Status != "" {
+				s = tk.Status
 			}
 			statuses[s]++
 		}
@@ -256,7 +282,7 @@ func buildWaveContext(tf tasksFile, reqByID map[string]requirement, compByID map
 
 	return waveContext{
 		Feature:         feature,
-		Wave:            *target,
+		Wave:            assembled,
 		RequirementRefs: reqRefs,
 		Requirements:    reqBodies,
 		ComponentRefs:   compRefs,

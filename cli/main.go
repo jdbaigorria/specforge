@@ -76,7 +76,7 @@ commands:
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)
   constitution  render/validate constitution.json (constitution render|validate)
-  plan    render/validate plan.json (plan render|validate --feature=NAME)
+  plan    render/validate/compute the wave layout (plan render|validate|compute --feature=NAME)
   review  render/validate review.json (review render|validate --feature=NAME)
   save    validate JSON from stdin, then write it + render md (save <artifact> --feature=NAME --json -)
   journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json - [--bridge-icm])

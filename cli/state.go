@@ -206,20 +206,15 @@ func phaseAfter(p string) string {
 	return phasePipeline[i+1]
 }
 
-// totalWaves lee tasks.json y devuelve cuántas waves tiene, o -1 si no se puede
-// leer/parsear. Con -1 no sabemos cuándo termina build, así que asumimos que
-// sigue (degradación segura).
+// totalWaves devuelve cuántas waves tiene el plan COMPUTADO (plan.json), o -1 si
+// no hay plan todavía. Con -1 no sabemos cuándo termina build, así que asumimos
+// que sigue (degradación segura: antes de `sf plan compute` no hay waves).
 func totalWaves(projectDir, feature string) int {
-	path := filepath.Join(projectDir, "specforge", "features", feature, "tasks.json")
-	data, err := os.ReadFile(path)
-	if err != nil {
+	pf := readPlanQuiet(projectDir, feature)
+	if len(pf.Waves) == 0 {
 		return -1
 	}
-	var tf tasksFile
-	if json.Unmarshal(data, &tf) != nil {
-		return -1
-	}
-	return len(tf.Waves)
+	return len(pf.Waves)
 }
 
 // indexFeatures arma el índice nombre→*feature que necesita blockers (status.go).

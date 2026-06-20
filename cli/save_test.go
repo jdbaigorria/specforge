@@ -14,9 +14,9 @@ func TestFinishSave(t *testing.T) {
 		jsonPath := filepath.Join(dir, "specforge/features/f/tasks.json")
 		mdPath := filepath.Join(dir, "specforge/features/f/tasks.md")
 
-		v := tasksFile{Feature: "f", Waves: []wave{{N: 0, Tasks: []task{
+		v := tasksFile{Feature: "f", Tasks: []task{
 			{ID: "T1", Title: "x", Status: "done"},
-		}}}}
+		}}
 		if code := finishSave(v, jsonPath, mdPath); code != 0 {
 			t.Fatalf("exit=%d, want 0", code)
 		}
@@ -32,10 +32,10 @@ func TestFinishSave(t *testing.T) {
 		dir := t.TempDir()
 		jsonPath := filepath.Join(dir, "tasks.json")
 		// id duplicado + feature faltante → la validación falla.
-		v := tasksFile{Waves: []wave{{N: 0, Tasks: []task{
+		v := tasksFile{Tasks: []task{
 			{ID: "T1", Title: "a"},
 			{ID: "T1", Title: "b"},
-		}}}}
+		}}
 		if code := finishSave(v, jsonPath, filepath.Join(dir, "tasks.md")); code != 2 {
 			t.Errorf("exit=%d, want 2", code)
 		}

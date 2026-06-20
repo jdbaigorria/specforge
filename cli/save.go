@@ -54,7 +54,7 @@ func (v designFile) renderMarkdown() (string, error) { return execTemplate(desig
 func (v tasksFile) validate(r *report)              { checkTasks(v, r) }
 func (v tasksFile) renderMarkdown() (string, error) { return execTemplate(tasksTmpl, v) }
 
-func (v planFile) validate(r *report)              { checkPlan(v, r) }
+func (v planFile) validate(r *report)              { checkPlanInternal(v, r) }
 func (v planFile) renderMarkdown() (string, error) { return execTemplate(planTmpl, v) }
 
 func (v reviewFile) validate(r *report)              { checkReview(v, r) }

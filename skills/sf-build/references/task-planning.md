@@ -2,32 +2,40 @@
 
 ## Purpose
 
-Organize tasks from `tasks.md` into executable waves based on dependencies.
-This is the first step of `sf-build`, always executed before implementation.
+Group the tasks into executable waves based on their dependencies. This is the
+first step of `sf-build`, before implementation.
 
-## Wave Organization Rules
+## The wave layout is COMPUTED, not hand-rolled
 
-### Wave 0: Foundation
-Tasks with no dependencies on other tasks.
-Typically: data models, schemas, configuration, base utilities.
+Tasks (`tasks.json`) are a **flat** list; each task declares `depends_on` (task
+IDs). The wave grouping is a deterministic **topological layering** of that
+graph — so `sf` computes it, you don't sort it by hand:
 
-### Wave N: Depends on Wave N-1
-Tasks that require output from the previous wave.
-Order by: data layer → logic layer → interface layer → integration.
+```
+sf plan compute --feature=<name>
+```
 
-### Parallel Tasks Within a Wave
-Tasks in the same wave can be executed in any order.
-If task A and task B are both in Wave 1 and don't depend on each other,
-they can be implemented in parallel (or any order).
+This reads `tasks.json`, validates the graph (no dangling deps, no cycles), and
+writes `progress/plan.json` (+ `plan.md`) with each wave's task IDs:
 
-## Dependency Detection
+- **Wave 0** = tasks with no dependencies.
+- **Wave N** = `1 + max(wave of its dependencies)` (as early as possible).
+- Tasks in the **same wave** are independent → parallelizable.
 
-For each task, check:
-1. Does it reference entities/schemas from another task? → depends on that task
-2. Does it import/use functions defined in another task? → depends on that task
-3. Does it test behavior built in another task? → same wave or later
+If `sf plan compute` reports a cycle or a dangling dependency, the spec is wrong
+— fix the `depends_on` edges in `tasks.json`, don't paper over it in the plan.
 
-## Wave Size Guidelines
+## Refining the computed plan (judgment, optional)
+
+The computed layout is the deterministic default. You MAY refine it — add a wave
+`name`/`complexity`/`rationale`, or merge/split waves for review granularity
+(guideline below). After any manual edit, run `sf plan validate --feature=<name>`:
+it **errors** if a task lands in a wave at or before one of its dependencies (the
+dependency guard) or if a task is left unassigned — so refinement can't silently
+break the ordering. Re-running `sf plan compute` preserves your
+`name`/`complexity`/`rationale` by wave number.
+
+## Wave Size Guidelines (for refinement)
 
 - Each wave should have 1-5 tasks
 - If a wave has more than 5 tasks, split into sub-waves

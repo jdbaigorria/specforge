@@ -38,11 +38,11 @@ func TestCheckConstitution(t *testing.T) {
 	})
 }
 
-func TestCheckPlan(t *testing.T) {
+func TestCheckPlanInternal(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		pf := planFile{Feature: "f", Waves: []planWave{{N: 0, Complexity: "low"}, {N: 1, Complexity: "high"}}}
 		var rep report
-		checkPlan(pf, &rep)
+		checkPlanInternal(pf, &rep)
 		if len(rep.errors) != 0 {
 			t.Errorf("unexpected errors: %v", rep.errors)
 		}
@@ -51,9 +51,47 @@ func TestCheckPlan(t *testing.T) {
 	t.Run("duplicate wave + invalid complexity", func(t *testing.T) {
 		pf := planFile{Feature: "f", Waves: []planWave{{N: 0, Complexity: "low"}, {N: 0, Complexity: "huge"}}}
 		var rep report
-		checkPlan(pf, &rep)
+		checkPlanInternal(pf, &rep)
 		if len(rep.errors) != 2 {
 			t.Errorf("errors=%d (%v), want 2", len(rep.errors), rep.errors)
+		}
+	})
+}
+
+// TestCheckPlan: el cruce con tasks.json — cobertura (toda task en una wave) y
+// el GUARD wave(t) > wave(deps).
+func TestCheckPlan(t *testing.T) {
+	tf := tasksFile{Feature: "f", Tasks: []task{
+		{ID: "T1", Title: "a"},
+		{ID: "T2", Title: "b", DependsOn: []string{"T1"}},
+	}}
+
+	t.Run("valid: T1 wave0, T2 wave1", func(t *testing.T) {
+		pf := planFile{Feature: "f", Waves: []planWave{
+			{N: 0, Tasks: []string{"T1"}}, {N: 1, Tasks: []string{"T2"}},
+		}}
+		var rep report
+		checkPlan(pf, tf, &rep)
+		if len(rep.errors) != 0 {
+			t.Errorf("unexpected errors: %v", rep.errors)
+		}
+	})
+
+	t.Run("guard: dep en la misma wave → error", func(t *testing.T) {
+		pf := planFile{Feature: "f", Waves: []planWave{{N: 0, Tasks: []string{"T1", "T2"}}}}
+		var rep report
+		checkPlan(pf, tf, &rep)
+		if len(rep.errors) != 1 {
+			t.Errorf("errors=%v, want 1 (guard)", rep.errors)
+		}
+	})
+
+	t.Run("task sin wave → error de cobertura", func(t *testing.T) {
+		pf := planFile{Feature: "f", Waves: []planWave{{N: 0, Tasks: []string{"T1"}}}} // falta T2
+		var rep report
+		checkPlan(pf, tf, &rep)
+		if len(rep.errors) != 1 {
+			t.Errorf("errors=%v, want 1 (T2 sin asignar)", rep.errors)
 		}
 	})
 }

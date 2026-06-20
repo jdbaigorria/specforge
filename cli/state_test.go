@@ -123,13 +123,16 @@ func TestBuildBreadcrumb(t *testing.T) {
 func TestBuildCurrentContextBuild(t *testing.T) {
 	dir := t.TempDir()
 	featDir := filepath.Join(dir, "specforge", "features", "trunc")
-	if err := os.MkdirAll(featDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(featDir, "progress"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	tasks := `{"feature":"trunc","waves":[
-		{"n":0,"name":"Foundation","tasks":[{"id":"T1","status":"pending","requirement_refs":["R1"]}]}
-	]}`
+	// tasks.json plano + plan.json con la membresía (lo que computaría sf plan compute).
+	tasks := `{"feature":"trunc","tasks":[{"id":"T1","status":"pending","requirement_refs":["R1"]}]}`
 	if err := os.WriteFile(filepath.Join(featDir, "tasks.json"), []byte(tasks), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plan := `{"feature":"trunc","waves":[{"n":0,"name":"Foundation","tasks":["T1"]}]}`
+	if err := os.WriteFile(filepath.Join(featDir, "progress", "plan.json"), []byte(plan), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

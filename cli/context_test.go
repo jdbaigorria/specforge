@@ -5,20 +5,19 @@ import (
 	"testing"
 )
 
-// TestBuildWaveContext prueba la función pura: dedup de refs, resumen de waves
-// previas, y "no encontrada" para una wave inexistente.
+// TestBuildWaveContext prueba la función pura: la membresía sale del plan, los
+// cuerpos de tasksByID; dedup de refs, resumen de waves previas, y "no
+// encontrada" para una wave inexistente.
 func TestBuildWaveContext(t *testing.T) {
-	tf := tasksFile{
-		Feature: "f",
-		Waves: []wave{
-			{N: 0, Name: "Foundation", Tasks: []task{
-				{ID: "T1", Status: "done", RequirementRefs: []string{"R5"}, ComponentRefs: []string{"C1"}},
-			}},
-			{N: 1, Name: "Cmds", Tasks: []task{
-				{ID: "T2", RequirementRefs: []string{"R1", "R1"}, ComponentRefs: []string{"C3"}, FilesTouched: []string{"a.go"}},
-				{ID: "T3", RequirementRefs: []string{"R2"}},
-			}},
-		},
+	// plan: wave 0 = [T1], wave 1 = [T2, T3].
+	pf := planFile{Feature: "f", Waves: []planWave{
+		{N: 0, Name: "Foundation", Tasks: []string{"T1"}},
+		{N: 1, Name: "Cmds", Tasks: []string{"T2", "T3"}},
+	}}
+	tasksByID := map[string]task{
+		"T1": {ID: "T1", Status: "done", RequirementRefs: []string{"R5"}, ComponentRefs: []string{"C1"}},
+		"T2": {ID: "T2", RequirementRefs: []string{"R1", "R1"}, ComponentRefs: []string{"C3"}, FilesTouched: []string{"a.go"}},
+		"T3": {ID: "T3", RequirementRefs: []string{"R2"}},
 	}
 
 	// reqByID con el cuerpo de R1 → el slice debe traerlo en Requirements.
@@ -30,7 +29,7 @@ func TestBuildWaveContext(t *testing.T) {
 		"C3": {ID: "C3", Name: "AddCommand"},
 	}
 
-	ctx, ok := buildWaveContext(tf, reqByID, compByID, "f", 1)
+	ctx, ok := buildWaveContext(pf, tasksByID, reqByID, compByID, "f", 1)
 	if !ok {
 		t.Fatal("wave 1 should be found")
 	}
@@ -54,7 +53,7 @@ func TestBuildWaveContext(t *testing.T) {
 		t.Errorf("status histogram=%v, want done:1", ctx.PriorWaves[0].Statuses)
 	}
 
-	if _, ok := buildWaveContext(tf, nil, nil, "f", 9); ok {
+	if _, ok := buildWaveContext(pf, tasksByID, nil, nil, "f", 9); ok {
 		t.Errorf("wave 9 should not be found")
 	}
 }

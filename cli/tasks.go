@@ -17,17 +17,13 @@ import (
 // requirements/design/constitution — es aditivo y reversible.
 // ----------------------------------------------------------------------------
 
-// Modelo de tasks.json (CLI-SPEC §4.4).
+// Modelo de tasks.json (CLI-SPEC §4.4). JSON-first: la lista de tasks es PLANA.
+// Las waves NO viven acá — son una decisión de EJECUCIÓN que `sf plan compute`
+// deriva del grafo de `depends_on` y guarda en plan.json. tasks.json = el QUÉ.
 type tasksFile struct {
 	SchemaVersion string `json:"schema_version"`
 	Feature       string `json:"feature"`
-	Waves         []wave `json:"waves"`
-}
-
-type wave struct {
-	N     int    `json:"n"`
-	Name  string `json:"name"`
-	Tasks []task `json:"tasks"`
+	Tasks         []task `json:"tasks"`
 }
 
 type task struct {
@@ -38,6 +34,15 @@ type task struct {
 	FilesTouched    []string `json:"files_touched"`
 	EstimatedEffort string   `json:"estimated_effort"`
 	Status          string   `json:"status"`
+	DependsOn       []string `json:"depends_on"` // IDs de tasks que deben completarse antes
+}
+
+// wave es una AGRUPACIÓN de tasks para ejecución. Ya no se almacena en
+// tasks.json; se computa (plan.json) y se usa para armar el slice de contexto.
+type wave struct {
+	N     int    `json:"n"`
+	Name  string `json:"name"`
+	Tasks []task `json:"tasks"`
 }
 
 // go:embed mete el contenido del archivo DENTRO del binario en tiempo de
@@ -215,7 +220,7 @@ func validateTasks(projectDir, feature string) int {
 	var rep report
 	checkTasks(tf, &rep)
 
-	fmt.Printf("Validated %s: %d wave(s).\n", feature, len(tf.Waves))
+	fmt.Printf("Validated %s: %d task(s).\n", feature, len(tf.Tasks))
 	for _, w := range rep.warnings {
 		fmt.Printf("  warning: %s\n", w)
 	}
@@ -230,49 +235,141 @@ func validateTasks(projectDir, feature string) int {
 	return 0
 }
 
-// checkTasks corre los chequeos de consistencia interna sobre tasks.json.
+// checkTasks corre los chequeos de consistencia interna sobre tasks.json (plano).
 func checkTasks(tf tasksFile, rep *report) {
 	if tf.Feature == "" {
 		rep.errorf("missing `feature`")
 	}
 
-	seenWave := map[int]bool{}
-	seenTask := map[string]bool{} // ids únicos a través de TODAS las waves
-
-	for _, w := range tf.Waves {
-		if seenWave[w.N] {
-			rep.errorf("duplicate wave number %d", w.N)
+	seen := map[string]bool{} // ids únicos
+	for _, tk := range tf.Tasks {
+		switch {
+		case tk.ID == "":
+			rep.errorf("task with empty id")
+		case seen[tk.ID]:
+			rep.errorf("duplicate task id %s", tk.ID)
+		default:
+			seen[tk.ID] = true
 		}
-		seenWave[w.N] = true
-
-		for _, tk := range w.Tasks {
-			switch {
-			case tk.ID == "":
-				rep.errorf("wave %d: task with empty id", w.N)
-			case seenTask[tk.ID]:
-				rep.errorf("duplicate task id %s", tk.ID)
-			default:
-				seenTask[tk.ID] = true
+		if tk.Title == "" {
+			rep.errorf("%s: empty title", tk.ID)
+		}
+		if tk.Status != "" && !taskStatuses[tk.Status] {
+			rep.errorf("%s: invalid status %q", tk.ID, tk.Status)
+		}
+		// Refs: solo chequeo de formato (warning), no de existencia.
+		for _, r := range tk.RequirementRefs {
+			if !reqRefRe.MatchString(r) {
+				rep.warnf("%s: requirement_ref %q is not in R# form", tk.ID, r)
 			}
-
-			if tk.Title == "" {
-				rep.errorf("%s: empty title", tk.ID)
-			}
-			if tk.Status != "" && !taskStatuses[tk.Status] {
-				rep.errorf("%s: invalid status %q", tk.ID, tk.Status)
-			}
-
-			// Refs: solo chequeo de formato (warning), no de existencia.
-			for _, r := range tk.RequirementRefs {
-				if !reqRefRe.MatchString(r) {
-					rep.warnf("%s: requirement_ref %q is not in R# form", tk.ID, r)
-				}
-			}
-			for _, c := range tk.ComponentRefs {
-				if !compRefRe.MatchString(c) {
-					rep.warnf("%s: component_ref %q is not in C# form", tk.ID, c)
-				}
+		}
+		for _, c := range tk.ComponentRefs {
+			if !compRefRe.MatchString(c) {
+				rep.warnf("%s: component_ref %q is not in C# form", tk.ID, c)
 			}
 		}
 	}
+
+	// Integridad del grafo de dependencias.
+	checkTaskDeps(tf.Tasks, rep)
+}
+
+// checkTaskDeps valida que cada depends_on apunte a un id existente y que el
+// grafo no tenga ciclos (sin grafo acíclico no se pueden computar las waves).
+func checkTaskDeps(tasks []task, rep *report) {
+	exists := map[string]bool{}
+	for _, t := range tasks {
+		exists[t.ID] = true
+	}
+	for _, t := range tasks {
+		for _, d := range t.DependsOn {
+			if !exists[d] {
+				rep.errorf("%s: depends_on unknown task %q", t.ID, d)
+			}
+		}
+	}
+	if _, cycle := computeTaskWaves(tasks); cycle != "" {
+		rep.errorf("dependency cycle involving task %q", cycle)
+	}
+}
+
+// computeTaskWaves asigna a cada task su número de wave por LAYERING ASAP
+// (longest-path): wave(t) = 0 si no tiene deps, si no 1 + max(wave de sus deps).
+// Es un DFS con memoización; de paso detecta ciclos (back-edge sobre un nodo en
+// la pila). Devuelve el mapa id→wave y, si hay ciclo, el id donde se detectó.
+//
+// Concepto Go: las dependencias inexistentes se ignoran acá (checkTaskDeps ya
+// las reporta); este algoritmo solo necesita el grafo válido.
+func computeTaskWaves(tasks []task) (waves map[string]int, cycle string) {
+	deps := map[string][]string{}
+	exists := map[string]bool{}
+	for _, t := range tasks {
+		exists[t.ID] = true
+	}
+	for _, t := range tasks {
+		for _, d := range t.DependsOn {
+			if exists[d] {
+				deps[t.ID] = append(deps[t.ID], d)
+			}
+		}
+	}
+
+	waves = map[string]int{}
+	const (
+		unvisited = 0
+		onStack   = 1 // en la rama actual del DFS → un back-edge acá = ciclo
+		done      = 2
+	)
+	state := map[string]int{}
+
+	var dfs func(id string) int
+	dfs = func(id string) int {
+		if state[id] == done {
+			return waves[id]
+		}
+		if state[id] == onStack {
+			cycle = id
+			return 0
+		}
+		state[id] = onStack
+		w := 0
+		for _, d := range deps[id] {
+			dw := dfs(d)
+			if cycle != "" {
+				return 0
+			}
+			if dw+1 > w {
+				w = dw + 1
+			}
+		}
+		state[id] = done
+		waves[id] = w
+		return w
+	}
+
+	for _, t := range tasks {
+		if state[t.ID] == unvisited {
+			dfs(t.ID)
+			if cycle != "" {
+				return waves, cycle
+			}
+		}
+	}
+	return waves, ""
+}
+
+// readTasksFile lee y parsea tasks.json. (jsonPath fijo por feature.)
+func readTasksFile(projectDir, feature string) (tasksFile, int) {
+	jsonPath := filepath.Join(projectDir, "specforge", "features", feature, "tasks.json")
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf tasks: cannot read %s (%v)\n", jsonPath, err)
+		return tasksFile{}, 4
+	}
+	var tf tasksFile
+	if err := json.Unmarshal(data, &tf); err != nil {
+		fmt.Fprintf(os.Stderr, "sf tasks: invalid JSON (%v)\n", err)
+		return tasksFile{}, 2
+	}
+	return tf, 0
 }
