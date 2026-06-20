@@ -37,6 +37,12 @@ type gate struct {
 	By      string `json:"by"`
 	At      string `json:"at"`
 	Comment string `json:"comment"`
+	// Hash es el sha256 del CONTENIDO canónico del artefacto al momento de
+	// aprobarlo (lo sella `sf gate approve`). Permite detectar "silent edits":
+	// si el hash actual del artefacto difiere del sellado, el gate ya no
+	// certifica el contenido vigente → el artefacto está STALE. `omitempty`:
+	// los gates viejos (pre-hash) y los de fases sin artefacto (lane) no lo traen.
+	Hash string `json:"hash,omitempty"`
 }
 
 // runStatus es el punto de entrada de `sf status [project_dir]`. Renderiza el
@@ -44,11 +50,22 @@ type gate struct {
 // render de datos que ya existen, no un dashboard.
 func runStatus(args []string) int {
 	// Dir de proyecto: el primer argumento posicional, o el cwd por defecto.
+	// --artifacts cambia la vista a los estados de artefactos (stale model);
+	// --feature la acota a una feature.
 	projectDir := "."
+	artifacts := false
+	featureFilter := ""
 	for _, a := range args {
-		if !strings.HasPrefix(a, "-") {
+		switch {
+		case a == "--artifacts":
+			artifacts = true
+		case strings.HasPrefix(a, "--feature="):
+			featureFilter = strings.TrimPrefix(a, "--feature=")
+		case strings.HasPrefix(a, "-"):
+			fmt.Fprintf(os.Stderr, "sf status: unknown flag %q\n", a)
+			return 2
+		default:
 			projectDir = a
-			break
 		}
 	}
 
@@ -70,6 +87,12 @@ func runStatus(args []string) int {
 	if len(ff.Features) == 0 {
 		fmt.Println("No features registered yet.")
 		return 0
+	}
+
+	// Vista de artefactos (stale model): una tabla por feature con el estado de
+	// cada artefacto de la cadena. --feature la acota a una sola.
+	if artifacts {
+		return runStatusArtifacts(ff, projectDir, featureFilter)
 	}
 
 	// Indexamos por nombre para lookups, y guardamos el orden original aparte

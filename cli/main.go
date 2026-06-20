@@ -68,9 +68,9 @@ usage: sf <command> [flags]
 
 commands:
   lint    check the skill suite for consistency
-  status  project-level health view (reads specforge/features.json)
+  status  project health view, or artifact staleness with --artifacts [--feature=NAME]
+  gate    gate ledger + approvals + verdicts (gate approve --feature=NAME --phase=PHASE seals the artifact hash)
   doctor  detect drift between archived specs and code (--drift)
-  gate    gate ledger + quality verdicts (gate status [--feature=NAME] | gate record-verdict --feature=NAME)
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)

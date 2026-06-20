@@ -27,6 +27,8 @@ func runGate(args []string) int {
 	switch sub {
 	case "status":
 		return runGateStatusCmd(rest)
+	case "approve":
+		return runGateApprove(rest)
 	case "record-verdict":
 		return runGateRecordVerdict(rest)
 	default:
@@ -38,7 +40,122 @@ func runGate(args []string) int {
 
 func gateUsage() {
 	fmt.Fprintln(os.Stderr, "usage: sf gate status [--feature=NAME] [project_dir]")
+	fmt.Fprintln(os.Stderr, "       sf gate approve --feature=NAME --phase=PHASE [--by=user] [--comment=TEXT] [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf gate record-verdict --feature=NAME [--phase=PHASE] [--json -|FILE] [project_dir]")
+}
+
+// ----------------------------------------------------------------------------
+// `sf gate approve` — registra DETERMINÍSTICAMENTE un gate humano aprobado y, lo
+// clave, SELLA el hash del artefacto. Es el primer comando del CLI que ESCRIBE
+// features.json (hasta ahora el ledger lo escribía el skill a mano). Sellar el
+// hash acá —y no pedírselo al LLM— es lo que hace confiable la detección de
+// silent edits: el hash lo computa la máquina sobre el archivo real.
+// ----------------------------------------------------------------------------
+
+func runGateApprove(args []string) int {
+	projectDir := "."
+	feature, phase, by, comment := "", "", "user", ""
+	for _, a := range args {
+		switch {
+		case strings.HasPrefix(a, "--feature="):
+			feature = strings.TrimPrefix(a, "--feature=")
+		case strings.HasPrefix(a, "--phase="):
+			phase = strings.TrimPrefix(a, "--phase=")
+		case strings.HasPrefix(a, "--by="):
+			by = strings.TrimPrefix(a, "--by=")
+		case strings.HasPrefix(a, "--comment="):
+			comment = strings.TrimPrefix(a, "--comment=")
+		case strings.HasPrefix(a, "-"):
+			fmt.Fprintf(os.Stderr, "sf gate approve: unknown flag %q\n", a)
+			return 2
+		default:
+			projectDir = a
+		}
+	}
+	if feature == "" || phase == "" {
+		gateUsage()
+		return 2
+	}
+	return gateApprove(projectDir, feature, phase, by, comment)
+}
+
+// gateApprove hace el trabajo: lee features.json, sella el hash del artefacto de
+// la fase, apendea el gate y reescribe el archivo. El parámetro se llama `name`
+// (no `feature`) para no tapar al tipo `feature`.
+func gateApprove(projectDir, name, phase, by, comment string) int {
+	path := filepath.Join(projectDir, "specforge", "features.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf gate approve: cannot read features.json under %s (%v)\n", projectDir, err)
+		return 4
+	}
+	var ff featuresFile
+	if err := json.Unmarshal(data, &ff); err != nil {
+		fmt.Fprintf(os.Stderr, "sf gate approve: invalid features.json (%v)\n", err)
+		return 2
+	}
+
+	// Buscamos la feature por nombre. Tomamos el puntero al elemento real del
+	// slice (no una copia) para poder mutar sus Gates.
+	var f *feature
+	for i := range ff.Features {
+		if ff.Features[i].Name == name {
+			f = &ff.Features[i]
+			break
+		}
+	}
+	if f == nil {
+		fmt.Fprintf(os.Stderr, "sf gate approve: feature %q not found\n", name)
+		return 4
+	}
+
+	// Sellamos el hash del artefacto de esta fase (si la fase tiene artefacto).
+	// No se puede aprobar un artefacto que falta: sería certificar el vacío.
+	hash := ""
+	if rel, hasArtifact := artifactFileForPhase(phase); hasArtifact {
+		abs := filepath.Join(projectDir, "specforge", "features", name, rel)
+		h, ok := hashArtifact(abs)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "sf gate approve: artifact for phase %q not found (%s)\n", phase, rel)
+			return 4
+		}
+		hash = h
+	}
+
+	f.Gates = append(f.Gates, gate{
+		Phase:   phase,
+		Result:  "approve",
+		By:      by,
+		At:      nowUTC(),
+		Comment: comment,
+		Hash:    hash,
+	})
+
+	if code := writeFeaturesFile(path, ff); code != 0 {
+		return code
+	}
+	if hash != "" {
+		fmt.Printf("approved %s/%s (hash %s…)\n", name, phase, hash[:12])
+	} else {
+		fmt.Printf("approved %s/%s\n", name, phase)
+	}
+	return 0
+}
+
+// writeFeaturesFile reescribe features.json con indent de 2 espacios + newline
+// final (mismo estilo que el resto de los .json del repo). Centralizado acá para
+// que cualquier futuro comando que mute el registro escriba igual.
+func writeFeaturesFile(path string, ff featuresFile) int {
+	out, err := json.MarshalIndent(ff, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf gate approve: marshal failed (%v)\n", err)
+		return 1
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "sf gate approve: write failed (%v)\n", err)
+		return 1
+	}
+	return 0
 }
 
 // runGateStatusCmd parsea los flags de `status`.
