@@ -15,6 +15,7 @@ A 4-skill feature pipeline + `sf-audit` for project-wide review + support skills
 ## Table of contents
 
 - [How it works](#how-it-works)
+- [The deterministic layer (CLI `sf` + hooks)](#the-deterministic-layer-cli-sf--hooks)
 - [Architecture](#architecture)
 - [Skills reference](#skills-reference)
 - [Artefact flow](#artefact-flow)
@@ -77,6 +78,179 @@ wrong, the user edits the spec and resync detection cascades the changes.
 
 ---
 
+## The deterministic layer (CLI `sf` + hooks)
+
+The skills are the **cooperative** half: an LLM produces specs, judges code,
+writes prose. But instruction-following degrades as the context fills — past
+~50% an agent starts ignoring the workflow it was told to follow. So SpecForge
+ships a **deterministic** half that doesn't depend on the model's goodwill: a
+small Go CLI **`sf`** and a set of per-harness **hooks**.
+
+> **The division of labor:** the LLM *produces and judges*; `sf` *persists,
+> validates, computes, and renders*; the hooks *force and inject* on harness
+> events. None of the three does another's job.
+
+**JSON-first.** Each artifact is a `.json` **source** plus a `.md` **render**.
+You (or the LLM) produce the JSON; `sf` validates it and generates the Markdown.
+One source of truth — the Markdown can't drift from the data because it's derived
+from it.
+
+**Two tiers of enforcement** (this distinction runs through everything below):
+
+| Tier | What it guards | How |
+|------|----------------|-----|
+| **Structural** (hermetic) | gate order, schema, dependencies, serial flow | a hook *denies* the tool call — it cannot be skipped |
+| **Quality** (cooperative) | "is this good / minimal / aligned?" | a fresh sub-agent judges; the verdict is a *nudge*, recorded for the human |
+
+You can make illegal states unreachable (structural). You cannot force good
+content into existence (quality) — so quality is raised by a checker, not
+guaranteed. SpecForge is honest about which is which.
+
+### The `sf` CLI
+
+`sf` is deterministic: same inputs, same outputs, no model calls. It's safe to
+run anywhere and is what the hooks consult.
+
+**Validate & render artifacts (the JSON-first write path).**
+
+```console
+$ echo '{"feature":"add-task-crud","tasks":[
+    {"id":"T1","title":"TaskModel + JsonStorage","requirement_refs":["R5"],"depends_on":[]},
+    {"id":"T2","title":"add command","requirement_refs":["R1"],"depends_on":["T1"]}
+  ]}' | sf save tasks --feature=add-task-crud --json -
+saved specforge/features/add-task-crud/tasks.json (+ rendered .../tasks.md)
+```
+
+`sf save` validates the JSON (unique ids, refs in `R#`/`C#` form, dependency
+graph acyclic) and **only if it passes** writes the canonical `.json` + renders
+the `.md`. Invalid input is rejected with exit 2 and **nothing touches disk** —
+a malformed artifact never exists. (`sf <artifact> validate|render` do the two
+halves standalone, for all six artifacts: constitution, requirements, design,
+tasks, plan, review.)
+
+**Compute the wave layout from task dependencies.**
+
+```console
+$ sf plan compute --feature=add-task-crud
+computed plan for add-task-crud: 5 task(s) → 3 wave(s)
+```
+
+Tasks are a **flat** list; each declares `depends_on`. The wave grouping is a
+deterministic **topological layering** — wave 0 = tasks with no deps, wave N =
+`1 + max(wave of its deps)`. So `sf` *computes* the waves; the LLM doesn't sort
+them by hand. `sf plan validate` then enforces the guard `wave(task) >
+wave(its deps)` as an error. (Tasks in the same wave are independent →
+parallelizable.)
+
+**Read project & gate state.**
+
+```console
+$ sf status                       # health table: every feature, phase, drift, blockers
+$ sf gate status --feature=X      # the human-approval gate ledger for a feature
+$ sf doctor --drift               # archived specs whose code anchor vanished (reads trace.json)
+$ sf trace verify --feature=X     # the requirement → code → test matrix vs the repo
+$ sf lint                         # the skill suite's own consistency
+```
+
+**Emit the context slices the hooks inject — the "brain".**
+
+```console
+$ sf state current
+{ "feature": "add-task-crud", "status": "building",
+  "phase": "build", "wave": 1, "last_approved_gate": "wave-0" }
+```
+
+`sf state current` is a **pure function of `features.json`**: the active feature
+(serial flow), the phase derived as *last-approved-gate + 1*, the wave from
+`plan.json`. Zero stored state — nothing to keep in sync (no "second truth").
+
+```console
+$ sf context current --breadcrumb
+SpecForge: feature `add-task-crud`, fase `build` (wave 1) · slice completo: `sf context current`
+
+$ sf context for-wave --feature=add-task-crud --n=1   # the seed for a build sub-agent
+$ sf context for-judge --phase=design --feature=X     # artifact + ONLY the principles that apply to that phase
+```
+
+`context current` is the minimal slice of the current step — a cheap breadcrumb,
+or the full JSON. `for-wave` seeds a build sub-agent with one wave. `for-judge`
+hands the quality auditor exactly the artifact plus the constitution principles
+whose `applies_to` includes that phase — nothing more.
+
+**Record quality verdicts & durable lessons.**
+
+```console
+$ echo '{"phase":"design","verdicts":[
+    {"rule":"P1","result":"pass","citation":"no network calls in any component"},
+    {"rule":"I1","result":"fail","citation":"endpoint X lacks error handling"}
+  ]}' | sf gate record-verdict --feature=X --phase=design
+recorded fail verdict for X/design (2 rule(s))      # exit 3 = recorded FAIL → hook can nudge
+
+$ echo '{"feature":"X","lessons":[
+    {"context":"reimplemented date parsing","rule":"use the stdlib"}
+  ]}' | sf journal add --feature=X --json - --bridge-icm
+journaled specforge/journal/2026-06-20-X.json (+ rendered .md)
+staged for commit (NOT committed — that's your call)
+bridged to ICM (topic specforge-journal)
+```
+
+`sf gate record-verdict` appends a phase-audit verdict to `audit.json` (separate
+from human gates). `sf journal add` persists durable lessons to a git-tracked
+journal — its own memory, not a hard dependency on any external tool; `--bridge-icm`
+optionally mirrors to [ICM](https://github.com/rtk-ai/icm) if present. It
+**stages but never commits** — the commit is your call.
+
+### The hooks (per-harness — Claude Code adapter)
+
+Hooks fire on the harness's events and call `sf`. This is the layer that makes
+enforcement independent of the model. The core (`sf`) is portable; the hook
+adapter is per-harness (a new harness = a new adapter, not new logic). Every hook
+is **fail-open** (any error → allow) and a **no-op outside a SpecForge project**.
+
+| Event | What the hook does |
+|-------|--------------------|
+| `SessionStart` | inject the resumed session + project invariants + consolidated learnings |
+| `UserPromptSubmit` | inject the current-step slice (`sf context current`) so the spec doesn't dilute — cheap breadcrumb every turn, full slice on step-change |
+| `PreToolUse` (Write/Edit) | **structural gates:** deny writing `design` before `requirements` is approved, `tasks` before `design`, `plan` before `tasks`; deny a 2nd feature's `requirements` while another is active (serial); deny edits to machine state |
+| `Stop` | **memory reconciler:** if a feature was archived with no journal entry, nudge once to capture lessons |
+| `PreCompact` | flag the session to re-inject the full slice next turn — after compaction the earlier slices were summarized away |
+| `SessionEnd` | timestamp a continuity marker |
+
+### The quality tier: phase auditor
+
+The structural gates are hermetic but can only check *order and schema*, not
+*quality*. For quality, `sf-check --phase=<phase>` runs an **adversarial judge in
+a fresh sub-agent** — fresh context escapes the degradation a long session
+suffers. It's fed by `sf context for-judge`, judges each mapped principle
+`pass`/`fail` with a citation, and persists the verdict via `sf gate
+record-verdict`. Opt-in and governed by config:
+
+```jsonc
+// constitution.json
+{
+  "principles": [
+    { "id": "P-min", "statement": "Minimal code: climb the ladder before writing new code",
+      "applies_to": ["design", "build"] }
+  ],
+  "audit": { "phase": "off" | "nudge" | "block" },   // default off
+  "build": { "mode": "inline" | "single" | "per-wave" } // default inline
+}
+```
+
+- **`audit.phase`** — `off` (skip), `nudge` (surface failures, don't block),
+  `block` (stop the gate on a fail).
+- **`build.mode`** — `inline` (waves run in the main context, classic), `single`
+  (the whole build in one fresh sub-agent), `per-wave` (one fresh sub-agent per
+  wave, for large features — each wave starts clean, with an automated checkpoint
+  between waves).
+
+Quality principles like **`P-min`** (minimal code) are just constitution
+principles with `applies_to` — the phase auditor checks them for free, no special
+path. This is the cooperative tier: a fresh judge raises the floor on quality; it
+doesn't guarantee it.
+
+---
+
 ## Architecture
 
 ### Directory structure
@@ -88,32 +262,36 @@ state hides in `specforge/.state/`.
 ```
 my-project/
 ├── specforge/                       # Single visible SpecForge root
-│   ├── features.json                # Feature registry (status tracker)
-│   ├── constitution.md              # Project principles + identity
+│   ├── features.json                # Feature registry (status + gate ledger)
+│   ├── constitution.json / .md      # Principles (with applies_to) + identity — JSON source + render
 │   ├── history.md                   # Append-only project log
 │   ├── roadmap.md                   # Feature roadmap
 │   ├── learnings.md                 # Consolidated, evidence-anchored learnings (injected each session)
 │   ├── features/
 │   │   └── add-task-manager/
-│   │       ├── requirements.md
-│   │       ├── design.md
-│   │       ├── tasks.md
-│   │       ├── review.md
-│   │       ├── decisions/           # Complex technical decisions (optional)
+│   │       ├── requirements.json / .md   # JSON source + Markdown render (each artifact)
+│   │       ├── design.json / .md
+│   │       ├── tasks.json / .md          # flat tasks + depends_on
+│   │       ├── trace.json                # requirement → code:symbol → test (drift anchors)
+│   │       ├── review.json / .md
+│   │       ├── audit.json                # phase-audit verdicts (quality tier)
+│   │       ├── decisions/                # Complex technical decisions (optional)
 │   │       └── progress/
-│   │           ├── plan.md
+│   │           ├── plan.json / .md       # computed wave layout (sf plan compute)
 │   │           ├── wave-0.md
 │   │           └── wave-1.md
 │   ├── archive/
 │   │   └── 2026-05-12-add-auth/
 │   ├── audits/                      # sf-audit reports
+│   ├── journal/                     # durable lessons (sf journal add) — git-tracked memory
 │   ├── context/                     # Project context + skill outputs (visible)
 │   │   ├── project.md               # Stack, architecture (brownfield inferred)
 │   │   ├── conventions.md           # Code conventions
 │   │   ├── compact-rules.md         # Condensed rules for sub-agents
-│   │   └── thinks/ triages/ briefs/ grills/ journal/ …  # support-skill artefacts
+│   │   └── thinks/ triages/ briefs/ grills/ …  # support-skill artefacts
 │   └── .state/                      # Hidden machine state (not human-edited)
-│       └── session.md               # Session cache / recovery (not source of truth)
+│       ├── session.md               # Session cache / recovery (not source of truth)
+│       └── hook-context.json        # per-session slice-injection trigger state
 │
 └── src/                             # Your code
 ```
@@ -151,8 +329,8 @@ sf-propose/
 sf-build/
 ├── SKILL.md
 ├── references/
-│   ├── task-planning.md             # Organize tasks into waves
-│   └── wave-execution.md            # Per-wave execution strategy
+│   ├── task-planning.md             # Run `sf plan compute` (waves from deps) + refine
+│   └── wave-execution.md            # Per-wave execution + the minimal-code ladder
 └── templates/
     └── progress.tmpl.md
 
@@ -160,6 +338,7 @@ sf-check/
 ├── SKILL.md
 ├── references/
 │   ├── backprop.md                  # Pattern 3x → invariant promotion
+│   ├── minimal-code.md              # Parsimony rubric (P-min audit)
 │   └── archive.md                   # Sync + close procedure
 └── templates/
     └── review.tmpl.md
@@ -167,10 +346,14 @@ sf-check/
 
 ### Execution model
 
-The 4 pipeline skills run **inline** — in the main conversation context. No
-sub-agent delegation for them, because every artefact has a human gate that
-requires interaction. A sub-agent runs in an isolated context and cannot stop to
-ask for approval, so anything with a gate must stay inline.
+The pipeline skills run **inline** by default — in the main conversation context
+— because every artefact has a human gate that requires interaction, and a
+sub-agent can't stop to ask for approval. The one exception is **build
+execution**: once the plan gate is approved (the human authorizes it), the build
+can run in a fresh sub-agent (`build.mode = single | per-wave`) — the plan is
+already the contract, so execution needs no further gate until it reports back.
+Build is where most tokens burn, so offloading it keeps the main context clean.
+See [the deterministic layer](#the-deterministic-layer-cli-sf--hooks).
 
 Support skills follow the same rule, decided by **interactivity, not tier**:
 
@@ -251,7 +434,7 @@ Generates the full specification for a feature: requirements, design, tasks.
 1. Conversation: what, why, who, boundaries
 2. Generate `requirements.md` with EARS notation → 🔴 GATE
 3. Generate `design.md` (sections conditional on complexity) → 🔴 GATE
-4. Generate `tasks.md` with waves + traceability matrix → 🔴 GATE
+4. Generate `tasks.json` — a flat task list with `depends_on` + traceability matrix → 🔴 GATE
 5. Register feature in `features.json` (status: `approved`)
 
 **Design-first flow** (`--design-first`):
@@ -265,7 +448,7 @@ Reverse-engineers specs from existing code. Creates a `_baseline` feature with
 **Produces per feature:**
 - `specforge/features/<name>/requirements.md` — EARS requirements + acceptance criteria
 - `specforge/features/<name>/design.md` — architecture, components, decisions
-- `specforge/features/<name>/tasks.md` — waves + traceability matrix
+- `specforge/features/<name>/tasks.json` (+ `.md`) — flat tasks + `depends_on` (waves are computed at build)
 
 **Design sections are conditional.** Only include sections relevant to the feature.
 A CLI flag doesn't need Security Considerations. A payment endpoint does. Sections
@@ -287,11 +470,12 @@ Plans execution and implements wave by wave.
 | **Resumable** | If paused, reads `progress/` to find where it left off |
 
 **Flow:**
-1. Generate execution plan from `tasks.md` waves → 🔴 GATE
-2. For each wave:
-   a. Execute all tasks in the wave
+1. `sf plan compute` — compute the wave layout from the tasks' `depends_on`
+   graph (topological layering); optionally refine → 🔴 GATE
+2. For each wave (per `build.mode`: inline, or a fresh sub-agent):
+   a. Execute all tasks in the wave — climbing the minimal-code ladder per task
    b. Log progress to `progress/wave-<n>.md`
-   c. Present results → 🔴 GATE
+   c. Present results → 🔴 GATE (inline) / automated checkpoint (sub-agent)
 3. All waves complete → status becomes `checking`
 
 **Error recovery (3 levels):**
@@ -303,9 +487,9 @@ Plans execution and implements wave by wave.
 escalate. Specs are the contract; build fulfills them.
 
 **Produces per wave:**
-- `specforge/features/<name>/progress/plan.md` — execution plan
-- `specforge/features/<name>/progress/wave-<n>.md` — what was done, decisions, issues
-- Updated `tasks.md` — tasks marked `[x]` as completed
+- `specforge/features/<name>/progress/plan.json` (+ `.md`) — computed wave layout
+- `specforge/features/<name>/progress/wave-<n>.md` — what was done, decisions, ladder rung
+- Updated `tasks.json` — tasks marked `done` as completed
 
 ---
 
@@ -322,10 +506,15 @@ Validates implementation against specs. Archives on approval.
 **Flow:**
 1. Traceability analysis: every R# → task → implementation → test
 2. Gap analysis: missing implementations, tests, design deviations, orphan code
-3. Constitution compliance: validate against principles
+3. Constitution compliance: validate against principles — including **parsimony**
+   (`P-min`: over-engineering is a valid REVISE reason; see `references/minimal-code.md`)
 4. Verdict: APPROVE / APPROVE WITH NOTES / REVISE
 5. Present review → 🔴 GATE
 6. If APPROVE → archive automatically
+
+It also runs as a **phase auditor** (`sf-check --phase=<phase>`) — a narrow,
+fresh-sub-agent quality check of a single just-finished phase at its gate, instead
+of the full end-of-feature pass. See [the quality tier](#the-quality-tier-phase-auditor).
 
 **Verdicts:**
 - **APPROVE** — all requirements implemented + tested, no violations
@@ -389,24 +578,30 @@ without `specforge/` initialized and produce artefacts in `specforge/context/`. 
 
 ## Artefact flow
 
+Each artifact below is a `.json` **source** + a `.md` **render** (`sf` generates
+the Markdown from the JSON):
+
 ```
 sf-init produces:
-  specforge/constitution.md
+  specforge/constitution.json / .md       (principles with applies_to)
   specforge/context/project.md
   specforge/context/conventions.md
 
 sf-propose produces (per feature):
-  specforge/features/<name>/requirements.md
-  specforge/features/<name>/design.md
-  specforge/features/<name>/tasks.md
+  specforge/features/<name>/requirements.json / .md
+  specforge/features/<name>/design.json / .md
+  specforge/features/<name>/tasks.json / .md          (flat tasks + depends_on)
 
 sf-build produces (per feature):
-  specforge/features/<name>/progress/plan.md
+  specforge/features/<name>/progress/plan.json / .md  (sf plan compute — waves from deps)
   specforge/features/<name>/progress/wave-<n>.md
+  specforge/features/<name>/audit.json                (if phase auditor ran)
 
 sf-check produces (per feature):
-  specforge/features/<name>/review.md
-  specforge/archive/<date>-<name>/        (on APPROVE)
+  specforge/features/<name>/review.json / .md
+  specforge/features/<name>/trace.json                (requirement → code → test anchors)
+  specforge/journal/<date>-<name>.json / .md          (durable lessons, on archive)
+  specforge/archive/<date>-<name>/                    (on APPROVE)
 ```
 
 **Who reads what:**
@@ -416,12 +611,16 @@ sf-check produces (per feature):
 | constitution.md | sf-init | sf-propose (constraints), sf-check (compliance) |
 | specforge/context/project.md | sf-init | sf-propose (stack context), sf-build (conventions) |
 | specforge/context/conventions.md | sf-init | sf-build (coding standards) |
-| requirements.md | sf-propose | sf-build (traceability), sf-check (validation) |
-| design.md | sf-propose | sf-build (architecture guide), sf-check (adherence) |
-| tasks.md | sf-propose | sf-build (execution), sf-check (traceability) |
+| requirements.json | sf-propose | sf-build (traceability), sf-check (validation) |
+| design.json | sf-propose | sf-build (architecture guide), sf-check (adherence) |
+| tasks.json | sf-propose | `sf plan compute` (deps → waves), sf-build (execution) |
+| plan.json | `sf plan compute` | sf-build (`sf context for-wave`), sf state current |
 | progress/*.md | sf-build | sf-check (audit trail) |
-| review.md | sf-check | archive (verdict determines archival) |
-| features.json | sf-init | all skills (status gate) |
+| trace.json | sf-check | `sf doctor --drift`, `sf trace verify` |
+| audit.json | `sf gate record-verdict` | the human (phase-audit verdicts) |
+| review.json | sf-check | archive (verdict determines archival) |
+| journal/*.json | `sf journal add` | the phase auditor (past lessons), ICM (optional) |
+| features.json | sf-init | all skills + `sf` (status gate, gate ledger) |
 | history.md | sf-init | sf-check (backprop pattern tracking) |
 
 ---

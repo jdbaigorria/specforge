@@ -15,6 +15,7 @@ Un pipeline de 4 skills por feature + `sf-audit` para revisión transversal del 
 ## Tabla de contenidos
 
 - [Cómo funciona](#cómo-funciona)
+- [La capa determinista (CLI `sf` + hooks)](#la-capa-determinista-cli-sf--hooks)
 - [Arquitectura](#arquitectura)
 - [Referencia de skills](#referencia-de-skills)
 - [Flujo de artefactos](#flujo-de-artefactos)
@@ -75,6 +76,180 @@ El loop REVISE es lo que hace el flujo iterativo, no waterfall. Cuando check
 encuentra gaps, envía la feature de vuelta a build con correcciones específicas.
 Si el spec estaba mal, el usuario lo edita directamente y la detección de resync
 propaga los cambios en cascada.
+
+---
+
+## La capa determinista (CLI `sf` + hooks)
+
+Los skills son la mitad **cooperativa**: un LLM produce specs, juzga código,
+escribe prosa. Pero el instruction-following se degrada a medida que el contexto
+se llena — pasado ~50% el agente empieza a ignorar el workflow que le dijeron que
+siga. Por eso SpecForge trae una mitad **determinista** que no depende de la buena
+voluntad del modelo: un CLI chico en Go, **`sf`**, y un set de **hooks** por harness.
+
+> **El reparto de tareas:** el LLM *produce y juzga*; `sf` *persiste, valida,
+> computa y renderiza*; los hooks *fuerzan e inyectan* en eventos del harness.
+> Ninguno hace el trabajo del otro.
+
+**JSON-first.** Cada artefacto es un `.json` **fuente** más un `.md` **render**.
+Vos (o el LLM) producís el JSON; `sf` lo valida y genera el Markdown. Una sola
+fuente de verdad — el Markdown no puede divergir de los datos porque deriva de ellos.
+
+**Dos tiers de enforcement** (esta distinción recorre todo lo de abajo):
+
+| Tier | Qué protege | Cómo |
+|------|-------------|------|
+| **Estructural** (hermético) | orden de gates, schema, dependencias, flujo serial | un hook *deniega* la tool call — no se puede saltar |
+| **Calidad** (cooperativo) | "¿esto está bien / es mínimo / está alineado?" | un subagente fresco juzga; el veredicto es un *nudge*, registrado para el humano |
+
+Podés volver inalcanzables los estados ilegales (estructural). No podés forzar
+buen contenido a existir (calidad) — así que la calidad la sube un verificador,
+no se garantiza. SpecForge es honesto sobre cuál es cuál.
+
+### El CLI `sf`
+
+`sf` es determinista: mismas entradas, mismas salidas, sin llamadas al modelo.
+Es seguro de correr en cualquier lado y es lo que consultan los hooks.
+
+**Validar y renderizar artefactos (la vía de escritura JSON-first).**
+
+```console
+$ echo '{"feature":"add-task-crud","tasks":[
+    {"id":"T1","title":"TaskModel + JsonStorage","requirement_refs":["R5"],"depends_on":[]},
+    {"id":"T2","title":"add command","requirement_refs":["R1"],"depends_on":["T1"]}
+  ]}' | sf save tasks --feature=add-task-crud --json -
+saved specforge/features/add-task-crud/tasks.json (+ rendered .../tasks.md)
+```
+
+`sf save` valida el JSON (ids únicos, refs en forma `R#`/`C#`, grafo de
+dependencias acíclico) y **solo si pasa** escribe el `.json` canónico + renderiza
+el `.md`. La entrada inválida se rechaza con exit 2 y **nada toca el disco** — un
+artefacto malformado nunca existe. (`sf <artefacto> validate|render` hacen las dos
+mitades sueltas, para los seis artefactos: constitution, requirements, design,
+tasks, plan, review.)
+
+**Computar el layout de waves desde las dependencias de las tasks.**
+
+```console
+$ sf plan compute --feature=add-task-crud
+computed plan for add-task-crud: 5 task(s) → 3 wave(s)
+```
+
+Las tasks son una lista **plana**; cada una declara `depends_on`. La agrupación
+en waves es un **layering topológico** determinista — wave 0 = tasks sin deps,
+wave N = `1 + max(wave de sus deps)`. Así que `sf` *computa* las waves; el LLM no
+las ordena a mano. `sf plan validate` después enforza el guard `wave(task) >
+wave(sus deps)` como error. (Tasks en la misma wave son independientes →
+paralelizables.)
+
+**Leer el estado del proyecto y de los gates.**
+
+```console
+$ sf status                       # tabla de salud: cada feature, fase, drift, bloqueos
+$ sf gate status --feature=X      # el ledger de gates de aprobación humana de una feature
+$ sf doctor --drift               # specs archivadas cuyo anchor de código desapareció (lee trace.json)
+$ sf trace verify --feature=X     # la matriz requirement → código → test vs el repo
+$ sf lint                         # la consistencia de la propia suite de skills
+```
+
+**Emitir los slices de contexto que inyectan los hooks — el "cerebro".**
+
+```console
+$ sf state current
+{ "feature": "add-task-crud", "status": "building",
+  "phase": "build", "wave": 1, "last_approved_gate": "wave-0" }
+```
+
+`sf state current` es una **función pura de `features.json`**: la feature activa
+(flujo serial), la fase derivada como *último-gate-aprobado + 1*, la wave desde
+`plan.json`. Cero estado guardado — nada que mantener en sync (sin "segunda verdad").
+
+```console
+$ sf context current --breadcrumb
+SpecForge: feature `add-task-crud`, fase `build` (wave 1) · slice completo: `sf context current`
+
+$ sf context for-wave --feature=add-task-crud --n=1   # la semilla para un subagente de build
+$ sf context for-judge --phase=design --feature=X     # artefacto + SOLO los principios que aplican a esa fase
+```
+
+`context current` es el slice mínimo del paso actual — un breadcrumb barato, o el
+JSON completo. `for-wave` siembra un subagente de build con una wave. `for-judge`
+le da al auditor de calidad exactamente el artefacto más los principios de la
+constitución cuyo `applies_to` incluye esa fase — nada más.
+
+**Registrar veredictos de calidad y lecciones durables.**
+
+```console
+$ echo '{"phase":"design","verdicts":[
+    {"rule":"P1","result":"pass","citation":"ningún componente hace llamadas de red"},
+    {"rule":"I1","result":"fail","citation":"el endpoint X no maneja errores"}
+  ]}' | sf gate record-verdict --feature=X --phase=design
+recorded fail verdict for X/design (2 rule(s))      # exit 3 = FAIL registrado → el hook puede nudgear
+
+$ echo '{"feature":"X","lessons":[
+    {"context":"reimplementamos parseo de fechas","rule":"usar la stdlib"}
+  ]}' | sf journal add --feature=X --json - --bridge-icm
+journaled specforge/journal/2026-06-20-X.json (+ rendered .md)
+staged for commit (NOT committed — that's your call)
+bridged to ICM (topic specforge-journal)
+```
+
+`sf gate record-verdict` apendea un veredicto de auditoría de fase a `audit.json`
+(separado de los gates humanos). `sf journal add` persiste lecciones durables a un
+journal git-trackeado — su propia memoria, no una dependencia dura de ninguna
+herramienta externa; `--bridge-icm` opcionalmente espeja a
+[ICM](https://github.com/rtk-ai/icm) si está presente. **Stagea pero nunca
+commitea** — el commit es tu decisión.
+
+### Los hooks (por harness — adapter de Claude Code)
+
+Los hooks disparan en los eventos del harness y llaman a `sf`. Esta es la capa que
+hace al enforcement independiente del modelo. El core (`sf`) es portable; el
+adapter de hooks es por-harness (un harness nuevo = un adapter nuevo, no lógica
+nueva). Cada hook es **fail-open** (cualquier error → permitir) y un **no-op fuera
+de un proyecto SpecForge**.
+
+| Evento | Qué hace el hook |
+|--------|------------------|
+| `SessionStart` | inyecta la sesión retomada + invariantes del proyecto + learnings consolidados |
+| `UserPromptSubmit` | inyecta el slice del paso actual (`sf context current`) para que la spec no se diluya — breadcrumb barato cada turno, slice completo on-step-change |
+| `PreToolUse` (Write/Edit) | **gates estructurales:** deniega escribir `design` antes de aprobar `requirements`, `tasks` antes de `design`, `plan` antes de `tasks`; deniega el `requirements` de una 2da feature mientras otra está activa (serial); deniega editar estado de máquina |
+| `Stop` | **conciliador de memoria:** si una feature se archivó sin entrada en el journal, nudgea una vez para capturar lecciones |
+| `PreCompact` | marca la sesión para re-inyectar el slice completo el próximo turno — tras compactar, los slices previos se resumieron |
+| `SessionEnd` | timestampea un marker de continuidad |
+
+### El tier calidad: auditor de fase
+
+Los gates estructurales son herméticos pero solo chequean *orden y schema*, no
+*calidad*. Para calidad, `sf-check --phase=<fase>` corre un **juez adversarial en
+un subagente fresco** — el contexto limpio escapa la degradación que sufre una
+sesión larga. Lo alimenta `sf context for-judge`, juzga cada principio mapeado
+`pass`/`fail` con cita, y persiste el veredicto vía `sf gate record-verdict`.
+Opt-in y gobernado por config:
+
+```jsonc
+// constitution.json
+{
+  "principles": [
+    { "id": "P-min", "statement": "Código mínimo: subir la escalera antes de escribir código nuevo",
+      "applies_to": ["design", "build"] }
+  ],
+  "audit": { "phase": "off" | "nudge" | "block" },   // default off
+  "build": { "mode": "inline" | "single" | "per-wave" } // default inline
+}
+```
+
+- **`audit.phase`** — `off` (saltea), `nudge` (muestra los fallos, no bloquea),
+  `block` (frena el gate ante un fail).
+- **`build.mode`** — `inline` (las waves corren en el contexto principal, clásico),
+  `single` (todo el build en un subagente fresco), `per-wave` (un subagente fresco
+  por wave, para features grandes — cada wave arranca limpia, con checkpoint
+  automático entre waves).
+
+Los principios de calidad como **`P-min`** (código mínimo) son simplemente
+principios de la constitución con `applies_to` — el auditor de fase los chequea
+gratis, sin vía especial. Este es el tier cooperativo: un juez fresco sube el piso
+de calidad; no lo garantiza.
 
 ---
 
