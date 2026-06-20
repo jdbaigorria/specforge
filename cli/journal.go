@@ -80,6 +80,7 @@ func runJournal(args []string) int {
 	feature := ""
 	date := ""
 	jsonSrc := "-" // por defecto, stdin
+	bridgeICM := false
 	for i := 0; i < len(rest); i++ {
 		a := rest[i]
 		switch {
@@ -94,6 +95,8 @@ func runJournal(args []string) int {
 				jsonSrc = rest[i+1]
 				i++ // consumimos el valor
 			}
+		case a == "--bridge-icm":
+			bridgeICM = true
 		case a != "-" && strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf journal: unknown flag %q\n", a)
 			return 2
@@ -128,7 +131,38 @@ func runJournal(args []string) int {
 		entry.Date = time.Now().UTC().Format("2006-01-02")
 	}
 
-	return journalAdd(projectDir, entry)
+	code := journalAdd(projectDir, entry)
+	// El journal propio (git) es la fuente; ICM es un puente OPCIONAL. Solo si se
+	// pidió y el write funcionó. NO depende de ICM (el journal ya está en disco).
+	if code == 0 && bridgeICM {
+		bridgeToICM(entry)
+	}
+	return code
+}
+
+// bridgeToICM hace un store best-effort a ICM si el binario está. El journal
+// propio sigue siendo la verdad; esto es un espejo opcional para recall.
+func bridgeToICM(entry journalEntry) {
+	icm, err := exec.LookPath("icm")
+	if err != nil {
+		fmt.Println("note: --bridge-icm but `icm` not found — skipped (journal still written)")
+		return
+	}
+	var rules, tags []string
+	for _, l := range entry.Lessons {
+		rules = append(rules, l.Rule)
+		tags = append(tags, l.Tags...)
+	}
+	content := fmt.Sprintf("SpecForge journal — %s: %s", entry.Feature, strings.Join(rules, "; "))
+	icmArgs := []string{"store", "-t", "specforge-journal", "-c", content, "-i", "high"}
+	if len(tags) > 0 {
+		icmArgs = append(icmArgs, "-k", strings.Join(uniqSorted(tags), ","))
+	}
+	if exec.Command(icm, icmArgs...).Run() == nil {
+		fmt.Println("bridged to ICM (topic specforge-journal)")
+	} else {
+		fmt.Println("note: ICM bridge failed — journal still written")
+	}
 }
 
 // journalAdd valida, escribe el JSON canónico + el markdown, y deja staged.
