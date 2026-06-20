@@ -24,7 +24,7 @@ Normal flow: specify a single feature (requirements → design → tasks).
 
 ### `sf-propose --all`
 Decompose the entire product into features based on the constitution. Generate a roadmap.
-Then propose each feature one by one with gates. See [Product Decomposition](#--all-product-decomposition) below.
+Then propose each feature one by one with gates. Read `references/product-decomposition.md`.
 
 ### `sf-propose --design-first <name>`
 Architecture-first specification. Read `references/design-first.md` before proceeding.
@@ -39,103 +39,23 @@ Reverse-engineer specs from existing code. Read `references/from-code.md` before
 3. If `specforge/constitution.md` exists, read it — principles guide spec generation.
 4. If `specforge/context/project.md` exists, read it — stack context informs design.
 
-## --all: Product Decomposition
-
-Read `specforge/constitution.md` — identity, principles, constraints, anti-goals.
-
-### Step A1: Decompose into features
-
-Based on the product identity, break it down into logical features:
-- Group by user-facing capability (not by technical layer)
-- Each feature should be independently deliverable
-- Name in kebab-case: `user-auth`, `task-crud`, `export-csv`
-
-### Step A2: Prioritize
-
-Classify each feature:
-
-| Priority | Meaning |
-|----------|---------|
-| **Must** | Product doesn't work without it. MVP. |
-| **Should** | Important but can launch without. v1.1. |
-| **Could** | Nice to have. Backlog. |
-
-### Step A3: Generate roadmap
-
-Create `specforge/roadmap.md`:
-
-```markdown
-# Product Roadmap
-
-Generated from constitution on [date].
-
-## Must (MVP)
-1. [feature-name] — [one-line description]
-2. [feature-name] — [one-line description]
-
-## Should (v1.1)
-3. [feature-name] — [one-line description]
-
-## Could (backlog)
-4. [feature-name] — [one-line description]
-
-## Dependencies
-[feature-B depends on feature-A because...]
-```
-
-**Trace to product requirements (F27).** If the project was seeded from an
-`sfp-scout` discovery brief, derive each roadmap feature from the product
-requirements: tag it with which `PR#` it serves, e.g. `1. auth — login/logout
-(serves: PR1, PR3)`. Record `"serves": ["PR1","PR3"]` on the feature in
-`features.json`. This extends the traceability spine upward —
-`PR# → feature → R# → task → code → test` — so product intent stays linked to
-shipped code (no telephone game). Features with no discovery origin (brownfield)
-just omit `serves`.
-
-→ 🔴 **GATE**: Present roadmap. User approves, reorders, or adjusts.
-
-### Step A4: Propose each feature
-
-After roadmap approval, start proposing features in priority order.
-For each: run the normal Requirements-First flow below.
-Gate after each feature's 3 artefacts. User can stop at any point.
-
----
-
 ## Step 0: Lane Triage (lite vs standard)
 
-Before specifying, classify the change and **propose a lane**. The framework
-classifies; the human confirms (F34). This is the only place a fast lane is
-chosen — never let momentum silently skip ceremony.
+Before specifying, classify the change and **propose a lane** through a gate —
+the framework classifies, the human confirms (F34). This is the only place a fast
+lane is chosen; never let momentum silently skip ceremony. Default to **standard**
+whenever unsure.
 
-Estimate from the user's description:
-
-- **Surface:** touches one file/string vs many?
-- **Sensitivity:** any security/auth/data/money/migration surface? (if yes → standard)
-- **Reversibility:** trivially revertible vs not?
-
-Propose a lane:
-
-- **Lite** — typos, copy, config, a one-file change with no sensitive surface.
-  One combined artefact, one spec gate, build, minimal check.
-- **Standard** — everything else. The full requirements → design → tasks flow.
-
-```
-───────────────────────────────────────
-🔴 GATE — lane: proposed **{lite|standard}** for "<feature>"
-Reason: <1 file / no sensitive surface / reversible — or why standard>
-Awaiting approval. Reply: approve / use {other lane} / change X
-───────────────────────────────────────
-```
-
-Record the approved lane in `features.json` (`"lane": "lite"|"standard"`). It is
-a gated, auditable decision — not the agent deciding to go fast.
+Read `references/lane-triage.md` for the triage heuristics and the gate format.
 
 - **Lite approved** → read `references/lite-lane.md` and follow it. Stop here.
 - **Standard approved** → continue with the Requirements-First Flow below.
 
-When the lane is obvious and the user invoked plainly, you may still propose —
-but always through this gate. Default to **standard** whenever unsure.
+## `--all`: Product Decomposition
+
+For `sf-propose --all`, read `references/product-decomposition.md`: decompose the
+product into features from the constitution, generate `roadmap.md`, gate it, then
+propose each feature with the Requirements-First Flow below.
 
 ## Requirements-First Flow
 
@@ -152,39 +72,12 @@ Don't interrogate — if the user gives a clear description, proceed.
 
 ### Step 2: Generate requirements.md
 
-Create `specforge/features/<name>/requirements.md`.
+Create `specforge/features/<name>/requirements.md` using `templates/requirements.tmpl.md`.
 
-Use EARS notation for system behaviors. Read `references/ears-notation.md` if needed.
-
-Structure:
-```markdown
-# <Feature Name> — Requirements
-
-## Overview
-[1-2 sentence summary]
-
-## User Stories
-- As a [actor], I want to [action], so that [benefit]
-
-## System Requirements
-
-### R1: [Requirement name]
-WHEN [trigger]
-THE SYSTEM SHALL [behavior]
-
-**Acceptance Criteria:**
-- [ ] AC1: [testable criterion]
-- [ ] AC2: [testable criterion]
-
-### R2: ...
-
-## Edge Cases
-- [What happens when X fails?]
-- [What happens with empty input?]
-
-## Out of Scope
-- [What this feature deliberately doesn't do]
-```
+Use EARS notation for system behaviors (`WHEN [trigger] THE SYSTEM SHALL
+[behavior]`). Read `references/ears-notation.md` if needed. Every requirement
+needs testable acceptance criteria, plus edge cases and an explicit out-of-scope
+section.
 
 → 🔴 **GATE**: Present `requirements.md` to the user.
 - "Approved" → proceed to Step 3
@@ -193,63 +86,16 @@ THE SYSTEM SHALL [behavior]
 
 ### Step 3: Generate design.md
 
-Create `specforge/features/<name>/design.md`.
+Create `specforge/features/<name>/design.md` using `templates/design.tmpl.md`.
 
 If a technical decision requires investigation, read `references/research.md`.
 
-Only include sections relevant to the feature's complexity. A CLI flag addition
-doesn't need Security Considerations. A payment system does. Include a section
-only if it changes a decision or informs implementation. Sections that would say
-"N/A" generate noise — omit them.
-
-Core sections (always include):
-- Architecture (how it fits into the system)
-- Components (what gets created/modified)
-- Technical Decisions (if any non-obvious choices were made)
-
-Conditional sections (include when relevant):
-- Data Model (if entities or schemas are involved)
-- API / Interface Contracts (if public interfaces change)
-- Sequence / Flow (if the interaction has multiple steps)
-- Error Handling (if failure modes are non-trivial)
-- Testing Strategy (if testing approach differs from project default)
-- Security Considerations (if security-sensitive surfaces exist)
-- Performance Considerations (if performance-sensitive paths exist)
-
-Structure:
-```markdown
-# <Feature Name> — Design
-
-## Architecture
-[How this feature fits into the existing system]
-[Component diagram or description]
-
-## Components
-### [Component 1]
-- **Responsibility:** [what it does]
-- **Interface:** [inputs/outputs]
-- **Dependencies:** [what it needs]
-
-### [Component 2]
-...
-
-## Data Model
-[Entities, schemas, or state shape]
-
-## API / Interface Contracts
-[Endpoints, CLI commands, function signatures]
-
-## Technical Decisions
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| [e.g., storage] | [e.g., DynamoDB] | [why] |
-
-## Error Handling
-[Strategy for failures, retries, user-facing errors]
-
-## Testing Strategy
-[Unit, integration, e2e — what gets tested and how]
-```
+**Only include sections relevant to the feature's complexity.** A CLI flag
+addition doesn't need Security Considerations; a payment system does. Include a
+section only if it changes a decision or informs implementation — sections that
+would say "N/A" generate noise. Always include Architecture, Components, and
+Technical Decisions; add Data Model, API/Interface Contracts, Sequence/Flow,
+Error Handling, Testing Strategy, Security, or Performance only when relevant.
 
 → 🔴 **GATE**: Present `design.md` to the user.
 - "Approved" → proceed to Step 4
@@ -258,41 +104,17 @@ Structure:
 
 ### Step 4: Generate tasks.md
 
-Create `specforge/features/<name>/tasks.md`.
+Create `specforge/features/<name>/tasks.md` using `templates/tasks.tmpl.md`.
 
-Structure:
-```markdown
-# <Feature Name> — Tasks
+Tasks are a **flat** list. Each task declares its dependencies (`depends_on`) —
+**do NOT group tasks into waves here.** Wave grouping is an execution concern
+that `sf plan compute` derives from the `depends_on` graph at build time. The
+`tasks.md` (the WHAT) stays flat; the build plan (the HOW-it's-grouped) is
+computed. The CLI source of truth is `tasks.json`, a flat array where each task
+carries `id`, `title`, `requirement_refs`, and `depends_on`.
 
-## Implementation Plan
-
-### Wave 0: [theme] (no dependencies)
-- [ ] T1: [task description] → R1
-  - Expected: [what exists after this task]
-  - Files: [files created/modified]
-
-- [ ] T2: [task description] → R1, R2
-  - Expected: [what exists after this task]
-  - Files: [files created/modified]
-
-### Wave 1: [theme] (depends on Wave 0)
-- [ ] T3: [task description] → R3
-  - Expected: ...
-  - Files: ...
-
-### Wave 2: [theme] (depends on Wave 1)
-- [ ] T4: [task description] → R2, R4
-  - Expected: ...
-  - Files: ...
-
-## Traceability
-| Requirement | Tasks |
-|-------------|-------|
-| R1          | T1, T2 |
-| R2          | T2, T4 |
-| R3          | T3     |
-| R4          | T4     |
-```
+Be honest and minimal with `depends_on`: a missing edge schedules a task too
+early; a spurious one serializes work that could have run in parallel.
 
 Every task must trace to at least one requirement.
 Every requirement must be covered by at least one task.
@@ -304,47 +126,13 @@ If any requirement has no task, add one or flag it to the user.
 
 ### Step 5: Update Feature Registry
 
-Update `specforge/features.json`. The registry is the **source of truth** for
-status and gates (F10). Each gate the user approved in this run is appended to
-the `gates[]` ledger — this is the auditable record that a gate actually
-happened, not a claim in a markdown header.
+Update `specforge/features.json` — the **source of truth** for status and gates
+(F10). Append each gate the user approved this run to the `gates[]` ledger (the
+auditable record that a gate happened, not a claim in a markdown header), record
+the real result (`approve`/`reject`/`change`), set `status`/`lane`/`depends_on`,
+and append a line to `specforge/history.md`.
 
-```json
-{
-  "name": "<feature-name>",
-  "status": "approved",
-  "workflow": "requirements-first",
-  "lane": "standard",
-  "depends_on": [],
-  "created": "<date>",
-  "completed": null,
-  "gates": [
-    { "phase": "lane",         "result": "approve", "by": "user", "at": "<iso-8601>", "comment": "standard" },
-    { "phase": "requirements", "result": "approve", "by": "user", "at": "<iso-8601>", "comment": null },
-    { "phase": "design",       "result": "approve", "by": "user", "at": "<iso-8601>", "comment": null },
-    { "phase": "tasks",        "result": "approve", "by": "user", "at": "<iso-8601>", "comment": null }
-  ]
-}
-
-For a **lite** feature, `"lane": "lite"` and the gates are just `lane` → `change`
-→ `plan`/`wave` → `verdict` (no separate requirements/design/tasks gates).
-
-`depends_on` lists the feature names this one needs first (captured from the
-roadmap during `--all`, or stated by the user). It drives the critical-path
-ordering and blocker view in `/sf-status` (F37). Default `[]`.
-```
-
-Record the real result of each gate: `approve`, `reject`, or `change` (with the
-request in `comment`). Never write a gate entry the user did not actually give.
-If a downstream gate reopened (F23), mark the affected feature `status` back and
-the stale gate is re-recorded on re-approval.
-
-Append to `specforge/history.md`:
-```
-## [date] — Feature proposed: <name>
-- Workflow: requirements-first
-- Requirements: [count] | Tasks: [count] | Waves: [count]
-```
+Read `references/gate-ledger.md` for the full `features.json` shape and rules.
 
 Inform the user: "Feature `<name>` approved. Use `sf-build <name>` to start implementation."
 
@@ -355,8 +143,6 @@ read `references/clarify.md` for the refinement procedure.
 
 ## Resync Detection
 
-If invoked on a feature that already has artefacts:
-1. Check which artefacts exist
-2. Compare timestamps
-3. If upstream is newer than downstream → offer to regenerate
-4. If user modified an artefact directly → acknowledge and cascade
+If invoked on a feature that already has artefacts, check for stale downstream
+artefacts (upstream newer than downstream, or a direct user edit) and offer to
+regenerate. Read `references/resync.md`.

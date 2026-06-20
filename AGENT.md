@@ -199,6 +199,13 @@ truth** (F21). If it ever disagrees with `features.json`, `features.json` wins.
 **On checkpoint**: after completing a SpecForge phase, save state to `specforge/.state/session.md`.
 **On close**: save full session summary to `specforge/.state/session.md`.
 
+**Lost the thread?** Run `sf next` — it derives the next valid action straight
+from `features.json` (the gate ledger), independent of conversation memory. It
+returns the write/read contract for the current phase: what you may write, what
+is off-limits, what to read first, and the next gate. Use `sf next --json` for
+the machine contract or `sf next --explain` for the reasoning. This is the agent
+compass: the conversation can disappear and SpecForge still knows what to do.
+
 ## Anti-Telephone Game
 
 Artefacts live on disk. When a skill needs context from a previous artefact,

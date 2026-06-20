@@ -34,6 +34,8 @@ func run(args []string) int {
 		return runContext(rest)
 	case "state":
 		return runState(rest)
+	case "next":
+		return runNext(rest)
 	case "requirements":
 		return runRequirements(rest)
 	case "design":
@@ -73,6 +75,7 @@ commands:
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
   state   emit the current feature/phase/wave as JSON (state current) — the brain hooks consult
+  next    the agent compass: next valid action + write/read contract (next [--json] [--explain])
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)
   constitution  render/validate constitution.json (constitution render|validate)
