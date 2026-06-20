@@ -42,34 +42,28 @@ bigger or touches a sensitive surface, **promote to standard** — stop, set
 `"lane": "standard"`, and route back through `sf-propose`. The escape hatch only
 goes up.
 
-## Step 1: Generate Execution Plan
+## Step 1: Compute the Execution Plan
 
-Read `references/task-planning.md` for detailed planning instructions.
+The wave layout is **computed** from the task dependency graph — you don't sort
+it by hand. Read `references/task-planning.md` for the details.
 
-**Quick summary:** Organize tasks from `tasks.md` into execution waves:
-
-```markdown
-# <Feature Name> — Execution Plan
-
-## Wave 0: [theme] (no dependencies)
-- T1: [description]
-- T2: [description]
-Estimated scope: [files touched, rough complexity]
-
-## Wave 1: [theme] (depends on Wave 0)
-- T3: [description]
-Estimated scope: [files touched, rough complexity]
-
-## Wave 2: [theme] (depends on Wave 1)
-- T4: [description]
-Estimated scope: [files touched, rough complexity]
+```
+sf plan compute --feature=<name>
 ```
 
-Save as `specforge/features/<name>/progress/plan.md`.
+This validates the graph (no cycles, no dangling deps) and writes
+`progress/plan.json` (+ `plan.md`) with each wave's tasks. If it reports a cycle
+or dangling dep, fix the `depends_on` edges in `tasks.json` first.
+
+**Optionally refine** (judgment, whole-plan, before the gate): add wave
+`name`/`complexity`/`rationale`, or merge/split waves for review granularity —
+but mostly in `inline` mode (in subagent modes, prefer the raw layout; see
+task-planning.md). After any edit, `sf plan validate --feature=<name>` enforces
+the dependency guard.
 
 → 🔴 **GATE**: Present the execution plan. Wait for approval.
 - "Approved" → proceed per the execution strategy below
-- Changes requested → adjust plan, re-present
+- Changes requested → adjust `depends_on`/plan, re-compute, re-present
 
 The plan gate is also the **spawn authorization**: when `build.mode` is `single`
 or `per-wave`, approving the plan is what authorizes launching the build
@@ -88,6 +82,21 @@ Choose how to execute the approved waves based on `build.mode` (default `inline`
   large features (**> 3-4 waves**) or high-risk designs: each wave starts fresh,
   so context degradation never accumulates across waves. If `mode` is `single`
   but the plan has > 4 waves, suggest `per-wave` to the user.
+
+**Sequencing — the wave layout is fixed before sharding.** `sf plan compute` and
+any plan refinement (Step 1) happen **before** the plan gate; the execution
+subagents come **after** it and run their assigned wave. They do **not** re-layer
+the plan — refinement is a whole-plan, pre-gate concern (it can't be per-wave; a
+wave subagent only sees its own wave). And note: in subagent modes, prefer the
+**raw computed layout** — splitting waves for review granularity only throws away
+parallelism, and there's no per-wave human to fatigue (see `references/task-planning.md`).
+
+> **Evolution — per-task within a wave (swarm).** Because `depends_on` makes
+> parallelism explicit (same wave = independent tasks, guaranteed), a wave can be
+> sharded further: one subagent **per task** within the wave, the wave acting as a
+> sync barrier (all tasks done → checkpoint → next wave). `per-wave` is the
+> conservative step; `per-task-within-wave` is the swarm the dependency graph now
+> makes safe. Not built yet — tracked as the next granularity.
 
 ### Why a subagent (single / per-wave)
 
