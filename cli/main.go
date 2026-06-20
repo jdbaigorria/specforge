@@ -68,7 +68,7 @@ commands:
   lint    check the skill suite for consistency
   status  project-level health view (reads specforge/features.json)
   doctor  detect drift between archived specs and code (--drift)
-  gate    show the gate ledger (gate status [--feature=NAME])
+  gate    gate ledger + quality verdicts (gate status [--feature=NAME] | gate record-verdict --feature=NAME)
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)

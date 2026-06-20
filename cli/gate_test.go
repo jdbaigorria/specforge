@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -33,4 +35,62 @@ func TestRunGateStatus(t *testing.T) {
 			t.Errorf("exit=%d, want 0", code)
 		}
 	})
+}
+
+// TestBuildAuditEntry: overall = fail si alguna regla falla; valida campos.
+func TestBuildAuditEntry(t *testing.T) {
+	// Todo pass → overall pass.
+	e, rep := buildAuditEntry("design", []ruleVerdict{
+		{Rule: "P1", Result: "pass", Citation: "ok"},
+	})
+	if len(rep.errors) != 0 || e.Overall != "pass" {
+		t.Errorf("overall=%q errors=%v, want pass / sin errores", e.Overall, rep.errors)
+	}
+	if e.At == "" {
+		t.Errorf("falta el timestamp At")
+	}
+
+	// Una falla → overall fail.
+	e, _ = buildAuditEntry("design", []ruleVerdict{
+		{Rule: "P1", Result: "pass"}, {Rule: "I1", Result: "fail"},
+	})
+	if e.Overall != "fail" {
+		t.Errorf("overall=%q, want fail", e.Overall)
+	}
+
+	// Validaciones: phase vacía, sin verdicts, result inválido.
+	if _, rep := buildAuditEntry("", nil); len(rep.errors) < 2 {
+		t.Errorf("errors=%v, want phase + at-least-one", rep.errors)
+	}
+	if _, rep := buildAuditEntry("design", []ruleVerdict{{Rule: "P1", Result: "maybe"}}); len(rep.errors) != 1 {
+		t.Errorf("errors=%v, want 1 (result inválido)", rep.errors)
+	}
+}
+
+// TestAppendAuditEntry: append-only — dos entradas quedan acumuladas en audit.json.
+func TestAppendAuditEntry(t *testing.T) {
+	dir := t.TempDir()
+	e1, _ := buildAuditEntry("design", []ruleVerdict{{Rule: "P1", Result: "pass"}})
+	e2, _ := buildAuditEntry("tasks", []ruleVerdict{{Rule: "P2", Result: "fail"}})
+	if code := appendAuditEntry(dir, "trunc", e1); code != 0 {
+		t.Fatalf("append #1 exit=%d", code)
+	}
+	if code := appendAuditEntry(dir, "trunc", e2); code != 0 {
+		t.Fatalf("append #2 exit=%d", code)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "specforge", "features", "trunc", "audit.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ledger auditLedger
+	if err := json.Unmarshal(data, &ledger); err != nil {
+		t.Fatal(err)
+	}
+	if ledger.Feature != "trunc" || len(ledger.Entries) != 2 {
+		t.Errorf("ledger feature=%q entries=%d, want trunc / 2", ledger.Feature, len(ledger.Entries))
+	}
+	if ledger.Entries[1].Overall != "fail" {
+		t.Errorf("2da entrada overall=%q, want fail", ledger.Entries[1].Overall)
+	}
 }
