@@ -10,6 +10,7 @@
   - **Files modified:** {{modified_files}}
   - **Tests added:** {{test_files}}
   - **Requirements covered:** {{requirement_refs}}
+  - **Ladder rung:** {{rung}} <!-- stdlib | native | installed-dep | one-liner | new-code; if new-code, why the rungs above didn't serve -->
 
 <!-- Repeat for each task in this wave -->
 

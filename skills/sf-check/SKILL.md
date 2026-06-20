@@ -44,6 +44,8 @@ Read `audit.phase`. If `off` or absent → do nothing, return silently. Otherwis
    ```
    Returns the phase artifact + ONLY the principles/invariants whose `applies_to`
    includes `<phase>`. If it returns no rules, there's nothing to audit → return.
+   If a parsimony principle (`P-min` / minimal-code) is in scope, also hand the
+   subagent the rubric in `references/minimal-code.md`.
 
 2. **Spawn a FRESH subagent** (Task tool) to judge. Freshness is the whole point:
    a clean context window escapes the degradation that hits a long main session.
@@ -170,6 +172,11 @@ If `failures.md` exists, verify:
 For each principle in `constitution.md`:
 - Does the implementation respect this principle?
 - Are there violations?
+
+For a **parsimony** principle (`P-min` / minimal-code), apply the rubric in
+`references/minimal-code.md`: over-engineering (reinvented stdlib, premature
+abstraction, speculative generality, unjustified dependency) is a valid reason
+for **REVISE**. `P-min` never overrides correctness or security.
 
 ## Step 4: Verdict
 
