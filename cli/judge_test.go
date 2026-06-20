@@ -77,6 +77,28 @@ func TestCheckAppliesTo(t *testing.T) {
 	}
 }
 
+// TestAuditConfig: la config audit.phase valida (off|nudge|block) y round-trips
+// por el struct (sf save no la borraría al re-serializar).
+func TestAuditConfig(t *testing.T) {
+	// Valor inválido → error.
+	var rep report
+	checkConstitution(constitutionFile{IdentityMD: "x", Audit: &auditConfig{Phase: "maybe"}}, &rep)
+	if len(rep.errors) != 1 {
+		t.Errorf("errors=%v, want 1 (audit.phase inválido)", rep.errors)
+	}
+
+	// Round-trip: marshal → unmarshal preserva audit.phase.
+	in := constitutionFile{IdentityMD: "x", Audit: &auditConfig{Phase: "nudge"}}
+	data, _ := json.Marshal(in)
+	var out constitutionFile
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Audit == nil || out.Audit.Phase != "nudge" {
+		t.Errorf("round-trip perdió audit.phase: %+v", out.Audit)
+	}
+}
+
 // TestContextForJudge: integración — escribe constitution.json + design.json en
 // un dir temporal y confirma que el material del juez trae el artefacto y SOLO
 // los principios de la fase.

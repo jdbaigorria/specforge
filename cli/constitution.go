@@ -22,13 +22,22 @@ import (
 // `applies_to` es el mapeo fase→principio (paso 6): dice en qué fases el auditor
 // de calidad debe chequear ese principio.
 type constitutionFile struct {
-	SchemaVersion string      `json:"schema_version"`
-	IdentityMD    string      `json:"identity_md"`
-	Principles    []principle `json:"principles"`
-	Constraints   []string    `json:"constraints"`
-	AntiGoals     []string    `json:"anti_goals"`
-	Invariants    []invariant `json:"invariants"`
+	SchemaVersion string       `json:"schema_version"`
+	IdentityMD    string       `json:"identity_md"`
+	Principles    []principle  `json:"principles"`
+	Constraints   []string     `json:"constraints"`
+	AntiGoals     []string     `json:"anti_goals"`
+	Invariants    []invariant  `json:"invariants"`
+	Audit         *auditConfig `json:"audit,omitempty"` // config del auditor de fase (paso 6)
 }
+
+// auditConfig gobierna el tier calidad (opt-in). Puntero → si el proyecto no lo
+// declara, el campo no aparece (y sf save no lo inventa al re-serializar).
+type auditConfig struct {
+	Phase string `json:"phase"` // off | nudge | block (default: off)
+}
+
+var auditPhaseModes = map[string]bool{"off": true, "nudge": true, "block": true}
 
 type principle struct {
 	ID        string   `json:"id"`
@@ -199,6 +208,11 @@ func checkConstitution(cf constitutionFile, rep *report) {
 			rep.errorf("%s: empty rule", inv.ID)
 		}
 		checkAppliesTo(orDash(inv.ID), inv.AppliesTo, rep)
+	}
+
+	// Config del auditor de fase: si está, el modo debe ser off|nudge|block.
+	if cf.Audit != nil && cf.Audit.Phase != "" && !auditPhaseModes[cf.Audit.Phase] {
+		rep.errorf("audit.phase must be off|nudge|block, got %q", cf.Audit.Phase)
 	}
 }
 

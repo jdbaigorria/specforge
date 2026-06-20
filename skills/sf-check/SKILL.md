@@ -22,7 +22,57 @@ List features ready to check:
 Ask: "Which feature do you want to validate?"
 
 ### `sf-check <name>`
-Normal flow: validate the named feature.
+Normal flow: validate the named feature (full, end-of-feature). Continue below.
+
+### `sf-check --phase=<phase> <name>`
+**Phase audit (shift-left).** A narrow, *fresh-context* quality check of ONE
+just-completed phase against the constitution rules mapped to it — not the full
+end-of-feature validation. Run at a phase gate (e.g. after design, before build).
+This is the **same engine, scoped to one phase and run in a fresh subagent**. See
+"Phase audit mode" below, then stop — do not run the full flow.
+
+## Phase audit mode (`--phase`)
+
+Opt-in, governed by `audit.phase` in `constitution.json`:
+`"audit": { "phase": "off" | "nudge" | "block" }` (default `off`).
+
+Read `audit.phase`. If `off` or absent → do nothing, return silently. Otherwise:
+
+1. **Fetch the judge material** (deterministic — `sf` does the slicing):
+   ```
+   sf context for-judge --phase=<phase> --feature=<name>
+   ```
+   Returns the phase artifact + ONLY the principles/invariants whose `applies_to`
+   includes `<phase>`. If it returns no rules, there's nothing to audit → return.
+
+2. **Spawn a FRESH subagent** (Task tool) to judge. Freshness is the whole point:
+   a clean context window escapes the degradation that hits a long main session.
+   Hand it ONLY the for-judge output and this narrow prompt:
+
+   > You are a strict spec auditor. Below is one artifact and the rules that apply
+   > to its phase. For EACH rule, decide `pass` or `fail` and cite the exact element
+   > of the artifact that justifies it — no citation means you cannot pass it. Judge
+   > nothing outside these rules. Output ONLY JSON:
+   > `{"phase":"<phase>","verdicts":[{"rule":"<id>","result":"pass|fail","citation":"..."}]}`
+   >
+   > <paste the `sf context for-judge` output here>
+
+3. **Persist the verdict** (deterministic — `sf` records, never judges):
+   ```
+   echo '<subagent JSON>' | sf gate record-verdict --feature=<name> --phase=<phase>
+   ```
+   Exit `0` = all pass · exit `3` = at least one `fail` (recorded in `audit.json`).
+
+4. **Act per `audit.phase`:**
+   - `nudge`: surface the failing rules + citations to the user as a heads-up.
+     **Do not block** — the human decides; the fail is already visible in `audit.json`.
+   - `block` (advanced): treat a `fail` as a stop — do not proceed past the gate
+     until the artifact is fixed and the audit re-run passes.
+   - On all-pass: a one-line confirmation is enough.
+
+The judge is **cooperative** (an LLM can err) → best-effort: it raises the floor on
+quality, it doesn't guarantee it. The structural gates (PreToolUse) stay the
+hermetic layer; this is the quality layer. Do **not** run the full check steps below.
 
 ## Pre-flight
 
