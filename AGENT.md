@@ -206,6 +206,12 @@ is off-limits, what to read first, and the next gate. Use `sf next --json` for
 the machine contract or `sf next --explain` for the reasoning. This is the agent
 compass: the conversation can disappear and SpecForge still knows what to do.
 
+**Something inconsistent?** Run `sf recover` — when an artifact was edited after
+its gate, an upstream was reopened, or a foundation moved, it lists the stale
+artifacts and an ordered recovery plan (regenerate vs re-seal vs resolve
+upstream), with the exact `sf gate approve` command for each. `sf status
+--artifacts` shows the raw per-artifact state; `sf recover` turns it into a plan.
+
 ## Anti-Telephone Game
 
 Artefacts live on disk. When a skill needs context from a previous artefact,
