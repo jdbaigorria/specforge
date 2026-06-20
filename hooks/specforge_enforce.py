@@ -51,8 +51,18 @@ ARTIFACT_RE = re.compile(
 # Trigger del slice (decisión #1 del debate): el slice COMPLETO se re-inyecta
 # on-step-change y, como backstop de saliencia, cada N turnos sin cambio. El
 # resto de los turnos va solo el breadcrumb (barato). Sin gauge de % de contexto
-# en el hook, N turnos es el proxy del umbral.
+# en el hook, N turnos es el proxy del umbral. Configurable por env (capa
+# per-harness): SPECFORGE_FULL_SLICE_EVERY.
 FULL_SLICE_EVERY = 10
+
+
+def _full_slice_every() -> int:
+    """N de turnos para el backstop, con override por env (>0); si no, el default."""
+    try:
+        v = int(os.environ.get("SPECFORGE_FULL_SLICE_EVERY", ""))
+        return v if v > 0 else FULL_SLICE_EVERY
+    except ValueError:
+        return FULL_SLICE_EVERY
 
 # Conciliador de memoria (paso 4): qué estados cuentan como "archivada" para
 # disparar el nudge del journal.
@@ -276,13 +286,34 @@ def user_prompt_context(project_dir: str, session_id: str) -> str:
     key = [cc.get("feature"), cc.get("phase"), cc.get("wave")]
     st = _hook_state(sf_dir)
     entry = st.get(session_id) or {}
+
+    # force_full: lo setea PreCompact. Tras compactar, los slices previos del
+    # transcript se resumieron/perdieron → forzamos un slice completo este turno.
+    if entry.get("force_full"):
+        st[session_id] = {"key": key, "turns_since_full": 0}  # consume el flag
+        _save_hook_state(sf_dir, st)
+        return _render_full(cc)
+
     mode, turns_next = decide_injection(
-        key, entry.get("key", []), int(entry.get("turns_since_full", 0)), FULL_SLICE_EVERY
+        key, entry.get("key", []), int(entry.get("turns_since_full", 0)), _full_slice_every()
     )
     st[session_id] = {"key": key, "turns_since_full": turns_next}
     _save_hook_state(sf_dir, st)
 
     return _render_full(cc) if mode == "full" else breadcrumb
+
+
+def force_full_slice(project_dir: str, session_id: str) -> None:
+    """Marca la sesión para que el próximo UserPromptSubmit inyecte el slice
+    COMPLETO (no solo el breadcrumb). Lo llama PreCompact."""
+    sf_dir = _specforge_root(project_dir)
+    if sf_dir is None or not session_id:
+        return
+    st = _hook_state(sf_dir)
+    entry = st.get(session_id) or {}
+    entry["force_full"] = True
+    st[session_id] = entry
+    _save_hook_state(sf_dir, st)
 
 
 # ── Memory reconciler (Stop nudge) ───────────────────────────────────────────
@@ -394,7 +425,9 @@ def run_claude_code(event: str, payload: dict) -> int:
         mark_session(_project_dir(payload), "session ended")
         return 0
     if event == "PreCompact":
-        mark_session(_project_dir(payload), "pre-compaction checkpoint")
+        pd = _project_dir(payload)
+        mark_session(pd, "pre-compaction checkpoint")
+        force_full_slice(pd, payload.get("session_id", "")) # re-grounding post-compact
         return 0
     return 0
 
@@ -420,6 +453,7 @@ def run_generic(payload: dict) -> int:
         print(json.dumps({"decision": "allow"}))
     elif event == "pre_compact":
         mark_session(pd, "pre-compaction checkpoint")
+        force_full_slice(pd, payload.get("session_id", ""))
         print(json.dumps({"decision": "allow"}))
     else:
         print(json.dumps({"decision": "allow", "reason": f"unknown event {event!r}"}))
@@ -562,6 +596,23 @@ def selftest() -> int:
           "todas journaleadas → None")
     check(pick_journal_nudge(feats, set(), {"old"}) == "add-export",
           "ya nudgeada se saltea (nudge-once)")
+
+    # ── force_full_slice (PreCompact → re-grounding) ──
+    with tempfile.TemporaryDirectory() as d3:
+        (Path(d3) / "specforge").mkdir(parents=True)
+        force_full_slice(d3, "sess-x")
+        st = _hook_state(Path(d3) / "specforge")
+        check(st.get("sess-x", {}).get("force_full") is True,
+              "force_full_slice marca el flag por sesión")
+
+    # ── _full_slice_every (configurable por env) ──
+    os.environ.pop("SPECFORGE_FULL_SLICE_EVERY", None)
+    check(_full_slice_every() == FULL_SLICE_EVERY, "sin env → default")
+    os.environ["SPECFORGE_FULL_SLICE_EVERY"] = "3"
+    check(_full_slice_every() == 3, "env válido → override")
+    os.environ["SPECFORGE_FULL_SLICE_EVERY"] = "junk"
+    check(_full_slice_every() == FULL_SLICE_EVERY, "env basura → default")
+    os.environ.pop("SPECFORGE_FULL_SLICE_EVERY", None)
 
     print(f"\n{'OK' if not failures else 'FAILED'}: {failures} failure(s).")
     return 1 if failures else 0

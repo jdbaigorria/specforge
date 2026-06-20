@@ -15,9 +15,10 @@ All decisions are made by `specforge_enforce.py`, which is **harness-agnostic**.
 | `PreToolUse` (Write/Edit) | **Serial flow (F22).** Hard-deny creating a new feature's `requirements` while another feature is `approved`/`building`. One active feature at a time, so `sf state current` stays unambiguous. |
 | `PreToolUse` (Write/Edit) | **Hard-deny** direct writes to `specforge/.state/` (machine state). Protects the source-of-truth boundary (F2/F25). |
 | `SessionStart` | Inject `specforge/.state/session.md` + `specforge/context/compact-rules.md` + `specforge/learnings.md` as context — on startup, resume, **and after compaction**. Restores project state and consolidated learnings without the agent having to remember (F21/F7/F31). |
-| `UserPromptSubmit` | Inject the current step's slice via `sf context current` so the spec doesn't dilute as context fills. Cheap **breadcrumb** every turn; full slice on **step-change** or every `FULL_SLICE_EVERY` turns (salience backstop). Per-session trigger state lives in `specforge/.state/hook-context.json`. Requires the `sf` binary — absent ⇒ injects nothing (fail open). |
+| `UserPromptSubmit` | Inject the current step's slice via `sf context current` so the spec doesn't dilute as context fills. Cheap **breadcrumb** every turn; full slice on **step-change** or every N turns (salience backstop, N = `SPECFORGE_FULL_SLICE_EVERY`, default 10). Per-session trigger state lives in `specforge/.state/hook-context.json`. Requires the `sf` binary — absent ⇒ injects nothing (fail open). |
 | `Stop` | **Memory reconciler.** If a feature is archived (`done`/`archived`) with no journal entry yet, nudge **once** to extract durable lessons via `sf journal add`. Blocks a single time per feature (recorded in `.state/hook-context.json`), then stands down — nudge-once, never a loop. Honours `stop_hook_active`. |
-| `SessionEnd` / `PreCompact` | Append a timestamped continuity marker to `session.md`. (The rich summary stays the agent's job — a command hook has no conversation access.) |
+| `PreCompact` | Append a continuity marker **and** flag the session to re-inject the **full** slice on the next `UserPromptSubmit` — after compaction the earlier slices are summarized away, so re-grounding is forced (salience). |
+| `SessionEnd` | Append a timestamped continuity marker to `session.md`. (The rich summary stays the agent's job — a command hook has no conversation access.) |
 
 Two safety properties, by design:
 
