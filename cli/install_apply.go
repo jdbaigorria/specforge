@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -486,6 +487,152 @@ func stripBlock(s string) string {
 	}
 	after := rest[j+len(sfEnd):]
 	return strings.TrimRight(s[:i], "\n") + strings.TrimLeft(after, "\n")
+}
+
+// ── Doctor (`sf doctor --install`) ───────────────────────────────────────────
+//
+// Diagnostica la SALUD de la instalación: ¿está sf en PATH (lo necesitan los
+// hooks)? ¿el source root sigue resoluble? ¿cada cosa del manifest sigue en su
+// lugar (symlink vivo, bloque presente, valores en settings.json)? Solo lee.
+
+func runDoctorInstall(projectDir string, global bool) int {
+	home, _ := os.UserHomeDir()
+	base, _ := filepath.Abs(projectDir)
+	if global {
+		base = home
+	}
+	fmt.Printf("SpecForge install doctor — scope: %s (%s)\n\n", scopeName(global), tildeHomeOr(base, base))
+
+	issues := 0
+
+	// 1) sf en PATH: los adapters/hooks invocan `sf hook`. Sin esto, el
+	//    enforcement no corre (aunque falla-abierto, no bloquea).
+	if bin := sfOnPath(); bin != "" {
+		fmt.Printf("  ok   sf binary: %s\n", bin)
+	} else {
+		fmt.Println("  WARN sf binary: not on PATH — hooks won't run (set SPECFORGE_SF_BIN or add sf to PATH)")
+		issues++
+	}
+
+	// 2) source root resoluble (skills/ + AGENT.md).
+	if root, err := resolveSourceRoot(""); err == nil {
+		fmt.Printf("  ok   source root: %s\n", root)
+	} else {
+		fmt.Printf("  WARN source root: %v (pass --from on install)\n", err)
+		issues++
+	}
+
+	// 3) manifest + verificación de cada entrada.
+	m := loadManifest(base)
+	if len(m.Entries) == 0 {
+		fmt.Printf("\n  not installed under this scope — run `sf install`.\n")
+		// Igual mostramos qué arneses se detectan, como pista.
+		for _, p := range planAll(rootOrEmpty(), base, global, home) {
+			if p.detected {
+				fmt.Printf("    · detected: %s\n", p.name)
+			}
+		}
+		return 0
+	}
+
+	fmt.Printf("\n  manifest: %d entry(ies), installed %s\n", len(m.Entries), m.InstalledAt)
+	for _, e := range m.Entries {
+		status, ok := checkEntry(e)
+		tag := "ok  "
+		if !ok {
+			tag = "FAIL"
+			issues++
+		}
+		fmt.Printf("  %s %-8s %s  %s\n", tag, e.Kind, tildeHomeOr(base, e.Target), status)
+	}
+
+	fmt.Println()
+	if issues > 0 {
+		fmt.Printf("%d issue(s). Re-run `sf install` to repair.\n", issues)
+		return 5
+	}
+	fmt.Println("install healthy.")
+	return 0
+}
+
+// checkEntry verifica que una entrada del manifest siga aplicada. Devuelve un
+// detalle y si está OK.
+func checkEntry(e manifestEntry) (string, bool) {
+	switch e.Kind {
+	case "symlink":
+		if !lexists(e.Target) {
+			return "symlink missing", false
+		}
+		if _, err := os.Stat(e.Target); err != nil {
+			return "symlink dangling", false // apunta a algo que ya no existe
+		}
+		return "linked", true
+	case "merge":
+		data, err := os.ReadFile(e.Target)
+		if err != nil {
+			return "file missing", false
+		}
+		if !strings.Contains(string(data), sfBegin) {
+			return "block missing", false
+		}
+		return "block present", true
+	case "wire":
+		data, err := os.ReadFile(e.Target)
+		if err != nil {
+			return "file missing", false
+		}
+		var obj map[string]any
+		if json.Unmarshal(data, &obj) != nil {
+			return "not valid JSON", false
+		}
+		for _, ad := range e.JSONAdds {
+			if !jsonArrayHas(obj, ad.Key, ad.Value) {
+				return "missing " + ad.Key + " entry", false
+			}
+		}
+		return "wired", true
+	}
+	return "unknown kind", false
+}
+
+// jsonArrayHas: ¿el array bajo key contiene value?
+func jsonArrayHas(obj map[string]any, key, value string) bool {
+	arr, ok := obj[key].([]any)
+	if !ok {
+		return false
+	}
+	for _, v := range arr {
+		if s, ok := v.(string); ok && s == value {
+			return true
+		}
+	}
+	return false
+}
+
+// sfOnPath ubica el binario sf (override por env o PATH); "" si no está.
+func sfOnPath() string {
+	if b := os.Getenv("SPECFORGE_SF_BIN"); b != "" {
+		return b
+	}
+	if p, err := exec.LookPath("sf"); err == nil {
+		return p
+	}
+	return ""
+}
+
+func scopeName(global bool) string {
+	if global {
+		return "global"
+	}
+	return "project"
+}
+
+// rootOrEmpty: el source root resuelto, o "" si no se pudo (para el plan de pista).
+func rootOrEmpty() string {
+	if r, err := resolveSourceRoot(""); err == nil {
+		return r
+	}
+	return ""
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

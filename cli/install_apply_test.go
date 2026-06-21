@@ -216,6 +216,51 @@ func TestApplyWireCreateThenRevert(t *testing.T) {
 	}
 }
 
+// TestCheckEntry: el verificador de salud reconoce instalado vs roto por tipo.
+func TestCheckEntry(t *testing.T) {
+	base := t.TempDir()
+
+	// symlink ok vs dangling vs missing
+	src := filepath.Join(base, "src")
+	mustWrite(t, src, "x")
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(src, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := checkEntry(manifestEntry{Kind: "symlink", Target: link}); !ok {
+		t.Error("symlink vivo debería estar ok")
+	}
+	os.Remove(src) // ahora cuelga
+	if _, ok := checkEntry(manifestEntry{Kind: "symlink", Target: link}); ok {
+		t.Error("symlink colgado debería fallar")
+	}
+	if _, ok := checkEntry(manifestEntry{Kind: "symlink", Target: filepath.Join(base, "nope")}); ok {
+		t.Error("symlink inexistente debería fallar")
+	}
+
+	// merge: con bloque vs sin bloque
+	withBlock := filepath.Join(base, "CLAUDE.md")
+	mustWrite(t, withBlock, "user\n"+sfBegin+"\nx\n"+sfEnd+"\n")
+	if _, ok := checkEntry(manifestEntry{Kind: "merge", Target: withBlock}); !ok {
+		t.Error("merge con bloque debería estar ok")
+	}
+	noBlock := filepath.Join(base, "other.md")
+	mustWrite(t, noBlock, "just user content")
+	if _, ok := checkEntry(manifestEntry{Kind: "merge", Target: noBlock}); ok {
+		t.Error("merge sin bloque debería fallar")
+	}
+
+	// wire: con el valor vs sin el valor
+	settings := filepath.Join(base, "settings.json")
+	mustWrite(t, settings, `{"skills":["/s"]}`)
+	if _, ok := checkEntry(manifestEntry{Kind: "wire", Target: settings, JSONAdds: []jsonAdd{{Key: "skills", Value: "/s"}}}); !ok {
+		t.Error("wire con el valor presente debería estar ok")
+	}
+	if _, ok := checkEntry(manifestEntry{Kind: "wire", Target: settings, JSONAdds: []jsonAdd{{Key: "skills", Value: "/missing"}}}); ok {
+		t.Error("wire con el valor ausente debería fallar")
+	}
+}
+
 func mustWrite(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

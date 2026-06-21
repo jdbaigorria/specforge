@@ -78,7 +78,7 @@ commands:
   lint    check the skill suite for consistency
   status  project health view, or artifact staleness with --artifacts [--feature=NAME]
   gate    gate ledger + approvals + verdicts (gate approve --feature=NAME --phase=PHASE seals the artifact hash)
-  doctor  detect drift between archived specs and code (--drift)
+  doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)

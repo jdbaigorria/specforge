@@ -42,6 +42,8 @@ func runDoctor(args []string) int {
 	projectDir := "."
 	quiet := false
 	runTests := ""
+	install := false
+	global := false
 
 	// Parseo manual de flags. i++ extra cuando un flag consume su valor.
 	for i := 0; i < len(args); i++ {
@@ -49,6 +51,10 @@ func runDoctor(args []string) int {
 		switch {
 		case a == "--drift":
 			// reconocido; sin efecto distinto todavía (drift es el único chequeo)
+		case a == "--install":
+			install = true
+		case a == "--global":
+			global = true
 		case a == "--quiet":
 			quiet = true
 		case a == "--run-tests":
@@ -66,6 +72,9 @@ func runDoctor(args []string) int {
 		}
 	}
 
+	if install {
+		return runDoctorInstall(projectDir, global)
+	}
 	return runDrift(projectDir, runTests, quiet)
 }
 
