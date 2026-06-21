@@ -34,6 +34,9 @@ Two safety properties, by design:
 hooks/
 ├── claude-code/
 │   └── hooks.json           # Claude Code adapter (wired via plugin.json "hooks")
+├── pi/
+│   ├── specforge.js         # pi (pi.dev) adapter — extension over `sf hook`
+│   └── README.md            # pi install + event mapping
 └── README.md                # this file
 ```
 
@@ -78,6 +81,13 @@ Shipped and active when the plugin is installed — `plugin.json` points its
 `hooks` field at `hooks/claude-code/hooks.json`, which runs `sf hook
 --harness=claude-code` and maps the result to Claude Code's
 `permissionDecision: "deny"` / `additionalContext` contract.
+
+## pi (pi.dev) adapter
+
+`hooks/pi/specforge.js` is a pi extension that maps pi's events
+(`tool_call`, `before_agent_start`, `session_start`, `session_before_compact`,
+`session_shutdown`) onto `sf hook --harness=generic`. pi covers all six events
+natively. See [`pi/README.md`](pi/README.md) for the event table and install.
 
 ## Test
 
