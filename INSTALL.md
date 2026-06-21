@@ -113,7 +113,8 @@ recheck step 2.
 - **Hard gates (optional, F29):** installing via the Claude Code plugin also
   activates the enforcement hooks in `hooks/` — `PreToolUse` denies skipping a
   gate or editing `specforge/.state/`, and `SessionStart` restores session +
-  compact-rules context (including after compaction). It needs `python3` on PATH,
+  compact-rules context (including after compaction). The decision engine is the
+  `sf` CLI itself (`sf hook`), so it needs the `sf` binary on PATH (no Python),
   fails open on error, and is a no-op outside a SpecForge project. Other harnesses
   drive the same engine through the portable contract in `hooks/README.md`.
 - **Updating:** if you symlinked, `git pull` in `/path/to/specforge` updates the

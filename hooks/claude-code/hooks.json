@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/specforge_enforce.py\" --harness claude-code --event PreToolUse"
+            "command": "sf hook --harness=claude-code --event=PreToolUse"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/specforge_enforce.py\" --harness claude-code --event SessionStart"
+            "command": "sf hook --harness=claude-code --event=SessionStart"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/specforge_enforce.py\" --harness claude-code --event UserPromptSubmit"
+            "command": "sf hook --harness=claude-code --event=UserPromptSubmit"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/specforge_enforce.py\" --harness claude-code --event Stop"
+            "command": "sf hook --harness=claude-code --event=Stop"
           }
         ]
       }
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/specforge_enforce.py\" --harness claude-code --event SessionEnd"
+            "command": "sf hook --harness=claude-code --event=SessionEnd"
           }
         ]
       }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/specforge_enforce.py\" --harness claude-code --event PreCompact"
+            "command": "sf hook --harness=claude-code --event=PreCompact"
           }
         ]
       }

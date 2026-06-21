@@ -7,7 +7,9 @@ never depends on it.
 
 ## What it enforces
 
-All decisions are made by `specforge_enforce.py`, which is **harness-agnostic**.
+All decisions are made by the `sf` CLI's **`sf hook`** command, which is
+**harness-agnostic** — the same decision engine the rest of the CLI uses, so the
+gate ledger has a single source of truth (no second implementation to drift).
 
 | Event | Behaviour |
 |-------|-----------|
@@ -15,7 +17,7 @@ All decisions are made by `specforge_enforce.py`, which is **harness-agnostic**.
 | `PreToolUse` (Write/Edit) | **Serial flow (F22).** Hard-deny creating a new feature's `requirements` while another feature is `approved`/`building`. One active feature at a time, so `sf state current` stays unambiguous. |
 | `PreToolUse` (Write/Edit) | **Hard-deny** direct writes to `specforge/.state/` (machine state). Protects the source-of-truth boundary (F2/F25). |
 | `SessionStart` | Inject `specforge/.state/session.md` + `specforge/context/compact-rules.md` + `specforge/learnings.md` as context — on startup, resume, **and after compaction**. Restores project state and consolidated learnings without the agent having to remember (F21/F7/F31). |
-| `UserPromptSubmit` | Inject the current step's slice via `sf context current` so the spec doesn't dilute as context fills. Cheap **breadcrumb** every turn; full slice on **step-change** or every N turns (salience backstop, N = `SPECFORGE_FULL_SLICE_EVERY`, default 10). Per-session trigger state lives in `specforge/.state/hook-context.json`. Requires the `sf` binary — absent ⇒ injects nothing (fail open). |
+| `UserPromptSubmit` | Inject the current step's slice (computed in-process, the same logic as `sf context current`) so the spec doesn't dilute as context fills. Cheap **breadcrumb** every turn; full slice on **step-change** or every N turns (salience backstop, N = `SPECFORGE_FULL_SLICE_EVERY`, default 10). Per-session trigger state lives in `specforge/.state/hook-context.json`. |
 | `Stop` | **Memory reconciler.** If a feature is archived (`done`/`archived`) with no journal entry yet, nudge **once** to extract durable lessons via `sf journal add`. Blocks a single time per feature (recorded in `.state/hook-context.json`), then stands down — nudge-once, never a loop. Honours `stop_hook_active`. |
 | `PreCompact` | Append a continuity marker **and** flag the session to re-inject the **full** slice on the next `UserPromptSubmit` — after compaction the earlier slices are summarized away, so re-grounding is forced (salience). |
 | `SessionEnd` | Append a timestamped continuity marker to `session.md`. (The rich summary stays the agent's job — a command hook has no conversation access.) |
@@ -30,15 +32,20 @@ Two safety properties, by design:
 
 ```
 hooks/
-├── specforge_enforce.py     # PORTABLE CORE — decision logic, no harness knowledge
 ├── claude-code/
 │   └── hooks.json           # Claude Code adapter (wired via plugin.json "hooks")
 └── README.md                # this file
 ```
 
-`specforge_enforce.py` separates the decision functions (`decide_pre_tool_use`,
-`session_context`, `mark_session`) from the thin per-harness I/O translation. A
-new harness is a new translate pair, not new logic.
+The decision engine lives in the Go CLI (`cli/hook.go`): pure decision functions
+(`decidePreToolUse`, `decideInjection`, `pickJournalNudge`) reusing the same
+gate-ledger logic as the rest of `sf`, plus a thin per-harness I/O translation
+(`runHookClaude`, `runHookGeneric`). A new harness is a new translate pair, not
+new logic.
+
+**Requires the `sf` binary on PATH** (or via an absolute path in the adapter).
+`sf` is already the CLI that persists/validates/renders, so the hook layer adds
+no new runtime dependency — and it drops the previous `python3` requirement.
 
 ## The portable contract (`--harness generic`)
 
@@ -62,20 +69,21 @@ out: {"decision": "block", "reason": "...journal nudge..."}  // or {"decision": 
 `event` ∈ `pre_tool_use | session_start | user_prompt_submit | stop | session_end | pre_compact`.
 
 To add a harness, write an adapter that (1) translates that harness's hook event
-into this object, (2) calls `python3 specforge_enforce.py --harness generic`, and
-(3) maps `{"decision": "deny", "reason"}` back into the harness's block mechanism.
+into this object, (2) calls `sf hook --harness=generic`, and (3) maps
+`{"decision": "deny", "reason"}` back into the harness's block mechanism.
 
 ## Claude Code adapter
 
 Shipped and active when the plugin is installed — `plugin.json` points its
-`hooks` field at `hooks/claude-code/hooks.json`, which runs the engine with
-`--harness claude-code` and maps the result to Claude Code's
+`hooks` field at `hooks/claude-code/hooks.json`, which runs `sf hook
+--harness=claude-code` and maps the result to Claude Code's
 `permissionDecision: "deny"` / `additionalContext` contract.
-
-Requires `python3` on PATH (already true for any machine running this lint/CI).
 
 ## Test
 
+The decision engine is covered by the Go test suite (parity tests ported from the
+former Python `--selftest`):
+
 ```sh
-python3 hooks/specforge_enforce.py --selftest
+cd cli && go test ./...
 ```
