@@ -42,10 +42,11 @@ func installStateDir(base string) string {
 // ── Manifest ─────────────────────────────────────────────────────────────────
 
 type manifestEntry struct {
-	Harness string `json:"harness"`
-	Kind    string `json:"kind"`             // symlink | merge
-	Target  string `json:"target"`           // qué tocamos
-	Backup  string `json:"backup,omitempty"` // backup del original, si lo hubo
+	Harness  string    `json:"harness"`
+	Kind     string    `json:"kind"`                // symlink | merge | wire
+	Target   string    `json:"target"`              // qué tocamos
+	Backup   string    `json:"backup,omitempty"`    // backup del original, si lo hubo
+	JSONAdds []jsonAdd `json:"json_adds,omitempty"` // solo "wire": qué agregamos (para revertir)
 }
 
 type installManifest struct {
@@ -108,8 +109,7 @@ func applyPlan(plans []harnessPlan, base, sourceRoot string) int {
 			case "merge":
 				e, err = applyMerge(p.name, a.source, a.target, base, prev[a.target])
 			case "wire":
-				fmt.Printf("  wire    skipped — %s (settings.json wiring: next cut)\n", a.desc)
-				continue
+				e, err = applyWire(p.name, a.target, a.jsonAdds, base, prev[a.target])
 			default: // note
 				continue
 			}
@@ -231,6 +231,92 @@ func replaceBlock(existing, block string) string {
 	}
 	after := rest[j+len(sfEnd):]
 	return existing[:i] + strings.TrimRight(block, "\n") + after
+}
+
+// applyWire agrega pares clave→valor a un JSON (settings.json de pi): para cada
+// add, apendea Value al array bajo Key (sin duplicar). Idempotente; respalda el
+// archivo original (copia) la primera vez. Si el settings.json existe pero NO es
+// JSON válido, abortamos esta acción (no lo pisamos).
+func applyWire(harness, target string, adds []jsonAdd, base string, prev manifestEntry) (manifestEntry, error) {
+	e := manifestEntry{Harness: harness, Kind: "wire", Target: target, Backup: prev.Backup, JSONAdds: adds}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return e, err
+	}
+
+	obj := map[string]any{}
+	existed := lexists(target)
+	if existed {
+		data, err := os.ReadFile(target)
+		if err != nil {
+			return e, err
+		}
+		if len(strings.TrimSpace(string(data))) > 0 {
+			if err := json.Unmarshal(data, &obj); err != nil {
+				return e, fmt.Errorf("%s is not valid JSON; left untouched", target)
+			}
+		}
+		if e.Backup == "" {
+			b, err := backupByCopy(target, base)
+			if err != nil {
+				return e, err
+			}
+			e.Backup = b
+		}
+	}
+
+	for _, ad := range adds {
+		addToJSONArray(obj, ad.Key, ad.Value)
+	}
+	out, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return e, err
+	}
+	if err := os.WriteFile(target, append(out, '\n'), 0o644); err != nil {
+		return e, err
+	}
+	fmt.Printf("  wire    → %s\n", tildeHomeOr(base, target))
+	return e, nil
+}
+
+// addToJSONArray agrega value al array bajo key (creándolo si falta), sin
+// duplicar. Si key existe y NO es un array, no lo toca (seguridad).
+func addToJSONArray(obj map[string]any, key, value string) {
+	cur, ok := obj[key]
+	if !ok || cur == nil {
+		obj[key] = []any{value}
+		return
+	}
+	arr, ok := cur.([]any)
+	if !ok {
+		return // ya hay algo no-array bajo esa clave: no lo pisamos
+	}
+	for _, v := range arr {
+		if s, ok := v.(string); ok && s == value {
+			return // ya está
+		}
+	}
+	obj[key] = append(arr, value)
+}
+
+// removeFromJSONArray quita value del array bajo key; si queda vacío, borra la
+// clave. Lo usa uninstall.
+func removeFromJSONArray(obj map[string]any, key, value string) {
+	arr, ok := obj[key].([]any)
+	if !ok {
+		return
+	}
+	var kept []any
+	for _, v := range arr {
+		if s, ok := v.(string); ok && s == value {
+			continue
+		}
+		kept = append(kept, v)
+	}
+	if len(kept) == 0 {
+		delete(obj, key)
+		return
+	}
+	obj[key] = kept
 }
 
 // ── Backups ──────────────────────────────────────────────────────────────────
@@ -362,6 +448,27 @@ func revertEntry(e manifestEntry) error {
 			return os.Remove(e.Target)
 		}
 		return os.WriteFile(e.Target, []byte(stripped), 0o644)
+	case "wire":
+		if e.Backup != "" { // restauramos el settings.json original exacto
+			return copyFile(e.Backup, e.Target)
+		}
+		// Lo creamos nosotros: quitamos nuestros valores; si queda {} borramos.
+		data, err := os.ReadFile(e.Target)
+		if err != nil {
+			return nil
+		}
+		obj := map[string]any{}
+		if json.Unmarshal(data, &obj) != nil {
+			return nil // ya no es nuestro/JSON: no tocar
+		}
+		for _, ad := range e.JSONAdds {
+			removeFromJSONArray(obj, ad.Key, ad.Value)
+		}
+		if len(obj) == 0 {
+			return os.Remove(e.Target)
+		}
+		out, _ := json.MarshalIndent(obj, "", "  ")
+		return os.WriteFile(e.Target, append(out, '\n'), 0o644)
 	}
 	return nil
 }

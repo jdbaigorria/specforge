@@ -24,10 +24,19 @@ import (
 // installAction es un paso del plan. kind clasifica la operación; source/target
 // son rutas; note explica matices (p.ej. un gap del arnés).
 type installAction struct {
-	kind   string // symlink | merge | wire | note
-	source string // ruta en el repo SpecForge (vacío para "note")
-	target string // ruta destino en el sistema/proyecto
-	desc   string // descripción legible
+	kind     string    // symlink | merge | wire | note
+	source   string    // ruta en el repo SpecForge (vacío para "note")
+	target   string    // ruta destino en el sistema/proyecto
+	desc     string    // descripción legible
+	jsonAdds []jsonAdd // solo para "wire": qué pares clave→valor agregar al JSON
+}
+
+// jsonAdd describe agregar `Value` al array bajo `Key` en un JSON (ej. agregar
+// el path de skills al array "skills" de settings.json). Exportado porque viaja
+// en el manifest (para que uninstall sepa qué quitar).
+type jsonAdd struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // harnessPlan es el plan para UN arnés: si está presente y qué haría.
@@ -183,10 +192,9 @@ func planClaude(skills, agent, sourceRoot, base string, global bool, home string
 		name:     "claude-code",
 		detected: detectedAt(filepath.Join(home, ".claude"), filepath.Join(base, ".claude")),
 		actions: []installAction{
-			{"symlink", skills, filepath.Join(dir, "skills"), "skills/ → " + tildeHome(home, filepath.Join(dir, "skills"))},
-			{"merge", agent, filepath.Join(base, "CLAUDE.md"), "AGENT.md → CLAUDE.md (marker-based)"},
-			{"wire", filepath.Join(sourceRoot, "hooks", "claude-code", "hooks.json"), filepath.Join(dir, "settings.json"),
-				"hooks → " + tildeHome(home, filepath.Join(dir, "settings.json")) + " (or the Claude plugin)"},
+			{kind: "symlink", source: skills, target: filepath.Join(dir, "skills"), desc: "skills/ → " + tildeHome(home, filepath.Join(dir, "skills"))},
+			{kind: "merge", source: agent, target: filepath.Join(base, "CLAUDE.md"), desc: "AGENT.md → CLAUDE.md (marker-based)"},
+			{kind: "note", desc: "hooks → install via the Claude plugin (/plugin install specforge); it wires hooks/claude-code/hooks.json"},
 		},
 	}
 }
@@ -197,15 +205,23 @@ func planPi(skills, agent, base string, global bool, home string) harnessPlan {
 		settings = filepath.Join(home, ".pi", "agent", "settings.json")
 	}
 	ext := filepath.Join(filepath.Dir(skills), "hooks", "pi", "specforge.js")
+	_ = agent // AGENT.md → pi: ver note abajo
 	return harnessPlan{
 		name:     "pi",
 		detected: detectedAt(filepath.Join(home, ".pi"), filepath.Join(base, ".pi")),
 		actions: []installAction{
-			{"wire", skills, settings, `add "skills": [skills/] → ` + tildeHome(home, settings)},
-			{"wire", ext, settings, `add "extensions": [hooks/pi/specforge.js] → ` + tildeHome(home, settings)},
-			// AGENT.md → pi system prompt is a settings.json concern (a wire), NOT a
-			// markdown merge — merging markers into JSON would corrupt it.
-			{"wire", agent, settings, "AGENT.md → pi system prompt (settings.json)"},
+			// Una sola acción wire sobre settings.json (dos adds): skills + extensions.
+			// Consolidadas porque comparten target → un backup, una entrada de manifest.
+			{
+				kind:   "wire",
+				target: settings,
+				desc:   `add "skills" + "extensions" → ` + tildeHome(home, settings),
+				jsonAdds: []jsonAdd{
+					{Key: "skills", Value: skills},
+					{Key: "extensions", Value: ext},
+				},
+			},
+			{kind: "note", desc: "AGENT.md → pi: the skills carry the workflow; pi has no clean system-prompt path, so global AGENT.md placement stays manual for now"},
 		},
 	}
 }
@@ -224,9 +240,9 @@ func planOpencode(sourceRoot, agent, base string, global bool, home string) harn
 			filepath.Join(base, "opencode.json"),
 		),
 		actions: []installAction{
-			{"symlink", plugin, filepath.Join(pluginDir, "specforge.js"), "opencode plugin → " + tildeHome(home, filepath.Join(pluginDir, "specforge.js"))},
-			{"merge", agent, filepath.Join(base, "AGENTS.md"), "AGENT.md → AGENTS.md (marker-based)"},
-			{"note", "", "", "no skills dir on opencode; per-turn context injection is gapped (see hooks/opencode/README.md)"},
+			{kind: "symlink", source: plugin, target: filepath.Join(pluginDir, "specforge.js"), desc: "opencode plugin → " + tildeHome(home, filepath.Join(pluginDir, "specforge.js"))},
+			{kind: "merge", source: agent, target: filepath.Join(base, "AGENTS.md"), desc: "AGENT.md → AGENTS.md (marker-based)"},
+			{kind: "note", desc: "no skills dir on opencode; per-turn context injection is gapped (see hooks/opencode/README.md)"},
 		},
 	}
 }
@@ -240,8 +256,8 @@ func planCursor(agent, base string, global bool, home string) harnessPlan {
 		name:     "cursor",
 		detected: detectedAt(filepath.Join(home, ".cursor"), filepath.Join(base, ".cursor")),
 		actions: []installAction{
-			{"merge", agent, rules, "AGENT.md → " + tildeHome(home, rules)},
-			{"note", "", "", "no enforcement adapter yet (Cursor hooks pending); cooperative layer only"},
+			{kind: "merge", source: agent, target: rules, desc: "AGENT.md → " + tildeHome(home, rules)},
+			{kind: "note", desc: "no enforcement adapter yet (Cursor hooks pending); cooperative layer only"},
 		},
 	}
 }

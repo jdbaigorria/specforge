@@ -134,6 +134,88 @@ func TestApplySymlinkRoundTrip(t *testing.T) {
 	}
 }
 
+// TestJSONArrayHelpers: add no duplica y crea; remove filtra y borra clave vacía.
+func TestJSONArrayHelpers(t *testing.T) {
+	obj := map[string]any{}
+	addToJSONArray(obj, "skills", "/a")
+	addToJSONArray(obj, "skills", "/a") // duplicado: no debe agregarse
+	addToJSONArray(obj, "skills", "/b")
+	if arr := obj["skills"].([]any); len(arr) != 2 {
+		t.Errorf("skills debería tener 2, got %v", arr)
+	}
+	// no pisa un valor no-array
+	obj["theme"] = "dark"
+	addToJSONArray(obj, "theme", "x")
+	if obj["theme"] != "dark" {
+		t.Error("addToJSONArray no debería pisar una clave no-array")
+	}
+	removeFromJSONArray(obj, "skills", "/a")
+	removeFromJSONArray(obj, "skills", "/b")
+	if _, ok := obj["skills"]; ok {
+		t.Error("removeFromJSONArray debería borrar la clave cuando queda vacía")
+	}
+}
+
+// TestApplyWireRoundTrip: wire sobre settings.json existente preserva lo del
+// usuario, agrega lo nuestro, es idempotente, y revert restaura el original.
+func TestApplyWireRoundTrip(t *testing.T) {
+	base := t.TempDir()
+	target := filepath.Join(base, ".pi", "settings.json")
+	original := "{\n  \"theme\": \"dark\"\n}\n"
+	mustWrite(t, target, original)
+	adds := []jsonAdd{{Key: "skills", Value: "/s"}, {Key: "extensions", Value: "/e"}}
+
+	e, err := applyWire("pi", target, adds, base, manifestEntry{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := mustRead(t, target)
+	if !strings.Contains(got, "dark") || !strings.Contains(got, "/s") || !strings.Contains(got, "/e") {
+		t.Errorf("wire debería preservar theme y agregar skills+extensions: %q", got)
+	}
+	if e.Backup == "" {
+		t.Error("wire sobre archivo existente debería respaldar")
+	}
+
+	// Idempotente.
+	if _, err := applyWire("pi", target, adds, base, e); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(mustRead(t, target), "/s") != 1 {
+		t.Error("re-wire duplicó el valor")
+	}
+
+	// Revert restaura el original.
+	if err := revertEntry(e); err != nil {
+		t.Fatal(err)
+	}
+	if mustRead(t, target) != original {
+		t.Errorf("revert no restauró el original: %q", mustRead(t, target))
+	}
+}
+
+// TestApplyWireCreateThenRevert: si no existía, lo creamos; revert lo borra
+// (quedó solo con nuestras claves).
+func TestApplyWireCreateThenRevert(t *testing.T) {
+	base := t.TempDir()
+	target := filepath.Join(base, ".pi", "settings.json")
+	adds := []jsonAdd{{Key: "extensions", Value: "/e"}}
+
+	e, err := applyWire("pi", target, adds, base, manifestEntry{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.Backup != "" {
+		t.Error("crear settings.json no debería respaldar")
+	}
+	if err := revertEntry(e); err != nil {
+		t.Fatal(err)
+	}
+	if lexists(target) {
+		t.Error("revert debería borrar el settings.json que creamos")
+	}
+}
+
 func mustWrite(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
