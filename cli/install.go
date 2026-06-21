@@ -43,7 +43,7 @@ type harnessPlan struct {
 //	--global      instalar a nivel usuario (~), en vez de project-local (default)
 //	--dry-run     no-op por ahora (este cut SIEMPRE es dry-run)
 func runInstall(args []string) int {
-	from, global := "", false
+	from, global, dryRun := "", false, false
 	projectDir := "."
 	for _, a := range args {
 		switch {
@@ -52,7 +52,7 @@ func runInstall(args []string) int {
 		case a == "--global":
 			global = true
 		case a == "--dry-run":
-			// reconocido; este cut ya es dry-run
+			dryRun = true
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf install: unknown flag %q\n", a)
 			return 2
@@ -77,8 +77,18 @@ func runInstall(args []string) int {
 	}
 
 	fmt.Printf("SpecForge install plan\n  source: %s\n  scope:  %s (%s)\n\n", sourceRoot, scope, base)
-
 	plans := planAll(sourceRoot, base, global, home)
+	printPlan(plans)
+
+	if dryRun {
+		fmt.Println("(dry-run: nothing was written.)")
+		return 0
+	}
+	return applyPlan(plans, base, sourceRoot)
+}
+
+// printPlan muestra el plan legible por arnés (lo comparten dry-run y apply).
+func printPlan(plans []harnessPlan) {
 	for _, p := range plans {
 		status := "not detected"
 		if p.detected {
@@ -94,9 +104,6 @@ func runInstall(args []string) int {
 		}
 		fmt.Println()
 	}
-
-	fmt.Println("(dry-run: nothing was written. Apply with backup lands in the next cut.)")
-	return 0
 }
 
 // resolveSourceRoot ubica la raíz del repo SpecForge (la que tiene skills/ +
@@ -196,7 +203,9 @@ func planPi(skills, agent, base string, global bool, home string) harnessPlan {
 		actions: []installAction{
 			{"wire", skills, settings, `add "skills": [skills/] → ` + tildeHome(home, settings)},
 			{"wire", ext, settings, `add "extensions": [hooks/pi/specforge.js] → ` + tildeHome(home, settings)},
-			{"merge", agent, settings, "AGENT.md → pi system prompt"},
+			// AGENT.md → pi system prompt is a settings.json concern (a wire), NOT a
+			// markdown merge — merging markers into JSON would corrupt it.
+			{"wire", agent, settings, "AGENT.md → pi system prompt (settings.json)"},
 		},
 	}
 }

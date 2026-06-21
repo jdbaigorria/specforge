@@ -42,6 +42,8 @@ func run(args []string) int {
 		return runHook(rest)
 	case "install":
 		return runInstall(rest)
+	case "uninstall":
+		return runUninstall(rest)
 	case "requirements":
 		return runRequirements(rest)
 	case "design":
@@ -84,7 +86,8 @@ commands:
   next    the agent compass: next valid action + write/read contract (next [--json] [--explain])
   recover diagnose stale/inconsistent artifacts + emit an ordered recovery plan (recover [--feature=NAME] [--json])
   hook    enforcement engine: reads a hook payload on stdin, emits a decision (hook --event=E --harness=generic|claude-code)
-  install detect harnesses + plan the SpecForge install (install [--from=PATH] [--global] [--dry-run])
+  install detect harnesses + install skills/AGENT.md/adapters with backup (install [--from=PATH] [--global] [--dry-run])
+  uninstall revert what sf install did, from the manifest (uninstall [--global])
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)
   constitution  render/validate constitution.json (constitution render|validate)
