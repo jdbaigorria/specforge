@@ -49,11 +49,16 @@ var artifactChain = []struct {
 	{"plan", filepath.Join("progress", "plan.json")},
 }
 
-// artifactFileForPhase mapea CUALQUIER fase gateada a su artefacto (ruta relativa
-// a la carpeta de la feature). El bool es false para fases SIN artefacto que
-// hashear (lane: es la decisión de carril, no un archivo). Lo usa `sf gate
-// approve` para saber qué sellar. wave-N y verdict viven fuera de la cadena de
-// staleness pero igual tienen archivo.
+// artifactFileForPhase mapea una fase gateada a su artefacto de SPEC hasheable
+// (ruta relativa a la carpeta de la feature). El bool es false para fases SIN
+// artefacto que sellar. Lo usa `sf gate approve` para saber qué hashear.
+//
+// Sin artefacto (bool=false):
+//   - lane   : la decisión de carril vive en el campo "lane", no en un archivo.
+//   - wave-N : las waves son CHECKPOINTS DE EJECUCIÓN, no artefactos de spec. Su
+//              "contenido" es código (lo gobierna el drift de trace.json/`sf
+//              doctor`), y su artefacto de spec es plan.json, ya sellado en el
+//              gate `plan`. Así que un wave gate se registra SIN hash.
 func artifactFileForPhase(phase string) (string, bool) {
 	switch phase {
 	case "requirements":
@@ -66,13 +71,8 @@ func artifactFileForPhase(phase string) (string, bool) {
 		return filepath.Join("progress", "plan.json"), true
 	case "verdict":
 		return "review.json", true
-	case "lane":
-		return "", false // sin artefacto: la decisión vive en el campo "lane"
 	default:
-		// wave-0, wave-1, … → progress/wave-N.json
-		if len(phase) > 5 && phase[:5] == "wave-" {
-			return filepath.Join("progress", "wave-"+phase[5:]+".json"), true
-		}
+		// lane, wave-0, wave-1, … → sin artefacto de spec que sellar.
 		return "", false
 	}
 }

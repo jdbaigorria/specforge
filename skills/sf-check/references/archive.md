@@ -27,18 +27,19 @@ into a parallel truth. Drift detection (`sf doctor --drift`) reads
 
 ### 2. Update Feature Registry
 
-In `features.json`, set the final status, completion date, and append the
-verdict gate to the `gates[]` ledger (F10). Don't overwrite earlier gates —
-append:
+The verdict gate should already be sealed (`sf gate approve --feature=<name>
+--phase=verdict`, run at the APPROVE gate in `SKILL.md` Step 5). If it wasn't,
+seal it now — don't hand-write the entry; the CLI seals a content hash of
+`review.json` that the stale model relies on.
+
+In `features.json`, set the final status and completion date (the registry
+metadata the CLI doesn't author):
 ```json
 {
   "name": "<feature-name>",
   "status": "done",
   "completed": "<date>",
-  "gates": [
-    "... earlier requirements/design/tasks/plan/wave gates ...",
-    { "phase": "verdict", "result": "approve", "by": "user", "at": "<iso-8601>", "comment": "<verdict notes if APPROVE WITH NOTES>" }
-  ]
+  "gates": [ "... requirements/design/tasks/plan/wave/verdict gates, sealed by sf gate approve ..." ]
 }
 ```
 

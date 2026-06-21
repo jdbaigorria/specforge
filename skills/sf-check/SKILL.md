@@ -227,9 +227,15 @@ This gives the user a clear map of what went wrong, why, and exactly what to do
 about it — not just "gaps found, go back to build."
 
 → 🔴 **GATE**: Present the review to the user.
-- User accepts APPROVE → proceed to archive
-- User accepts REVISE → follow the recommended path
-- User overrides verdict → respect the override, log it
+- User accepts APPROVE → seal the verdict gate, then proceed to archive:
+  ```bash
+  sf gate approve --feature=<name> --phase=verdict
+  ```
+  This appends the gate AND seals a content hash of `review.json` (the CLI
+  computes it over the real file — don't hand-write the entry).
+- User accepts REVISE → follow the recommended path (no verdict gate sealed)
+- User overrides verdict → respect the override, log it with a hand-written gate
+  entry carrying the override in `comment`
 
 **Team mode (F35).** When the feature is on a `feature/<slug>` branch with a PR,
 this verdict gate **maps to the PR approval** — the reviewer approves code and

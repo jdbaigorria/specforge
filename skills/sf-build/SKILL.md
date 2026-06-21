@@ -252,10 +252,28 @@ completeness get their own entry.
 
 ## Step 4: Completion
 
-Record each gate as it passes (F10): append a `{ "phase": "plan", ... }` entry
-to the feature's `gates[]` ledger when the plan gate is approved, and a
-`{ "phase": "wave-N", ... }` entry for each wave gate. The ledger is the
-auditable record of what was actually approved.
+Record each gate as it passes (F10) with `sf gate approve` — **don't hand-write
+the entries.** When the plan gate is approved:
+
+```bash
+sf gate approve --feature=<name> --phase=plan
+```
+
+This seals a content hash of `progress/plan.json` (the CLI computes it over the
+real file, never the LLM), so the stale model can later detect if the plan was
+edited after approval.
+
+Then for each wave gate as it passes:
+
+```bash
+sf gate approve --feature=<name> --phase=wave-0
+sf gate approve --feature=<name> --phase=wave-1
+```
+
+Wave gates carry **no hash** — a wave is an execution checkpoint, not a spec
+artifact. Its spec artifact is `plan.json` (sealed above), and the built code is
+governed by drift detection (`sf doctor --drift` / `trace.json`), not by a
+content hash. The ledger is the auditable record of what was actually approved.
 
 **Team mode (F36, optional).** If the project follows the git convention, each
 passing wave becomes one commit (`feat(<slug>): wave N — <tasks done>`) on the
