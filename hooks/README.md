@@ -37,8 +37,14 @@ hooks/
 ├── pi/
 │   ├── specforge.js         # pi (pi.dev) adapter — extension over `sf hook`
 │   └── README.md            # pi install + event mapping
+├── opencode/
+│   ├── specforge.js         # opencode adapter — plugin over `sf hook` (gate-only*)
+│   └── README.md            # opencode install + the injection-gap caveat
 └── README.md                # this file
 ```
+
+\* opencode supports the hard gate + compaction re-ground; per-turn context
+injection is gapped on its experimental chat hooks (see `opencode/README.md`).
 
 The decision engine lives in the Go CLI (`cli/hook.go`): pure decision functions
 (`decidePreToolUse`, `decideInjection`, `pickJournalNudge`) reusing the same
@@ -88,6 +94,13 @@ Shipped and active when the plugin is installed — `plugin.json` points its
 (`tool_call`, `before_agent_start`, `session_start`, `session_before_compact`,
 `session_shutdown`) onto `sf hook --harness=generic`. pi covers all six events
 natively. See [`pi/README.md`](pi/README.md) for the event table and install.
+
+## opencode adapter
+
+`hooks/opencode/specforge.js` is an opencode plugin that maps `tool.execute.before`
+(hard gate, via throw) and `experimental.session.compacting` (re-ground) onto
+`sf hook --harness=generic`. Per-turn context injection is a known gap on
+opencode's experimental chat hooks. See [`opencode/README.md`](opencode/README.md).
 
 ## Test
 
