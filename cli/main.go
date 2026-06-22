@@ -32,6 +32,8 @@ func run(args []string) int {
 		return runTasks(rest)
 	case "context":
 		return runContext(rest)
+	case "metrics":
+		return runMetrics(rest)
 	case "state":
 		return runState(rest)
 	case "next":
@@ -79,9 +81,10 @@ commands:
   status  project health view, or artifact staleness with --artifacts [--feature=NAME]
   gate    gate ledger + approvals + verdicts (gate approve --feature=NAME --phase=PHASE seals the artifact hash)
   doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])
-  trace   verify the traceability matrix vs code (trace verify [--feature=NAME])
+  trace   verify the traceability matrix vs code (trace verify [--feature=NAME] [--contract [--wave=N]])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
+  metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME])
   state   emit the current feature/phase/wave as JSON (state current) — the brain hooks consult
   next    the agent compass: next valid action + write/read contract (next [--json] [--explain])
   recover diagnose stale/inconsistent artifacts + emit an ordered recovery plan (recover [--feature=NAME] [--json])
