@@ -171,14 +171,44 @@ func checkFeatureDrift(projectDir, feature, tracePath, runTests string) []string
 	return drifts
 }
 
+// splitAnchor separa un anchor en (ruta, símbolo). Soporta dos formas:
+//   - path::nodeid  → id de test estilo pytest (tests/foo.py::Clase::test_x).
+//     El símbolo es el ÚLTIMO segmento del nodeid, sin el sufijo de
+//     parametrización: test_x[caso-1] → test_x.
+//   - path:symbol   → anchor de código (src/foo.go:Parse, src/bar.py:Klass.method)
+//     o de test estilo Go (foo_test.go:TestParse).
+//
+// Si no hay separador, el anchor es solo una ruta y el símbolo queda "".
+//
+// Concepto Go: hay que chequear "::" ANTES que ":" porque "::" contiene ":".
+// Partir por el último ":" cortaba mal un nodeid de pytest (tests/foo.py: +
+// :test_x) — ese era el bug que impedía verificar test anchors.
+func splitAnchor(anchor string) (path, symbol string) {
+	// strings.Cut parte por la PRIMERA aparición de "::" y devuelve
+	// (antes, despues, encontrado). Es justo lo que queremos para separar la ruta.
+	if before, node, found := strings.Cut(anchor, "::"); found {
+		// pytest anida con "::" (archivo::Clase::test). El símbolo real es el
+		// último tramo, así que si quedan más "::" nos quedamos con lo de después.
+		if i := strings.LastIndex(node, "::"); i >= 0 {
+			node = node[i+2:]
+		}
+		// pytest parametriza con sufijo "[caso]"; nos quedamos con el nombre.
+		if k := strings.IndexByte(node, '['); k >= 0 {
+			node = node[:k]
+		}
+		return before, node
+	}
+	if i := strings.LastIndex(anchor, ":"); i >= 0 {
+		return anchor[:i], anchor[i+1:]
+	}
+	return anchor, ""
+}
+
 // checkAnchor (estático): ¿sigue existiendo `path:símbolo`? Devuelve (ok, razón).
-// Si no hay ":", el anchor es solo un path. El símbolo se busca por su
+// Si no hay símbolo, el anchor es solo un path. El símbolo se busca por su
 // identificador final (de `Clase.metodo` toma `metodo`) con límites de palabra.
 func checkAnchor(projectDir, anchor string) (bool, string) {
-	pathPart, symbol := anchor, ""
-	if i := strings.LastIndex(anchor, ":"); i >= 0 {
-		pathPart, symbol = anchor[:i], anchor[i+1:]
-	}
+	pathPart, symbol := splitAnchor(anchor)
 
 	data, err := os.ReadFile(filepath.Join(projectDir, pathPart))
 	if err != nil {

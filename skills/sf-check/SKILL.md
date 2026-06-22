@@ -122,11 +122,18 @@ Build the matrix:
 
 **If any requirement has status ❌ MISSING, the verdict CANNOT be APPROVE.**
 
-### Emit the structured matrix (`trace.json`)
+### Complete and audit the structured matrix (`trace.json`)
 
-The markdown matrix above is the human-readable contract. Also write the same
-anchors in machine-readable form so drift can be checked later without
-re-analyzing the repo (F33). Write `specforge/features/<name>/trace.json`:
+`trace.json` is **not generated from scratch here** — `sf-build` already wrote it
+during the build as the verification contract (each requirement with its code +
+test anchors). sf-check's job is to **complete and audit** it: fill any gaps,
+correct anchors that drifted during the build, set the final `status` per
+requirement, and confirm it matches the markdown matrix above. The build declares;
+check seals.
+
+The markdown matrix above is the human-readable contract. Keep the same anchors in
+machine-readable form so drift can be checked later without re-analyzing the repo
+(F33). The file lives at `specforge/features/<name>/trace.json`:
 
 ```json
 {

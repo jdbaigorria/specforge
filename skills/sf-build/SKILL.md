@@ -126,8 +126,10 @@ degradation that hits a long main session. The main agent stays a thin conductor
 
 Between waves run an AUTOMATED checkpoint — do NOT ask the human every wave (that
 trains rubber-stamping):
-1. Run the project's tests for the work done so far.
-2. If `trace.json` exists, run `sf doctor --drift --feature=<name>`.
+1. **Contract**: `sf trace verify --contract --feature=<name> --wave=<n>` for the
+   wave just finished — every requirement it touched must name a test that exists.
+2. Run the project's tests for the work done so far.
+3. If `trace.json` exists, run `sf doctor --drift --feature=<name>`.
 
 All green → launch the next wave's subagent automatically. Any failure → STOP and
 escalate to the human with the failing detail. A per-wave human gate is
@@ -165,6 +167,12 @@ For each task in the wave:
    Do not proceed to the next task. Do not work around the failure.
 3. Mark the task as `[x]` in `tasks.md` ONLY after verified implementation
 4. Note what was done in the wave progress log
+5. **Declare verification coverage (the contract)** — for each requirement this
+   task implements, add/update its entry in `specforge/features/<name>/trace.json`
+   with the code anchor(s) (`path:symbol`) and the **exact test** that proves it
+   (`path::test_name` for pytest, `path:TestName` for Go). You must name a *real*
+   test for every requirement you build — don't defer it to sf-check. This is the
+   build-time half of traceability; sf-check later audits and seals it.
 
 **⛔ FAILURE PROTOCOL**: If any operation fails during a wave:
 - Log the failure in the wave progress with exact error details
@@ -199,7 +207,23 @@ using `templates/progress.tmpl.md`:
 
 **⛔ A wave with integrity DIRTY cannot pass the gate.**
 
-### 2c. Gate
+### 2c. Verify the contract (gate precondition)
+
+Before presenting the gate, the verification contract must hold for this wave:
+
+```
+sf trace verify --contract --feature=<name> --wave=<n>
+```
+
+This checks that every requirement the wave's tasks touch is declared in
+`trace.json` with a test that **exists** in the code (it checks existence, not
+that the test passes — passing is drift, checked separately). Exit non-zero → the
+wave is **not** done: some requirement has no test named, or names a test that
+isn't there. Fix it (write the missing test, correct the anchor in trace.json)
+and re-run before the gate. This is what turns "test pass ≠ done" from a soft
+rule into a checkable artifact — **"no test named ≠ done"** is now enforced.
+
+### 2d. Gate
 
 → 🔴 **GATE**: Present wave results to the user.
 - "Approved" → proceed to next wave

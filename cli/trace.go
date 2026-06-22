@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -14,23 +15,48 @@ import (
 // findArtifact de status.go.
 func runTrace(args []string) int {
 	if len(args) == 0 || args[0] != "verify" {
-		fmt.Fprintln(os.Stderr, "usage: sf trace verify [project_dir] [--feature=NAME]")
+		fmt.Fprintln(os.Stderr, "usage: sf trace verify [project_dir] [--feature=NAME] [--contract] [--wave=N]")
 		return 2
 	}
 	args = args[1:] // descartamos "verify"
 
 	projectDir := "."
 	feature := ""
+	contract := false
+	wave := -1 // -1 = sin --wave (scope = la feature entera)
 	for _, a := range args {
 		switch {
 		case strings.HasPrefix(a, "--feature="):
 			feature = strings.TrimPrefix(a, "--feature=")
+		case a == "--contract":
+			contract = true
+		case strings.HasPrefix(a, "--wave="):
+			n, err := strconv.Atoi(strings.TrimPrefix(a, "--wave="))
+			if err != nil || n < 0 {
+				fmt.Fprintln(os.Stderr, "sf trace: --wave must be a non-negative integer")
+				return 2
+			}
+			wave = n
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf trace: unknown flag %q\n", a)
 			return 2
 		default:
 			projectDir = a
 		}
+	}
+
+	// El modo --contract es la verificación build-time (cobertura declarada).
+	// El modo normal (sin --contract) es la verificación de drift de código.
+	if contract {
+		if feature == "" {
+			fmt.Fprintln(os.Stderr, "sf trace verify --contract: --feature=NAME is required")
+			return 2
+		}
+		return runTraceContract(projectDir, feature, wave)
+	}
+	if wave >= 0 {
+		fmt.Fprintln(os.Stderr, "sf trace verify: --wave only applies with --contract")
+		return 2
 	}
 	return runTraceVerify(projectDir, feature)
 }
@@ -122,4 +148,147 @@ func verifyTrace(projectDir, feature, tracePath string) int {
 	}
 	fmt.Println("\nOK: all requirements traced to live code.")
 	return 0
+}
+
+// runTraceContract valida el CONTRATO DE VERIFICACIÓN en build-time: cada
+// requirement EN SCOPE debe estar declarado en trace.json con al menos un test, y
+// ese test debe EXISTIR de verdad en el código. Ojo: "existir", no "pasar" — que
+// el test pase es drift (verify normal / --run-tests); el contrato exige que el
+// agente NOMBRE un test real para cada R que implementa. Eso convierte la regla
+// blanda "test pass != done" en un artefacto chequeable ANTES de cerrar la wave.
+//
+// Scope: con --wave=N el contrato cubre solo los requirements que tocan las tasks
+// de esa wave (vía plan.json + tasks.json), porque durante el build trace.json
+// está parcial — pedir cobertura de R todavía no construidos daría falsos
+// faltantes. Sin --wave cubre todos los R ya declarados en trace.json (contrato
+// de feature completa, útil al cierre).
+//
+// Exit: 0 contrato cumplido, 1 incumplido, 4 falta trace.json.
+func runTraceContract(projectDir, feature string, wave int) int {
+	specforge := filepath.Join(projectDir, "specforge")
+	tracePath := findArtifact(specforge, feature, "trace.json")
+	if tracePath == "" {
+		fmt.Fprintf(os.Stderr, "sf trace: no trace.json for feature %q (build must declare coverage first).\n", feature)
+		return 4
+	}
+	data, err := os.ReadFile(tracePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf trace: cannot read %s (%v)\n", tracePath, err)
+		return 1
+	}
+	var tf traceFile
+	if err := json.Unmarshal(data, &tf); err != nil {
+		fmt.Fprintf(os.Stderr, "sf trace: invalid trace.json for %s (%v)\n", feature, err)
+		return 1
+	}
+
+	// Armamos el conjunto de requirements en scope.
+	var scope []string
+	if wave >= 0 {
+		s, code := contractScope(projectDir, feature, wave)
+		if code != 0 {
+			return code
+		}
+		scope = s
+	} else {
+		// Feature entera: todos los requirements ya declarados en trace.json.
+		for id := range tf.Requirements {
+			scope = append(scope, id)
+		}
+	}
+	sort.Strings(scope) // orden estable de salida
+
+	scopeLabel := "feature"
+	if wave >= 0 {
+		scopeLabel = fmt.Sprintf("wave %d", wave)
+	}
+	fmt.Printf("Verification contract — %s (%s)\n\n", feature, scopeLabel)
+
+	cols := []string{"requirement", "test", "exists", "verdict"}
+	var rows [][]string
+	unmet := 0
+	for _, req := range scope {
+		info, declared := tf.Requirements[req]
+		verdict := "ok"
+		existsCol := "—"
+		switch {
+		case !declared || len(info.Test) == 0:
+			// No hay test nombrado para este R → contrato incumplido.
+			verdict = "NO TEST"
+			unmet++
+		default:
+			// Hay test(s) declarados: cada uno debe resolver a código real.
+			missing := false
+			for _, t := range info.Test {
+				if ok, _ := checkAnchor(projectDir, t); !ok {
+					missing = true
+				}
+			}
+			if missing {
+				verdict = "TEST GONE"
+				existsCol = "no"
+				unmet++
+			} else {
+				existsCol = "yes"
+			}
+		}
+		rows = append(rows, []string{req, joinOrDash(info.Test), existsCol, verdict})
+	}
+	renderTable(cols, rows)
+
+	if len(scope) == 0 {
+		fmt.Println("\nNo requirements in scope.")
+		return 0
+	}
+	if unmet > 0 {
+		fmt.Printf("\nCONTRACT UNMET: %d requirement(s) without a verifiable test. Wave gate blocked.\n", unmet)
+		return 1
+	}
+	fmt.Println("\nOK: every requirement in scope names a test that exists.")
+	return 0
+}
+
+// contractScope devuelve los requirement-ids que el contrato debe cubrir para una
+// wave: la unión de los requirement_refs de las tasks de esa wave. Lee el plan
+// APROBADO (plan.json) en vez de recomputar desde tasks.json, para respetar los
+// refinamientos de wave (merge/split) que el humano aprobó en el gate del plan.
+// Reusa readPlanFile y readTasksFile (mismo paquete).
+func contractScope(projectDir, feature string, wave int) (reqs []string, code int) {
+	pf, c := readPlanFile(projectDir, feature)
+	if c != 0 {
+		return nil, c
+	}
+	var taskIDs []string
+	found := false
+	for _, w := range pf.Waves {
+		if w.N == wave {
+			taskIDs = w.Tasks
+			found = true
+			break
+		}
+	}
+	if !found {
+		fmt.Fprintf(os.Stderr, "sf trace: plan.json has no wave %d for feature %q.\n", wave, feature)
+		return nil, 2
+	}
+
+	tf, c := readTasksFile(projectDir, feature)
+	if c != 0 {
+		return nil, c
+	}
+	refsByID := map[string][]string{} // task-id → requirement_refs
+	for _, t := range tf.Tasks {
+		refsByID[t.ID] = t.RequirementRefs
+	}
+
+	seen := map[string]bool{} // dedup: dos tasks de la wave pueden tocar el mismo R
+	for _, id := range taskIDs {
+		for _, r := range refsByID[id] {
+			if !seen[r] {
+				seen[r] = true
+				reqs = append(reqs, r)
+			}
+		}
+	}
+	return reqs, 0
 }
