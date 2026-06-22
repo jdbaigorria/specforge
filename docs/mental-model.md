@@ -14,7 +14,7 @@ Most workflows treat the spec as documentation that rots the moment code is
 written. SpecForge inverts that: the spec is the source of truth, and the trace
 keeps it honest as the code evolves.
 
-## Three actors, three jobs
+## Four actors, four jobs
 
 SpecForge works because it never asks one actor to do another's job.
 
@@ -56,6 +56,13 @@ links forward to the code and tests that satisfy it. When code drifts away from
 the spec, `sf doctor --drift` and `sf trace verify` tell you — so you find out
 the spec is stale *before* you trust it.
 
+The spine is built **as you build**, not reconstructed afterward. During
+`sf-build` each wave declares the exact test that proves every requirement it
+touches, and `sf trace verify --contract` blocks the wave gate until that test
+actually exists. "Test passing" is never assumed and never deferred to review:
+**naming no test ≠ done**. `sf-check` later audits and seals what the build
+declared — it doesn't invent the spine from scratch.
+
 ## JSON-first, Markdown-rendered
 
 Artifacts have a JSON source of truth that the CLI validates, and a Markdown
@@ -95,4 +102,4 @@ governs itself from durable state.
 
 - `README.md` — full feature reference and the deterministic layer (CLI + hooks).
 - `AGENT.md` — the runtime contract an agent follows.
-- `CLI-SPEC.md` — the `sf` command surface.
+- `sf help` — the `sf` command surface.

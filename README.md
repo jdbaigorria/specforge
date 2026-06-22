@@ -8,6 +8,8 @@ Spec-Driven Development framework. The specification is the product — code is 
 
 A 4-skill feature pipeline + `sf-audit` for project-wide review + support skills. Progressive disclosure. Human gate on every artefact. No ceremony without purpose.
 
+**New here?** Read [the mental model](docs/mental-model.md) first — one page on how SpecForge thinks.
+
 **Install:** see [INSTALL.md](INSTALL.md). **License:** [MIT](LICENSE).
 
 ---

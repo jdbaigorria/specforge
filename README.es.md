@@ -8,6 +8,8 @@ Framework de Spec-Driven Development. La especificación es el producto — el c
 
 Un pipeline de 4 skills por feature + `sf-audit` para revisión transversal del proyecto + skills de soporte. Revelación progresiva. Gate humano en cada artefacto. Cero ceremonia sin propósito.
 
+**¿Recién llegás?** Leé primero [el modelo mental](docs/mental-model.md) — una página sobre cómo piensa SpecForge.
+
 **Instalación:** ver [INSTALL.md](INSTALL.md). **Licencia:** [MIT](LICENSE).
 
 ---
