@@ -28,6 +28,8 @@ func run(args []string) int {
 		return runGate(rest)
 	case "trace":
 		return runTrace(rest)
+	case "graph":
+		return runGraph(rest)
 	case "tasks":
 		return runTasks(rest)
 	case "context":
@@ -82,6 +84,7 @@ commands:
   gate    gate ledger + approvals + verdicts (gate approve --feature=NAME --phase=PHASE seals the artifact hash)
   doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME] [--contract [--wave=N]])
+  graph   export the knowledge graph from declared structure (graph export [--feature=NAME] [--format=json|mermaid|both] [--stdout])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
   metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME])
