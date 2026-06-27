@@ -47,8 +47,10 @@ saved specforge/features/add-task-crud/tasks.json (+ rendered .../tasks.md)
 graph acyclic) and **only if it passes** writes the canonical `.json` + renders
 the `.md`. Invalid input is rejected with exit 2 and **nothing touches disk** —
 a malformed artifact never exists. (`sf <artifact> validate|render` do the two
-halves standalone, for all six artifacts: constitution, requirements, design,
-tasks, plan, review.)
+halves standalone, for every artifact: constitution, requirements, design,
+tasks, plan, review, and **domain** — project-level domain knowledge:
+glossary + entities + business rules, validated like the rest, e.g.
+`echo '{...}' | sf save domain -`.)
 
 **Compute the wave layout from task dependencies.**
 
@@ -110,9 +112,10 @@ $ sf context for-judge --phase=design --feature=X     # artifact + ONLY the prin
 ```
 
 `context current` is the minimal slice of the current step — a cheap breadcrumb,
-or the full JSON. `for-wave` seeds a build sub-agent with one wave. `for-judge`
-hands the quality auditor exactly the artifact plus the constitution principles
-whose `applies_to` includes that phase — nothing more.
+or the full JSON. `for-wave` seeds a build sub-agent with one wave (and injects
+the project's `domain.json` if present). `for-judge` hands the quality auditor
+exactly the artifact plus the constitution principles **and the domain business
+rules** whose `applies_to` includes that phase — nothing more.
 
 **Record quality verdicts & durable lessons.**
 

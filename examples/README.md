@@ -28,6 +28,11 @@ one (lane → change → wave-0 → verdict).
 **The trace spine.** `trace.json` maps each requirement to its `path:symbol` and
 test. It's what drift detection reads.
 
+**Domain knowledge.** `brownfield-tempconv/specforge/context/domain.json` holds
+project-level domain knowledge (glossary + entities + business rules). Rules carry
+`applies_to`, so `sf context for-judge` injects only the ones relevant to the phase
+being checked — the same mechanism the constitution principles use.
+
 ## The knowledge graph
 
 `sf graph export` makes the trace spine **visible**. It walks the declared
