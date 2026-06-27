@@ -130,6 +130,14 @@ func TestRenderGraphMermaid(t *testing.T) {
 	if !strings.Contains(out, "-->|depends_on|") {
 		t.Error("edge type label missing")
 	}
+	// cada feature es una caja (subgraph) con su nombre de título.
+	if !strings.Contains(out, `subgraph sg_feat_base ["base"]`) {
+		t.Error("feature not wrapped in a titled subgraph")
+	}
+	// los hijos (R/code/test) van dentro de la caja de su feature.
+	if !strings.Contains(out, "  end\n") {
+		t.Error("subgraph not closed with end")
+	}
 }
 
 func TestMermaidID(t *testing.T) {
