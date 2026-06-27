@@ -23,7 +23,7 @@ You can install all of them or only the pipeline.
 ## 1. Clone the repo
 
 ```sh
-git clone https://github.com/<you>/specforge.git
+git clone https://github.com/jdbaigorria/specforge.git
 cd specforge
 ```
 
@@ -73,7 +73,7 @@ ln -s /path/to/specforge/skills .claude/skills
 > marketplace and installed directly:
 >
 > ```
-> /plugin marketplace add <owner>/specforge
+> /plugin marketplace add jdbaigorria/specforge
 > /plugin install specforge
 > ```
 >

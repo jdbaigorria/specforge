@@ -2,17 +2,9 @@ __pycache__/
 *.pyc
 .claude
 
-# planning / scratch docs — never commit
-SPECFORGE-REVIEW.es.md
-CLI-SPEC.md
-swarm.md
-update-sf.md
-
-# local learning notes — never commit
-GO-CHEATSHEET.es.md
-
-# local design docs — never commit
-HOOK-CLI-MAP.es.md
+# local planning / design / research / learning notes — used to BUILD
+# SpecForge, NOT part of the product. Never committed. See planning/README.md.
+planning/
 
 # local research / experiments — never commit
 eval/
