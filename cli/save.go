@@ -45,6 +45,9 @@ func execTemplate(t *template.Template, data any) (string, error) {
 func (v constitutionFile) validate(r *report)              { checkConstitution(v, r) }
 func (v constitutionFile) renderMarkdown() (string, error) { return execTemplate(constitutionTmpl, v) }
 
+func (v domainFile) validate(r *report)              { checkDomain(v, r) }
+func (v domainFile) renderMarkdown() (string, error) { return execTemplate(domainTmpl, v) }
+
 func (v requirementsFile) validate(r *report)              { checkRequirements(v, r) }
 func (v requirementsFile) renderMarkdown() (string, error) { return execTemplate(reqTmpl, v) }
 
@@ -91,8 +94,8 @@ func runSave(args []string) int {
 		}
 	}
 
-	// constitution es a nivel proyecto; el resto necesita --feature.
-	if name != "constitution" && feature == "" {
+	// constitution y domain son a nivel proyecto; el resto necesita --feature.
+	if name != "constitution" && name != "domain" && feature == "" {
 		fmt.Fprintln(os.Stderr, "sf save: --feature=NAME is required")
 		return 2
 	}
@@ -110,6 +113,12 @@ func runSave(args []string) int {
 	switch name {
 	case "constitution":
 		var v constitutionFile
+		if !decodeInto(raw, &v) {
+			return 2
+		}
+		return finishSave(v, jsonPath, mdPath)
+	case "domain":
+		var v domainFile
 		if !decodeInto(raw, &v) {
 			return 2
 		}
@@ -222,6 +231,9 @@ func artifactPaths(name, projectDir, feature string) (string, string) {
 	switch name {
 	case "constitution":
 		base := filepath.Join(projectDir, "specforge", "constitution")
+		return base + ".json", base + ".md"
+	case "domain":
+		base := domainPath(projectDir) // specforge/context/domain
 		return base + ".json", base + ".md"
 	case "plan":
 		base := filepath.Join(fdir, "progress", "plan")

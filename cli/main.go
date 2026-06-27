@@ -54,6 +54,8 @@ func run(args []string) int {
 		return runDesign(rest)
 	case "constitution":
 		return runConstitution(rest)
+	case "domain":
+		return runDomain(rest)
 	case "plan":
 		return runPlan(rest)
 	case "review":
@@ -97,6 +99,7 @@ commands:
   requirements  render/validate requirements.json (requirements render|validate --feature=NAME)
   design  render/validate design.json (design render|validate --feature=NAME)
   constitution  render/validate constitution.json (constitution render|validate)
+  domain  render/validate domain.json — project domain knowledge (domain render|validate)
   plan    render/validate/compute the wave layout (plan render|validate|compute --feature=NAME)
   review  render/validate review.json (review render|validate --feature=NAME)
   save    validate JSON from stdin, then write it + render md (save <artifact> --feature=NAME --json -)

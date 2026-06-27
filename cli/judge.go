@@ -21,12 +21,13 @@ import (
 // ----------------------------------------------------------------------------
 
 type judgeContext struct {
-	Feature    string          `json:"feature"`
-	Phase      string          `json:"phase"`
-	Principles []principle     `json:"principles"`
-	Invariants []invariant     `json:"invariants"`
-	Artifact   json.RawMessage `json:"artifact,omitempty"` // el artefacto crudo, pasa tal cual
-	Note       string          `json:"note,omitempty"`
+	Feature     string          `json:"feature"`
+	Phase       string          `json:"phase"`
+	Principles  []principle     `json:"principles"`
+	Invariants  []invariant     `json:"invariants"`
+	DomainRules []domainRule    `json:"domain_rules,omitempty"` // reglas de negocio que aplican a esta fase
+	Artifact    json.RawMessage `json:"artifact,omitempty"`     // el artefacto crudo, pasa tal cual
+	Note        string          `json:"note,omitempty"`
 }
 
 // contextForJudgeCmd parsea los flags de `for-judge`.
@@ -65,6 +66,13 @@ func contextForJudge(projectDir, feature, phase string) int {
 		jc.Note = appendNote(jc.Note, "no/invalid constitution.json — no principles to check")
 	}
 
+	// Conocimiento de dominio: las reglas de negocio cuyo applies_to incluye esta
+	// fase. Mismo patrón que los principios; opcional (un proyecto sin domain.json
+	// simplemente no suma nada acá).
+	if df, ok := loadDomainQuiet(projectDir); ok {
+		jc.DomainRules = domainRulesForPhase(df, phase)
+	}
+
 	// El artefacto de la fase (lo que se juzga), si la fase tiene uno y existe.
 	if path := phaseArtifactPath(projectDir, feature, phase); path != "" {
 		if raw, err := os.ReadFile(path); err == nil {
@@ -74,7 +82,7 @@ func contextForJudge(projectDir, feature, phase string) int {
 		}
 	}
 
-	if len(jc.Principles) == 0 && len(jc.Invariants) == 0 {
+	if len(jc.Principles) == 0 && len(jc.Invariants) == 0 && len(jc.DomainRules) == 0 {
 		jc.Note = appendNote(jc.Note, fmt.Sprintf("no rules mapped to phase %q (applies_to)", phase))
 	}
 

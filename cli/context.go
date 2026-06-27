@@ -30,6 +30,7 @@ type waveContext struct {
 	Components      []component        `json:"components_in_scope,omitempty"` // cuerpos, si hay design.json
 	FilesInScope    []string           `json:"files_in_scope"`
 	PriorWaves      []priorWaveSummary `json:"prior_waves"`
+	Domain          *domainFile        `json:"domain,omitempty"` // conocimiento de dominio (project-level), si existe
 	Note            string             `json:"note,omitempty"`
 }
 
@@ -134,7 +135,17 @@ func loadWaveContext(projectDir, feature string, n int) (waveContext, bool) {
 	// Si existen, el slice trae los CUERPOS de los R#/C# en scope; si no, solo IDs.
 	reqByID := loadRequirementsMap(projectDir, feature)
 	compByID := loadDesignMap(projectDir, feature)
-	return buildWaveContext(pf, tasksByID, reqByID, compByID, feature, n)
+	ctx, ok := buildWaveContext(pf, tasksByID, reqByID, compByID, feature, n)
+	if !ok {
+		return ctx, false
+	}
+	// Camino A (v1): inyectamos el domain.json ENTERO. Es chico y a nivel proyecto
+	// (como compact-rules), así que sumarlo completo es correcto y barato. Si algún
+	// día `sf metrics` muestra que infla el slice, se pasa a refs por-task (Camino B).
+	if df, dok := loadDomainQuiet(projectDir); dok {
+		ctx.Domain = &df
+	}
+	return ctx, true
 }
 
 // loadTasksMap lee tasks.json (plano) a un índice id→task. (false si falta/rompe.)
