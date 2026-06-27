@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "feature": "add-kelvin",
+  "summary": "Add Kelvin conversions (c_to_k, k_to_c) to the existing tempconv library.",
+  "actors": [
+    "library caller"
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "ears_type": "event",
+      "trigger": "c_to_k(celsius) is called",
+      "state": "",
+      "behavior": "return the temperature in kelvin",
+      "acceptance": [
+        "c_to_k(0) == 273.15"
+      ],
+      "source": "add-kelvin",
+      "tags": [
+        "conversion"
+      ]
+    },
+    {
+      "id": "R2",
+      "ears_type": "event",
+      "trigger": "k_to_c(kelvin) is called",
+      "state": "",
+      "behavior": "return the temperature in celsius",
+      "acceptance": [
+        "k_to_c(273.15) == 0"
+      ],
+      "source": "add-kelvin",
+      "tags": [
+        "conversion"
+      ]
+    },
+    {
+      "id": "R3",
+      "ears_type": "error",
+      "trigger": "a temperature below absolute zero (-273.15 C) is produced",
+      "state": "",
+      "behavior": "raise ValueError",
+      "acceptance": [
+        "c_to_k(-300) raises ValueError"
+      ],
+      "source": "add-kelvin",
+      "tags": [
+        "validation"
+      ]
+    }
+  ]
+}

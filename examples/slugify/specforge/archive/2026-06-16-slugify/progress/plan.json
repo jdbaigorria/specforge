@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "feature": "slugify",
+  "waves": [
+    {
+      "n": 0,
+      "tasks": [
+        "T1"
+      ]
+    },
+    {
+      "n": 1,
+      "tasks": [
+        "T2",
+        "T3"
+      ]
+    },
+    {
+      "n": 2,
+      "tasks": [
+        "T4"
+      ]
+    }
+  ]
+}

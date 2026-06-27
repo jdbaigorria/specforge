@@ -1,37 +1,22 @@
 # Design — slugify
 
-Status: approved
+A single pure function in `src/texttools/slug.py`, re-exported from `__init__.py`. Standard library only (`unicodedata` for accent folding, `re` for tokenizing).
 
-## Approach
+**Algorithm:** NFKD-normalize and drop combining marks (folds accents, R2); lowercase; find runs of `[a-z0-9]+` with a regex (drops punctuation, R3); join the runs with `sep` (single separators, R1/R3); the result is `""` when there are no runs (R4).
 
-A single pure function in `src/texttools/slug.py`, re-exported from
-`__init__.py`. Implemented with the standard library only (constitution: zero
-deps), using `unicodedata` for accent folding and `re` for tokenizing.
+**Public API:** `def slugify(text: str, sep: str = "-") -> str`.
 
-## Algorithm
+## Components
 
-```
-def slugify(text: str, sep: str = "-") -> str:
-    1. NFKD-normalize, drop combining marks  → folds accents (R2)
-    2. lowercase
-    3. find runs of [a-z0-9]+ with a regex    → drops punctuation (R3)
-    4. join the runs with `sep`               → single separators (R1, R3)
-    5. result is "" when there are no runs    → empty result (R4)
-```
+### C1 — slugify function (function)
+- normalize + fold accents
+- tokenize alnum runs
+- join with separator
+- return empty on no runs
 
-Accent folding uses `unicodedata.normalize("NFKD", text)` then filters out
-characters where `unicodedata.combining(c)` is truthy. This decomposes `é` into
-`e` + combining-acute and drops the accent.
+## Decisions
 
-## Public API
-
-```python
-def slugify(text: str, sep: str = "-") -> str: ...
-```
-
-`sep` is exposed for callers who want `_` instead of `-`; it defaults to `-` and
-is not required by any requirement (kept minimal per "no ceremony without
-purpose").
-
-<!-- Security / Performance sections omitted: pure in-memory string transform,
-     no untrusted-surface or scale concerns to document. -->
+### D1 — Should the separator be configurable?
+- **Hard-code "-"** (pros: simplest) (cons: callers wanting "_" must post-process)
+- **Optional sep param defaulting to "-"** (pros: flexible,no required arg) (cons: one extra parameter)
+**Chosen:** Optional sep param defaulting to "-" — Not required by any requirement, defaults to `-`; kept minimal per "no ceremony without purpose".

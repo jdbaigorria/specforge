@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "features": [
+    {
+      "name": "add-kelvin",
+      "status": "done",
+      "workflow": "requirements-first",
+      "lane": "standard",
+      "depends_on": [],
+      "created": "2026-06-27",
+      "completed": "2026-06-27",
+      "gates": [
+        { "phase": "lane",         "result": "approve", "by": "user", "at": "2026-06-27T10:00:00Z", "comment": "standard" },
+        { "phase": "requirements", "result": "approve", "by": "user", "at": "2026-06-27T10:03:00Z", "comment": null },
+        { "phase": "design",       "result": "approve", "by": "user", "at": "2026-06-27T10:08:00Z", "comment": null },
+        { "phase": "tasks",        "result": "approve", "by": "user", "at": "2026-06-27T10:12:00Z", "comment": null },
+        { "phase": "plan",         "result": "approve", "by": "user", "at": "2026-06-27T10:15:00Z", "comment": null },
+        { "phase": "wave-0",       "result": "approve", "by": "user", "at": "2026-06-27T10:20:00Z", "comment": null },
+        { "phase": "wave-1",       "result": "approve", "by": "user", "at": "2026-06-27T10:28:00Z", "comment": null },
+        { "phase": "verdict",      "result": "approve", "by": "user", "at": "2026-06-27T10:32:00Z", "comment": null }
+      ]
+    }
+  ]
+}

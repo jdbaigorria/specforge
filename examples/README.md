@@ -1,46 +1,51 @@
 # SpecForge examples
 
-A worked, end-to-end feature so you can see what the pipeline actually produces —
-not just how it's described. It doubles as a fixture for `scripts/lint-skills.py`
-and the future CLI.
+Worked, end-to-end features so you can see what the pipeline actually
+produces — not just how it's described. Every artifact is **JSON-first**: a
+validated `.json` **source** plus the `.md` **render** `sf` generates from it.
 
-## `slugify/`
+Each example is a self-contained project. With `sf` on your PATH you can run the
+validators from inside any of them.
 
-A trivial feature (`slugify` — turn a string into a URL slug) for a small Python
-utility library, taken all the way through the pipeline and **archived**:
+| Example | Lane | Scenario | Shows |
+|---------|------|----------|-------|
+| [`slugify/`](slugify/) | standard | Greenfield — a slug helper, built from zero and **archived** | The full pipeline: requirements → design → tasks → plan → review, with the gate ledger |
+| [`brownfield-tempconv/`](brownfield-tempconv/) | standard | Brownfield — adding `add-kelvin` to a library that already had `c_to_f` | Specs layered onto existing code; the trace spine over a real change |
+| [`lite-wordcount/`](lite-wordcount/) | **lite** | A one-file bugfix (`word_count("")` returned 1) | The lite lane: one `change.md`, fewer gates, still a test + `trace.json` |
 
-```
-requirements → design → tasks → build → check → archive
-```
+## What to look at
 
-What to look at:
+**The JSON-first pair.** Open any artifact's `.json` next to its `.md` — e.g.
+`brownfield-tempconv/specforge/features/add-kelvin/requirements.json` and
+`requirements.md`. The JSON is the source of truth; the Markdown is generated, so
+it can't drift.
 
-| File | What it demonstrates |
-|------|----------------------|
-| `slugify/specforge/features.json` | The registry + **gate ledger** (F10): every gate that actually passed, with timestamps. Source of truth for status. |
-| `slugify/specforge/archive/2026-06-16-slugify/requirements.md` | EARS notation, acceptance criteria. |
-| `.../design.md` | Conditional sections only — no `N/A` noise. |
-| `.../tasks.md` | Waves + the **traceability matrix** (requirement → task). |
-| `.../review.md` | The full matrix (requirement → task → code → test → status) and the verdict. |
-| `slugify/specforge/context/` | Project context (`project.md`, `conventions.md`). |
+**The gate ledger.** `*/specforge/features.json` records every gate that passed,
+with timestamps — the source of truth for status. Compare the **standard** ledger
+(lane → requirements → design → tasks → plan → wave-N → verdict) with the **lite**
+one (lane → change → wave-0 → verdict).
 
-The feature is in `archive/` because it completed. A feature still in flight
-would live under `specforge/features/<name>/` with the same file set.
+**The trace spine.** `trace.json` maps each requirement to its `path:symbol` and
+test. It's what drift detection reads.
 
-It also ships the **real code** the spec describes (`src/texttools/slug.py` +
-`tests/test_slug.py`), so the traceability chain is complete and verifiable:
+## Verify them yourself
 
 ```sh
-# project health view — per-feature status, drift, blockers, critical path (F37)
-python3 ../../scripts/sf-status.py .
+# (from inside an example dir, with `sf` on PATH)
 
-# drift check — every requirement's code anchor still exists (F33)
-python3 ../../scripts/check-drift.py .
+# per-feature status, phase, drift, blockers, critical path
+sf status
+
+# the requirement → code → test matrix vs the actual repo
+sf trace verify --feature=add-kelvin      # in brownfield-tempconv/
+
+# archived specs whose code anchor vanished (reads trace.json)
+sf doctor --drift                         # in slugify/
 
 # run the spec's acceptance tests
-PYTHONPATH=src python3 -m doctest src/texttools/slug.py -v
+PYTHONPATH=src python3 -m pytest -q        # brownfield-tempconv/ and lite-wordcount/
+PYTHONPATH=src python3 -m doctest src/texttools/slug.py -v   # slugify/
 ```
 
-`archive/2026-06-16-slugify/trace.json` is the structured matrix that links each
-requirement (R1–R4) to its `path:symbol` and test — the live link drift detection
-reads.
+A completed feature lives under `specforge/archive/<date>-<name>/`; a feature
+still in flight lives under `specforge/features/<name>/` with the same file set.

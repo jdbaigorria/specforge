@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "feature": "fix-empty-wordcount",
+  "traceability": [
+    {
+      "requirement": "R1",
+      "tasks": [
+        "lite"
+      ],
+      "files": [
+        "src/textstats/count.py:word_count"
+      ],
+      "tests": [
+        "tests/test_count.py::test_empty",
+        "tests/test_count.py::test_whitespace_only"
+      ],
+      "status": "implemented"
+    }
+  ],
+  "gaps": [],
+  "constitution_violations": [],
+  "verdict": "approve",
+  "verdict_rationale_md": "One requirement, one change, two tests. Inside drift detection via trace.json."
+}
