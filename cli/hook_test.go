@@ -25,7 +25,9 @@ func writeReg(t *testing.T, proj, content string) {
 }
 
 // TestDecidePreToolUseGateChain: la cadena de gates (downstream necesita upstream
-// aprobado), gateando tanto .md como .json (JSON-first), plan bajo progress/.
+// aprobado). JSON-first + Capa 1: los .json de artefacto son estado protegido
+// (van por `sf save`, siempre deny); el orden-de-gates queda observable vía el
+// .md renderizado. plan vive bajo progress/.
 func TestDecidePreToolUseGateChain(t *testing.T) {
 	proj := t.TempDir()
 	feat := filepath.Join(proj, "specforge", "features", "x")
@@ -46,25 +48,106 @@ func TestDecidePreToolUseGateChain(t *testing.T) {
 		t.Error("requirements.md debería estar permitido (sin upstream)")
 	}
 
-	// requirements aprobado → design permitido, tasks aún denegado (.md y .json)
+	// requirements aprobado → design.md permitido; design.json SIEMPRE denegado
+	// (estado protegido); tasks.md aún denegado por la cadena.
 	writeReg(t, proj, `{"schema_version":"1.0","features":[{"name":"x","gates":[{"phase":"requirements","result":"approve"}]}]}`)
 	if d("design.md") != "allow" {
 		t.Error("design.md debería permitirse tras el gate de requirements")
 	}
-	if d("tasks.md") != "deny" || d("tasks.json") != "deny" {
-		t.Error("tasks.md/.json deberían estar denegados sin gate de design")
+	if d("design.json") != "deny" {
+		t.Error("design.json es estado protegido → siempre deny (vía sf save)")
+	}
+	if d("tasks.md") != "deny" {
+		t.Error("tasks.md debería estar denegado sin gate de design")
 	}
 	if d(filepath.Join("progress", "plan.md")) != "deny" {
-		t.Error("plan debería estar denegado sin gate de tasks")
+		t.Error("plan.md debería estar denegado sin gate de tasks")
 	}
 
-	// cadena completa → plan.json permitido
+	// cadena completa → plan.md permitido (la prosa); plan.json sigue protegido.
 	writeReg(t, proj, `{"schema_version":"1.0","features":[{"name":"x","gates":[
 		{"phase":"requirements","result":"approve"},
 		{"phase":"design","result":"approve"},
 		{"phase":"tasks","result":"approve"}]}]}`)
-	if d(filepath.Join("progress", "plan.json")) != "allow" {
-		t.Error("plan.json debería permitirse tras el gate de tasks")
+	if d(filepath.Join("progress", "plan.md")) != "allow" {
+		t.Error("plan.md debería permitirse tras el gate de tasks")
+	}
+	if d(filepath.Join("progress", "plan.json")) != "deny" {
+		t.Error("plan.json es estado protegido → siempre deny (vía sf save)")
+	}
+}
+
+// TestProtectedStateWriteEdit: Capa 1 — Write/Edit directo a CUALQUIER estado
+// autoritativo .json (o .state/) se deniega, sin importar los gates.
+func TestProtectedStateWriteEdit(t *testing.T) {
+	proj := t.TempDir()
+	writeReg(t, proj, `{"schema_version":"1.0","features":[{"name":"x","gates":[
+		{"phase":"requirements","result":"approve"},
+		{"phase":"design","result":"approve"},
+		{"phase":"tasks","result":"approve"}]}]}`)
+	deny := func(rel string) bool {
+		dec, _ := decidePreToolUse(proj, filepath.Join(proj, rel))
+		return dec == "deny"
+	}
+	protected := []string{
+		"specforge/features.json",
+		"specforge/constitution.json",
+		"specforge/context/domain.json",
+		"specforge/journal/2026-01-01-x.json",
+		"specforge/features/x/requirements.json",
+		"specforge/features/x/design.json",
+		"specforge/features/x/tasks.json",
+		"specforge/features/x/review.json",
+		"specforge/features/x/trace.json",
+		"specforge/features/x/audit.json",
+		"specforge/features/x/progress/plan.json",
+		"specforge/.state/session.md",
+	}
+	for _, p := range protected {
+		if !deny(p) {
+			t.Errorf("%s debería estar denegado (estado protegido)", p)
+		}
+	}
+	// El .md renderizado NO es estado protegido (lo regenera sf save); con la
+	// cadena completa, requirements.md se permite.
+	if dec, _ := decidePreToolUse(proj, filepath.Join(proj, "specforge/features/x/requirements.md")); dec != "allow" {
+		t.Error("requirements.md (prosa) no debería estar protegido")
+	}
+}
+
+// TestBashWritesProtected: Capa 1 — la rama Bash deniega escrituras de estado por
+// redirect / tee / sed -i / cp / mv, y permite lecturas y las invocaciones de sf.
+func TestBashWritesProtected(t *testing.T) {
+	proj := t.TempDir()
+	writeReg(t, proj, `{"schema_version":"1.0","features":[]}`)
+	deny := func(cmd string) bool {
+		dec, _ := decideBashWrite(proj, cmd)
+		return dec == "deny"
+	}
+	denied := []string{
+		`echo '{}' > specforge/features.json`,
+		`echo '{}' >> specforge/features.json`,
+		`cat x | tee specforge/features/x/trace.json`,
+		`sed -i 's/a/b/' specforge/features/x/requirements.json`,
+		`cp /tmp/forged.json specforge/constitution.json`,
+		`mv /tmp/x specforge/context/domain.json`,
+		`sf status && echo x > specforge/features.json`, // 2da mitad maliciosa
+	}
+	for _, c := range denied {
+		if !deny(c) {
+			t.Errorf("debería denegarse: %q", c)
+		}
+	}
+	allowed := []string{
+		`cat specforge/features.json`,                     // lectura
+		`sf save trace --feature=x --json -`,              // el escritor sancionado
+		`echo hello > /tmp/scratch.txt`,                   // path no protegido
+		`grep foo specforge/features/x/requirements.json`, // lectura
+	}
+	for _, c := range allowed {
+		if deny(c) {
+			t.Errorf("NO debería denegarse: %q", c)
+		}
 	}
 }
 
@@ -106,6 +189,30 @@ func TestDecidePreToolUseGuards(t *testing.T) {
 	noSF := t.TempDir()
 	if dec, _ := decidePreToolUse(noSF, filepath.Join(noSF, "specforge", "features", "y", "design.md")); dec != "allow" {
 		t.Error("proyecto no-SpecForge: debería ser no-op allow")
+	}
+}
+
+// TestFailClosedHelpers: los predicados del fail-closed (cierre de borde).
+func TestFailClosedHelpers(t *testing.T) {
+	if !isPreToolUseEvent("claude-code", "PreToolUse") || !isPreToolUseEvent("generic", "pre_tool_use") {
+		t.Error("isPreToolUseEvent debería reconocer ambos contratos")
+	}
+	if isPreToolUseEvent("claude-code", "SessionStart") {
+		t.Error("SessionStart no es PreToolUse")
+	}
+
+	proj := t.TempDir()
+	// Sin features.json → no hay activa (y no explota).
+	if hasActiveFeatureSafe(proj) {
+		t.Error("sin features.json no debería haber feature activa")
+	}
+	writeReg(t, proj, `{"schema_version":"1.0","features":[{"name":"x","status":"planned"}]}`)
+	if hasActiveFeatureSafe(proj) {
+		t.Error("planned no es activa")
+	}
+	writeReg(t, proj, `{"schema_version":"1.0","features":[{"name":"x","status":"building"}]}`)
+	if !hasActiveFeatureSafe(proj) {
+		t.Error("building SÍ es activa")
 	}
 }
 

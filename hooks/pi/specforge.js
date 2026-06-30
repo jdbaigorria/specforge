@@ -54,15 +54,19 @@ export default function (pi) {
   let pendingSessionContext = null;
 
   // ── tool_call → pre_tool_use (el hard-gate) ──
-  // Solo write/edit tienen un path de artefacto gateable; el resto pasa derecho.
+  // write/edit traen un path de artefacto; bash trae un comando que puede
+  // escribir estado por la puerta lateral (redirect/tee/sed -i) → Capa 1.
   pi.on("tool_call", (event, ctx) => {
-    if (event.toolName !== "write" && event.toolName !== "edit") return;
-    const filePath = event.input && event.input.path;
-    if (!filePath) return;
-    const res = callHook("pre_tool_use", ctx.cwd, {
-      tool: event.toolName,
-      file_path: filePath,
-    });
+    let payload = null;
+    if (event.toolName === "write" || event.toolName === "edit") {
+      const filePath = event.input && event.input.path;
+      if (filePath) payload = { tool: event.toolName, file_path: filePath };
+    } else if (event.toolName === "bash") {
+      const command = event.input && (event.input.command || event.input.cmd);
+      if (command) payload = { tool: event.toolName, command };
+    }
+    if (!payload) return;
+    const res = callHook("pre_tool_use", ctx.cwd, payload);
     if (res.decision === "deny") {
       return { block: true, reason: res.reason || "blocked by a SpecForge gate" };
     }

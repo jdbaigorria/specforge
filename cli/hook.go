@@ -48,6 +48,21 @@ var artifactRe = regexp.MustCompile(
 	`^specforge/features/([^/]+)/(?:progress/)?(requirements|design|tasks|plan)\.(?:json|md)$`,
 )
 
+// protectedJSONRe reconoce TODO el estado autoritativo en formato .json que solo
+// `sf` puede escribir (Capa 1 de FIXBUGHIGH). Cubre el ledger de features, la
+// constitución, el domain, las entradas de journal y los .json de artefacto por
+// feature (incluido trace y review, que artifactRe NO matchea). Los .md
+// renderizados quedan FUERA a propósito: son prosa, los regenera `sf save`.
+var protectedJSONRe = regexp.MustCompile(
+	`^specforge/(` +
+		`features\.json` +
+		`|constitution\.json` +
+		`|context/domain\.json` +
+		`|journal/[^/]+\.json` +
+		`|features/[^/]+/(?:progress/)?(?:requirements|design|tasks|plan|review|trace|audit)\.json` +
+		`)$`,
+)
+
 // ── Payload + entry point ────────────────────────────────────────────────────
 
 // hookPayload son los campos que nos interesan del JSON de entrada. Claude manda
@@ -58,11 +73,13 @@ type hookPayload struct {
 	ProjectDir     string `json:"project_dir"`
 	Cwd            string `json:"cwd"`
 	FilePath       string `json:"file_path"`
+	Command        string `json:"command"` // contrato generic: comando de Bash a inspeccionar
 	SessionID      string `json:"session_id"`
 	StopHookActive bool   `json:"stop_hook_active"`
 	HookEventName  string `json:"hook_event_name"`
 	ToolInput      struct {
 		FilePath string `json:"file_path"`
+		Command  string `json:"command"` // Claude Code: tool_input.command para la tool Bash
 	} `json:"tool_input"`
 }
 
@@ -83,24 +100,39 @@ func runHook(args []string) (code int) {
 		}
 	}
 
-	// Fail open: si algo explota, avisamos por stderr y devolvemos 0 (allow).
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "sf hook: internal error, allowing (%v)\n", r)
-			code = 0
-		}
-	}()
-
+	// Leemos el payload ANTES del defer para que el recover pueda inspeccionarlo
+	// (necesita saber el evento y el proyecto para decidir fail-open vs fail-closed).
 	raw, _ := io.ReadAll(os.Stdin)
 	var p hookPayload
 	if len(strings.TrimSpace(string(raw))) > 0 {
 		_ = json.Unmarshal(raw, &p) // payload inválido → struct vacío (fail open)
 	}
+	event = eventOr(event, p.HookEventName)
+
+	// Política de error del engine (FIXBUGHIGH, cierre de borde):
+	//   - FAIL-CLOSED dentro de una feature activa: si el panic ocurre decidiendo
+	//     un PreToolUse y hay una feature en curso, DENEGAMOS. Un bug del engine no
+	//     debe convertirse en una puerta abierta justo cuando hay estado que proteger.
+	//   - FAIL-OPEN en cualquier otro caso (otros eventos, o sin feature activa): un
+	//     bug no debe bloquear el editor cuando no hay nada que custodiar.
+	defer func() {
+		if r := recover(); r != nil {
+			if isPreToolUseEvent(harness, event) && hasActiveFeatureSafe(p.projectDir()) {
+				fmt.Fprintf(os.Stderr, "sf hook: internal error during an active feature — failing closed (%v)\n", r)
+				emitDeny(harness, "SpecForge enforcement hit an internal error while a feature is active, so it is "+
+					"failing closed (denying) to avoid an unguarded write. Run `sf doctor` and retry.")
+				code = 0 // claude/generic comunican el deny por el JSON, no por exit code
+				return
+			}
+			fmt.Fprintf(os.Stderr, "sf hook: internal error, allowing (%v)\n", r)
+			code = 0
+		}
+	}()
 
 	if harness == "generic" {
 		return runHookGeneric(p)
 	}
-	return runHookClaude(eventOr(event, p.HookEventName), p)
+	return runHookClaude(event, p)
 }
 
 // projectDir resuelve el dir del proyecto: env de Claude, o cwd/project_dir del
@@ -133,7 +165,7 @@ func runHookClaude(event string, p hookPayload) int {
 	pd := p.projectDir()
 	switch event {
 	case "PreToolUse":
-		decision, reason := decidePreToolUse(pd, p.ToolInput.FilePath)
+		decision, reason := decidePreToolUseTool(pd, p.ToolInput.FilePath, p.ToolInput.Command)
 		if decision == "deny" {
 			emitJSON(map[string]any{"hookSpecificOutput": map[string]any{
 				"hookEventName":            "PreToolUse",
@@ -178,7 +210,7 @@ func runHookGeneric(p hookPayload) int {
 	pd := p.projectDir()
 	switch p.Event {
 	case "pre_tool_use":
-		decision, reason := decidePreToolUse(pd, p.FilePath)
+		decision, reason := decidePreToolUseTool(pd, p.FilePath, p.Command)
 		emitJSON(map[string]any{"decision": decision, "reason": nilIfEmpty(reason)})
 	case "session_start":
 		emitJSON(map[string]any{"decision": "allow", "context": sessionContext(pd)})
@@ -220,6 +252,49 @@ func emitJSON(v any) {
 	fmt.Println(string(out))
 }
 
+// isPreToolUseEvent: ¿este evento es el hard-gate de escritura, en cualquiera de
+// los dos contratos? (Claude usa "PreToolUse"; el generic, "pre_tool_use".)
+func isPreToolUseEvent(harness, event string) bool {
+	if harness == "generic" {
+		return event == "pre_tool_use"
+	}
+	return event == "PreToolUse"
+}
+
+// emitDeny imprime un deny en la forma nativa del arnés. Lo usa el fail-closed.
+func emitDeny(harness, reason string) {
+	if harness == "generic" {
+		emitJSON(map[string]any{"decision": "deny", "reason": reason})
+		return
+	}
+	emitJSON(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName":            "PreToolUse",
+		"permissionDecision":       "deny",
+		"permissionDecisionReason": reason,
+	}})
+}
+
+// hasActiveFeatureSafe responde si hay alguna feature en curso (activeStatuses),
+// blindado con su propio recover: si LEER el estado también explota, devolvemos
+// false (no podemos afirmar que haya algo activo → no forzamos el fail-closed).
+func hasActiveFeatureSafe(projectDir string) (active bool) {
+	defer func() {
+		if recover() != nil {
+			active = false
+		}
+	}()
+	ff, err := readFeaturesFile(projectDir)
+	if err != nil {
+		return false
+	}
+	for i := range ff.Features {
+		if activeStatuses[ff.Features[i].Status] {
+			return true
+		}
+	}
+	return false
+}
+
 // ── Decisión: PreToolUse (el hard-gate) ──────────────────────────────────────
 
 // decidePreToolUse devuelve ("deny", reason) o ("allow", "") para un Write/Edit
@@ -236,9 +311,11 @@ func decidePreToolUse(projectDir, filePath string) (string, string) {
 		return "allow", "" // fuera del árbol del proyecto
 	}
 
-	if strings.HasPrefix(rel, "specforge/.state/") {
-		return "deny", "specforge/.state/ is machine state — never edit it directly. " +
-			"features.json is the source of truth; let the session protocol manage state."
+	// Capa 1 (FIXBUGHIGH): el estado autoritativo SOLO lo escribe `sf`. Cualquier
+	// Write/Edit directo a features.json o a un *.json de artefacto se deniega acá,
+	// ANTES de la lógica de orden-de-gates (que ya solo aplica al .md renderizado).
+	if reason, deny := protectedStateDeny(rel); deny {
+		return "deny", reason
 	}
 
 	feature, artefact, ok := artifactTarget(rel)
@@ -276,6 +353,162 @@ func artifactTarget(rel string) (feature, artefact string, ok bool) {
 		return "", "", false
 	}
 	return m[1], m[2], true
+}
+
+// ── Capa 1: protección del estado autoritativo ───────────────────────────────
+
+// decidePreToolUseTool es el dispatcher de PreToolUse: enruta según QUÉ tool se
+// está por usar. La tool Bash trae `command`; Write/Edit traen `file_path`. Si
+// hay comando, lo inspeccionamos como escritura por shell; si no, va por la ruta
+// clásica de file_path. (Mantener decidePreToolUse con su firma de 2 args deja
+// intactos los tests existentes.)
+func decidePreToolUseTool(projectDir, filePath, command string) (string, string) {
+	if strings.TrimSpace(command) != "" {
+		return decideBashWrite(projectDir, command)
+	}
+	return decidePreToolUse(projectDir, filePath)
+}
+
+// protectedStateDeny decide si `rel` (ruta POSIX relativa al proyecto) es estado
+// autoritativo que NO se puede escribir a mano, y devuelve un mensaje que ENSEÑA
+// el camino correcto (el comando `sf` equivalente). Es la única definición del
+// "conjunto protegido": la comparten la rama Write/Edit y la rama Bash.
+func protectedStateDeny(rel string) (string, bool) {
+	if strings.HasPrefix(rel, "specforge/.state/") {
+		return "specforge/.state/ is machine state — never edit it directly. " +
+			"features.json is the source of truth; let the session protocol manage state.", true
+	}
+	if !protectedJSONRe.MatchString(rel) {
+		return "", false
+	}
+	switch base := filepath.Base(rel); base {
+	case "features.json":
+		return "features.json is the SpecForge gate ledger — never edit it by hand. " +
+			"Gates come only from `sf gate approve`; feature status changes via the lifecycle commands.", true
+	case "constitution.json":
+		return "constitution.json is SpecForge state — don't write it directly. " +
+			"Author it via `sf save constitution --json -` (it validates, then writes).", true
+	case "domain.json":
+		return "domain.json is SpecForge state — don't write it directly. " +
+			"Author it via `sf save domain --json -` (it validates, then writes).", true
+	case "trace.json":
+		return "trace.json is SpecForge state — don't write it directly. " +
+			"Produce it with `sf save trace --feature=… --json -`, then check it with `sf trace verify`.", true
+	case "audit.json":
+		return "audit.json is the SpecForge quality ledger — don't write it directly. " +
+			"Phase verdicts are recorded only via `sf gate record-verdict --feature=… --json -`.", true
+	default:
+		// requirements/design/tasks/plan/review.json, o una entrada de journal.
+		if strings.HasPrefix(rel, "specforge/journal/") {
+			return "journal entries are SpecForge state — don't write them directly. " +
+				"Use `sf journal add --feature=… --json -`.", true
+		}
+		name := strings.TrimSuffix(base, ".json")
+		return fmt.Sprintf("%s.json is SpecForge state — don't write it directly. "+
+			"Author it via `sf save %s --feature=… --json -` (it validates against the schema, then writes "+
+			"both the .json and the .md).", name, name), true
+	}
+}
+
+// ── Capa 1: detección de escritura de estado vía Bash ─────────────────────────
+
+// decideBashWrite inspecciona un comando de shell y deniega si alguna de sus
+// partes escribe a un path protegido SIN ser una invocación de `sf`. Es una
+// heurística que SUBE EL COSTO del atajo (no un sandbox): cubre los vectores
+// comunes (redirects, tee, sed -i, cp, mv); un `python -c "open(...,'w')"` se le
+// escapa. La garantía dura es que Write/Edit están bloqueados; Bash es best-effort.
+func decideBashWrite(projectDir, command string) (string, string) {
+	if !isDir(filepath.Join(projectDir, "specforge")) {
+		return "allow", "" // no es un proyecto SpecForge → nunca interferir
+	}
+	for _, seg := range splitCommandSegments(command) {
+		if reason, deny := segmentWritesProtected(projectDir, seg); deny {
+			return "deny", reason
+		}
+	}
+	return "allow", ""
+}
+
+// cmdSepRe parte un comando compuesto en segmentos por los separadores de shell
+// (`;`, `&&`, `||`, `|`, y newline). Cada segmento se evalúa por separado: así un
+// `sf save … && echo x > features.json` se pesca en su segunda mitad.
+var cmdSepRe = regexp.MustCompile(`\|\||&&|[;|\n]`)
+
+func splitCommandSegments(command string) []string {
+	return cmdSepRe.Split(command, -1)
+}
+
+// redirectRe captura el destino de una redirección de salida: `>`, `>>`, `>|`.
+var redirectRe = regexp.MustCompile(`>>?\|?\s*([^\s|&;<>]+)`)
+
+// writeVerbs: comandos cuyo propósito es crear/sobrescribir un archivo (cuando el
+// path destino aparece como argumento). sed entra solo con -i (edición in-place).
+var writeVerbs = map[string]bool{
+	"tee": true, "cp": true, "mv": true, "dd": true,
+	"truncate": true, "install": true, "ln": true,
+}
+
+// segmentWritesProtected evalúa UN segmento de comando. Deniega si:
+//   - redirige (`>`/`>>`) hacia un path protegido (vale incluso para `sf`, porque
+//     redirigir DENTRO del estado nunca es legítimo), o
+//   - es un write-verb (tee/cp/mv/sed -i/…) con un path protegido como argumento.
+//
+// Un `sf save …` sin redirect escribe internamente → no matchea nada → se permite.
+func segmentWritesProtected(projectDir, seg string) (string, bool) {
+	// 1) Redirecciones a un path protegido (independiente del programa).
+	for _, m := range redirectRe.FindAllStringSubmatch(seg, -1) {
+		if reason, deny := classifyProtectedToken(projectDir, m[1]); deny {
+			return reason, true
+		}
+	}
+
+	fields := strings.Fields(seg)
+	if len(fields) == 0 {
+		return "", false
+	}
+	prog := filepath.Base(fields[0]) // tolera rutas tipo /usr/bin/cp
+
+	// 2) Write-verbs con un argumento protegido. `sed` solo si trae -i.
+	isWriteVerb := writeVerbs[prog] || (prog == "sed" && hasInPlaceFlag(fields))
+	if !isWriteVerb {
+		return "", false
+	}
+	for _, tok := range fields[1:] {
+		if reason, deny := classifyProtectedToken(projectDir, tok); deny {
+			return reason, true
+		}
+	}
+	return "", false
+}
+
+// hasInPlaceFlag detecta el -i de sed (edición in-place), en sus formas `-i`,
+// `-i.bak`, o combinada `-ri`/`-ni`.
+func hasInPlaceFlag(fields []string) bool {
+	for _, f := range fields[1:] {
+		if f == "-i" || strings.HasPrefix(f, "-i.") {
+			return true
+		}
+		if strings.HasPrefix(f, "-") && !strings.HasPrefix(f, "--") && strings.Contains(f, "i") {
+			return true
+		}
+	}
+	return false
+}
+
+// classifyProtectedToken resuelve un token de comando (posible path, con o sin
+// comillas) contra el proyecto y delega en protectedStateDeny. Así Bash y
+// Write/Edit comparten exactamente el mismo conjunto protegido y los mismos
+// mensajes didácticos.
+func classifyProtectedToken(projectDir, raw string) (string, bool) {
+	raw = strings.Trim(raw, `"'`)
+	if raw == "" {
+		return "", false
+	}
+	rel, inside := relPosix(projectDir, raw)
+	if !inside {
+		return "", false
+	}
+	return protectedStateDeny(rel)
 }
 
 // immediateUpstream devuelve la fase ANTERIOR a `phase` en la cadena (su upstream

@@ -50,14 +50,21 @@ export const SpecForgePlugin = async ({ directory }) => {
   return {
     // ── tool.execute.before → pre_tool_use (el hard-gate) ──
     // opencode bloquea TIRANDO: el mensaje del Error llega al agente como razón.
-    // Solo write/edit tienen un path de artefacto gateable.
+    // write/edit traen un path de artefacto; bash trae un comando que puede
+    // escribir estado por la puerta lateral (redirect/tee/sed -i) → Capa 1.
     "tool.execute.before": async (input, output) => {
-      if (input.tool !== "write" && input.tool !== "edit") return;
       const args = output.args || {};
-      // opencode usa filePath (camelCase) en write/edit; toleramos variantes.
-      const filePath = args.filePath || args.path || args.file_path;
-      if (!filePath) return;
-      const res = callHook("pre_tool_use", cwd, { tool: input.tool, file_path: filePath });
+      let payload = null;
+      if (input.tool === "write" || input.tool === "edit") {
+        // opencode usa filePath (camelCase) en write/edit; toleramos variantes.
+        const filePath = args.filePath || args.path || args.file_path;
+        if (filePath) payload = { tool: input.tool, file_path: filePath };
+      } else if (input.tool === "bash") {
+        const command = args.command || args.cmd;
+        if (command) payload = { tool: input.tool, command };
+      }
+      if (!payload) return;
+      const res = callHook("pre_tool_use", cwd, payload);
       if (res.decision === "deny") {
         throw new Error(res.reason || "blocked by a SpecForge gate");
       }
