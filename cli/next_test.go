@@ -22,14 +22,14 @@ func TestNextContractPerPhase(t *testing.T) {
 	cases := []struct {
 		phase         string
 		wantGate      string
-		allowedHas    string // un fragmento que DEBE aparecer en allowed_writes
+		commandHas    string // un fragmento que DEBE aparecer en command (camino CLI)
 		blockedHasSrc bool   // ¿src/** debe estar bloqueado en esta fase?
 	}{
-		{"requirements", "requirements", "requirements.json", true},
-		{"design", "design", "design.json", true},
-		{"tasks", "tasks", "tasks.json", true},
-		{"plan", "plan", "plan.json", true},
-		{"verdict", "verdict", "review.json", true},
+		{"requirements", "requirements", "sf save requirements", true},
+		{"design", "design", "sf save design", true},
+		{"tasks", "tasks", "sf save tasks", true},
+		{"plan", "plan", "sf save plan", true},
+		{"verdict", "verdict", "sf gate approve", true},
 	}
 
 	for _, c := range cases {
@@ -40,8 +40,14 @@ func TestNextContractPerPhase(t *testing.T) {
 			if nc.NextGate != c.wantGate {
 				t.Errorf("next_gate=%q, want %q", nc.NextGate, c.wantGate)
 			}
-			if !sliceContainsSub(nc.AllowedWrites, c.allowedHas) {
-				t.Errorf("allowed_writes=%v, want a path containing %q", nc.AllowedWrites, c.allowedHas)
+			// JSON-first: la fase produce su estado vía un comando sf, NO escribiendo
+			// el .json directo. El contrato debe nombrar ese comando…
+			if !sliceContainsSub(nc.Command, c.commandHas) {
+				t.Errorf("command=%v, want one containing %q", nc.Command, c.commandHas)
+			}
+			// …y NO debe ofrecer el .json crudo como destino de Write (lo deniega el hook).
+			if len(nc.AllowedWrites) != 0 {
+				t.Errorf("phase %q no debería permitir Write directo, got allowed=%v", c.phase, nc.AllowedWrites)
 			}
 			if c.blockedHasSrc && !sliceContainsSub(nc.BlockedWrites, "src/**") {
 				t.Errorf("phase %q should block src/**, got blocked=%v", c.phase, nc.BlockedWrites)

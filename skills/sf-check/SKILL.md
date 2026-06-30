@@ -151,6 +151,21 @@ machine-readable form so drift can be checked later without re-analyzing the rep
 - `test` entries are runnable test ids.
 - `status`: `ok` | `no-test` | `missing`.
 
+**Persist it through the CLI — never write `trace.json` by hand.** It is
+SpecForge state: the hook denies a direct `Write`/`Edit`, and the verdict gate
+hashes it. Pipe the JSON to `sf save`:
+
+```bash
+echo '<trace JSON>' | sf save trace --feature=<name> --json -
+```
+
+Then confirm it holds up against the real repo — this is what the verdict gate
+checks, so do it now, not after:
+
+```bash
+sf trace verify --feature=<name>   # every requirement's code AND named test must resolve
+```
+
 This file travels with the feature into the archive and is what drift detection
 (`sf doctor --drift`) reads. Keep it consistent with the markdown matrix —
 they describe the same thing.
@@ -236,13 +251,19 @@ about it — not just "gaps found, go back to build."
 → 🔴 **GATE**: Present the review to the user.
 - User accepts APPROVE → seal the verdict gate, then proceed to archive:
   ```bash
+  sf check run --feature=<name>        # run the suite; records a fresh, real exit code
   sf gate approve --feature=<name> --phase=verdict
   ```
-  This appends the gate AND seals a content hash of `review.json` (the CLI
-  computes it over the real file — don't hand-write the entry).
+  `sf gate approve --phase=verdict` **refuses** unless `sf trace verify` is clean,
+  every requirement names a test that resolves, AND `sf check run` recorded a
+  fresh green result (the code hash at test time matches the current code). It
+  seals a content hash of `review.json` over the real file — you cannot hand-write
+  the entry (features.json is protected). If it refuses, the gaps are real: fix
+  them and re-run, don't try to bypass.
 - User accepts REVISE → follow the recommended path (no verdict gate sealed)
-- User overrides verdict → respect the override, log it with a hand-written gate
-  entry carrying the override in `comment`
+- User overrides verdict → an override still goes through `sf gate approve
+  --phase=verdict --comment="override: <reason>"`. It will only seal once the
+  preconditions hold — there is no hand-written bypass.
 
 **Team mode (F35).** When the feature is on a `feature/<slug>` branch with a PR,
 this verdict gate **maps to the PR approval** — the reviewer approves code and
@@ -255,15 +276,17 @@ approval satisfies it, and `archive` corresponds to the merge. See
 Read `references/archive.md` for detailed procedure.
 
 **Quick summary:**
-1. Copy feature folder to `specforge/archive/<date>-<name>/`
-2. Update `features.json` status to `done`
-3. Append to `specforge/history.md`:
+1. `sf feature archive --feature=<name>` — this copies the feature folder to
+   `specforge/archive/<date>-<name>/` AND sets status `done` in one step. It
+   refuses unless the verdict gate is sealed, so do Step 5 first. (Never copy the
+   folder or set `done` by hand — features.json is protected.)
+2. Append to `specforge/history.md`:
    ```
    ## [date] — Feature completed: <name>
    - Verdict: [APPROVE / APPROVE WITH NOTES]
    - Requirements: [count] | Tasks: [count] | Coverage: [%]
    ```
-4. Update `specforge/roadmap.md` if it exists (mark feature as completed)
+3. Update `specforge/roadmap.md` if it exists (mark feature as completed)
 
 ## Step 7: Backprop (cross-feature learning)
 

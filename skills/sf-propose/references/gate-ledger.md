@@ -6,25 +6,22 @@ record that a gate actually happened, not a claim in a markdown header.
 
 ## 1. Create/update the feature record
 
-Write the feature's metadata (the CLI does not author this part). Start `gates`
-empty — approvals are sealed by the CLI in step 2.
+`features.json` is **machine state — never write it by hand** (the hook denies a
+direct write). The CLI is the only writer. Create the record and set its
+lifecycle fields with `sf feature`:
 
-```json
-{
-  "name": "<feature-name>",
-  "status": "approved",
-  "workflow": "requirements-first",
-  "lane": "standard",
-  "depends_on": [],
-  "created": "<date>",
-  "completed": null,
-  "gates": []
-}
+```bash
+sf feature add --feature=<name> [--lane=lite|standard] [--depends-on=a,b]
+# …after the user approves the spec:
+sf feature set-status --feature=<name> --to=approved
 ```
 
-`depends_on` lists the feature names this one needs first (captured from the
-roadmap during `--all`, or stated by the user). It drives the critical-path
-ordering and blocker view in `/sf-status` (F37). Default `[]`.
+`sf feature add` creates the record in status `planned` with an empty `gates[]`
+ledger (approvals are sealed by the CLI in step 2). `--depends-on` lists the
+feature names this one needs first (captured from the roadmap during `--all`, or
+stated by the user); it drives the critical-path ordering and blocker view in
+`/sf-status` (F37). `set-status`/`set-lane` move the lifecycle; both validate the
+transition and enforce the serial flow (one active feature at a time, F22).
 
 ## 2. Seal each approved gate with `sf gate approve`
 
@@ -49,10 +46,12 @@ The lane gate (no artifact) is also recorded this way:
 For a **lite** feature, `"lane": "lite"` and the gates are just `lane` → `change`
 → `plan`/`wave` → `verdict` (no separate requirements/design/tasks gates).
 
-Only seal gates the user actually gave. For a `reject` or `change`, hand-write
-that entry with the request in `comment` (those carry no hash). If a downstream
-gate reopened (F23), mark the affected feature `status` back; the upstream
-re-approval (a fresh `sf gate approve`) is what flags the downstream as stale.
+Only seal gates the user actually gave. A `reject` or `change` is **not** an
+approval — don't record it as a gate; just iterate on the artifact and re-present
+(the gate is only sealed once the user approves). If a downstream gate reopened
+(F23), move the affected feature's status back with `sf feature set-status`; the
+upstream re-approval (a fresh `sf gate approve`) is what flags the downstream as
+stale.
 
 Append to `specforge/history.md`:
 

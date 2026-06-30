@@ -32,20 +32,20 @@ The verdict gate should already be sealed (`sf gate approve --feature=<name>
 seal it now — don't hand-write the entry; the CLI seals a content hash of
 `review.json` that the stale model relies on.
 
-In `features.json`, set the final status and completion date (the registry
-metadata the CLI doesn't author):
-```json
-{
-  "name": "<feature-name>",
-  "status": "done",
-  "completed": "<date>",
-  "gates": [ "... requirements/design/tasks/plan/wave/verdict gates, sealed by sf gate approve ..." ]
-}
+Finish the feature through the CLI — it is the only writer of `features.json`:
+
+```bash
+sf feature archive --feature=<name>
 ```
 
-`result` records the real verdict reply: `approve`, `approve-with-notes`, or
-`revise`. A `revise` verdict means the feature is NOT archived — it loops back to
-`sf-build`, so no `completed` date is set.
+This copies the feature folder to `specforge/archive/<date>-<name>/` and sets
+`status` to `done` in one atomic step. It **refuses unless the verdict gate is
+sealed**, so it cannot archive a feature whose code doesn't pass — that is the
+whole point. Record the human-readable completion date in `history.md` (yours to
+write), not in features.json.
+
+A `revise` verdict means the feature is NOT archived — don't run `sf feature
+archive`; loop back to `sf-build`.
 
 ### 3. Append to History
 

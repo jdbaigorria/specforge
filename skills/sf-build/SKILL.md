@@ -32,6 +32,7 @@ Normal flow: plan + execute the named feature.
 4. Read the feature's `requirements.md` — for traceability during implementation
 5. If `specforge/context/project.md` and `specforge/context/conventions.md` exist, read them — follow conventions
 6. Read `build.mode` from `constitution.json` (`inline` | `single` | `per-wave`, default `inline`) — it decides how Step 2 executes (see "Execution strategy" below)
+7. Check `build.test_cmd` in `constitution.json` — the deterministic command `sf check run` uses to run the suite (e.g. `"pytest -q"`, `"go test ./..."`, `"npm test"`). If it's missing, set it now via `sf save constitution --json -` (the verdict gate later requires a fresh green run, so `sf check run` must be able to execute the tests)
 
 If status is not `approved` or `building`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
 
@@ -228,7 +229,7 @@ rule into a checkable artifact — **"no test named ≠ done"** is now enforced.
 → 🔴 **GATE**: Present wave results to the user.
 - "Approved" → proceed to next wave
 - "Fix X" → address issue, re-present wave
-- "Stop" → pause, update status to `building` in features.json
+- "Stop" → pause: `sf feature set-status --feature=<name> --to=building` (never edit features.json by hand)
 
 ## Step 3: Handle Failures
 
@@ -309,7 +310,7 @@ After all waves complete:
 
 1. **Self-audit**: Verify every task in `tasks.md` is marked `[x]`. If any task
    is still `[ ]`, the build is NOT complete — report the gap.
-2. Update `features.json` status to `checking`
+2. `sf feature set-status --feature=<name> --to=checking` (the CLI is the only writer of features.json)
 3. Append to `specforge/history.md`:
    ```
    ## [date] — Feature built: <name>

@@ -121,16 +121,23 @@ Every requirement must be covered by at least one task.
 If any requirement has no task, add one or flag it to the user.
 
 → 🔴 **GATE**: Present `tasks.md` to the user.
-- "Approved" → update `features.json` status to `approved`
+- "Approved" → `sf feature set-status --feature=<name> --to=approved`
 - Changes requested → iterate, re-present
 
 ### Step 5: Update Feature Registry
 
-Update `specforge/features.json` — the **source of truth** for status and gates
-(F10). Append each gate the user approved this run to the `gates[]` ledger (the
-auditable record that a gate happened, not a claim in a markdown header), record
-the real result (`approve`/`reject`/`change`), set `status`/`lane`/`depends_on`,
-and append a line to `specforge/history.md`.
+`features.json` is the **source of truth** for status and gates (F10) and is
+**machine state — never edit it by hand** (the hook denies a direct write). Use
+the CLI, which is the only writer:
+
+- Seal each gate the user approved this run: `sf gate approve --feature=<name>
+  --phase=<phase> [--comment=…]`. The CLI appends the gate to the ledger AND
+  hashes the artifact — an auditable record that a gate happened, not a claim in a
+  markdown header.
+- Set lifecycle fields via `sf feature`: `sf feature set-lane --feature=<name>
+  --to=lite|standard` and `sf feature set-status --feature=<name> --to=approved`.
+  Create new features with `sf feature add --feature=<name> [--depends-on=a,b]`.
+- Append a line to `specforge/history.md` (that file is yours to write).
 
 Read `references/gate-ledger.md` for the full `features.json` shape and rules.
 

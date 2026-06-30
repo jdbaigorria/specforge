@@ -30,10 +30,14 @@ import (
 // nextContract es el JSON que emite `sf next --json`. Es el contrato que un hook
 // o un LLM puede consumir sin ambigüedad.
 type nextContract struct {
-	Feature       string   `json:"feature,omitempty"`
-	Phase         string   `json:"phase"`
-	Wave          *int     `json:"wave,omitempty"`           // puntero: nil = no aplica (igual que en state.go)
-	AllowedWrites []string `json:"allowed_writes"`
+	Feature string `json:"feature,omitempty"`
+	Phase   string `json:"phase"`
+	Wave    *int   `json:"wave,omitempty"` // puntero: nil = no aplica (igual que en state.go)
+	// Command son las invocaciones deterministas de `sf` que producen el estado de
+	// esta fase. JSON-first (FIXBUGHIGH): el estado lo escribe SOLO el CLI, así que
+	// el "qué hago" deja de ser "escribí tal .json" y pasa a "corré tal comando".
+	Command       []string `json:"command,omitempty"`
+	AllowedWrites []string `json:"allowed_writes"` // superficie de Write DIRECTA (código en build; vacío en fases de spec)
 	BlockedWrites []string `json:"blocked_writes"`
 	RequiredReads []string `json:"required_reads"`
 	NextGate      string   `json:"next_gate,omitempty"`
@@ -81,6 +85,17 @@ func runNext(args []string) int {
 	st := computeCurrentState(ff, projectDir)
 	nc := buildNextContract(st, ff, projectDir)
 
+	// Cierre de borde (FIXBUGHIGH): el contrato JSON-first asume que el hook
+	// IMPIDE escribir estado a mano. Si el enforcement no puede correr, esa
+	// suposición es falsa y avanzar sería engañoso. `sf` fuera del PATH es la
+	// señal dura (sin falsos positivos): el harness no puede invocar `sf hook`.
+	blocked := st.Feature != "" && sfOnPath() == ""
+	if blocked {
+		nc.Note = appendNote(nc.Note, "ENFORCEMENT NOT ACTIVE: `sf` is not on PATH, so the hook that protects "+
+			"state can't run — writing artifacts/gates by hand would NOT be caught. Fix this before advancing: "+
+			"add `sf` to PATH (or set SPECFORGE_SF_BIN) and run `sf doctor --install`.")
+	}
+
 	// --json: el contrato completo. El why ya viene incluido.
 	if asJSON {
 		out, err := json.MarshalIndent(nc, "", "  ")
@@ -89,11 +104,17 @@ func runNext(args []string) int {
 			return 1
 		}
 		fmt.Println(string(out))
+		if blocked {
+			return 3 // no avanzamos: enforcement no cableado
+		}
 		return 0
 	}
 
 	// Salida humana: la instrucción siempre; el "why" solo con --explain.
 	printNextHuman(nc, explain)
+	if blocked {
+		return 3
+	}
 	return 0
 }
 
@@ -145,37 +166,49 @@ func buildNextContract(st currentState, ff featuresFile, projectDir string) next
 	case "lane":
 		nc.NextGate = "lane"
 		nc.RequiredReads = []string{constitution}
-		nc.AllowedWrites = []string{"specforge/features.json"}
-		nc.BlockedWrites = []string{feat("requirements.json"), feat("design.json"), feat("tasks.json"), "src/**"}
-		nc.Instruction = "Run `sf-propose` to triage the lane (lite vs standard) and get it approved at the gate."
+		// El status/lane los escribe SOLO `sf feature` (features.json está protegido).
+		nc.Command = []string{
+			fmt.Sprintf("sf feature set-lane --feature=%s --to=lite|standard", st.Feature),
+			fmt.Sprintf("sf feature set-status --feature=%s --to=approved", st.Feature),
+		}
+		nc.AllowedWrites = []string{}
+		nc.BlockedWrites = []string{"specforge/features.json", "src/**"}
+		nc.Instruction = "Run `sf-propose` to triage the lane (lite vs standard) and get it approved. Set lane/status with `sf feature` — do not edit features.json by hand."
 
 	case "requirements":
 		nc.NextGate = "requirements"
 		nc.RequiredReads = []string{constitution}
-		nc.AllowedWrites = []string{feat("requirements.json")}
-		nc.BlockedWrites = []string{feat("design.json"), feat("tasks.json"), feat("plan.json"), "src/**"}
-		nc.Instruction = "Generate requirements.json only. Do not design or implement code."
+		nc.Command = []string{fmt.Sprintf("sf save requirements --feature=%s --json -", st.Feature)}
+		nc.AllowedWrites = []string{}
+		nc.BlockedWrites = []string{feat("requirements.json"), "src/**"}
+		nc.Instruction = "Produce requirements via `sf save requirements --feature=" + st.Feature + " --json -` (it validates, then writes the .json + .md). Do not write the .json by hand. Do not design or implement code."
 
 	case "design":
 		nc.NextGate = "design"
 		nc.RequiredReads = []string{feat("requirements.json"), constitution}
-		nc.AllowedWrites = []string{feat("design.json")}
-		nc.BlockedWrites = []string{feat("tasks.json"), feat("plan.json"), "src/**"}
-		nc.Instruction = "Generate design.json only. Do not write tasks or implement code."
+		nc.Command = []string{fmt.Sprintf("sf save design --feature=%s --json -", st.Feature)}
+		nc.AllowedWrites = []string{}
+		nc.BlockedWrites = []string{feat("design.json"), "src/**"}
+		nc.Instruction = "Produce design via `sf save design --feature=" + st.Feature + " --json -`. Do not write the .json by hand. Do not write tasks or implement code."
 
 	case "tasks":
 		nc.NextGate = "tasks"
 		nc.RequiredReads = []string{feat("requirements.json"), feat("design.json")}
-		nc.AllowedWrites = []string{feat("tasks.json")}
-		nc.BlockedWrites = []string{feat("plan.json"), "src/**"}
-		nc.Instruction = "Generate a FLAT tasks.json with depends_on. Do not group into waves — `sf plan compute` does that."
+		nc.Command = []string{fmt.Sprintf("sf save tasks --feature=%s --json -", st.Feature)}
+		nc.AllowedWrites = []string{}
+		nc.BlockedWrites = []string{feat("tasks.json"), "src/**"}
+		nc.Instruction = "Produce a FLAT tasks list via `sf save tasks --feature=" + st.Feature + " --json -` (with depends_on). Do not group into waves — `sf plan compute` does that. Do not write the .json by hand."
 
 	case "plan":
 		nc.NextGate = "plan"
 		nc.RequiredReads = []string{feat("tasks.json")}
-		nc.AllowedWrites = []string{feat("plan.json")}
-		nc.BlockedWrites = []string{"src/**"}
-		nc.Instruction = "Run `sf plan compute`, then refine wave names/complexity. Do not implement code yet."
+		nc.Command = []string{
+			fmt.Sprintf("sf plan compute --feature=%s", st.Feature),
+			fmt.Sprintf("sf save plan --feature=%s --json -", st.Feature),
+		}
+		nc.AllowedWrites = []string{}
+		nc.BlockedWrites = []string{feat("plan.json"), "src/**"}
+		nc.Instruction = "Run `sf plan compute`, refine wave names/complexity, then persist via `sf save plan --feature=" + st.Feature + " --json -`. Do not write the .json by hand or implement code yet."
 
 	case "build":
 		// La única fase donde tocar código es lo correcto. El gate es por wave.
@@ -187,15 +220,29 @@ func buildNextContract(st currentState, ff featuresFile, projectDir string) next
 			nc.Instruction = "Implement the current wave. Run `sf context current` for the task slice."
 		}
 		nc.RequiredReads = []string{feat("tasks.json"), feat("plan.json")}
+		// build es la única fase con escritura DIRECTA legítima: el código.
+		nc.Command = []string{
+			"sf context current",
+			fmt.Sprintf("sf check run --feature=%s", st.Feature),
+		}
 		nc.AllowedWrites = []string{"src/**", "tests/**", feat("progress/")}
 		nc.BlockedWrites = []string{feat("requirements.json"), feat("design.json")} // no reescribir spec aprobada durante build
 
 	case "verdict":
 		nc.NextGate = "verdict"
 		nc.RequiredReads = []string{feat("requirements.json"), feat("design.json"), feat("tasks.json"), feat("plan.json")}
-		nc.AllowedWrites = []string{feat("review.json"), feat("trace.json")}
-		nc.BlockedWrites = []string{"src/**"} // el review audita; no sigue codeando
-		nc.Instruction = "Run `sf-check`: produce the traceability matrix and a verdict. Do not add features."
+		// El review/trace son estado: van por `sf save`. El verdict se sella con
+		// `sf gate approve --phase=verdict`, que exige trace limpio + test fresco.
+		nc.Command = []string{
+			fmt.Sprintf("sf save trace --feature=%s --json -", st.Feature),
+			fmt.Sprintf("sf trace verify --feature=%s", st.Feature),
+			fmt.Sprintf("sf check run --feature=%s", st.Feature),
+			fmt.Sprintf("sf save review --feature=%s --json -", st.Feature),
+			fmt.Sprintf("sf gate approve --feature=%s --phase=verdict", st.Feature),
+		}
+		nc.AllowedWrites = []string{}
+		nc.BlockedWrites = []string{feat("review.json"), feat("trace.json"), "src/**"} // estado: por sf save, no Write
+		nc.Instruction = "Run `sf-check`: persist trace via `sf save trace`, run `sf trace verify` and `sf check run`, then seal with `sf gate approve --phase=verdict`. Do not add features or write the .json by hand."
 
 	case "done":
 		nc.Instruction = fmt.Sprintf("Feature `%s` is complete/archived. Nothing to do — start a new feature with `sf-propose`.", st.Feature)
@@ -235,6 +282,12 @@ func printNextHuman(nc nextContract, explain bool) {
 			line += fmt.Sprintf(" · wave %d", *nc.Wave)
 		}
 		fmt.Println(line)
+	}
+	if len(nc.Command) > 0 {
+		fmt.Println("Run:")
+		for _, c := range nc.Command {
+			fmt.Printf("  %s\n", c)
+		}
 	}
 	if nc.NextGate != "" {
 		fmt.Printf("Next gate: %s\n", nc.NextGate)
