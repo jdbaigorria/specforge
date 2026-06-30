@@ -24,8 +24,12 @@ import (
 // ----------------------------------------------------------------------------
 
 type traceFile struct {
-	Feature      string              `json:"feature"`
-	Requirements map[string]traceReq `json:"requirements"`
+	// SchemaVersion va PRIMERO para que el JSON canónico que escribe `sf save`
+	// lleve "schema_version" arriba, igual que el resto de los artefactos. El
+	// resto del código (verifyTrace) lo ignora; solo round-trippea el campo.
+	SchemaVersion string              `json:"schema_version,omitempty"`
+	Feature       string              `json:"feature"`
+	Requirements  map[string]traceReq `json:"requirements"`
 }
 
 type traceReq struct {

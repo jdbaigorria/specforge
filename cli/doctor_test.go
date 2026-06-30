@@ -55,8 +55,11 @@ func makeDriftProject(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "src/slug.py"), "def slugify(text):\n    return text\n")
+	// Test real al que apunta el trace: trace verify ahora exige que el test
+	// nombrado exista (refuerzo FIXBUGHIGH), no solo el código.
+	writeFile(t, filepath.Join(dir, "tests/test_slug.py"), "def test_slugify():\n    assert True\n")
 	writeFile(t, filepath.Join(dir, "specforge/archive/2026-06-16-slugify/trace.json"),
-		`{"feature":"slugify","requirements":{"R1":{"code":["src/slug.py:slugify"],"test":[],"status":"ok"}}}`)
+		`{"feature":"slugify","requirements":{"R1":{"code":["src/slug.py:slugify"],"test":["tests/test_slug.py:test_slugify"],"status":"ok"}}}`)
 	return dir
 }
 

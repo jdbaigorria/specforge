@@ -10,6 +10,57 @@ import (
 	"strings"
 )
 
+// ----------------------------------------------------------------------------
+// `sf save trace` — trace.json es estado protegido (Capa 1), así que el único
+// camino para escribirlo es vía `sf save`, que valida + escribe. checkTrace y
+// renderTraceMarkdown son las dos mitades del contrato `artifact` (ver save.go).
+// ----------------------------------------------------------------------------
+
+// checkTrace valida la matriz: feature + al menos una requirement, cada id no
+// vacío con al menos un anchor de código. La ausencia de test es WARNING (el
+// verdict, Capa 2, sí la exige; acá no rechazamos guardar un trace en progreso).
+func checkTrace(t traceFile, rep *report) {
+	if strings.TrimSpace(t.Feature) == "" {
+		rep.errorf("feature is required")
+	}
+	if len(t.Requirements) == 0 {
+		rep.errorf("at least one requirement is required")
+	}
+	ids := make([]string, 0, len(t.Requirements))
+	for id := range t.Requirements {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		info := t.Requirements[id]
+		if len(info.Code) == 0 {
+			rep.errorf("%s: at least one code anchor (path:symbol) is required", id)
+		}
+		if len(info.Test) == 0 {
+			rep.warnf("%s: names no test — the verdict gate will reject this until it does", id)
+		}
+	}
+}
+
+// renderTraceMarkdown arma la matriz legible (sin template: es una tabla simple).
+func renderTraceMarkdown(t traceFile) (string, error) {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Traceability — %s\n\n", t.Feature)
+	fmt.Fprintln(&b, "| Requirement | Code | Tests | Status |")
+	fmt.Fprintln(&b, "|---|---|---|---|")
+	ids := make([]string, 0, len(t.Requirements))
+	for id := range t.Requirements {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		info := t.Requirements[id]
+		fmt.Fprintf(&b, "| %s | %s | %s | %s |\n",
+			id, joinOrDash(info.Code), joinOrDash(info.Test), orDash(info.Status))
+	}
+	return b.String(), nil
+}
+
 // runTrace es el punto de entrada de `sf trace ...`. Hoy la única sub-acción es
 // `verify`. Reutiliza el modelo traceFile/traceReq y checkAnchor de doctor.go, y
 // findArtifact de status.go.
@@ -124,12 +175,25 @@ func verifyTrace(projectDir, feature, tracePath string) int {
 	for _, req := range reqIDs {
 		info := tf.Requirements[req]
 		live := "ok"
+		// Drift de CÓDIGO: algún anchor de implementación ya no existe.
 		for _, anchor := range info.Code {
 			if ok, _ := checkAnchor(projectDir, anchor); !ok {
 				live = "DRIFT"
 			}
 		}
-		if live == "DRIFT" {
+		// Drift de TEST (refuerzo FIXBUGHIGH): el requirement debe nombrar al
+		// menos un test, y cada test ref debe resolver a un test real. En el caso
+		// real, requirements "verificados" citaban tests en archivos inexistentes
+		// y verify no lo veía porque solo miraba el código.
+		if len(info.Test) == 0 {
+			live = "NO TEST"
+		}
+		for _, tref := range info.Test {
+			if ok, _ := checkAnchor(projectDir, tref); !ok {
+				live = "TEST GONE"
+			}
+		}
+		if live != "ok" {
 			drifted++
 		}
 		rows = append(rows, []string{
@@ -143,10 +207,10 @@ func verifyTrace(projectDir, feature, tracePath string) int {
 	renderTable(cols, rows)
 
 	if drifted > 0 {
-		fmt.Printf("\nDRIFT: %d requirement(s) diverged.\n", drifted)
+		fmt.Printf("\nDRIFT: %d requirement(s) diverged (code drift, missing or vanished tests).\n", drifted)
 		return 1
 	}
-	fmt.Println("\nOK: all requirements traced to live code.")
+	fmt.Println("\nOK: all requirements traced to live code and existing tests.")
 	return 0
 }
 

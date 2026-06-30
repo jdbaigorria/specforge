@@ -45,6 +45,36 @@ func TestFinishSave(t *testing.T) {
 	})
 }
 
+// TestSaveTrace: trace.json es estado protegido (Capa 1) → su único camino de
+// escritura es `sf save trace`. Verifica validación + escritura json+md.
+func TestSaveTrace(t *testing.T) {
+	dir := t.TempDir()
+	jsonPath := filepath.Join(dir, "specforge/features/f/trace.json")
+	mdPath := filepath.Join(dir, "specforge/features/f/trace.md")
+
+	// Válido: feature + un requirement con anchor de código → escribe json + md.
+	v := traceFile{Feature: "f", Requirements: map[string]traceReq{
+		"R1": {Code: []string{"src/a.py:fn"}, Test: []string{"tests/t.py::test_fn"}, Status: "ok"},
+	}}
+	if code := finishSave(v, jsonPath, mdPath); code != 0 {
+		t.Fatalf("trace válido → exit 0, got %d", code)
+	}
+	for _, p := range []string{jsonPath, mdPath} {
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("%s no escrito: %v", p, err)
+		}
+	}
+
+	// Inválido: sin requirements → falla y no escribe.
+	bad := filepath.Join(dir, "bad.json")
+	if code := finishSave(traceFile{Feature: "f"}, bad, filepath.Join(dir, "bad.md")); code != 2 {
+		t.Errorf("trace sin requirements → exit 2, got %d", code)
+	}
+	if _, err := os.Stat(bad); err == nil {
+		t.Error("un trace inválido no debería escribirse")
+	}
+}
+
 // TestArtifactPaths verifica el mapeo de rutas por artefacto.
 func TestArtifactPaths(t *testing.T) {
 	cases := []struct{ name, wantJSON string }{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -19,6 +20,17 @@ func TestRunTraceVerify(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "src/slug.py"), "def x():\n    return 1\n")
 		if code := runTraceVerify(dir, "slugify"); code != 1 {
 			t.Errorf("exit=%d, want 1", code)
+		}
+	})
+	t.Run("named test gone -> 1", func(t *testing.T) {
+		// El código vive pero el test nombrado ya no existe: verify reforzado lo
+		// pesca (antes pasaba, era el agujero del caso real).
+		dir := makeDriftProject(t)
+		if err := os.Remove(filepath.Join(dir, "tests/test_slug.py")); err != nil {
+			t.Fatalf("remove: %v", err)
+		}
+		if code := runTraceVerify(dir, "slugify"); code != 1 {
+			t.Errorf("exit=%d, want 1 (test gone)", code)
 		}
 	})
 	t.Run("unknown feature -> 4", func(t *testing.T) {

@@ -63,6 +63,9 @@ func (v planFile) renderMarkdown() (string, error) { return execTemplate(planTmp
 func (v reviewFile) validate(r *report)              { checkReview(v, r) }
 func (v reviewFile) renderMarkdown() (string, error) { return execTemplate(reviewTmpl, v) }
 
+func (v traceFile) validate(r *report)              { checkTrace(v, r) }
+func (v traceFile) renderMarkdown() (string, error) { return renderTraceMarkdown(v) }
+
 // runSave parsea `sf save <artifact> [--feature=X] [--json -|FILE] [dir]`.
 func runSave(args []string) int {
 	if len(args) == 0 {
@@ -151,6 +154,16 @@ func runSave(args []string) int {
 		var v reviewFile
 		if !decodeInto(raw, &v) {
 			return 2
+		}
+		return finishSave(v, jsonPath, mdPath)
+	case "trace":
+		var v traceFile
+		if !decodeInto(raw, &v) {
+			return 2
+		}
+		// Si el agente no mandó schema_version, lo fijamos (canónico, como el resto).
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = "1.0"
 		}
 		return finishSave(v, jsonPath, mdPath)
 	default:
