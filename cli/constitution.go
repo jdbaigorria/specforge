@@ -43,6 +43,11 @@ type auditConfig struct {
 // subagente fresco por wave, con checkpoint automático entre waves).
 type buildConfig struct {
 	Mode string `json:"mode"` // inline | single | per-wave (default: inline)
+	// TestCmd es el comando determinista que `sf check run` shellea para correr la
+	// suite (ej. "pytest -q", "go test ./...", "npm test"). Sin esto, no hay forma
+	// de que el CLI capture un exit code real → el verdict (Capa 2) no puede exigir
+	// "verde y fresco". Opcional: si falta, `sf check run` falla pidiéndolo.
+	TestCmd string `json:"test_cmd,omitempty"`
 }
 
 var auditPhaseModes = map[string]bool{"off": true, "nudge": true, "block": true}
