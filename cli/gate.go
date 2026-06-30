@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -107,6 +108,20 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 	if f == nil {
 		fmt.Fprintf(os.Stderr, "sf gate approve: feature %q not found\n", name)
 		return 4
+	}
+
+	// Capa 2: el verdict es el sello final (siguiente paso = archive). No se
+	// otorga si la trazabilidad driftó, si algún requirement no nombra un test
+	// real, o si no hay un resultado de test verde y fresco. El LLM no puede
+	// saltearse esto editando a mano: features.json está protegido (Capa 1).
+	if phase == "verdict" {
+		if reasons := verdictPreconditions(projectDir, name); len(reasons) > 0 {
+			fmt.Fprintf(os.Stderr, "sf gate approve: verdict refused for %q — %d precondition(s) unmet:\n", name, len(reasons))
+			for _, r := range reasons {
+				fmt.Fprintf(os.Stderr, "  - %s\n", r)
+			}
+			return 5
+		}
 	}
 
 	// Sellamos el hash del artefacto de esta fase (si la fase tiene artefacto).
@@ -363,6 +378,77 @@ func runGateRecordVerdict(args []string) int {
 		return 3 // recorded, pero el veredicto es FAIL → el hook nudgea
 	}
 	return 0
+}
+
+// ----------------------------------------------------------------------------
+// Capa 2 de FIXBUGHIGH — el sello final (gate `verdict`) no se puede falsificar.
+//
+// `gate approve --phase=verdict` es el último gate antes de archivar (done). Sin
+// esta guarda, el agente podía aprobarlo igual que cualquier otro y declarar
+// "todos los tests pasan / 70% coverage" sin haber corrido nada. Ahora el CLI
+// REHÚSA el verdict salvo que tres condiciones se cumplan, todas verificadas por
+// la máquina contra el disco real (no contra la narración del LLM).
+// ----------------------------------------------------------------------------
+
+// verdictPreconditions devuelve la lista de razones por las que el verdict NO
+// puede otorgarse (vacía = todo en orden):
+//  1. trace.json existe y NINGUNA requirement driftó (todos sus code anchors viven).
+//  2. cada requirement nombra ≥1 test y cada test ref resuelve a un test real
+//     (el contrato de verificación: "test pass != done" se vuelve chequeable).
+//  3. hay un resultado de test VERDE y FRESCO: `sf check run` pasó y su code_hash
+//     == el code_hash actual (no se tocó el código después de correr).
+func verdictPreconditions(projectDir, feature string) []string {
+	var reasons []string
+
+	specforge := filepath.Join(projectDir, "specforge")
+	tracePath := findArtifact(specforge, feature, "trace.json")
+	if tracePath == "" {
+		reasons = append(reasons, "no trace.json — produce it with `sf save trace --feature="+feature+" --json -`")
+	} else if data, err := os.ReadFile(tracePath); err != nil {
+		reasons = append(reasons, "trace.json is unreadable")
+	} else {
+		var tf traceFile
+		if json.Unmarshal(data, &tf) != nil {
+			reasons = append(reasons, "trace.json is invalid JSON")
+		} else if len(tf.Requirements) == 0 {
+			reasons = append(reasons, "trace.json declares no requirements")
+		} else {
+			// Orden estable para que el reporte sea reproducible.
+			ids := make([]string, 0, len(tf.Requirements))
+			for id := range tf.Requirements {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			for _, req := range ids {
+				info := tf.Requirements[req]
+				for _, anchor := range info.Code {
+					if ok, why := checkAnchor(projectDir, anchor); !ok {
+						reasons = append(reasons, fmt.Sprintf("%s: code drift (%s)", req, why))
+					}
+				}
+				if len(info.Test) == 0 {
+					reasons = append(reasons, fmt.Sprintf("%s: names no test (verification contract unmet)", req))
+				}
+				for _, tref := range info.Test {
+					if ok, why := checkAnchor(projectDir, tref); !ok {
+						reasons = append(reasons, fmt.Sprintf("%s: test %q does not resolve (%s)", req, tref, why))
+					}
+				}
+			}
+		}
+	}
+
+	// Resultado de test verde y FRESCO (Capa 3 lo produjo; acá lo exigimos).
+	res, ok := readCheckResult(projectDir, feature)
+	switch {
+	case !ok:
+		reasons = append(reasons, "no test result on record — run `sf check run --feature="+feature+"`")
+	case !res.Passed:
+		reasons = append(reasons, fmt.Sprintf("last `sf check run` FAILED (exit %d) — fix the code and re-run", res.ExitCode))
+	case res.CodeHash != codeHash(projectDir):
+		reasons = append(reasons, "test result is STALE — code changed since the last `sf check run`; re-run it")
+	}
+	return reasons
 }
 
 // buildAuditEntry valida los verdicts y computa el overall (función pura).
