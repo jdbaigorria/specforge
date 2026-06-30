@@ -28,6 +28,8 @@ func run(args []string) int {
 		return runGate(rest)
 	case "check":
 		return runCheck(rest)
+	case "feature":
+		return runFeature(rest)
 	case "trace":
 		return runTrace(rest)
 	case "graph":
@@ -87,6 +89,7 @@ commands:
   status  project health view, or artifact staleness with --artifacts [--feature=NAME]
   gate    gate ledger + approvals + verdicts (gate approve --feature=NAME --phase=PHASE seals the artifact hash)
   check   run the project test suite via build.test_cmd and record a deterministic result (check run --feature=NAME)
+  feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME)
   doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME] [--contract [--wave=N]])
   graph   export the knowledge graph from declared structure (graph export [--feature=NAME] [--format=json|mermaid|both] [--stdout])
