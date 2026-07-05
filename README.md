@@ -141,6 +141,7 @@ The README is the front door; the depth lives in `docs/`.
 | [Skills reference](docs/skills.md) | Every skill (pipeline + audit + support) and the artefact flow. |
 | [Concepts](docs/concepts.md) | EARS notation, feature lifecycle, backprop, resync. |
 | [Walkthrough](docs/walkthrough.md) | Greenfield and brownfield examples, end to end. |
+| [Harness guarantees](docs/harness-guarantees.md) | What each harness setup actually enforces — the honest degradation table. |
 | [Support skills](SUPPORT-SKILLS.md) | The `sfx-*` standalone helpers. |
 | [Examples](examples/) | Real, worked features you can inspect. |
 | [Install](INSTALL.md) | Setup for Claude Code and other harnesses. |
