@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -551,23 +552,57 @@ func activeOther(ff featuresFile, feature string) string {
 
 // ── Inyección de contexto (SessionStart / UserPromptSubmit / PreCompact) ──────
 
+// injectBudgetBytes: presupuesto POR CHUNK de lo que se inyecta cada sesión
+// (C6 de EVALUACION-PLATAFORMA: learnings.md/session.md crecen sin techo en un
+// proyecto largo; inyectarlos enteros come contexto sin límite). ~8KB ≈ 2K
+// tokens por chunk. El archivo completo sigue en disco — el marcador de
+// truncado le dice al agente dónde leer el resto si lo necesita.
+const injectBudgetBytes = 8192
+
 // sessionContext arma lo que se re-inyecta en SessionStart (incl. post-compact):
-// session.md + compact-rules.md + learnings.md, si existen.
+// session.md + compact-rules.md + learnings.md, si existen — cada uno recortado
+// a su presupuesto. session.md conserva la COLA (lo reciente es lo que orienta);
+// los curados (compact-rules, learnings) conservan la CABEZA (su orden es
+// importancia).
 func sessionContext(projectDir string) string {
 	sf, ok := specforgeRoot(projectDir)
 	if !ok {
 		return ""
 	}
 	var chunks []string
-	add := func(rel, header string) {
-		if data, err := os.ReadFile(filepath.Join(sf, rel)); err == nil {
-			chunks = append(chunks, header+"\n\n"+string(data))
+	add := func(rel, header string, keepTail bool) {
+		data, err := os.ReadFile(filepath.Join(sf, rel))
+		if err != nil {
+			return
 		}
+		body := budgetTrim(string(data), injectBudgetBytes, keepTail, "specforge/"+filepath.ToSlash(rel))
+		chunks = append(chunks, header+"\n\n"+body)
 	}
-	add(filepath.Join(".state", "session.md"), "## SpecForge session — resume from here")
-	add(filepath.Join("context", "compact-rules.md"), "## SpecForge compact-rules — project invariants")
-	add("learnings.md", "## SpecForge learnings — consolidated, evidence-anchored")
+	add(filepath.Join(".state", "session.md"), "## SpecForge session — resume from here", true)
+	add(filepath.Join("context", "compact-rules.md"), "## SpecForge compact-rules — project invariants", false)
+	add("learnings.md", "## SpecForge learnings — consolidated, evidence-anchored", false)
 	return strings.Join(chunks, "\n\n")
+}
+
+// budgetTrim recorta s al presupuesto (alineado a línea) y anota QUÉ se cortó y
+// dónde leer el resto. keepTail=true conserva el final; false, el principio.
+func budgetTrim(s string, budget int, keepTail bool, path string) string {
+	if len(s) <= budget {
+		return s
+	}
+	note := fmt.Sprintf("[truncated to %dB — full file: %s]", budget, path)
+	if keepTail {
+		cut := s[len(s)-budget:]
+		if i := strings.IndexByte(cut, '\n'); i >= 0 && i < len(cut)-1 {
+			cut = cut[i+1:] // arrancar en línea completa
+		}
+		return "…" + note + "\n" + cut
+	}
+	cut := s[:budget]
+	if i := strings.LastIndexByte(cut, '\n'); i > 0 {
+		cut = cut[:i] // terminar en línea completa
+	}
+	return cut + "\n…" + note
 }
 
 // userPromptContext decide y arma lo que se inyecta en UserPromptSubmit. "" = nada.
@@ -725,6 +760,9 @@ type sessionEntry struct {
 	Key            []string `json:"key,omitempty"`
 	TurnsSinceFull int      `json:"turns_since_full"`
 	ForceFull      bool     `json:"force_full,omitempty"`
+	// LastSeen (RFC3339) habilita la poda por TTL: sin esto, hook-context.json
+	// acumulaba una entrada POR SESIÓN para siempre (C6).
+	LastSeen string `json:"last_seen,omitempty"`
 }
 
 type hookState struct {
@@ -732,11 +770,28 @@ type hookState struct {
 	Sessions      map[string]sessionEntry `json:"sessions,omitempty"`
 }
 
+// sessionTTL: cuánto vive una entrada de sesión sin actividad. Dos semanas
+// cubre de sobra cualquier "retomar la sesión del viernes".
+const sessionTTL = 14 * 24 * time.Hour
+
 func (s *hookState) setSession(id string, e sessionEntry) {
 	if s.Sessions == nil {
 		s.Sessions = map[string]sessionEntry{}
 	}
+	e.LastSeen = nowUTC() // toda escritura refresca el TTL de SU sesión
 	s.Sessions[id] = e
+}
+
+// pruneStaleSessions borra las sesiones vencidas (o legacy, sin last_seen: si
+// no sabemos cuándo se usaron, ya no orientan a nadie). Se llama al escribir el
+// estado, así el archivo se auto-limpia con el uso normal — sin cron ni comando.
+func (s *hookState) pruneStaleSessions(now time.Time) {
+	for id, e := range s.Sessions {
+		t, err := time.Parse(time.RFC3339, e.LastSeen)
+		if err != nil || now.Sub(t) > sessionTTL {
+			delete(s.Sessions, id)
+		}
+	}
 }
 
 func readHookState(sf string) hookState {
@@ -752,6 +807,7 @@ func readHookState(sf string) hookState {
 }
 
 func writeHookState(sf string, st hookState) {
+	st.pruneStaleSessions(time.Now().UTC()) // C6: el archivo se poda al escribirse
 	dir := filepath.Join(sf, ".state")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return // fail open: peor caso, re-inyectamos de más
@@ -763,9 +819,16 @@ func writeHookState(sf string, st hookState) {
 	_ = os.WriteFile(filepath.Join(dir, "hook-context.json"), out, 0o644)
 }
 
+// sessionMDMaxBytes: techo de session.md (C6). El archivo apendea marcadores
+// por evento de ciclo de vida; sin cap crece para siempre. 32KB de marcadores
+// recientes orientan igual que 3MB de historia.
+const sessionMDMaxBytes = 32 * 1024
+
 // markSession apendea un marcador de continuidad liviano a session.md. El resumen
 // rico es trabajo del agente (un command hook no tiene acceso a la conversación);
-// esto solo timestampea eventos de ciclo de vida.
+// esto solo timestampea eventos de ciclo de vida. Si el archivo supera el techo,
+// se recorta conservando la MITAD más reciente (los marcadores viejos no
+// orientan a nadie; git tiene la historia si importara).
 func markSession(projectDir, note string) {
 	sf, ok := specforgeRoot(projectDir)
 	if !ok {
@@ -775,13 +838,34 @@ func markSession(projectDir, note string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return
 	}
+	path := filepath.Join(dir, "session.md")
 	ts := time.Now().UTC().Format(time.RFC3339)
-	f, err := os.OpenFile(filepath.Join(dir, "session.md"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
 	}
-	defer f.Close()
 	fmt.Fprintf(f, "\n<!-- %s @ %s -->\n", note, ts)
+	f.Close()
+	capSessionMD(path)
+}
+
+// capSessionMD recorta session.md a la mitad del techo cuando lo supera
+// (histéresis: recortar a maxBytes exacto haría un rewrite por append).
+func capSessionMD(path string) {
+	info, err := os.Stat(path)
+	if err != nil || info.Size() <= sessionMDMaxBytes {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	tail := data[len(data)-sessionMDMaxBytes/2:]
+	if i := bytes.IndexByte(tail, '\n'); i >= 0 {
+		tail = tail[i+1:] // arrancar en línea completa
+	}
+	out := append([]byte("<!-- session.md capped — older markers dropped -->\n"), tail...)
+	_ = os.WriteFile(path, out, 0o644)
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
