@@ -75,6 +75,57 @@ func TestSaveTrace(t *testing.T) {
 	}
 }
 
+// TestSaveFromDraft: el camino cómodo de autoría (R5/D8). El agente escribe el
+// borrador en drafts/ (dir no protegido), `sf save --from=` lo valida, escribe
+// el canónico y RETIRA el borrador (para que no queden dos copias divergentes).
+func TestSaveFromDraft(t *testing.T) {
+	proj := t.TempDir()
+	draft := filepath.Join(proj, "specforge", "features", "f", "drafts", "tasks.json")
+	mustWrite(t, draft, `{"feature":"f","tasks":[{"id":"T1","title":"x","status":"done"}]}`)
+
+	if code := runSave([]string{"tasks", "--feature=f", "--from=drafts/tasks.json", proj}); code != 0 {
+		t.Fatalf("draft válido → exit 0, got %d", code)
+	}
+	// El canónico existe (json + md render), el borrador ya no.
+	for _, p := range []string{"tasks.json", "tasks.md"} {
+		if _, err := os.Stat(filepath.Join(proj, "specforge", "features", "f", p)); err != nil {
+			t.Errorf("%s no escrito: %v", p, err)
+		}
+	}
+	if _, err := os.Stat(draft); err == nil {
+		t.Error("el borrador debería retirarse tras promoverse")
+	}
+
+	// Un draft INVÁLIDO no se promueve y el borrador queda (para corregirlo ahí).
+	mustWrite(t, draft, `{"tasks":[{"id":"T1"},{"id":"T1"}]}`)
+	if code := runSave([]string{"tasks", "--feature=f", "--from=drafts/tasks.json", proj}); code != 2 {
+		t.Errorf("draft inválido → exit 2, got %d", code)
+	}
+	if _, err := os.Stat(draft); err != nil {
+		t.Error("un borrador inválido debe quedar en drafts/ para iterarlo")
+	}
+
+	// --from y --json a la vez es ambiguo → exit 2.
+	if code := runSave([]string{"tasks", "--feature=f", "--from=x.json", "--json=y.json", proj}); code != 2 {
+		t.Error("--from + --json deberían ser mutuamente excluyentes")
+	}
+}
+
+// TestDraftPath: resolución del borrador según nivel (feature vs proyecto) y
+// tolerancia al prefijo "drafts/".
+func TestDraftPath(t *testing.T) {
+	cases := []struct{ feature, from, want string }{
+		{"f", "tasks.json", "specforge/features/f/drafts/tasks.json"},
+		{"f", "drafts/tasks.json", "specforge/features/f/drafts/tasks.json"},
+		{"", "constitution.json", "specforge/drafts/constitution.json"},
+	}
+	for _, c := range cases {
+		if got := draftPath(".", c.feature, c.from); got != filepath.FromSlash(c.want) {
+			t.Errorf("draftPath(%q,%q)=%q, want %q", c.feature, c.from, got, c.want)
+		}
+	}
+}
+
 // TestArtifactPaths verifica el mapeo de rutas por artefacto.
 func TestArtifactPaths(t *testing.T) {
 	cases := []struct{ name, wantJSON string }{

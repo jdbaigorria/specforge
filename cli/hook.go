@@ -388,13 +388,16 @@ func protectedStateDeny(rel string) (string, bool) {
 			"Gates come only from `sf gate approve`; feature status changes via the lifecycle commands.", true
 	case "constitution.json":
 		return "constitution.json is SpecForge state — don't write it directly. " +
-			"Author it via `sf save constitution --json -` (it validates, then writes).", true
+			"Draft it at specforge/drafts/constitution.json (writable), then promote with " +
+			"`sf save constitution --from=drafts/constitution.json` (it validates, then writes).", true
 	case "domain.json":
 		return "domain.json is SpecForge state — don't write it directly. " +
-			"Author it via `sf save domain --json -` (it validates, then writes).", true
+			"Draft it at specforge/drafts/domain.json (writable), then promote with " +
+			"`sf save domain --from=drafts/domain.json` (it validates, then writes).", true
 	case "trace.json":
 		return "trace.json is SpecForge state — don't write it directly. " +
-			"Produce it with `sf save trace --feature=… --json -`, then check it with `sf trace verify`.", true
+			"Draft it under the feature's drafts/ dir and promote with " +
+			"`sf save trace --feature=… --from=drafts/trace.json`, then check it with `sf trace verify`.", true
 	case "audit.json":
 		return "audit.json is the SpecForge quality ledger — don't write it directly. " +
 			"Phase verdicts are recorded only via `sf gate record-verdict --feature=… --json -`.", true
@@ -406,8 +409,9 @@ func protectedStateDeny(rel string) (string, bool) {
 		}
 		name := strings.TrimSuffix(base, ".json")
 		return fmt.Sprintf("%s.json is SpecForge state — don't write it directly. "+
-			"Author it via `sf save %s --feature=… --json -` (it validates against the schema, then writes "+
-			"both the .json and the .md).", name, name), true
+			"Write your draft to specforge/features/<feature>/drafts/%s.json (that dir IS writable), "+
+			"then promote it with `sf save %s --feature=… --from=drafts/%s.json` (it validates against "+
+			"the schema, then writes both the .json and the .md).", name, name, name, name), true
 	}
 }
 

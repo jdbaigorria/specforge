@@ -153,11 +153,17 @@ machine-readable form so drift can be checked later without re-analyzing the rep
 
 **Persist it through the CLI — never write `trace.json` by hand.** It is
 SpecForge state: the hook denies a direct `Write`/`Edit`, and the verdict gate
-hashes it. Pipe the JSON to `sf save`:
+hashes it. Write the draft with your `Write` tool to the feature's `drafts/`
+dir (the one writable corner of `specforge/`), then promote it — `sf save`
+validates, writes the canonical file, and removes the draft:
 
 ```bash
-echo '<trace JSON>' | sf save trace --feature=<name> --json -
+# 1) Write specforge/features/<name>/drafts/trace.json with the Write tool
+# 2) Promote it:
+sf save trace --feature=<name> --from=drafts/trace.json
 ```
+
+(For small payloads, piping still works: `echo '<json>' | sf save trace --feature=<name> --json -`.)
 
 Then confirm it holds up against the real repo — this is what the verdict gate
 checks, so do it now, not after:

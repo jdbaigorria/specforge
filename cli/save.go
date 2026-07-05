@@ -66,10 +66,10 @@ func (v reviewFile) renderMarkdown() (string, error) { return execTemplate(revie
 func (v traceFile) validate(r *report)              { checkTrace(v, r) }
 func (v traceFile) renderMarkdown() (string, error) { return renderTraceMarkdown(v) }
 
-// runSave parsea `sf save <artifact> [--feature=X] [--json -|FILE] [dir]`.
+// runSave parsea `sf save <artifact> [--feature=X] [--json -|FILE] [--from=DRAFT] [dir]`.
 func runSave(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: sf save <artifact> [--feature=NAME] [--json -|FILE] [project_dir]")
+		fmt.Fprintln(os.Stderr, "usage: sf save <artifact> [--feature=NAME] [--json -|FILE] [--from=DRAFT] [project_dir]")
 		return 2
 	}
 	name, rest := args[0], args[1:]
@@ -77,6 +77,7 @@ func runSave(args []string) int {
 	projectDir := "."
 	feature := ""
 	jsonSrc := "-" // por defecto, stdin
+	fromDraft := ""
 	for i := 0; i < len(rest); i++ {
 		a := rest[i]
 		switch {
@@ -84,6 +85,8 @@ func runSave(args []string) int {
 			feature = strings.TrimPrefix(a, "--feature=")
 		case strings.HasPrefix(a, "--json="):
 			jsonSrc = strings.TrimPrefix(a, "--json=")
+		case strings.HasPrefix(a, "--from="):
+			fromDraft = strings.TrimPrefix(a, "--from=")
 		case a == "--json":
 			if i+1 < len(rest) {
 				jsonSrc = rest[i+1]
@@ -103,6 +106,19 @@ func runSave(args []string) int {
 		return 2
 	}
 
+	// --from: el CAMINO CÓMODO de autoría (R5/D8). El agente escribe el borrador
+	// con su tool Write en drafts/ (dir NO protegido por el hook) y acá lo
+	// promovemos: validar → escribir el canónico → borrar el borrador. La
+	// garantía es la misma (solo `sf` escribe el .json canónico) sin el escaping
+	// frágil de heredocs por stdin.
+	if fromDraft != "" {
+		if jsonSrc != "-" {
+			fmt.Fprintln(os.Stderr, "sf save: --from and --json are mutually exclusive — pick one input")
+			return 2
+		}
+		jsonSrc = draftPath(projectDir, feature, fromDraft)
+	}
+
 	raw, err := readJSONInput(jsonSrc)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sf save: cannot read input (%v)\n", err)
@@ -112,7 +128,9 @@ func runSave(args []string) int {
 	jsonPath, mdPath := artifactPaths(name, projectDir, feature)
 
 	// Decodificamos en el tipo concreto según el artefacto, y de ahí en más todo
-	// es genérico vía la interfaz.
+	// es genérico vía la interfaz. Cada rama deja el valor en `a`; el final
+	// (guardar + promover el draft) es común a todos.
+	var a artifact
 	switch name {
 	case "constitution":
 		var v constitutionFile
@@ -122,7 +140,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "domain":
 		var v domainFile
 		if !decodeInto(raw, &v) {
@@ -131,7 +149,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "requirements":
 		var v requirementsFile
 		if !decodeInto(raw, &v) {
@@ -140,7 +158,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "design":
 		var v designFile
 		if !decodeInto(raw, &v) {
@@ -149,7 +167,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "tasks":
 		var v tasksFile
 		if !decodeInto(raw, &v) {
@@ -158,7 +176,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "plan":
 		var v planFile
 		if !decodeInto(raw, &v) {
@@ -167,7 +185,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "review":
 		var v reviewFile
 		if !decodeInto(raw, &v) {
@@ -176,7 +194,7 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	case "trace":
 		var v traceFile
 		if !decodeInto(raw, &v) {
@@ -186,11 +204,38 @@ func runSave(args []string) int {
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
 		}
-		return finishSave(v, jsonPath, mdPath)
+		a = v
 	default:
 		fmt.Fprintf(os.Stderr, "sf save: unknown artifact %q\n", name)
 		return 2
 	}
+
+	code := finishSave(a, jsonPath, mdPath)
+	// Promoción: el borrador ya vive validado en el canónico → lo retiramos para
+	// que no queden dos copias divergentes dando vueltas. Solo si el save fue OK.
+	if code == 0 && fromDraft != "" {
+		if err := os.Remove(jsonSrc); err == nil {
+			fmt.Printf("promoted draft %s (removed after save)\n", jsonSrc)
+		}
+	}
+	return code
+}
+
+// draftPath resuelve el nombre de un borrador contra su dir de drafts (el ÚNICO
+// rincón de specforge/ donde el hook permite Write directo): artefactos de
+// feature → specforge/features/<f>/drafts/; los de nivel proyecto (constitution,
+// domain) → specforge/drafts/. Aceptamos "tasks.json" y "drafts/tasks.json"
+// (como lo teclearía el agente); un path absoluto se usa tal cual.
+func draftPath(projectDir, feature, from string) string {
+	if filepath.IsAbs(from) {
+		return from
+	}
+	rel := strings.TrimPrefix(filepath.ToSlash(from), "drafts/")
+	base := filepath.Join(projectDir, "specforge", "drafts")
+	if feature != "" {
+		base = filepath.Join(projectDir, "specforge", "features", feature, "drafts")
+	}
+	return filepath.Join(base, filepath.FromSlash(rel))
 }
 
 // decodeInto desempaqueta el JSON e informa el error (devuelve false si falla).

@@ -52,6 +52,22 @@ tasks, plan, review, and **domain** — project-level domain knowledge:
 glossary + entities + business rules, validated like the rest, e.g.
 `echo '{...}' | sf save domain -`.)
 
+For large artifacts, piping a heredoc is hostile — use **promotable drafts**
+instead: `specforge/features/<f>/drafts/` (and project-level
+`specforge/drafts/`) is the one corner of `specforge/` the hook leaves
+writable. The agent writes the draft there with its native `Write` tool, then
+promotes it:
+
+```console
+$ sf save tasks --feature=add-task-crud --from=drafts/tasks.json
+saved specforge/features/add-task-crud/tasks.json (+ rendered .../tasks.md)
+promoted draft .../drafts/tasks.json (removed after save)
+```
+
+Same guarantee (only `sf` writes the canonical file — the draft is validated
+before promotion and removed after), a fraction of the friction. An invalid
+draft stays in `drafts/` to be fixed and re-promoted.
+
 **Compute the wave layout from task dependencies.**
 
 ```console

@@ -113,6 +113,18 @@ func TestProtectedStateWriteEdit(t *testing.T) {
 	if dec, _ := decidePreToolUse(proj, filepath.Join(proj, "specforge/features/x/requirements.md")); dec != "allow" {
 		t.Error("requirements.md (prosa) no debería estar protegido")
 	}
+	// drafts/ es el rincón de AUTORÍA (R5/D8): el agente escribe ahí con Write y
+	// promueve con `sf save --from=`. Tiene que estar permitido — es la válvula
+	// que le quita presión al hook.
+	for _, p := range []string{
+		"specforge/features/x/drafts/tasks.json",
+		"specforge/features/x/drafts/trace.json",
+		"specforge/drafts/constitution.json",
+	} {
+		if deny(p) {
+			t.Errorf("%s debería estar permitido (drafts es el camino de autoría)", p)
+		}
+	}
 }
 
 // TestBashWritesProtected: Capa 1 — la rama Bash deniega escrituras de estado por

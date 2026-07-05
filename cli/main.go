@@ -120,7 +120,7 @@ commands:
   domain  render/validate domain.json — project domain knowledge (domain render|validate)
   plan    render/validate/compute the wave layout (plan render|validate|compute --feature=NAME)
   review  render/validate review.json (review render|validate --feature=NAME)
-  save    validate JSON from stdin, then write it + render md (save <artifact> --feature=NAME --json -)
+  save    validate JSON, then write it + render md (save <artifact> --feature=NAME --json -|--from=drafts/FILE)
   journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json - [--bridge-icm])
   help    show this message
 `
