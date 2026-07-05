@@ -48,6 +48,13 @@ type buildConfig struct {
 	// de que el CLI capture un exit code real → el verdict (Capa 2) no puede exigir
 	// "verde y fresco". Opcional: si falta, `sf check run` falla pidiéndolo.
 	TestCmd string `json:"test_cmd,omitempty"`
+	// Report (A2/R4) declara el formato del reporte POR TEST de la corrida:
+	//   "go-json" → test_cmd emite `go test -json` por stdout
+	//   "junit"   → test_cmd contiene {report} (ej. "pytest -q --junitxml={report}")
+	// Con esto, el verdict puede exigir causalidad test→requirement (cada test
+	// nombrado en el trace corrió y pasó). Opcional: sin él, el verdict solo
+	// garantiza "suite verde y fresca".
+	Report string `json:"report,omitempty"`
 }
 
 var auditPhaseModes = map[string]bool{"off": true, "nudge": true, "block": true}
@@ -231,6 +238,18 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	// Config del build: si está, el modo debe ser inline|single|per-wave.
 	if cf.Build != nil && cf.Build.Mode != "" && !buildModes[cf.Build.Mode] {
 		rep.errorf("build.mode must be inline|single|per-wave, got %q", cf.Build.Mode)
+	}
+	// Reporte por-test (A2): formato conocido, y junit exige el placeholder en
+	// test_cmd (sin él, `sf check run` no tendría dónde leer el reporte).
+	if cf.Build != nil && cf.Build.Report != "" {
+		switch {
+		case !buildReports[cf.Build.Report]:
+			rep.errorf("build.report must be go-json|junit, got %q", cf.Build.Report)
+		case cf.Build.Report == "junit" && !strings.Contains(cf.Build.TestCmd, "{report}"):
+			rep.errorf(`build.report=junit requires a {report} placeholder in build.test_cmd (e.g. "pytest -q --junitxml={report}")`)
+		case cf.Build.Report == "go-json" && !strings.Contains(cf.Build.TestCmd, "-json"):
+			rep.warnf("build.report=go-json but test_cmd doesn't mention -json — the report will come back empty")
+		}
 	}
 }
 

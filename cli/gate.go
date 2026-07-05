@@ -431,8 +431,14 @@ func runGateRecordVerdict(args []string) int {
 //     (el contrato de verificación: "test pass != done" se vuelve chequeable).
 //  3. hay un resultado de test VERDE y FRESCO: `sf check run` pasó y su code_hash
 //     == el code_hash actual (no se tocó el código después de correr).
+//  4. (si la corrida sellada trae reporte por-test) cada test nombrado en el
+//     trace CORRIÓ y PASÓ en esa corrida — causalidad test→requirement (A2/R4).
 func verdictPreconditions(projectDir, feature string) []string {
 	var reasons []string
+
+	// traced queda apuntando al trace parseado OK — lo necesita la condición 4
+	// (causalidad test→requirement contra el reporte sellado).
+	var traced *traceFile
 
 	specforge := filepath.Join(projectDir, "specforge")
 	tracePath := findArtifact(specforge, feature, "trace.json")
@@ -447,6 +453,7 @@ func verdictPreconditions(projectDir, feature string) []string {
 		} else if len(tf.Requirements) == 0 {
 			reasons = append(reasons, "trace.json declares no requirements")
 		} else {
+			traced = &tf
 			// Orden estable para que el reporte sea reproducible.
 			ids := make([]string, 0, len(tf.Requirements))
 			for id := range tf.Requirements {
@@ -481,6 +488,14 @@ func verdictPreconditions(projectDir, feature string) []string {
 		reasons = append(reasons, fmt.Sprintf("last `sf check run` FAILED (exit %d) — fix the code and re-run", res.ExitCode))
 	case res.CodeHash != codeHash(projectDir):
 		reasons = append(reasons, "test result is STALE — code changed since the last `sf check run`; re-run it")
+	default:
+		// 4. Causalidad test→requirement (A2/R4): con reporte estructurado en la
+		//    corrida sellada, cada test nombrado en el trace debe haber CORRIDO y
+		//    PASADO en esa corrida. Sin reporte (len==0) no hay evidencia por-test
+		//    y no inventamos la garantía — quedan las condiciones 1-3.
+		if traced != nil && len(res.Tests) > 0 {
+			reasons = append(reasons, causalityReasons(traced, res.Tests)...)
+		}
 	}
 	return reasons
 }

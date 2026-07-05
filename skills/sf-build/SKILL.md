@@ -32,7 +32,7 @@ Normal flow: plan + execute the named feature.
 4. Read the feature's `requirements.md` — for traceability during implementation
 5. If `specforge/context/project.md` and `specforge/context/conventions.md` exist, read them — follow conventions
 6. Read `build.mode` from `constitution.json` (`inline` | `single` | `per-wave`, default `inline`) — it decides how Step 2 executes (see "Execution strategy" below)
-7. Check `build.test_cmd` in `constitution.json` — the deterministic command `sf check run` uses to run the suite (e.g. `"pytest -q"`, `"go test ./..."`, `"npm test"`). If it's missing, set it now via `sf save constitution --json -` (the verdict gate later requires a fresh green run, so `sf check run` must be able to execute the tests)
+7. Check `build.test_cmd` in `constitution.json` — the deterministic command `sf check run` uses to run the suite (e.g. `"pytest -q"`, `"go test ./..."`, `"npm test"`). If it's missing, set it now via `sf save constitution --json -` (the verdict gate later requires a fresh green run, so `sf check run` must be able to execute the tests). Also set `build.report` when the stack supports it — `"go-json"` (test_cmd runs `go test -json ./...`) or `"junit"` (test_cmd carries a `{report}` placeholder, e.g. `"pytest -q --junitxml={report}"`): with a structured report the verdict additionally requires every test named in the trace to have run and passed (test→requirement causality)
 
 If status is not `approved` or `building`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
 

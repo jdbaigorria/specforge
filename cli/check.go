@@ -39,6 +39,12 @@ type checkResult struct {
 	Passed     bool   `json:"passed"`
 	CodeHash   string `json:"code_hash"`   // hash del código fuente al correr (freshness)
 	OutputTail string `json:"output_tail"` // últimas líneas del output, para diagnóstico
+	// Tests (A2/R4): resultado POR TEST parseado del reporte estructurado
+	// (build.report = go-json | junit). Es lo que permite al verdict exigir que
+	// cada test nombrado en el trace haya corrido y pasado en ESTA corrida —
+	// causalidad test→requirement, no solo "la suite dio verde". Vacío si el
+	// proyecto no configuró build.report.
+	Tests map[string]string `json:"tests,omitempty"`
 }
 
 // outputTailBytes: cuánto del final del output guardamos (para no inflar el .json).
@@ -97,6 +103,27 @@ func runCheckRun(args []string) int {
 	}
 	testCmd := cf.Build.TestCmd
 
+	// 1b) Reporte estructurado (A2/R4): si la constitución declara build.report,
+	//     preparamos la captura por-test. Para junit el test_cmd DEBE llevar el
+	//     placeholder {report}, que sustituimos por una ruta bajo .state/ — así el
+	//     reporte lo produce el runner directamente donde el CLI lo va a leer.
+	reportKind := cf.Build.Report
+	reportPath := ""
+	if reportKind == "junit" {
+		if !strings.Contains(testCmd, "{report}") {
+			fmt.Fprintln(os.Stderr, "sf check: build.report=junit requires a {report} placeholder in test_cmd "+
+				`(e.g. "pytest -q --junitxml={report}")`)
+			return 2
+		}
+		reportPath = filepath.Join(projectDir, "specforge", ".state", "check", feature+"-report.xml")
+		if err := os.MkdirAll(filepath.Dir(reportPath), 0o755); err != nil {
+			fmt.Fprintf(os.Stderr, "sf check: %v\n", err)
+			return 1
+		}
+		_ = os.Remove(reportPath) // un reporte de una corrida vieja no debe contaminar esta
+		testCmd = strings.ReplaceAll(testCmd, "{report}", reportPath)
+	}
+
 	// 2) Hash del código ANTES de correr (la foto contra la que se mide frescura).
 	codeHash := codeHash(projectDir)
 
@@ -106,6 +133,19 @@ func runCheckRun(args []string) int {
 	out, exit := runTestCommand(projectDir, testCmd)
 	passed := exit == 0
 
+	// 3b) Parseo del reporte por-test (si hay). El resultado queda SELLADO junto
+	//     al exit code y el hash: la evidencia de causalidad es de esta corrida.
+	var tests map[string]string
+	switch reportKind {
+	case "go-json":
+		tests = parseGoTestJSON(out)
+	case "junit":
+		tests = parseJUnitXML(reportPath)
+	}
+	if reportKind != "" {
+		fmt.Printf("report: %d test result(s) parsed (%s)\n", len(tests), reportKind)
+	}
+
 	res := checkResult{
 		Feature:    feature,
 		At:         nowUTC(),
@@ -114,6 +154,7 @@ func runCheckRun(args []string) int {
 		Passed:     passed,
 		CodeHash:   codeHash,
 		OutputTail: tailString(out, outputTailBytes),
+		Tests:      tests,
 	}
 	if c := writeCheckResult(projectDir, feature, res); c != 0 {
 		return c
