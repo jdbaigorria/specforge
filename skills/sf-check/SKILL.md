@@ -254,6 +254,11 @@ The review must include a structured **Failure Analysis** section:
 This gives the user a clear map of what went wrong, why, and exactly what to do
 about it — not just "gaps found, go back to build."
 
+Before presenting, run `sf gate show --feature=<name>` and lead with that
+evidence view (trace coverage, test freshness, judge verdicts, commits since the
+last gate) — the human decides from evidence, not from re-reading the whole
+artifact. Gate fatigue is how governance degrades into theater.
+
 → 🔴 **GATE**: Present the review to the user.
 - User accepts APPROVE → seal the verdict gate, then proceed to archive:
   ```bash

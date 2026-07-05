@@ -99,7 +99,7 @@ usage: sf <command> [flags]
 commands:
   lint    check the skill suite for consistency
   status  project health view, or artifact staleness with --artifacts [--feature=NAME]
-  gate    gate ledger + approvals + verdicts (gate approve --feature=NAME --phase=PHASE seals the artifact hash)
+  gate    gate ledger + approvals + verdicts + evidence (gate approve|status|record-verdict|show --feature=NAME)
   check   run the project test suite via build.test_cmd and record a deterministic result (check run --feature=NAME)
   feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME)
   doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])

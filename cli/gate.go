@@ -32,6 +32,8 @@ func runGate(args []string) int {
 		return runGateApprove(rest)
 	case "record-verdict":
 		return runGateRecordVerdict(rest)
+	case "show":
+		return runGateShow(rest)
 	default:
 		fmt.Fprintf(os.Stderr, "sf gate: unknown sub-command %q\n\n", sub)
 		gateUsage()
@@ -43,6 +45,7 @@ func gateUsage() {
 	fmt.Fprintln(os.Stderr, "usage: sf gate status [--feature=NAME] [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf gate approve --feature=NAME --phase=PHASE [--by=user] [--comment=TEXT] [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf gate record-verdict --feature=NAME [--phase=PHASE] [--json -|FILE] [project_dir]")
+	fmt.Fprintln(os.Stderr, "       sf gate show --feature=NAME [--phase=PHASE] [--json] [project_dir]")
 }
 
 // ----------------------------------------------------------------------------

@@ -47,7 +47,7 @@ var cliSurface = map[string]cmdSurface{
 	"lint":    {},
 	"status":  {flags: set("--artifacts", "--feature")},
 	"doctor":  {flags: set("--drift", "--install", "--global", "--quiet", "--run-tests")},
-	"gate":    {subs: set("status", "approve", "record-verdict"), flags: set("--feature", "--phase", "--by", "--comment", "--json")},
+	"gate":    {subs: set("status", "approve", "record-verdict", "show"), flags: set("--feature", "--phase", "--by", "--comment", "--json")},
 	"check":   {subs: set("run"), flags: set("--feature")},
 	"feature": {subs: set("add", "set-status", "set-lane", "archive"), flags: set("--feature", "--lane", "--depends-on", "--to")},
 	"trace":   {subs: set("verify"), flags: set("--feature", "--contract", "--wave")},
