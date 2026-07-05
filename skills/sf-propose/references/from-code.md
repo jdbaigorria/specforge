@@ -13,14 +13,28 @@
 
 ## Flow
 
+### Step 0: Scan the Inventory (deterministic)
+
+```bash
+sf onboard scan
+```
+
+The CLI computes the map — code files, top-level symbols per module, and the
+test → module map — into `specforge/context/inventory.json` (+ `.md`).
+**Interpret over that inventory instead of free-exploring the repo**: fewer
+hallucinated modules, fewer tokens, and the symbol names are the exact anchors
+(`path:symbol`) the trace will use later.
+
 ### Step 1: Analyze Code
 
-For each module/component in the codebase:
+Read `specforge/context/inventory.md` first, then, for each module/component
+that matters:
 1. Read entry points and public interfaces
 2. Identify user-facing behaviors (CLI commands, API endpoints, UI actions)
 3. Map data models and state management
 4. Note error handling and edge cases
-5. Identify test coverage (what's tested = confirmed behavior)
+5. Identify test coverage (what's tested = confirmed behavior) — the inventory's
+   test → module map is the starting point
 
 ### Step 2: Generate Inferred Specs
 
@@ -49,16 +63,22 @@ The user validates:
 
 ### Step 4: Register Baseline
 
-Add to `features.json`:
-```json
-{
-  "name": "_baseline",
-  "status": "done",
-  "workflow": "from-code",
-  "created": "<date>",
-  "note": "Inferred from existing codebase"
-}
+Register through the CLI (the only writer of feature state):
+
+```bash
+sf feature add --feature=_baseline
 ```
+
+### Step 5: Measure Adoption (spec coverage)
+
+```bash
+sf coverage
+```
+
+Reports the % of code files anchored to a live trace and sets the **ratchet
+baseline** — from here, coverage only goes up (each new feature anchors what it
+touches). Run it after every from-code baseline and in CI: incremental,
+*measurable* adoption instead of a big-bang spec-everything.
 
 ## Important
 

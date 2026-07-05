@@ -74,6 +74,10 @@ func run(args []string) int {
 		return runJournal(rest)
 	case "events":
 		return runEvents(rest)
+	case "onboard":
+		return runOnboard(rest)
+	case "coverage":
+		return runCoverage(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -125,5 +129,7 @@ commands:
   save    validate JSON, then write it + render md (save <artifact> --feature=NAME --json -|--from=drafts/FILE)
   journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json - [--bridge-icm])
   events  enforcement telemetry — denies, nudges, judge verdicts (events [--json] [--tail=N])
+  onboard deterministic brownfield inventory — tree, symbols, test map (onboard scan [--json])
+  coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json])
   help    show this message
 `

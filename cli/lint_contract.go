@@ -72,6 +72,8 @@ var cliSurface = map[string]cmdSurface{
 	"save":          {subs: set("constitution", "domain", "requirements", "design", "tasks", "plan", "review", "trace"), flags: set("--feature", "--json", "--from")},
 	"journal":       {subs: set("add"), flags: set("--feature", "--json", "--bridge-icm", "--date")},
 	"events":        {flags: set("--json", "--tail")},
+	"onboard":       {subs: set("scan"), flags: set("--json")},
+	"coverage":      {flags: set("--json")},
 	"help":          {},
 }
 
