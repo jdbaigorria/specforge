@@ -149,21 +149,62 @@ func runTestCommand(projectDir, testCmd string) (string, int) {
 
 // ── Hash del código fuente (freshness) ───────────────────────────────────────
 
-// codeHash devuelve un sha256 (hex) determinista sobre el CÓDIGO del proyecto:
-// recorre el árbol hasheando ruta+contenido de cada archivo, EXCLUYENDO el estado
-// de SpecForge y los dirs de dependencias/build. Excluir specforge/ es clave: así
-// registrar un verdict o aprobar un gate (que escriben estado) NO invalida la
-// frescura del resultado; solo un cambio en el CÓDIGO mueve el hash.
+// codeHash devuelve un sha256 (hex) determinista sobre el CÓDIGO del proyecto.
 //
-// Es content-hash (no mtime): dos ediciones distintas al mismo archivo dan hashes
-// distintos. Para repos enormes puede optimizarse luego con size+mtime.
+// Estrategia en dos niveles (D4 de la evaluación de plataforma):
+//
+//  1. Si el proyecto es un repo git → la lista de archivos sale de
+//     `git ls-files` (tracked + untracked NO ignorados). Esto respeta
+//     .gitignore de verdad: un log, un binario generado o un cache que el
+//     usuario ya ignoró en git NO churnea el hash → no más staleness espuria.
+//     También es más rápido: git ya tiene el índice, no recorremos node_modules.
+//  2. Sin git (proyecto suelto, tests) → fallback al walk del árbol con la
+//     lista fija de exclusiones de siempre. Degradación honesta, no un error.
+//
+// En ambos casos excluimos specforge/: registrar un verdict o aprobar un gate
+// (que escriben estado) NO debe invalidar la frescura del resultado; solo un
+// cambio en el CÓDIGO mueve el hash.
+//
+// Es content-hash (no mtime): dos ediciones distintas al mismo archivo dan
+// hashes distintos.
 func codeHash(projectDir string) string {
-	type entry struct {
-		rel  string
-		hash string
+	if files, ok := gitListFiles(projectDir); ok {
+		return hashFileList(projectDir, files)
 	}
-	var entries []entry
+	return hashFileList(projectDir, walkListFiles(projectDir))
+}
 
+// gitListFiles pide a git la lista de archivos del proyecto: los trackeados
+// (--cached) más los nuevos aún sin agregar (--others), excluyendo lo ignorado
+// (--exclude-standard = .gitignore + excludes globales). -z separa con NUL para
+// que un nombre con espacios o saltos de línea no rompa el parseo.
+// ok=false si no hay git o projectDir no es un repo → el caller usa el fallback.
+func gitListFiles(projectDir string) ([]string, bool) {
+	cmd := exec.Command("git", "-C", projectDir, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, false
+	}
+	var files []string
+	for f := range strings.SplitSeq(string(out), "\x00") {
+		if f == "" {
+			continue
+		}
+		rel := filepath.ToSlash(f)
+		// El estado de SpecForge está trackeado en git (las specs se commitean),
+		// así que acá sí hay que filtrarlo a mano.
+		if rel == "specforge" || strings.HasPrefix(rel, "specforge/") {
+			continue
+		}
+		files = append(files, rel)
+	}
+	return files, true
+}
+
+// walkListFiles es el fallback sin git: recorre el árbol saltando los dirs de
+// la lista fija (estado de SpecForge, VCS, dependencias, build).
+func walkListFiles(projectDir string) []string {
+	var files []string
 	_ = filepath.WalkDir(projectDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // un archivo ilegible no debe abortar el hash entero
@@ -179,16 +220,31 @@ func codeHash(projectDir string) string {
 			}
 			return nil
 		}
-		data, derr := os.ReadFile(path)
-		if derr != nil {
-			return nil
+		files = append(files, rel)
+		return nil
+	})
+	return files
+}
+
+// hashFileList hashea ruta+contenido de cada archivo de la lista y computa el
+// hash agregado. Archivos ilegibles o borrados (git --cached puede listar un
+// archivo recién eliminado del working tree) se saltean en silencio.
+func hashFileList(projectDir string, files []string) string {
+	type entry struct {
+		rel  string
+		hash string
+	}
+	var entries []entry
+	for _, rel := range files {
+		data, err := os.ReadFile(filepath.Join(projectDir, filepath.FromSlash(rel)))
+		if err != nil {
+			continue
 		}
 		sum := sha256.Sum256(data)
 		entries = append(entries, entry{rel: rel, hash: hex.EncodeToString(sum[:])})
-		return nil
-	})
-
-	// Orden estable por ruta → hash reproducible independiente del orden de walk.
+	}
+	// Orden estable por ruta → hash reproducible independiente del orden de
+	// listado (git y el walk podrían diferir en criterio de orden).
 	sort.Slice(entries, func(i, j int) bool { return entries[i].rel < entries[j].rel })
 	roll := sha256.New()
 	for _, e := range entries {

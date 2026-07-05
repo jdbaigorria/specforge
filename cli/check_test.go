@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -31,6 +32,41 @@ func TestCodeHashFreshness(t *testing.T) {
 	mustWrite(t, filepath.Join(proj, "node_modules", "junk", "a.js"), "lots of noise")
 	if got := codeHash(proj); got != h2 {
 		t.Error("node_modules debería estar excluido del code_hash")
+	}
+}
+
+// TestCodeHashRespectsGitignore: en un repo git, la lista de archivos sale de
+// `git ls-files` → lo ignorado por .gitignore NO churnea el hash (D4: adiós
+// staleness espuria por logs/archivos generados), pero un archivo nuevo NO
+// ignorado sí lo mueve (--others lo ve aunque no esté trackeado).
+func TestCodeHashRespectsGitignore(t *testing.T) {
+	proj := t.TempDir()
+	mustWrite(t, filepath.Join(proj, ".gitignore"), "*.log\n")
+	mustWrite(t, filepath.Join(proj, "src", "main.go"), "package main\n")
+	gitInit(t, proj)
+
+	h1 := codeHash(proj)
+
+	// Un archivo ignorado (ni trackeado ni visible para --others) no mueve el hash.
+	mustWrite(t, filepath.Join(proj, "debug.log"), "ruido de runtime")
+	if got := codeHash(proj); got != h1 {
+		t.Error("un archivo ignorado por .gitignore NO debería cambiar el code_hash")
+	}
+
+	// Un archivo nuevo no ignorado sí, aunque todavía no esté git-addeado.
+	mustWrite(t, filepath.Join(proj, "src", "extra.go"), "package main\n")
+	if got := codeHash(proj); got == h1 {
+		t.Error("un archivo nuevo no ignorado SÍ debería cambiar el code_hash")
+	}
+}
+
+// gitInit arma un repo git mínimo en dir (sin commits: ls-files --others ya ve
+// los archivos). Si no hay git instalado, salteamos el test.
+func gitInit(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "init", "-q", dir)
+	if err := cmd.Run(); err != nil {
+		t.Skipf("git no disponible: %v", err)
 	}
 }
 
