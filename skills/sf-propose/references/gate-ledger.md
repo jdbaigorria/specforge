@@ -1,12 +1,14 @@
 # Update Feature Registry (gate ledger)
 
-`specforge/features.json` is the **source of truth** for status and gates (F10).
+`specforge/features/<name>/feature.json` is the **source of truth** for that
+feature's status and gates (F10) — one file per feature, so parallel branches
+don't collide on a global ledger.
 Each gate the user approved is recorded in the `gates[]` ledger — the auditable
 record that a gate actually happened, not a claim in a markdown header.
 
 ## 1. Create/update the feature record
 
-`features.json` is **machine state — never write it by hand** (the hook denies a
+`feature.json` is **machine state — never write it by hand** (the hook denies a
 direct write). The CLI is the only writer. Create the record and set its
 lifecycle fields with `sf feature`:
 

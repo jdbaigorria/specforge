@@ -80,20 +80,15 @@ func runGateApprove(args []string) int {
 	return gateApprove(projectDir, feature, phase, by, comment)
 }
 
-// gateApprove hace el trabajo: lee features.json, sella el hash del artefacto de
-// la fase, apendea el gate y reescribe el archivo. El parámetro se llama `name`
+// gateApprove hace el trabajo: lee el estado de features, sella el hash del
+// artefacto de la fase, apendea el gate y reescribe el feature.json de ESA
+// feature (A1: nadie toca el estado de las demás). El parámetro se llama `name`
 // (no `feature`) para no tapar al tipo `feature`.
 func gateApprove(projectDir, name, phase, by, comment string) int {
-	path := filepath.Join(projectDir, "specforge", "features.json")
-	data, err := os.ReadFile(path)
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf gate approve: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf gate approve: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf gate approve: invalid features.json (%v)\n", err)
-		return 2
 	}
 
 	// Buscamos la feature por nombre. Tomamos el puntero al elemento real del
@@ -159,29 +154,13 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 		Prev:    nextPrev(f),
 	})
 
-	if code := writeFeaturesFile(path, ff); code != 0 {
+	if code := writeFeatureState(projectDir, *f); code != 0 {
 		return code
 	}
 	if hash != "" {
 		fmt.Printf("approved %s/%s (hash %s…)\n", name, phase, hash[:12])
 	} else {
 		fmt.Printf("approved %s/%s\n", name, phase)
-	}
-	return 0
-}
-
-// writeFeaturesFile reescribe features.json con indent de 2 espacios + newline
-// final (mismo estilo que el resto de los .json del repo). Centralizado acá para
-// que cualquier futuro comando que mute el registro escriba igual.
-func writeFeaturesFile(path string, ff featuresFile) int {
-	out, err := json.MarshalIndent(ff, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf gate approve: marshal failed (%v)\n", err)
-		return 1
-	}
-	if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "sf gate approve: write failed (%v)\n", err)
-		return 1
 	}
 	return 0
 }
@@ -204,18 +183,13 @@ func runGateStatusCmd(args []string) int {
 	return runGateStatus(projectDir, feature)
 }
 
-// runGateStatus lee el gate ledger de features.json. Sin --feature muestra un
-// resumen por feature; con --feature muestra el ledger detallado de esa feature.
+// runGateStatus lee el gate ledger. Sin --feature muestra un resumen por
+// feature; con --feature muestra el ledger detallado de esa feature.
 func runGateStatus(projectDir, feature string) int {
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Printf("No specforge/features.json under %s.\n", projectDir)
+		fmt.Printf("No feature state under %s/specforge.\n", projectDir)
 		return 0
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf gate: invalid features.json: %v\n", err)
-		return 1
 	}
 
 	if feature != "" {

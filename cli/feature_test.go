@@ -87,10 +87,10 @@ func TestFeatureArchive(t *testing.T) {
 		t.Errorf("archive sin verdict → exit 5, got %d", code)
 	}
 
-	// Sembramos un verdict aprobado a mano en el ledger (acá el test ES el escritor
-	// legítimo; en prod lo pone `sf gate approve --phase=verdict`).
-	mustWrite(t, filepath.Join(proj, "specforge", "features.json"),
-		`{"schema_version":"1.0","features":[{"name":"x","status":"checking","gates":[{"phase":"verdict","result":"approve","by":"user","at":"2026-06-30T00:00:00Z"}]}]}`)
+	// Sembramos un verdict aprobado a mano en el ledger POR FEATURE (A1) — acá el
+	// test ES el escritor legítimo; en prod lo pone `sf gate approve --phase=verdict`.
+	mustWrite(t, filepath.Join(proj, "specforge", "features", "x", "feature.json"),
+		`{"schema_version":"1.0","name":"x","status":"checking","gates":[{"phase":"verdict","result":"approve","by":"user","at":"2026-06-30T00:00:00Z"}]}`)
 	if code := runFeatureArchive([]string{"--feature=x", proj}); code != 0 {
 		t.Errorf("archive con verdict → exit 0, got %d", code)
 	}

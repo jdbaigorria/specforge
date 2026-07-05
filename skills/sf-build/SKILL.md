@@ -26,7 +26,7 @@ Normal flow: plan + execute the named feature.
 
 ## Pre-flight
 
-1. Read `specforge/features.json` — verify the feature status is `approved` or `building`, and check its `lane`.
+1. Run `sf status` — verify the feature status is `approved` or `building`, and check its `lane`.
 2. Read the feature's `tasks.md` — this is the execution plan
 3. Read the feature's `design.md` — this is the architectural guide
 4. Read the feature's `requirements.md` — for traceability during implementation
@@ -36,7 +36,7 @@ Normal flow: plan + execute the named feature.
 
 If status is not `approved` or `building`: "Feature `<name>` is in status `<status>`. Run `sf-propose <name>` first."
 
-**Lite lane.** If `features.json` has `"lane": "lite"`, the feature has a single
+**Lite lane.** If the feature's `feature.json` has `"lane": "lite"` (see `sf status`), the feature has a single
 `change.md` instead of requirements/design/tasks. Build straight from it
 (usually one wave) per `sf-propose/references/lite-lane.md`. If the change proves
 bigger or touches a sensitive surface, **promote to standard** — stop, set

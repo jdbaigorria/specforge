@@ -43,7 +43,6 @@ Scaffolds the project and generates foundational context.
 
 **Produces:**
 - `specforge/constitution.md` — project identity, principles, constraints, anti-goals
-- `specforge/features.json` — empty feature registry
 - `specforge/history.md` — project log (first entry)
 - `specforge/context/project.md` — stack and architecture context
 - `specforge/context/conventions.md` — coding standards
@@ -65,7 +64,7 @@ Generates the full specification for a feature: requirements, design, tasks.
 2. Generate `requirements.md` with EARS notation → 🔴 GATE
 3. Generate `design.md` (sections conditional on complexity) → 🔴 GATE
 4. Generate `tasks.json` — a flat task list with `depends_on` + traceability matrix → 🔴 GATE
-5. Register feature in `features.json` (status: `approved`)
+5. Register the feature (`sf feature add` → `features/<name>/feature.json`, status: `approved`)
 
 **Design-first flow** (`--design-first`):
 Inverts steps 2 and 3 — design first, then derive requirements from what the
@@ -250,5 +249,5 @@ sf-check produces (per feature):
 | audit.json | `sf gate record-verdict` | the human (phase-audit verdicts) |
 | review.json | sf-check | archive (verdict determines archival) |
 | journal/*.json | `sf journal add` | the phase auditor (past lessons), ICM (optional) |
-| features.json | sf-init | all skills + `sf` (status gate, gate ledger) |
+| features/&lt;name&gt;/feature.json | `sf feature add` | all skills + `sf` (status gate, gate ledger) |
 | history.md | sf-init | sf-check (backprop pattern tracking) |

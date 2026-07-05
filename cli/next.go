@@ -69,17 +69,12 @@ func runNext(args []string) int {
 		}
 	}
 
-	// Leemos features.json y derivamos el estado igual que state.go. Si no se
+	// Leemos el estado de features y derivamos igual que state.go. Si no se
 	// puede leer, es el mismo error/exit-code que usa `sf state`.
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf next: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf next: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf next: invalid features.json (%v)\n", err)
-		return 2
 	}
 
 	st := computeCurrentState(ff, projectDir)

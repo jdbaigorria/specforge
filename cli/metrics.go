@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode"
 )
@@ -82,15 +81,10 @@ func metricsContext(projectDir, feature string) int {
 // Si no se pasa --feature, usa la feature activa que deriva computeCurrentState.
 // Devuelve (filas, code): code 4 si falta features.json, 2 si es inválido, 0 ok.
 func collectContextMetrics(projectDir, feature string) ([]sliceMetric, int) {
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf metrics: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf metrics: cannot read feature state under %s (%v)\n", projectDir, err)
 		return nil, 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf metrics: invalid features.json (%v)\n", err)
-		return nil, 2
 	}
 	st := computeCurrentState(ff, projectDir)
 	if feature == "" {

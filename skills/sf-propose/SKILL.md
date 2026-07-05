@@ -35,7 +35,7 @@ Reverse-engineer specs from existing code. Read `references/from-code.md` before
 ## Pre-flight
 
 1. Verify `specforge/` exists. If not: "Run `sf-init` first."
-2. Read `specforge/features.json` to check for naming conflicts.
+2. Run `sf status` to check for naming conflicts.
 3. If `specforge/constitution.md` exists, read it — principles guide spec generation.
 4. If `specforge/context/project.md` exists, read it — stack context informs design.
 
@@ -126,7 +126,8 @@ If any requirement has no task, add one or flag it to the user.
 
 ### Step 5: Update Feature Registry
 
-`features.json` is the **source of truth** for status and gates (F10) and is
+Per-feature state (`specforge/features/<name>/feature.json`) is the **source of
+truth** for status and gates (F10) and is
 **machine state — never edit it by hand** (the hook denies a direct write). Use
 the CLI, which is the only writer:
 
@@ -139,7 +140,7 @@ the CLI, which is the only writer:
   Create new features with `sf feature add --feature=<name> [--depends-on=a,b]`.
 - Append a line to `specforge/history.md` (that file is yours to write).
 
-Read `references/gate-ledger.md` for the full `features.json` shape and rules.
+Read `references/gate-ledger.md` for the full `feature.json` shape and rules.
 
 Inform the user: "Feature `<name>` approved. Use `sf-build <name>` to start implementation."
 

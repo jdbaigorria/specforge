@@ -128,29 +128,26 @@ func runFeatureAdd(args []string) int {
 		return 2
 	}
 
-	path := filepath.Join(projectDir, "specforge", "features.json")
 	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		// Sin features.json todavía: arrancamos un registro vacío con schema.
-		ff = featuresFile{SchemaVersion: "1.0"}
+		// Sin estado todavía: registro vacío (la primera feature lo estrena).
+		ff = featuresFile{SchemaVersion: schemaVersionCurrent}
 	}
 	if findFeature(&ff, name) != nil {
 		fmt.Fprintf(os.Stderr, "sf feature add: feature %q already exists\n", name)
 		return 4
 	}
 
-	ff.Features = append(ff.Features, feature{
+	// A1/R3: el estado nace directamente POR FEATURE (feature.json propio). No
+	// se crea ni se toca ningún features.json global.
+	if code := writeFeatureState(projectDir, feature{
 		Name:      name,
 		Status:    "planned", // toda feature nace en el backlog
 		Lane:      lane,
 		DependsOn: dependsOn,
 		Gates:     []gate{},
-	})
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "sf feature add: %v\n", err)
-		return 1
-	}
-	if code := writeFeaturesFile(path, ff); code != 0 {
+		Seq:       nextSeq(ff),
+	}); code != 0 {
 		return code
 	}
 	fmt.Printf("added feature %q (status planned%s)\n", name, laneSuffix(lane))
@@ -180,10 +177,9 @@ func runFeatureSetStatus(args []string) int {
 		return 2
 	}
 
-	path := filepath.Join(projectDir, "specforge", "features.json")
 	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf feature set-status: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf feature set-status: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
 	}
 	f := findFeature(&ff, name)
@@ -220,7 +216,7 @@ func runFeatureSetStatus(args []string) int {
 	}
 
 	f.Status = to
-	if code := writeFeaturesFile(path, ff); code != 0 {
+	if code := writeFeatureState(projectDir, *f); code != 0 {
 		return code
 	}
 	fmt.Printf("feature %q: %s → %s\n", name, orPlanned(from), to)
@@ -262,10 +258,9 @@ func runFeatureSetLane(args []string) int {
 		return 2
 	}
 
-	path := filepath.Join(projectDir, "specforge", "features.json")
 	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf feature set-lane: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf feature set-lane: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
 	}
 	f := findFeature(&ff, name)
@@ -281,7 +276,7 @@ func runFeatureSetLane(args []string) int {
 	}
 
 	f.Lane = to
-	if code := writeFeaturesFile(path, ff); code != 0 {
+	if code := writeFeatureState(projectDir, *f); code != 0 {
 		return code
 	}
 	fmt.Printf("feature %q: lane → %s\n", name, to)
@@ -300,10 +295,9 @@ func runFeatureArchive(args []string) int {
 		return 2
 	}
 
-	path := filepath.Join(projectDir, "specforge", "features.json")
 	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf feature archive: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf feature archive: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
 	}
 	f := findFeature(&ff, name)
@@ -344,7 +338,7 @@ func runFeatureArchive(args []string) int {
 	}
 
 	f.Status = "done"
-	if code := writeFeaturesFile(path, ff); code != 0 {
+	if code := writeFeatureState(projectDir, *f); code != 0 {
 		return code
 	}
 	fmt.Printf("archived feature %q → %s (status done)\n", name, filepath.ToSlash(dst))

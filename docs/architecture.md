@@ -11,13 +11,12 @@ state hides in `specforge/.state/`.
 ```
 my-project/
 ├── specforge/                       # Single visible SpecForge root
-│   ├── features.json                # Feature registry (status + gate ledger)
 │   ├── constitution.json / .md      # Principles (with applies_to) + identity — JSON source + render
 │   ├── history.md                   # Append-only project log
 │   ├── roadmap.md                   # Feature roadmap
 │   ├── learnings.md                 # Consolidated, evidence-anchored learnings (injected each session)
 │   ├── features/
-│   │   └── add-task-manager/
+│   │   └── add-task-manager/            # feature.json: status + lane + gate ledger (per feature)
 │   │       ├── requirements.json / .md   # JSON source + Markdown render (each artifact)
 │   │       ├── design.json / .md
 │   │       ├── tasks.json / .md          # flat tasks + depends_on

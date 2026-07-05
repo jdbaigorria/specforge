@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,11 +23,17 @@ type featuresFile struct {
 }
 
 type feature struct {
-	Name      string   `json:"name"`
-	Status    string   `json:"status"`
-	Lane      string   `json:"lane"`
-	DependsOn []string `json:"depends_on"`
-	Gates     []gate   `json:"gates"`
+	// SchemaVersion viaja en el feature.json POR FEATURE (A1/R3); en el legacy
+	// features.json el campo va vacío (la versión vivía en el archivo global).
+	SchemaVersion string   `json:"schema_version,omitempty"`
+	Name          string   `json:"name"`
+	Status        string   `json:"status"`
+	Lane          string   `json:"lane"`
+	DependsOn     []string `json:"depends_on"`
+	Gates         []gate   `json:"gates"`
+	// Seq es el orden de creación (1, 2, …). Con el estado partido por feature
+	// no hay array global que recuerde el orden — lo recuerda cada feature.
+	Seq int `json:"seq,omitempty"`
 }
 
 type gate struct {
@@ -76,19 +81,11 @@ func runStatus(args []string) int {
 	}
 
 	specforge := filepath.Join(projectDir, "specforge")
-	data, err := os.ReadFile(filepath.Join(specforge, "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
 		// Igual que el Python: ausencia no es error, solo no hay nada que mostrar.
-		fmt.Printf("No specforge/features.json under %s.\n", projectDir)
+		fmt.Printf("No feature state under %s/specforge.\n", projectDir)
 		return 0
-	}
-
-	// Unmarshal copia el JSON dentro del struct. Le pasamos &ff (un puntero)
-	// para que pueda escribir en él. Devuelve error si el JSON está malformado.
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf status: invalid features.json: %v\n", err)
-		return 1
 	}
 	if len(ff.Features) == 0 {
 		fmt.Println("No features registered yet.")

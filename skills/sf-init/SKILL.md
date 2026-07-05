@@ -22,9 +22,8 @@ everything; machine state hides in `specforge/.state/`:
 
 ```
 specforge/
-├── features.json           # Feature registry (source of truth)
 ├── history.md              # Append-only project log
-├── features/               # One folder per feature
+├── features/               # One folder per feature (each holds feature.json: status + gate ledger)
 ├── archive/                # Completed features
 ├── audits/                 # sf-audit reports
 ├── context/                # Project context + skill outputs (visible)
@@ -38,10 +37,9 @@ specforge/
 `constitution.md` and `roadmap.md` are added later (constitution in Step 3;
 roadmap when `sf-propose --all` runs).
 
-Initialize `features.json` with a schema version so the registry can evolve:
-```json
-{ "schema_version": "1.0", "features": [] }
-```
+Feature state lives **per feature** in `specforge/features/<name>/feature.json`
+(status, lane, gates) — created by `sf feature add`, never by hand. There is no
+global registry file to initialize; `sf status` assembles the view on demand.
 
 ## Step 2: Detect project type
 

@@ -100,8 +100,8 @@ exported 10 node(s), 9 edge(s) → specforge/graph.json + specforge/graph.mmd
 ```
 
 `sf graph export` makes **explicit** the graph already declared *implicitly* in
-the files — no LLM, no embeddings, fully reproducible. It walks `features.json`
-(feature nodes + `depends_on` edges) and each feature's `trace.json` (the spine:
+the files — no LLM, no embeddings, fully reproducible. It walks the feature
+state (feature nodes + `depends_on` edges) and each feature's `trace.json` (the spine:
 feature → `R#` → `code:symbol` → test) and emits two files: `graph.json` for
 tools/tests and `graph.mmd`, a Mermaid `flowchart LR` that GitHub and most
 Markdown viewers render inline. Flags: `--feature=NAME` (scope to one feature),
@@ -115,7 +115,8 @@ $ sf state current
   "phase": "build", "wave": 1, "last_approved_gate": "wave-0" }
 ```
 
-`sf state current` is a **pure function of `features.json`**: the active feature
+`sf state current` is a **pure function of the per-feature state**
+(`features/<name>/feature.json`): the active feature
 (serial flow), the phase derived as *last-approved-gate + 1*, the wave from
 `plan.json`. Zero stored state — nothing to keep in sync (no "second truth").
 

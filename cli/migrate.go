@@ -91,12 +91,40 @@ func runMigrate(args []string) int {
 	//    Si estampamos, re-sellamos los gates cuyo sello era válido antes.
 	stampArtifacts(projectDir, sf, &ff, dryRun, &actions, &unknown)
 
-	// 2) features.json: su propio schema_version.
-	if ff.SchemaVersion == "" {
-		ff.SchemaVersion = schemaVersionCurrent
-		actions = append(actions, migrateAction{Path: "specforge/features.json", Action: "stamp-version"})
-	} else if !knownSchemaVersions[ff.SchemaVersion] {
-		unknown = append(unknown, "specforge/features.json: "+ff.SchemaVersion)
+	// 2) Split del estado (A1/R3): si el features.json legacy todavía existe, el
+	//    estado pasa a vivir POR FEATURE (features/<name>/feature.json) y el
+	//    legacy se retira. También numeramos (seq) y estampamos versión donde falte.
+	legacyPath := filepath.Join(sf, "features.json")
+	splitLegacy := fileExists(legacyPath)
+	if ff.SchemaVersion != "" && !knownSchemaVersions[ff.SchemaVersion] {
+		unknown = append(unknown, "feature state: "+ff.SchemaVersion)
+	}
+	for i := range ff.Features {
+		f := &ff.Features[i]
+		if f.Seq == 0 {
+			f.Seq = i + 1 // el orden histórico del array pasa a ser explícito
+			if !splitLegacy {
+				actions = append(actions, migrateAction{
+					Path: "specforge/features/" + f.Name + "/feature.json", Action: "stamp-seq"})
+			}
+		}
+		switch {
+		case f.SchemaVersion == "":
+			f.SchemaVersion = schemaVersionCurrent
+			if !splitLegacy {
+				actions = append(actions, migrateAction{
+					Path: "specforge/features/" + f.Name + "/feature.json", Action: "stamp-version"})
+			}
+		case !knownSchemaVersions[f.SchemaVersion]:
+			unknown = append(unknown, fmt.Sprintf("features/%s/feature.json: %s", f.Name, f.SchemaVersion))
+		}
+	}
+	if splitLegacy {
+		actions = append(actions, migrateAction{
+			Path:   "specforge/features.json",
+			Action: "split-state",
+			Detail: fmt.Sprintf("%d feature(s) → specforge/features/<name>/feature.json; legacy file removed", len(ff.Features)),
+		})
 	}
 
 	// 3) Cadena de integridad: rellenar `prev` donde falte. Como el paso 1 pudo
@@ -133,8 +161,20 @@ func runMigrate(args []string) int {
 	if dryRun {
 		fmt.Printf("Would apply %d change(s):\n", len(actions))
 	} else {
-		if code := writeFeaturesFile(filepath.Join(sf, "features.json"), ff); code != 0 {
-			return code
+		// Persistimos POR FEATURE (el único formato de escritura desde A1) y
+		// retiramos el legacy AL FINAL: si algo falla a mitad de camino, el
+		// legacy sigue ahí y readFeaturesFile ensambla la vista igual (los
+		// feature.json ya escritos simplemente lo pisan por nombre).
+		for i := range ff.Features {
+			if code := writeFeatureState(projectDir, ff.Features[i]); code != 0 {
+				return code
+			}
+		}
+		if splitLegacy {
+			if err := os.Remove(legacyPath); err != nil {
+				fmt.Fprintf(os.Stderr, "sf migrate: cannot remove legacy features.json (%v)\n", err)
+				return 1
+			}
 		}
 		fmt.Printf("Applied %d change(s):\n", len(actions))
 	}

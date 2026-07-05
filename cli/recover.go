@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -67,15 +66,10 @@ func runRecover(args []string) int {
 		}
 	}
 
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf recover: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf recover: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf recover: invalid features.json (%v)\n", err)
-		return 2
 	}
 
 	// Recolectamos los reportes de las features que correspondan.

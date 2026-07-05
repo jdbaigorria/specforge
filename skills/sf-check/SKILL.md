@@ -78,7 +78,7 @@ hermetic layer; this is the quality layer. Do **not** run the full check steps b
 
 ## Pre-flight
 
-1. Read `specforge/features.json` — verify status is `checking`
+1. Run `sf status` — verify the feature's status is `checking`
 2. Read the feature's `requirements.md`
 3. Read the feature's `tasks.md`
 4. Read the feature's `design.md`
@@ -89,7 +89,7 @@ hermetic layer; this is the quality layer. Do **not** run the full check steps b
 If status is not `checking`:
 "Feature `<name>` is in status `<status>`. Complete `sf-build <name>` first."
 
-**Lite lane.** If `features.json` has `"lane": "lite"`, read `change.md` instead
+**Lite lane.** If the feature's `feature.json` has `"lane": "lite"` (see `sf status`), read `change.md` instead
 of requirements/design/tasks. The check is **minimal but still real**: build the
 trivial matrix (one requirement → one change → one test) and **still emit
 `trace.json`** so the change stays inside drift detection (F33). Lite means

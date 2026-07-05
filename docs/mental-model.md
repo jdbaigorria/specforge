@@ -39,8 +39,8 @@ sf-init  →  sf-propose  →  sf-build  →  sf-check
             tasks
 ```
 
-Each phase ends at a 🔴 **gate**: a human decision recorded in the ledger
-(`features.json`). A gate is not a header in a markdown file claiming approval —
+Each phase ends at a 🔴 **gate**: a human decision recorded in the feature's
+ledger (`features/<name>/feature.json`). A gate is not a header in a markdown file claiming approval —
 it's an auditable entry that says *who* approved *what*, *when*.
 
 ## The traceability spine

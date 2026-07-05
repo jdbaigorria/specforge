@@ -34,7 +34,7 @@ Read all of these (don't skip any that exist):
 
 ```
 specforge/constitution.md          ← the law
-specforge/features.json            ← all features and statuses
+sf status (features/*/feature.json) ← all features and statuses
 specforge/features/*/               ← active features (requirements, design, tasks)
 specforge/archive/*/                ← completed features
 specforge/history.md               ← project log + recurring issues

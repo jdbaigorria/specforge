@@ -141,15 +141,10 @@ func graphExportCmd(args []string) int {
 func buildGraph(projectDir, featureFilter string) (knowledgeGraph, int) {
 	specforge := filepath.Join(projectDir, "specforge")
 
-	data, err := os.ReadFile(filepath.Join(specforge, "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf graph: no features.json under %s\n", projectDir)
+		fmt.Fprintf(os.Stderr, "sf graph: no feature state under %s (%v)\n", projectDir, err)
 		return knowledgeGraph{}, 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf graph: invalid features.json (%v)\n", err)
-		return knowledgeGraph{}, 1
 	}
 
 	scope := "all"

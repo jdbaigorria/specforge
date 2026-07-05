@@ -56,7 +56,7 @@ func TestVerifyDetectsForgedLedger(t *testing.T) {
 	ff.Features[0].Gates = append(ff.Features[0].Gates, gate{
 		Phase: "verdict", Result: "approve", By: "user", At: "2026-07-05T12:00:00Z",
 	})
-	if code := writeFeaturesFile(filepath.Join(proj, "specforge", "features.json"), ff); code != 0 {
+	if code := writeFeatureState(proj, ff.Features[0]); code != 0 {
 		t.Fatalf("setup: write failed (%d)", code)
 	}
 

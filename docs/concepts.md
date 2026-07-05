@@ -21,10 +21,8 @@ Full reference in `sf-propose/references/ears-notation.md`.
 ## Feature lifecycle
 
 ```json
-// specforge/features.json
+// specforge/features/user-auth/feature.json
 {
-  "features": [
-    {
       "name": "user-auth",
       "status": "done",
       "workflow": "requirements-first",

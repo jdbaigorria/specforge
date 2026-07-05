@@ -60,7 +60,7 @@ var protectedJSONRe = regexp.MustCompile(
 		`|constitution\.json` +
 		`|context/domain\.json` +
 		`|journal/[^/]+\.json` +
-		`|features/[^/]+/(?:progress/)?(?:requirements|design|tasks|plan|review|trace|audit)\.json` +
+		`|features/[^/]+/(?:progress/)?(?:requirements|design|tasks|plan|review|trace|audit|feature)\.json` +
 		`)$`,
 )
 
@@ -392,6 +392,9 @@ func protectedStateDeny(rel string) (string, bool) {
 	case "features.json":
 		return "features.json is the SpecForge gate ledger — never edit it by hand. " +
 			"Gates come only from `sf gate approve`; feature status changes via the lifecycle commands.", true
+	case "feature.json":
+		return "feature.json is this feature's gate ledger + lifecycle state — never edit it by hand. " +
+			"Gates come only from `sf gate approve`; status/lane only via `sf feature set-status|set-lane`.", true
 	case "constitution.json":
 		return "constitution.json is SpecForge state — don't write it directly. " +
 			"Draft it at specforge/drafts/constitution.json (writable), then promote with " +
@@ -892,19 +895,6 @@ func specforgeRoot(projectDir string) (string, bool) {
 func isDir(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
-}
-
-// readFeaturesFile lee y parsea specforge/features.json.
-func readFeaturesFile(projectDir string) (featuresFile, error) {
-	var ff featuresFile
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
-	if err != nil {
-		return ff, err
-	}
-	if err := json.Unmarshal(data, &ff); err != nil {
-		return ff, err
-	}
-	return ff, nil
 }
 
 // relPosix devuelve la ruta de filePath relativa a projectDir, con separadores

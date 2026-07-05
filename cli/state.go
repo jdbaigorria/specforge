@@ -70,17 +70,12 @@ func runState(args []string) int {
 	return stateCurrent(projectDir)
 }
 
-// stateCurrent lee features.json, computa el estado y lo imprime como JSON.
+// stateCurrent lee el estado de features, computa el estado y lo imprime como JSON.
 func stateCurrent(projectDir string) int {
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf state: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf state: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf state: invalid features.json (%v)\n", err)
-		return 2
 	}
 
 	st := computeCurrentState(ff, projectDir)
@@ -274,15 +269,10 @@ func runContextCurrent(args []string) int {
 // contextCurrent computa el estado, arma el breadcrumb y (salvo --breadcrumb) el
 // slice completo.
 func contextCurrent(projectDir string, breadcrumbOnly bool) int {
-	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "features.json"))
+	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sf context: cannot read features.json under %s (%v)\n", projectDir, err)
+		fmt.Fprintf(os.Stderr, "sf context: cannot read feature state under %s (%v)\n", projectDir, err)
 		return 4
-	}
-	var ff featuresFile
-	if err := json.Unmarshal(data, &ff); err != nil {
-		fmt.Fprintf(os.Stderr, "sf context: invalid features.json (%v)\n", err)
-		return 2
 	}
 	st := computeCurrentState(ff, projectDir)
 
