@@ -231,15 +231,16 @@ func checkAnchor(projectDir, anchor string) (bool, string) {
 }
 
 // runTest corre un test (modo dinámico, opt-in). El template trae "{test}" que
-// reemplazamos por el id. Usamos `sh -c` para soportar pipes/flags, igual que
-// shell=True en Python. context.WithTimeout corta a los 300s.
+// reemplazamos por el id. Usamos el shell nativo (shellArgs: sh -c / cmd /c —
+// D6') para soportar pipes/flags. context.WithTimeout corta a los 300s.
 func runTest(projectDir, testID, template string) (bool, string) {
 	cmd := strings.ReplaceAll(template, "{test}", testID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel() // libera el timer pase lo que pase
 
-	c := exec.CommandContext(ctx, "sh", "-c", cmd)
+	sh, flag := shellArgs()
+	c := exec.CommandContext(ctx, sh, flag, cmd)
 	c.Dir = projectDir
 
 	err := c.Run()

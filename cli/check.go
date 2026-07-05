@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -170,11 +171,11 @@ func runCheckRun(args []string) int {
 	return 3
 }
 
-// runTestCommand shellea el comando con `sh -c` en projectDir y devuelve el
-// output combinado + el exit code. Un comando inexistente o un error de arranque
-// se reportan como exit 127 (convención de shell para "command not found").
+// runTestCommand shellea el comando en projectDir y devuelve el output
+// combinado + el exit code. Un comando inexistente o un error de arranque se
+// reportan como exit 127 (convención de shell para "command not found").
 func runTestCommand(projectDir, testCmd string) (string, int) {
-	cmd := exec.Command("sh", "-c", testCmd)
+	cmd := shellCommand(testCmd)
 	cmd.Dir = projectDir
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -186,6 +187,26 @@ func runTestCommand(projectDir, testCmd string) (string, int) {
 		return string(out), ee.ExitCode()
 	}
 	return string(out) + "\n" + err.Error(), 127
+}
+
+// shellCommand arma el exec.Cmd del shell nativo (D6', Windows): `sh -c` en
+// POSIX, `cmd /c` en Windows. Todo comando declarado por el usuario
+// (build.test_cmd, doctor --run-tests) pasa por acá — un solo punto de
+// portabilidad.
+func shellCommand(command string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		return exec.Command("cmd", "/c", command)
+	}
+	return exec.Command("sh", "-c", command)
+}
+
+// shellArgs devuelve (binario, flag) del shell nativo — para los callers que
+// necesitan armar el comando con contexto (timeout) en vez de un Cmd directo.
+func shellArgs() (string, string) {
+	if runtime.GOOS == "windows" {
+		return "cmd", "/c"
+	}
+	return "sh", "-c"
 }
 
 // ── Hash del código fuente (freshness) ───────────────────────────────────────
