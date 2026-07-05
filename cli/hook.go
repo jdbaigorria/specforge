@@ -168,6 +168,7 @@ func runHookClaude(event string, p hookPayload) int {
 	case "PreToolUse":
 		decision, reason := decidePreToolUseTool(pd, p.ToolInput.FilePath, p.ToolInput.Command)
 		if decision == "deny" {
+			logEvent(pd, denyEvent(pd, p.ToolInput.FilePath, p.ToolInput.Command, p.SessionID, reason))
 			emitJSON(map[string]any{"hookSpecificOutput": map[string]any{
 				"hookEventName":            "PreToolUse",
 				"permissionDecision":       "deny",
@@ -195,6 +196,7 @@ func runHookClaude(event string, p hookPayload) int {
 			return 0
 		}
 		if target := stopNudge(pd); target != "" {
+			logEvent(pd, sfEvent{Kind: "nudge", Session: p.SessionID, Feature: target, Detail: "journal nudge on archive"})
 			emitJSON(map[string]any{"decision": "block", "reason": journalNudgeReason(target)})
 		}
 	case "SessionEnd":
@@ -212,6 +214,9 @@ func runHookGeneric(p hookPayload) int {
 	switch p.Event {
 	case "pre_tool_use":
 		decision, reason := decidePreToolUseTool(pd, p.FilePath, p.Command)
+		if decision == "deny" {
+			logEvent(pd, denyEvent(pd, p.FilePath, p.Command, p.SessionID, reason))
+		}
 		emitJSON(map[string]any{"decision": decision, "reason": nilIfEmpty(reason)})
 	case "session_start":
 		emitJSON(map[string]any{"decision": "allow", "context": sessionContext(pd)})
@@ -219,6 +224,7 @@ func runHookGeneric(p hookPayload) int {
 		emitJSON(map[string]any{"decision": "allow", "context": userPromptContext(pd, p.SessionID)})
 	case "stop":
 		if target := stopNudge(pd); target != "" {
+			logEvent(pd, sfEvent{Kind: "nudge", Session: p.SessionID, Feature: target, Detail: "journal nudge on archive"})
 			emitJSON(map[string]any{"decision": "block", "reason": journalNudgeReason(target)})
 		} else {
 			emitJSON(map[string]any{"decision": "allow"})

@@ -122,6 +122,10 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 	// saltearse esto editando a mano: features.json está protegido (Capa 1).
 	if phase == "verdict" {
 		if reasons := verdictPreconditions(projectDir, name); len(reasons) > 0 {
+			// Telemetría (A7): un verdict rehusado es exactamente el dato que
+			// queremos poder contar después.
+			logEvent(projectDir, sfEvent{Kind: "refuse", Feature: name, Phase: "verdict",
+				Detail: fmt.Sprintf("verdict refused: %d precondition(s) unmet", len(reasons))})
 			fmt.Fprintf(os.Stderr, "sf gate approve: verdict refused for %q — %d precondition(s) unmet:\n", name, len(reasons))
 			for _, r := range reasons {
 				fmt.Fprintf(os.Stderr, "  - %s\n", r)
@@ -381,6 +385,10 @@ func runGateRecordVerdict(args []string) int {
 	if code := appendAuditEntry(projectDir, feature, entry); code != 0 {
 		return code
 	}
+
+	// Telemetría (A7): cada veredicto del juez queda contable — los "fail" por
+	// feature son la medida de presión REVISE.
+	logEvent(projectDir, sfEvent{Kind: "verdict", Feature: feature, Phase: entry.Phase, Detail: entry.Overall})
 
 	fmt.Printf("recorded %s verdict for %s/%s (%d rule(s))\n", entry.Overall, feature, entry.Phase, len(entry.Verdicts))
 	if entry.Overall == "fail" {

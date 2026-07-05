@@ -71,6 +71,7 @@ var cliSurface = map[string]cmdSurface{
 	"review":        {subs: set("render", "validate"), flags: set("--feature", "--stdout")},
 	"save":          {subs: set("constitution", "domain", "requirements", "design", "tasks", "plan", "review", "trace"), flags: set("--feature", "--json", "--from")},
 	"journal":       {subs: set("add"), flags: set("--feature", "--json", "--bridge-icm", "--date")},
+	"events":        {flags: set("--json", "--tail")},
 	"help":          {},
 }
 
