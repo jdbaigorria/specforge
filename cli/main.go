@@ -78,6 +78,8 @@ func run(args []string) int {
 		return runOnboard(rest)
 	case "init":
 		return runInit(rest)
+	case "delta":
+		return runDelta(rest)
 	case "coverage":
 		return runCoverage(rest)
 
@@ -133,6 +135,7 @@ commands:
   events  enforcement telemetry — denies, nudges, judge verdicts (events [--json] [--tail=N])
   onboard deterministic brownfield inventory — tree, symbols, test map (onboard scan [--json])
   init    minimal scaffold — 3-principle constitution + detected test_cmd (init --minimal)
+  delta   first-class change objects for amends (delta new|list|set-status --feature=NAME)
   coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json])
   help    show this message
 `

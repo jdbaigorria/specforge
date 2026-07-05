@@ -61,6 +61,7 @@ var protectedJSONRe = regexp.MustCompile(
 		`|context/domain\.json` +
 		`|journal/[^/]+\.json` +
 		`|features/[^/]+/(?:progress/)?(?:requirements|design|tasks|plan|review|trace|audit|feature)\.json` +
+		`|features/[^/]+/deltas/[^/]+\.json` +
 		`)$`,
 )
 
@@ -387,6 +388,13 @@ func protectedStateDeny(rel string) (string, bool) {
 	}
 	if !protectedJSONRe.MatchString(rel) {
 		return "", false
+	}
+	// Deltas (D4'): nombre variable (D1.json, D2.json…) → se resuelve por ruta,
+	// no por base. Solo `sf delta` los escribe (el borrador va en drafts/).
+	if strings.Contains(rel, "/deltas/") {
+		return "deltas are SpecForge state — don't write them directly. " +
+			"Draft the JSON in the feature's drafts/ dir and promote it with " +
+			"`sf delta new --feature=… --from=drafts/<file>.json`; lifecycle via `sf delta set-status`.", true
 	}
 	switch base := filepath.Base(rel); base {
 	case "features.json":

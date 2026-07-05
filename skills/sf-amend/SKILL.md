@@ -32,16 +32,27 @@ if not yet archived):
 
 If the feature isn't found, stop and report — never invent the prior state.
 
-## Step 1: Propose the delta
+## Step 1: Propose the delta (a first-class object)
 
-Don't regenerate the whole spec. State precisely what changes:
+Don't regenerate the whole spec — and don't leave the delta as prose either.
+Author it as a validated object (D4'): write the draft to the feature's
+`drafts/` dir with your `Write` tool, then promote it:
 
-- **Requirements:** which R# are added, changed, or removed (keep IDs stable;
-  new ones continue the numbering).
-- **Why:** the reason for the change (new need, bug, drift found by `sf-doctor`).
+```bash
+# drafts/delta.json: {"why": "...", "changes": [
+#   {"op":"modify","target":"requirements","ref":"R3","description":"..."},
+#   {"op":"add","target":"tasks","ref":"T9","description":"..."}]}
+sf delta new --feature=<name> --from=drafts/delta.json
+```
 
-Present the delta → 🔴 **GATE** (requirements). On approve, record the gate in
-`features.json` (F10).
+Rules the object enforces: every change declares `op` (add|modify|remove),
+`target` (requirements|design|tasks) and a **stable ref** (R2 stays R2 across
+amends; new elements get new ids), plus a `why` — a delta without a reason is
+not auditable.
+
+Present the delta → 🔴 **GATE** (requirements). On approve, seal the gate
+(`sf gate approve`) and mark it applied when the edits land:
+`sf delta set-status --feature=<name> --id=D1 --to=applied`.
 
 ## Step 2: Cascade staleness (F23)
 
@@ -51,7 +62,9 @@ A change upstream reopens what depended on it:
   (delta) → 🔴 GATE.
 - changed design → `tasks.md` goes stale → re-present tasks → 🔴 GATE.
 
-Mark the reopened gates `stale` in `features.json` until re-approved. Unchanged
+The reopened artifacts show as `stale` (their sealed hash no longer matches)
+until re-approved — check `sf status --artifacts`. The delta's `changes[].target`
+list IS the reopen list: derive the cascade from it, not from memory. Unchanged
 artefacts keep their existing gates — only what the delta touches reopens. The
 enforcement hook (if installed) will hold downstream writes until each reopened
 gate is re-approved.
@@ -87,6 +100,9 @@ On APPROVE:
    ```
 3. Append the verdict gate to the feature's `gates[]` ledger (don't overwrite
    the original completion).
+4. Archive the delta: `sf delta set-status --feature=<name> --id=<id> --to=archived`
+   — the amend's audit trail (what changed, why, when) stays queryable via
+   `sf delta list`.
 
 ## Rules
 
