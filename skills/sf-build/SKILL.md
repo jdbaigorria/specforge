@@ -62,13 +62,21 @@ but mostly in `inline` mode (in subagent modes, prefer the raw layout; see
 task-planning.md). After any edit, `sf plan validate --feature=<name>` enforces
 the dependency guard.
 
-→ 🔴 **GATE**: Present the execution plan. Wait for approval.
+**Plan gate (fused into tasks, D2').** If tasks is already approved and you did
+NOT refine the plan, `sf plan compute` auto-seals the plan gate — the plan is a
+deterministic function of the approved tasks, so a separate human approval adds
+fatigue without adding judgment. Just show the wave layout to the user and move
+on. **If you DID refine** (merge/split waves, edited names), the manual edit
+makes the sealed hash stale → present the refined plan and get explicit
+approval: `sf gate approve --feature=<name> --phase=plan`.
+
+→ 🔴 **GATE** (only when refined): Present the execution plan. Wait for approval.
 - "Approved" → proceed per the execution strategy below
 - Changes requested → adjust `depends_on`/plan, re-compute, re-present
 
 The plan gate is also the **spawn authorization**: when `build.mode` is `single`
-or `per-wave`, approving the plan is what authorizes launching the build
-subagent(s). The human is present at this gate, so the spawn is safe.
+or `per-wave`, the sealed plan gate (auto or manual) is what authorizes launching
+the build subagent(s).
 
 ## Execution strategy (`build.mode`)
 

@@ -269,7 +269,38 @@ func computePlan(projectDir, feature string) int {
 		return code
 	}
 	fmt.Printf("computed plan for %s: %d task(s) → %d wave(s)\n", feature, len(tf.Tasks), len(pf.Waves))
+
+	// D2' — fusión del gate de plan en el gate de tasks. El plan recién
+	// computado es una FUNCIÓN DETERMINISTA de tasks: si tasks ya pasó su gate
+	// humano, pedir otro gate para aprobar la salida de un cálculo topológico
+	// agrega fatiga sin agregar juicio. Lo auto-sellamos (con hash, como
+	// cualquier gate). La salvaguarda es el stale model: si después alguien
+	// REFINA el plan a mano (merge/split de waves), su hash deja de coincidir
+	// con el sello → stale → exige re-aprobación humana. El juicio humano entra
+	// exactamente cuando hubo juicio que revisar.
+	autoSealPlanGate(projectDir, feature)
 	return 0
+}
+
+// autoSealPlanGate sella el gate de plan si (a) tasks está aprobado y (b) el
+// plan no tiene ya un gate propio. Best-effort: si el sello falla (ledger roto,
+// p.ej.), el flujo clásico de gate manual sigue disponible.
+func autoSealPlanGate(projectDir, feature string) {
+	ff, err := readFeaturesFile(projectDir)
+	if err != nil {
+		return
+	}
+	f := findFeature(&ff, feature)
+	if f == nil {
+		return
+	}
+	if latestApproveGate(f, "tasks") == nil || latestApproveGate(f, "plan") != nil {
+		return
+	}
+	if gateApprove(projectDir, feature, "plan", "sf (derived)",
+		"auto-sealed: the plan is a deterministic function of the approved tasks (D2')") == 0 {
+		fmt.Println("plan gate auto-sealed (derived from approved tasks — manual refinement will mark it stale and re-require approval)")
+	}
 }
 
 // readPlanQuiet lee plan.json sin imprimir nada (para el merge: si no existe,
