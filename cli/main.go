@@ -48,6 +48,8 @@ func run(args []string) int {
 		return runRecover(rest)
 	case "verify":
 		return runVerify(rest)
+	case "migrate":
+		return runMigrate(rest)
 	case "hook":
 		return runHook(rest)
 	case "install":
@@ -102,6 +104,7 @@ commands:
   next    the agent compass: next valid action + write/read contract (next [--json] [--explain])
   recover diagnose stale/inconsistent artifacts + emit an ordered recovery plan (recover [--feature=NAME] [--json])
   verify  aggregate integrity check with exit code, for CI (verify [--feature=NAME] [--json] | verify --init-ci)
+  migrate stamp missing schema_version + chain legacy ledgers; refuses unknown versions (migrate [--dry-run])
   hook    enforcement engine: reads a hook payload on stdin, emits a decision (hook --event=E --harness=generic|claude-code)
   install detect harnesses + install skills/AGENT.md/adapters with backup (install [--from=PATH] [--global] [--dry-run])
   uninstall revert what sf install did, from the manifest (uninstall [--global])

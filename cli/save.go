@@ -119,11 +119,17 @@ func runSave(args []string) int {
 		if !decodeInto(raw, &v) {
 			return 2
 		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
+		}
 		return finishSave(v, jsonPath, mdPath)
 	case "domain":
 		var v domainFile
 		if !decodeInto(raw, &v) {
 			return 2
+		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
 		}
 		return finishSave(v, jsonPath, mdPath)
 	case "requirements":
@@ -131,11 +137,17 @@ func runSave(args []string) int {
 		if !decodeInto(raw, &v) {
 			return 2
 		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
+		}
 		return finishSave(v, jsonPath, mdPath)
 	case "design":
 		var v designFile
 		if !decodeInto(raw, &v) {
 			return 2
+		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
 		}
 		return finishSave(v, jsonPath, mdPath)
 	case "tasks":
@@ -143,17 +155,26 @@ func runSave(args []string) int {
 		if !decodeInto(raw, &v) {
 			return 2
 		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
+		}
 		return finishSave(v, jsonPath, mdPath)
 	case "plan":
 		var v planFile
 		if !decodeInto(raw, &v) {
 			return 2
 		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
+		}
 		return finishSave(v, jsonPath, mdPath)
 	case "review":
 		var v reviewFile
 		if !decodeInto(raw, &v) {
 			return 2
+		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
 		}
 		return finishSave(v, jsonPath, mdPath)
 	case "trace":
@@ -163,7 +184,7 @@ func runSave(args []string) int {
 		}
 		// Si el agente no mandó schema_version, lo fijamos (canónico, como el resto).
 		if v.SchemaVersion == "" {
-			v.SchemaVersion = "1.0"
+			v.SchemaVersion = schemaVersionCurrent
 		}
 		return finishSave(v, jsonPath, mdPath)
 	default:
