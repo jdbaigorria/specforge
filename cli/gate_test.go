@@ -112,6 +112,29 @@ func TestVerifyCitations(t *testing.T) {
 	}
 }
 
+// TestConsecutiveFails (D3'): cuenta la racha de fails de UNA fase; un pass la
+// corta; otras fases no interfieren.
+func TestConsecutiveFails(t *testing.T) {
+	proj := t.TempDir()
+	seed := func(phase, overall string) {
+		e, _ := buildAuditEntry(phase, []ruleVerdict{{Rule: "P1", Result: map[bool]string{true: "fail", false: "pass"}[overall == "fail"]}})
+		if code := appendAuditEntry(proj, "f", e); code != 0 {
+			t.Fatal("seed")
+		}
+	}
+	seed("design", "fail")
+	seed("tasks", "pass") // otra fase: no corta la racha de design
+	seed("design", "fail")
+	seed("design", "fail")
+	if n := consecutiveFails(proj, "f", "design"); n != 3 {
+		t.Errorf("racha de design = %d, want 3", n)
+	}
+	seed("design", "pass")
+	if n := consecutiveFails(proj, "f", "design"); n != 0 {
+		t.Errorf("un pass corta la racha, got %d", n)
+	}
+}
+
 // TestAppendAuditEntry: append-only — dos entradas quedan acumuladas en audit.json.
 func TestAppendAuditEntry(t *testing.T) {
 	dir := t.TempDir()

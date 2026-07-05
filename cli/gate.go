@@ -386,9 +386,45 @@ func runGateRecordVerdict(args []string) int {
 
 	fmt.Printf("recorded %s verdict for %s/%s (%d rule(s))\n", entry.Overall, feature, entry.Phase, len(entry.Verdicts))
 	if entry.Overall == "fail" {
+		// D3': escalación del loop REVISE. N fails CONSECUTIVOS de la misma fase
+		// ya no son "iterá de nuevo" — son señal de que la SPEC está mal. Hasta
+		// ahora detectar eso era responsabilidad del humano; es un contador, y
+		// los contadores son trabajo de la máquina.
+		if n := consecutiveFails(projectDir, feature, entry.Phase); n >= reviseEscalationThreshold {
+			fmt.Printf("ESCALATE: %d consecutive failed verdicts on %s/%s — the spec itself is likely wrong.\n",
+				n, feature, entry.Phase)
+			fmt.Println("Stop iterating this phase. Go back to propose: re-open the upstream artifact " +
+				"(requirements/design), fix the spec, and let the resync cascade re-derive downstream.")
+			logEvent(projectDir, sfEvent{Kind: "refuse", Feature: feature, Phase: entry.Phase,
+				Detail: fmt.Sprintf("REVISE escalation: %d consecutive fails", n)})
+		}
 		return 3 // recorded, pero el veredicto es FAIL → el hook nudgea
 	}
 	return 0
+}
+
+// reviseEscalationThreshold: a partir de cuántos fails seguidos de una fase
+// dejamos de sugerir "otra vuelta" y escalamos a re-abrir la spec.
+const reviseEscalationThreshold = 3
+
+// consecutiveFails cuenta los veredictos FAIL consecutivos MÁS RECIENTES de una
+// fase (el fail recién grabado incluido). Un pass corta la racha.
+func consecutiveFails(projectDir, feature, phase string) int {
+	entries, ok := readAuditLedger(projectDir, feature)
+	if !ok {
+		return 0
+	}
+	n := 0
+	for i := len(entries) - 1; i >= 0; i-- {
+		if entries[i].Phase != phase {
+			continue
+		}
+		if entries[i].Overall != "fail" {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // ----------------------------------------------------------------------------
