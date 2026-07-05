@@ -73,6 +73,7 @@ var cliSurface = map[string]cmdSurface{
 	"journal":       {subs: set("add"), flags: set("--feature", "--json", "--bridge-icm", "--date")},
 	"events":        {flags: set("--json", "--tail")},
 	"onboard":       {subs: set("scan"), flags: set("--json")},
+	"init":          {flags: set("--minimal")},
 	"coverage":      {flags: set("--json")},
 	"help":          {},
 }

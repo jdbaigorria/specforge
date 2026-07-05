@@ -76,6 +76,8 @@ func run(args []string) int {
 		return runEvents(rest)
 	case "onboard":
 		return runOnboard(rest)
+	case "init":
+		return runInit(rest)
 	case "coverage":
 		return runCoverage(rest)
 
@@ -130,6 +132,7 @@ commands:
   journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json - [--bridge-icm])
   events  enforcement telemetry — denies, nudges, judge verdicts (events [--json] [--tail=N])
   onboard deterministic brownfield inventory — tree, symbols, test map (onboard scan [--json])
+  init    minimal scaffold — 3-principle constitution + detected test_cmd (init --minimal)
   coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json])
   help    show this message
 `

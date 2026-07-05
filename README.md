@@ -135,6 +135,7 @@ The README is the front door; the depth lives in `docs/`.
 | Page | What's in it |
 |------|--------------|
 | [Mental model](docs/mental-model.md) | One page on how SpecForge thinks. **Start here.** |
+| [Quickstart](docs/quickstart.md) | First governed feature in ~10 minutes (`sf init --minimal`). |
 | [CLI & hooks](docs/cli-and-hooks.md) | The deterministic layer in full: `sf` commands, JSON-first, hooks. |
 | [Architecture](docs/architecture.md) | Directory layout, skill structure, execution model. |
 | [Skills reference](docs/skills.md) | Every skill (pipeline + audit + support) and the artefact flow. |
