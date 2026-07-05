@@ -110,7 +110,7 @@ commands:
   feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME)
   doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME] [--contract [--wave=N]])
-  graph   export the knowledge graph from declared structure (graph export [--feature=NAME] [--format=json|mermaid|both] [--stdout])
+  graph   export or query the knowledge graph from declared structure (graph export|query <term> [--json])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
   metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME])

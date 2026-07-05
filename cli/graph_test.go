@@ -44,6 +44,44 @@ func countType(g knowledgeGraph, typ string) int {
 	return n
 }
 
+// TestGraphQuery (D5'): matcheo por substring case-insensitive sobre label/id,
+// y las aristas que tocan los matches vienen como vecindario.
+func TestGraphQuery(t *testing.T) {
+	dir := makeGraphProject(t)
+	g, code := buildGraph(dir, "")
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+
+	// "auth" matchea el nodo feature y trae su arista depends_on.
+	matches, edges := queryGraph(g, "AUTH")
+	if len(matches) == 0 {
+		t.Fatal("'auth' debería matchear al menos la feature")
+	}
+	foundDep := false
+	for _, e := range edges {
+		if e.Type == "depends_on" {
+			foundDep = true
+		}
+	}
+	if !foundDep {
+		t.Error("el vecindario de auth debería incluir su depends_on")
+	}
+
+	// Un término sin matches → vacío, sin error.
+	if m, _ := queryGraph(g, "zzz-no-such"); len(m) != 0 {
+		t.Errorf("término inexistente → 0 matches, got %v", m)
+	}
+
+	// El comando end-to-end.
+	if code := graphQueryCmd([]string{"auth", dir}); code != 0 {
+		t.Errorf("query → exit 0, got %d", code)
+	}
+	if code := graphQueryCmd(nil); code != 2 {
+		t.Error("query sin término → exit 2 (uso)")
+	}
+}
+
 func TestBuildGraph(t *testing.T) {
 	t.Run("full graph: nodes, edges, dedup", func(t *testing.T) {
 		dir := makeGraphProject(t)

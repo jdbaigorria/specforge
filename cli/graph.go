@@ -55,14 +55,115 @@ type graphEdge struct {
 	Type string `json:"type"` // depends_on | has_requirement | implemented_by | verified_by
 }
 
-// runGraph despacha `sf graph <export>`. Dejamos la sub-acción explícita (como
-// trace/plan) para poder sumar otras después (ej. `graph stats`) sin romper la CLI.
+// runGraph despacha `sf graph <export|query>`.
 func runGraph(args []string) int {
-	if len(args) == 0 || args[0] != "export" {
-		fmt.Fprintln(os.Stderr, "usage: sf graph export [project_dir] [--feature=NAME] [--format=json|mermaid|both] [--stdout]")
+	if len(args) == 0 {
+		graphUsage()
 		return 2
 	}
-	return graphExportCmd(args[1:]) // descartamos "export"
+	switch args[0] {
+	case "export":
+		return graphExportCmd(args[1:])
+	case "query":
+		return graphQueryCmd(args[1:])
+	default:
+		graphUsage()
+		return 2
+	}
+}
+
+func graphUsage() {
+	fmt.Fprintln(os.Stderr, "usage: sf graph export [project_dir] [--feature=NAME] [--format=json|mermaid|both] [--stdout]")
+	fmt.Fprintln(os.Stderr, "       sf graph query <term> [project_dir] [--json]")
+}
+
+// ----------------------------------------------------------------------------
+// `sf graph query` — el grafo CONSULTABLE (D5').
+//
+// El export es un snapshot; la pregunta real del día a día es puntual: "¿qué
+// features tocan auth?", "¿qué tests cubren R3?". RAG respondería por
+// similitud; acá respondemos por ESTRUCTURA: matcheamos el término contra los
+// nodos declarados y devolvemos sus vecinos (aristas entrantes y salientes).
+// Determinista, sin modelo, sin índice — el grafo se reconstruye del disco en
+// cada consulta (es chico y siempre fresco).
+// ----------------------------------------------------------------------------
+
+func graphQueryCmd(args []string) int {
+	projectDir := "."
+	term := ""
+	asJSON := false
+	for _, a := range args {
+		switch {
+		case a == "--json":
+			asJSON = true
+		case strings.HasPrefix(a, "-"):
+			fmt.Fprintf(os.Stderr, "sf graph: unknown flag %q\n", a)
+			return 2
+		case term == "":
+			term = a
+		default:
+			projectDir = a
+		}
+	}
+	if term == "" {
+		fmt.Fprintln(os.Stderr, "sf graph query: a search term is required (e.g. `sf graph query auth`)")
+		return 2
+	}
+
+	g, code := buildGraph(projectDir, "")
+	if code != 0 {
+		return code
+	}
+
+	matches, neighbors := queryGraph(g, term)
+	if asJSON {
+		out, _ := json.MarshalIndent(map[string]any{"term": term, "matches": matches, "edges": neighbors}, "", "  ")
+		fmt.Println(string(out))
+		return 0
+	}
+	if len(matches) == 0 {
+		fmt.Printf("no node matches %q (searched %d node(s): features, requirements, code symbols, tests)\n",
+			term, len(g.Nodes))
+		return 0
+	}
+	label := map[string]string{}
+	for _, n := range g.Nodes {
+		label[n.ID] = fmt.Sprintf("%s %q", n.Type, n.Label)
+	}
+	fmt.Printf("%d node(s) match %q:\n\n", len(matches), term)
+	for _, m := range matches {
+		fmt.Printf("● %s\n", label[m.ID])
+		for _, e := range neighbors {
+			switch {
+			case e.From == m.ID:
+				fmt.Printf("    —%s→ %s\n", e.Type, label[e.To])
+			case e.To == m.ID:
+				fmt.Printf("    ←%s— %s\n", e.Type, label[e.From])
+			}
+		}
+	}
+	return 0
+}
+
+// queryGraph matchea el término (case-insensitive) contra label e id de cada
+// nodo, y devuelve también todas las aristas que tocan algún match.
+func queryGraph(g knowledgeGraph, term string) ([]graphNode, []graphEdge) {
+	needle := strings.ToLower(term)
+	matched := map[string]bool{}
+	var matches []graphNode
+	for _, n := range g.Nodes {
+		if strings.Contains(strings.ToLower(n.Label), needle) || strings.Contains(strings.ToLower(n.ID), needle) {
+			matched[n.ID] = true
+			matches = append(matches, n)
+		}
+	}
+	var neighbors []graphEdge
+	for _, e := range g.Edges {
+		if matched[e.From] || matched[e.To] {
+			neighbors = append(neighbors, e)
+		}
+	}
+	return matches, neighbors
 }
 
 func graphExportCmd(args []string) int {

@@ -51,7 +51,7 @@ var cliSurface = map[string]cmdSurface{
 	"check":   {subs: set("run"), flags: set("--feature")},
 	"feature": {subs: set("add", "set-status", "set-lane", "archive"), flags: set("--feature", "--lane", "--depends-on", "--to")},
 	"trace":   {subs: set("verify"), flags: set("--feature", "--contract", "--wave")},
-	"graph":   {subs: set("export"), flags: set("--feature", "--format", "--stdout")},
+	"graph":   {subs: set("export", "query"), flags: set("--feature", "--format", "--stdout", "--json")},
 	"tasks":   {subs: set("render", "validate"), flags: set("--feature", "--stdout")},
 	"context": {subs: set("for-wave", "current", "for-judge"), flags: set("--n", "--feature", "--phase", "--breadcrumb")},
 	"metrics": {subs: set("context"), flags: set("--feature")},
