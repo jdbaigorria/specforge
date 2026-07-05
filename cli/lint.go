@@ -67,6 +67,7 @@ func runLint(args []string) int {
 	checkSkillRefs(files, skills, root, &rep)
 	checkRelativeLinks(files, root, &rep)
 	checkParity(root, &rep)
+	checkCLIContract(files, root, &rep)
 
 	fmt.Printf("Linted %d skills, %d markdown files.\n", len(skills), len(files))
 	for _, w := range rep.warnings {

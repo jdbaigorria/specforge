@@ -130,7 +130,8 @@ trains rubber-stamping):
 1. **Contract**: `sf trace verify --contract --feature=<name> --wave=<n>` for the
    wave just finished — every requirement it touched must name a test that exists.
 2. Run the project's tests for the work done so far.
-3. If `trace.json` exists, run `sf doctor --drift --feature=<name>`.
+3. If `trace.json` exists, run `sf doctor --drift` (checks every trace, the
+   wave's feature included).
 
 All green → launch the next wave's subagent automatically. Any failure → STOP and
 escalate to the human with the failing detail. A per-wave human gate is

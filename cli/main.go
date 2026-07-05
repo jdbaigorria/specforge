@@ -84,7 +84,13 @@ func run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `sf — SpecForge helper CLI
+	fmt.Fprint(os.Stderr, usageText)
+}
+
+// usageText es una const (no un literal inline) para que el test de paridad de
+// lint_contract pueda verificar que cliSurface documenta EXACTAMENTE los
+// comandos listados acá — una sola fuente de verdad, verificada.
+const usageText = `sf — SpecForge helper CLI
 
 usage: sf <command> [flags]
 
@@ -117,5 +123,4 @@ commands:
   save    validate JSON from stdin, then write it + render md (save <artifact> --feature=NAME --json -)
   journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json - [--bridge-icm])
   help    show this message
-`)
-}
+`
