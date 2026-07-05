@@ -332,10 +332,19 @@ var nonSkillTokens = map[string]struct{}{
 // checkSkillRefs avisa (warning) cuando un doc referencia un token con forma de
 // skill que no existe ni en los skills reales ni en la allowlist.
 func checkSkillRefs(files []string, skills []string, root string, rep *report) {
-	// known = skills reales ∪ allowlist. Construimos el set una sola vez.
+	// known = skills reales ∪ community ∪ allowlist. Las de skills-community/
+	// (D7') no participan del pipeline ni las valida el resto del lint, pero
+	// SÍ son nombres legítimos para referenciar desde los docs.
 	known := make(map[string]struct{}, len(skills)+len(nonSkillTokens))
 	for _, s := range skills {
 		known[s] = struct{}{}
+	}
+	if entries, err := os.ReadDir(filepath.Join(root, "skills-community")); err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				known[e.Name()] = struct{}{}
+			}
+		}
 	}
 	for t := range nonSkillTokens {
 		known[t] = struct{}{}

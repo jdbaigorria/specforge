@@ -12,9 +12,12 @@ The suite has three tiers:
 - **Product, from-zero** (`sfp-scout`) — the optional discovery front-end. Needs
   the research MCPs (see `skills/sfp-scout/references/tooling.md`).
 - **Support skills** (`sfx-triage`, `sfx-documenter`, `sfx-explain`, `sfx-think`,
-  `sfx-grill-me`, `sfx-tdd`, `sfx-journal`, `sfx-aws-architect`,
-  `sfx-data-engineer`, `sfx-github`) — standalone helpers that don't require
-  `specforge/` to be initialized.
+  `sfx-grill-me`, `sfx-tdd`, `sfx-journal`, `sfx-github`) — standalone helpers
+  that don't require `specforge/` to be initialized.
+- **Community skills** (`skills-community/`: `sfx-aws-architect`,
+  `sfx-data-engineer`) — domain-generic helpers kept OUTSIDE the maintained
+  core (D7': less surface, more spine). Install by copying/symlinking the
+  folder into your agent's skills directory if you want them.
 
 You can install all of them or only the pipeline.
 

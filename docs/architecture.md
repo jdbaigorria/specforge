@@ -107,8 +107,7 @@ Support skills follow the same rule, decided by **interactivity, not tier**:
 
 - **Gated or iterative** (`sfx-grill-me`, `sfx-tdd`) → inline.
 - **Pure transform** — takes input, returns output, no human turn in the middle
-  (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`, `sfx-data-engineer`, `sfx-triage`,
-  `sfx-github`) → may be delegated to a sub-agent **where the harness supports it**,
+  (`sfx-documenter`, `sfx-explain`, `sfx-triage`, `sfx-github`) → may be delegated to a sub-agent **where the harness supports it**,
   falling back to inline otherwise. Delegation is an optional, per-harness
   optimization, not part of the portable core.
 

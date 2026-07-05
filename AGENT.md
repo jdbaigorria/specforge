@@ -20,8 +20,8 @@ with a gate or back-and-forth must run inline.
   plus `sf-init`'s gated conversations) and any iterative support skill
   (`sfx-grill-me`, `sfx-tdd`) → **inline**. The conversation is the
   workspace.
-- Pure-transform support skills (`sfx-documenter`, `sfx-explain`, `sfx-aws-architect`,
-  `sfx-data-engineer`, `sfx-triage`, `sfx-github`) → may be **delegated** to a sub-agent
+- Pure-transform support skills (`sfx-documenter`, `sfx-explain`, `sfx-triage`,
+  `sfx-github`) → may be **delegated** to a sub-agent
   where the harness supports it, falling back to inline otherwise. This is an
   optional, per-harness optimization, never required. These skills carry
   `delegate: true` in their frontmatter so tooling can identify them.
@@ -270,8 +270,6 @@ sfx-tdd           → Implement with Red-Green-Refactor discipline
 
 ### Infrastructure & Design
 ```
-sfx-aws-architect → Design AWS infra with tradeoffs and cost
-sfx-data-engineer → Design data pipelines with quality gates
 ```
 
 ### Operations

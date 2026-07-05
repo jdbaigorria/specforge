@@ -25,8 +25,6 @@ portable default is always inline.
 | [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `specforge/context/triages/{slug}.md` |
 | [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
 | [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `specforge/context/explanations/{slug}.md` (optional) |
-| [sfx-aws-architect](#sfx-aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `specforge/context/architectures/{slug}.md` |
-| [sfx-data-engineer](#sfx-data-engineer) | delegate | Design data pipelines with quality gates | `specforge/context/data-designs/{slug}.md` |
 | [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `specforge/context/grills/{slug}.md` (optional) |
 | [sfx-tdd](#sfx-tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
 | [sfx-github](#sfx-github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
@@ -163,53 +161,6 @@ Explain any concept using the Feynman method. Simple language, analogies from ev
 **Output:** Conversational. Optionally saved to `specforge/context/explanations/{slug}.md` if user requests.
 
 **References:** `references/feynman-method.md` (detailed teaching methodology with examples and anti-patterns)
-
----
-
-## sfx-aws-architect
-
-Design AWS infrastructure evaluated through the Well-Architected Framework. Every service choice justified with tradeoffs and cost.
-
-**Triggers:** `/sfx-aws-architect`, "design the infra", "how should I deploy", "what AWS services", "architecture for"
-
-**Flow:**
-1. Clarify requirements (workload, scale, budget, compliance, team)
-2. Design with explicit tradeoffs per service (what, why not alternatives, cost, blast radius, scaling)
-3. Generate architecture document
-
-**Key rules:**
-- Always state cost estimates — ranges, not "it depends"
-- Simplest architecture first — add complexity only when justified
-- Never recommend a service without explaining why not a simpler alternative
-- Security is never optional — IAM, encryption, network isolation always included
-
-**Output:** `specforge/context/architectures/{slug}.md` — requirements, services with rationale, data flow, security, scaling, cost breakdown, risks, decisions log.
-
-**Template:** `templates/architecture.tmpl.md`
-
----
-
-## sfx-data-engineer
-
-Design data pipelines with quality gates, idempotency, and observability built in.
-
-**Triggers:** `/sfx-data-engineer`, "data pipeline", "ETL", "data model", "schema design", "data quality"
-
-**Flow:**
-1. Understand the data (source, destination, transformations, quality, freshness)
-2. Design pipeline stages (extract → validate → transform → load → verify)
-3. Generate pipeline document
-
-**Key rules:**
-- Every pipeline must be idempotent and re-runnable
-- Quality gate before loading — bad data never reaches consumers
-- Error handling defined per stage, not just "it'll fail"
-- Observability is not optional — metrics, alerts, lineage always included
-- If volume doesn't justify streaming, use batch
-
-**Output:** `specforge/context/data-designs/{slug}.md` — data contract, schema, stages, quality gates, idempotency, backfill, observability, storage design.
-
-**Template:** `templates/pipeline.tmpl.md`
 
 ---
 

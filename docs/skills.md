@@ -201,7 +201,9 @@ Standalone skills that complement the pipeline but are not part of it. They work
 without `specforge/` initialized and produce artefacts in `specforge/context/`. See
 [SUPPORT-SKILLS.md](../SUPPORT-SKILLS.md) for the full reference: `sfx-think`,
 `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, `sfx-explain`,
-`sfx-aws-architect`, `sfx-data-engineer`, `sfx-github`, `sfx-journal`.
+`sfx-github`, `sfx-journal`. Domain-generic skills (AWS architecture, data
+engineering) live in `skills-community/` — installable on demand, outside the
+maintained core.
 
 ---
 
