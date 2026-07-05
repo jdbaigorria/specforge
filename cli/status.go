@@ -43,6 +43,12 @@ type gate struct {
 	// certifica el contenido vigente → el artefacto está STALE. `omitempty`:
 	// los gates viejos (pre-hash) y los de fases sin artefacto (lane) no lo traen.
 	Hash string `json:"hash,omitempty"`
+	// Prev encadena esta entrada con la ANTERIOR del ledger: es el sha256 de la
+	// entrada previa completa (gateEntryHash, integrity.go), o "genesis" en la
+	// primera. Forjar/editar una entrada intermedia rompe la cadena de forma
+	// visible — es la capa de detección que complementa la prevención del hook.
+	// `omitempty`: gates legacy (pre-cadena) no lo traen.
+	Prev string `json:"prev,omitempty"`
 }
 
 // runStatus es el punto de entrada de `sf status [project_dir]`. Renderiza el
@@ -148,6 +154,17 @@ func runStatus(args []string) int {
 	}
 	if len(blockedMsgs) > 0 {
 		fmt.Printf("⚠ blocked: %s\n", strings.Join(blockedMsgs, "; "))
+	}
+
+	// R1 (integrity.go): la vista de estado también AVISA si algún ledger no
+	// valida (status no bloquea — los que bloquean son next/approve/archive —
+	// pero el humano tiene que enterarse acá, no al intentar avanzar).
+	if probs := ledgerProblemsAll(ff); len(probs) > 0 {
+		fmt.Println("\n⚠ LEDGER INTEGRITY — gates modified outside the CLI:")
+		for _, p := range probs {
+			fmt.Printf("  - %s\n", p)
+		}
+		fmt.Println("  run `sf recover` for the restore plan")
 	}
 	return 0
 }

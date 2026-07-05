@@ -36,11 +36,15 @@ type recoveryStep struct {
 
 // recoveryReport es lo que emite recover para UNA feature.
 type recoveryReport struct {
-	Feature  string          `json:"feature"`
-	Detected []artifactState `json:"detected"`        // los artefactos problemáticos
-	Plan     []recoveryStep  `json:"plan"`            // pasos en orden upstream→downstream
-	OK       bool            `json:"ok"`              // true si no hay nada que recuperar
-	Note     string          `json:"note,omitempty"`
+	Feature string          `json:"feature"`
+	// LedgerProblems: violaciones de la cadena de integridad (integrity.go). Van
+	// PRIMERO en el reporte: con un ledger forjado, los estados de artefactos
+	// derivados de él no son confiables.
+	LedgerProblems []string        `json:"ledger_problems,omitempty"`
+	Detected       []artifactState `json:"detected"` // los artefactos problemáticos
+	Plan           []recoveryStep  `json:"plan"`     // pasos en orden upstream→downstream
+	OK             bool            `json:"ok"`       // true si no hay nada que recuperar
+	Note           string          `json:"note,omitempty"`
 }
 
 // runRecover parsea flags y emite el/los reporte(s). Sin --feature: todas las
@@ -122,7 +126,24 @@ func buildRecoveryReport(f *feature, projectDir string) recoveryReport {
 	states := computeArtifactStates(f, projectDir)
 	rep := recoveryReport{Feature: f.Name}
 
+	// R1: primero la cadena. Un ledger que no valida es EL problema raíz — los
+	// pasos de re-aprobación de abajo asumen un ledger legítimo sobre el cual
+	// apendear, así que la restauración va como paso 1.
+	rep.LedgerProblems = ledgerProblems(f)
+
 	step := 0
+	if len(rep.LedgerProblems) > 0 {
+		step++
+		rep.Plan = append(rep.Plan, recoveryStep{
+			Step:   step,
+			Phase:  "ledger",
+			Action: "restore-ledger",
+			Hint: "the gate ledger was modified outside the CLI — restore specforge/features.json " +
+				"from git history (e.g. `git checkout <good-commit> -- specforge/features.json`), " +
+				"or re-approve the affected gates legitimately with `sf gate approve`",
+		})
+	}
+
 	for i, s := range states {
 		if !isRecoverable(states, i) {
 			continue
@@ -205,9 +226,19 @@ func printRecovery(r recoveryReport) {
 		return
 	}
 
-	fmt.Println("Detected:")
-	for _, s := range r.Detected {
-		fmt.Printf("  - %s: %s — %s\n", s.Phase, s.State, orDash(s.Reason))
+	if len(r.LedgerProblems) > 0 {
+		fmt.Println("Ledger integrity (fix FIRST):")
+		for _, p := range r.LedgerProblems {
+			fmt.Printf("  - %s\n", p)
+		}
+		fmt.Println()
+	}
+
+	if len(r.Detected) > 0 {
+		fmt.Println("Detected:")
+		for _, s := range r.Detected {
+			fmt.Printf("  - %s: %s — %s\n", s.Phase, s.State, orDash(s.Reason))
+		}
 	}
 
 	fmt.Println("\nRecommended (in order):")

@@ -316,6 +316,13 @@ func runFeatureArchive(args []string) int {
 		return 0
 	}
 
+	// R1 (integrity.go): un verdict que vive en un ledger forjado no cuenta.
+	// Validamos la cadena ANTES de mirar el gate — si alguien escribió el
+	// verdict a mano (fuera del arnés, sin hooks), acá se detecta y se rehúsa.
+	if refuseOnBrokenLedger("sf feature archive", f) {
+		return 5
+	}
+
 	// El archivado exige el verdict aprobado: y `sf gate approve --phase=verdict`
 	// ya verifica trace limpio + test verde y fresco (Capa 2). Así, archivar una
 	// feature cuyo código no anda es imposible: sin verdict no hay archive.

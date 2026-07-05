@@ -83,6 +83,26 @@ func runNext(args []string) int {
 	}
 
 	st := computeCurrentState(ff, projectDir)
+
+	// R1 (integrity.go): la brújula NO guía sobre un ledger forjado. Si la
+	// cadena de gates de la feature activa no valida, el único paso legítimo es
+	// restaurar el ledger — cualquier "siguiente fase" derivada de gates falsos
+	// sería mentira. Detección convertida en enforcement: el bypass de escritura
+	// se vuelve inútil al próximo `sf next`.
+	if st.Feature != "" {
+		if f := findFeature(&ff, st.Feature); f != nil {
+			if probs := ledgerProblems(f); len(probs) > 0 {
+				fmt.Printf("sf next: the gate ledger for %q fails integrity validation:\n", st.Feature)
+				for _, p := range probs {
+					fmt.Printf("  - %s\n", p)
+				}
+				fmt.Println("\nNot advancing on an invalid ledger. Restore specforge/features.json from git")
+				fmt.Println("history (or re-approve the gates legitimately). See `sf recover`.")
+				return 5
+			}
+		}
+	}
+
 	nc := buildNextContract(st, ff, projectDir)
 
 	// Cierre de borde (FIXBUGHIGH): el contrato JSON-first asume que el hook

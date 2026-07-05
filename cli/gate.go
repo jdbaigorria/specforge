@@ -110,6 +110,12 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 		return 4
 	}
 
+	// R1 (integrity.go): no EXTENDEMOS un ledger roto. Si la cadena no valida,
+	// alguien escribió gates fuera del CLI; aprobar encima legitimaría el fraude.
+	if refuseOnBrokenLedger("sf gate approve", f) {
+		return 5
+	}
+
 	// Capa 2: el verdict es el sello final (siguiente paso = archive). No se
 	// otorga si la trazabilidad driftó, si algún requirement no nombra un test
 	// real, o si no hay un resultado de test verde y fresco. El LLM no puede
@@ -137,6 +143,8 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 		hash = h
 	}
 
+	// Prev tiene que computarse ANTES del append (es el hash de la última
+	// entrada EXISTENTE; después del append "la última" sería esta misma).
 	f.Gates = append(f.Gates, gate{
 		Phase:   phase,
 		Result:  "approve",
@@ -144,6 +152,7 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 		At:      nowUTC(),
 		Comment: comment,
 		Hash:    hash,
+		Prev:    nextPrev(f),
 	})
 
 	if code := writeFeaturesFile(path, ff); code != 0 {
