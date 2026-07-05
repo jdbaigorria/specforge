@@ -67,6 +67,51 @@ func TestBuildAuditEntry(t *testing.T) {
 	}
 }
 
+// TestVerifyCitations (A8): una citation que existe en el artefacto queda
+// "verified"; una inventada queda "not-found"; sin citation no se marca nada.
+// Es la regla de integridad aplicada al juez: sus afirmaciones se verifican
+// mecánicamente o quedan marcadas como no-verificadas.
+func TestVerifyCitations(t *testing.T) {
+	proj := t.TempDir()
+	mustWrite(t, filepath.Join(proj, "specforge", "features", "f", "design.json"),
+		`{"feature":"f","components":[{"name":"parser","purpose":"parses EARS requirements"}]}`)
+
+	entry := auditEntry{Phase: "design", Verdicts: []ruleVerdict{
+		{Rule: "P1", Result: "pass", Citation: "parses EARS requirements"},
+		{Rule: "P2", Result: "pass", Citation: "this text exists nowhere"},
+		{Rule: "P3", Result: "pass"}, // sin citation → sin marca
+	}}
+	verifyCitations(proj, "f", &entry)
+
+	if got := entry.Verdicts[0].CitationCheck; got != "verified" {
+		t.Errorf("citation real → verified, got %q", got)
+	}
+	if got := entry.Verdicts[1].CitationCheck; got != "not-found" {
+		t.Errorf("citation inventada → not-found, got %q", got)
+	}
+	if got := entry.Verdicts[2].CitationCheck; got != "" {
+		t.Errorf("sin citation → sin marca, got %q", got)
+	}
+
+	// Whitespace-normalizado: la misma citation partida en líneas matchea igual.
+	entry = auditEntry{Phase: "design", Verdicts: []ruleVerdict{
+		{Rule: "P1", Result: "pass", Citation: "parses\n  EARS   requirements"},
+	}}
+	verifyCitations(proj, "f", &entry)
+	if got := entry.Verdicts[0].CitationCheck; got != "verified" {
+		t.Errorf("citation con whitespace distinto → verified, got %q", got)
+	}
+
+	// Fase sin artefacto (wave-1) → no marca nada.
+	entry = auditEntry{Phase: "wave-1", Verdicts: []ruleVerdict{
+		{Rule: "P1", Result: "pass", Citation: "whatever"},
+	}}
+	verifyCitations(proj, "f", &entry)
+	if got := entry.Verdicts[0].CitationCheck; got != "" {
+		t.Errorf("fase sin artefacto → sin marca, got %q", got)
+	}
+}
+
 // TestAppendAuditEntry: append-only — dos entradas quedan acumuladas en audit.json.
 func TestAppendAuditEntry(t *testing.T) {
 	dir := t.TempDir()

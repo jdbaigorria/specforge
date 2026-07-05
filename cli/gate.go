@@ -320,6 +320,12 @@ type ruleVerdict struct {
 	Rule     string `json:"rule"`
 	Result   string `json:"result"` // pass | fail
 	Citation string `json:"citation"`
+	// CitationCheck (A8): el CLI verifica la citation contra el artefacto real.
+	// "verified" = aparece textual (whitespace-normalizado); "not-found" = el juez
+	// citó algo que NO está en el artefacto (citation inventada — la mentira
+	// semántica que sigue después de cerrar la escritura de estado); "" = no hay
+	// citation o la fase no tiene artefacto contra qué verificar.
+	CitationCheck string `json:"citation_check,omitempty"`
 }
 
 var verdictResults = map[string]bool{"pass": true, "fail": true}
@@ -380,6 +386,17 @@ func runGateRecordVerdict(args []string) int {
 		}
 		fmt.Printf("\nFAIL: not recorded — %d error(s).\n", len(rep.errors))
 		return 2
+	}
+
+	// A8: cada citation se verifica mecánicamente contra el artefacto antes de
+	// entrar al ledger. No rechazamos (el juez es nudge, no gate duro), pero lo
+	// no-verificado queda MARCADO — el humano del gate lo ve.
+	verifyCitations(projectDir, feature, &entry)
+	for _, v := range entry.Verdicts {
+		if v.CitationCheck == "not-found" {
+			fmt.Printf("  warning: rule %q cites text not found in the %s artifact — recorded as citation_check=not-found\n",
+				v.Rule, entry.Phase)
+		}
 	}
 
 	if code := appendAuditEntry(projectDir, feature, entry); code != 0 {
@@ -496,6 +513,48 @@ func buildAuditEntry(phase string, verdicts []ruleVerdict) (auditEntry, report) 
 		Verdicts: verdicts,
 	}, rep
 }
+
+// verifyCitations (A8) aplica la regla que ordena el backlog de integridad:
+// "ninguna afirmación del modelo entra al estado sin verificación mecánica o
+// sin marcarse como no-verificada". Una citation del juez ES una afirmación
+// ("esto está en el artefacto"); acá la chequeamos con un substring-match
+// whitespace-normalizado contra el .json canónico Y el .md renderizado de la
+// fase (el juez suele citar del render). Barato y determinista.
+func verifyCitations(projectDir, feature string, entry *auditEntry) {
+	rel, ok := artifactFileForPhase(entry.Phase)
+	if !ok {
+		return // fase sin artefacto (lane, wave-N) → nada contra qué verificar
+	}
+	base := filepath.Join(projectDir, "specforge", "features", feature)
+	var haystacks []string
+	for _, p := range []string{rel, strings.TrimSuffix(rel, ".json") + ".md"} {
+		if data, err := os.ReadFile(filepath.Join(base, p)); err == nil {
+			haystacks = append(haystacks, normalizeWS(string(data)))
+		}
+	}
+	if len(haystacks) == 0 {
+		return // artefacto ausente: lo reporta el flujo de gates, no esta marca
+	}
+	for i := range entry.Verdicts {
+		v := &entry.Verdicts[i]
+		if strings.TrimSpace(v.Citation) == "" {
+			continue
+		}
+		needle := normalizeWS(v.Citation)
+		v.CitationCheck = "not-found"
+		for _, h := range haystacks {
+			if strings.Contains(h, needle) {
+				v.CitationCheck = "verified"
+				break
+			}
+		}
+	}
+}
+
+// normalizeWS colapsa todo whitespace (saltos de línea, tabs, espacios
+// repetidos) a un espacio simple: una citation que envuelve línea en el .md
+// sigue matcheando.
+func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // appendAuditEntry lee el ledger existente (si hay), apendea la entrada y lo
 // reescribe canónico.
