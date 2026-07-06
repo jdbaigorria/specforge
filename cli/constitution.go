@@ -76,6 +76,11 @@ type buildConfig struct {
 	// de que el CLI capture un exit code real → el verdict (Capa 2) no puede exigir
 	// "verde y fresco". Opcional: si falta, `sf check run` falla pidiéndolo.
 	TestCmd string `json:"test_cmd,omitempty"`
+	// AgentCmd (F1/R7) es el comando con el que `sf run` invoca al agente de
+	// wave (ej. "claude -p --permission-mode acceptEdits"). El seed de la wave
+	// entra por su stdin. Opcional: sin él, `sf run` no está disponible y el
+	// build es conversacional (sf-build clásico).
+	AgentCmd string `json:"agent_cmd,omitempty"`
 	// Report (A2/R4) declara el formato del reporte POR TEST de la corrida:
 	//   "go-json" → test_cmd emite `go test -json` por stdout
 	//   "junit"   → test_cmd contiene {report} (ej. "pytest -q --junitxml={report}")

@@ -75,6 +75,7 @@ var cliSurface = map[string]cmdSurface{
 	"onboard":       {subs: set("scan"), flags: set("--json")},
 	"init":          {flags: set("--minimal")},
 	"delta":         {subs: set("new", "list", "set-status"), flags: set("--feature", "--json", "--from", "--id", "--to")},
+	"run":           {flags: set("--feature", "--dry-run")},
 	"coverage":      {flags: set("--json", "--badge", "--history")},
 	"help":          {},
 }

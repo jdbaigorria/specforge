@@ -92,6 +92,14 @@ Choose how to execute the approved waves based on `build.mode` (default `inline`
   so context degradation never accumulates across waves. If `mode` is `single`
   but the plan has > 4 waves, suggest `per-wave` to the user.
 
+> **CLI-driven alternative (`sf run`).** If the constitution declares
+> `build.agent_cmd`, the whole per-wave loop can be driven by the CLI instead of
+> this conversation: `sf run --feature=<name>` computes each wave's seed, spawns
+> a fresh agent process (seed via stdin), verifies the contract + runs the suite,
+> seals the `wave-N` checkpoint, and moves on — stopping on any failure. The
+> process no longer depends on conversational memory at all. Gated phases
+> (propose, verdict) stay conversational.
+
 **Sequencing — the wave layout is fixed before sharding.** `sf plan compute` and
 any plan refinement (Step 1) happen **before** the plan gate; the execution
 subagents come **after** it and run their assigned wave. They do **not** re-layer
