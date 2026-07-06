@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -104,23 +105,38 @@ func computeCurrentState(ff featuresFile, projectDir string) currentState {
 	switch len(active) {
 	case 0:
 		// Respuesta válida, no error: no hay nada en curso.
-		return currentState{Phase: "—", Note: "no active feature (flujo serial: nada en curso)"}
+		return currentState{Phase: "—", Note: "no active feature (nada en curso)"}
 	case 1:
 		// Caso normal: seguimos abajo.
 	default:
-		// El invariante serial (gate estructural) debería haberlo prevenido. Si
-		// igual pasó, lo reportamos en vez de elegir uno al azar.
 		names := make([]string, len(active))
 		for i, f := range active {
 			names[i] = f.Name
 		}
+		// F2: en flujo paralelo varias activas es LEGAL. Elegimos determinista:
+		// la del gate más reciente (la que se está trabajando "acá"), anotando
+		// las demás — quien necesite otra, pide el contexto con --feature.
+		if parallelFlow(projectDir) {
+			sort.Slice(active, func(i, j int) bool { return latestGateAt(active[i]) > latestGateAt(active[j]) })
+			st := buildCurrentStateFor(active[0], ff, projectDir)
+			st.Note = "parallel flow: active = " + strings.Join(names, ", ") +
+				" — showing the most recently gated; use --feature for the others"
+			return st
+		}
+		// En serial, el invariante debería haberlo prevenido. Si igual pasó, lo
+		// reportamos en vez de elegir uno al azar.
 		return currentState{
 			Phase: "—",
 			Note:  "serial violation: multiple active features: " + strings.Join(names, ", "),
 		}
 	}
 
-	f := active[0]
+	return buildCurrentStateFor(active[0], ff, projectDir)
+}
+
+// buildCurrentStateFor arma el currentState de UNA feature concreta (extraído
+// para que el camino paralelo, F2, pueda derivar el estado de la elegida).
+func buildCurrentStateFor(f *feature, ff featuresFile, projectDir string) currentState {
 	phase, wave := derivePhase(f, projectDir)
 
 	st := currentState{
@@ -134,6 +150,18 @@ func computeCurrentState(ff featuresFile, projectDir string) currentState {
 		st.Wave = &wave // tomamos la dirección de la variable local: válido en Go (escapa al heap)
 	}
 	return st
+}
+
+// latestGateAt: el `at` del gate más reciente de la feature ("" si no tiene).
+// Es el criterio de "dónde se está trabajando" en flujo paralelo.
+func latestGateAt(f *feature) string {
+	latest := ""
+	for i := range f.Gates {
+		if f.Gates[i].At > latest {
+			latest = f.Gates[i].At
+		}
+	}
+	return latest
 }
 
 // derivePhase computa la fase actual = frontera-aprobada + 1. Devuelve la fase y

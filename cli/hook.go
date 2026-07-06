@@ -335,11 +335,15 @@ func decidePreToolUse(projectDir, filePath string) (string, string) {
 
 	// Serial (F22): no arrancar una 2da feature mientras otra está en curso. El
 	// PRIMER artefacto de una feature es requirements → lo interceptamos ahí.
+	// F2: si la constitución declara flow.mode=parallel, este guard no aplica
+	// (el estado por feature de A1 hace estructuralmente seguro el paralelo).
 	if artefact == "requirements" {
-		if other := activeOther(ff, feature); other != "" {
+		if other := activeOther(ff, feature); other != "" && !parallelFlow(projectDir) {
 			return "deny", fmt.Sprintf(
 				"Serial flow: feature '%s' is still active. Finish and archive it before "+
-					"starting '%s' — one active feature at a time (F22).", other, feature)
+					"starting '%s' — one active feature at a time (F22). "+
+					"(Teams can opt into parallel features via flow.mode=parallel in the constitution.)",
+				other, feature)
 		}
 		return "allow", ""
 	}

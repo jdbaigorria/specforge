@@ -207,10 +207,12 @@ func runFeatureSetStatus(args []string) int {
 		return 5
 	}
 
-	// Flujo serial (F22): no entrar a un status ACTIVO si otra feature ya lo está.
-	if activeStatuses[to] {
+	// Flujo serial (F22): no entrar a un status ACTIVO si otra feature ya lo
+	// está. F2: con flow.mode=parallel en la constitución, el guard no aplica.
+	if activeStatuses[to] && !parallelFlow(projectDir) {
 		if other := activeOther(ff, name); other != "" {
-			fmt.Fprintf(os.Stderr, "sf feature set-status: feature %q is still active. Finish it before activating %q (one at a time, F22).\n", other, name)
+			fmt.Fprintf(os.Stderr, "sf feature set-status: feature %q is still active. Finish it before activating %q "+
+				"(one at a time, F22 — or set flow.mode=parallel in the constitution for team flow).\n", other, name)
 			return 5
 		}
 	}

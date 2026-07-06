@@ -30,6 +30,34 @@ type constitutionFile struct {
 	Invariants    []invariant  `json:"invariants"`
 	Audit         *auditConfig `json:"audit,omitempty"` // config del auditor de fase (paso 6)
 	Build         *buildConfig `json:"build,omitempty"` // config de ejecución del build
+	Flow          *flowConfig  `json:"flow,omitempty"`  // serial (default) | parallel (F2)
+}
+
+// flowConfig (F2): el flujo serial (una feature activa a la vez, F22) es el
+// default y la recomendación para solo-dev. `parallel` lo relaja — habilitado
+// por A1 (estado POR feature: dos features activas ya no compiten por un
+// archivo global). Pensado para equipos: cada rama trabaja su feature y los
+// merges no colisionan. Opt-in explícito en la constitución: es una decisión
+// de proyecto, no un default silencioso.
+type flowConfig struct {
+	Mode string `json:"mode"` // serial | parallel
+}
+
+var flowModes = map[string]bool{"serial": true, "parallel": true}
+
+// parallelFlow responde si el proyecto declaró flujo paralelo. Lectura QUIETA
+// (sin ruido en stderr): la consultan el hook y los guards en caminos donde
+// una constitución ausente simplemente significa "default serial".
+func parallelFlow(projectDir string) bool {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return false
+	}
+	var cf constitutionFile
+	if json.Unmarshal(data, &cf) != nil {
+		return false
+	}
+	return cf.Flow != nil && cf.Flow.Mode == "parallel"
 }
 
 // auditConfig gobierna el tier calidad (opt-in). Puntero → si el proyecto no lo
@@ -238,6 +266,10 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	// Config del build: si está, el modo debe ser inline|single|per-wave.
 	if cf.Build != nil && cf.Build.Mode != "" && !buildModes[cf.Build.Mode] {
 		rep.errorf("build.mode must be inline|single|per-wave, got %q", cf.Build.Mode)
+	}
+	// Flujo (F2): serial | parallel.
+	if cf.Flow != nil && cf.Flow.Mode != "" && !flowModes[cf.Flow.Mode] {
+		rep.errorf("flow.mode must be serial|parallel, got %q", cf.Flow.Mode)
 	}
 	// Reporte por-test (A2): formato conocido, y junit exige el placeholder en
 	// test_cmd (sin él, `sf check run` no tendría dónde leer el reporte).

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -147,6 +148,44 @@ func TestHookProtectsFeatureJSON(t *testing.T) {
 	dec, _ := decidePreToolUse(proj, filepath.Join(proj, "specforge", "features", "x", "feature.json"))
 	if dec != "deny" {
 		t.Error("feature.json debería estar protegido (estado autoritativo)")
+	}
+}
+
+// TestParallelFlow (F2): con flow.mode=parallel en la constitución, los guards
+// seriales (hook + set-status) no aplican; sin la config, siguen firmes.
+func TestParallelFlow(t *testing.T) {
+	proj := t.TempDir()
+	// Feature "a" activa + "b" con requirements aprobado (para escribir design
+	// no; probamos el guard de requirements, primer artefacto).
+	mustWrite(t, featureFilePath(proj, "a"), `{"name":"a","status":"building","gates":[]}`)
+	mustWrite(t, featureFilePath(proj, "b"), `{"name":"b","status":"planned","gates":[]}`)
+
+	reqB := filepath.Join(proj, "specforge", "features", "b", "requirements.md")
+
+	// Serial (default): escribir requirements de b con a activa → deny.
+	if dec, _ := decidePreToolUse(proj, reqB); dec != "deny" {
+		t.Error("serial: 2da feature con otra activa → deny")
+	}
+	if code := runFeatureSetStatus([]string{"--feature=b", "--to=approved", proj}); code != 5 {
+		t.Errorf("serial: activar 2da feature → exit 5, got %d", code)
+	}
+
+	// Declarar flujo paralelo → ambos guards se relajan.
+	mustWrite(t, filepath.Join(proj, "specforge", "constitution.json"),
+		`{"schema_version":"1.0","identity_md":"x","flow":{"mode":"parallel"}}`)
+	if dec, _ := decidePreToolUse(proj, reqB); dec != "allow" {
+		t.Error("parallel: 2da feature debería permitirse")
+	}
+	if code := runFeatureSetStatus([]string{"--feature=b", "--to=approved", proj}); code != 0 {
+		t.Errorf("parallel: activar 2da feature → exit 0, got %d", code)
+	}
+
+	// Con dos activas, el estado elige la del gate más reciente y lo anota.
+	_ = gateApprove(proj, "b", "lane", "user", "")
+	ff, _ := readFeaturesFile(proj)
+	st := computeCurrentState(ff, proj)
+	if st.Feature != "b" || !strings.Contains(st.Note, "parallel flow") {
+		t.Errorf("estado paralelo: feature=%q note=%q", st.Feature, st.Note)
 	}
 }
 
