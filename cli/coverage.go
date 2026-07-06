@@ -38,10 +38,16 @@ func coverageBaselinePath(projectDir string) string {
 func runCoverage(args []string) int {
 	projectDir := "."
 	asJSON := false
+	badge := false
+	history := false
 	for _, a := range args {
 		switch {
 		case a == "--json":
 			asJSON = true
+		case a == "--badge":
+			badge = true
+		case a == "--history":
+			history = true
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf coverage: unknown flag %q\n", a)
 			return 2
@@ -54,10 +60,31 @@ func runCoverage(args []string) int {
 		return 4
 	}
 
+	// --history: solo la tendencia, sin medir de nuevo (lo medido ya está).
+	if history {
+		return printCoverageHistory(projectDir)
+	}
+
 	anchored, total := computeSpecCoverage(projectDir)
 	percent := 0.0
 	if total > 0 {
 		percent = 100 * float64(anchored) / float64(total)
+	}
+
+	// F3: cada medición queda en la historia (la TENDENCIA es la métrica que
+	// cuenta en adopción brownfield — el número de hoy importa menos que la
+	// pendiente del mes).
+	appendCoverageHistory(projectDir, percent, anchored, total)
+
+	// F3: badge SVG auto-contenido (estilo shields, flat) — commiteable y
+	// referenciable desde el README: ![spec coverage](specforge/coverage-badge.svg)
+	if badge {
+		p := filepath.Join(projectDir, "specforge", "coverage-badge.svg")
+		if err := os.WriteFile(p, []byte(coverageBadgeSVG(percent)), 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "sf coverage: cannot write badge (%v)\n", err)
+			return 1
+		}
+		fmt.Printf("badge → %s\n", filepath.ToSlash(p))
 	}
 
 	baseline, hadBaseline := readCoverageBaseline(projectDir)
@@ -144,6 +171,112 @@ func readCoverageBaseline(projectDir string) (coverageBaseline, bool) {
 		return b, false
 	}
 	return b, true
+}
+
+// ── F3: historia + badge (spec coverage como métrica pública) ────────────────
+
+// coveragePoint es una medición histórica (una línea del JSONL).
+type coveragePoint struct {
+	At       string  `json:"at"`
+	Percent  float64 `json:"percent"`
+	Anchored int     `json:"anchored"`
+	Total    int     `json:"total"`
+}
+
+func coverageHistoryPath(projectDir string) string {
+	return filepath.Join(projectDir, "specforge", ".state", "coverage-history.jsonl")
+}
+
+// coverageHistoryMax: cap de líneas — misma filosofía de estado acotado que C6.
+const coverageHistoryMax = 500
+
+// appendCoverageHistory registra la medición (best-effort, como la telemetría).
+func appendCoverageHistory(projectDir string, percent float64, anchored, total int) {
+	path := coverageHistoryPath(projectDir)
+	if os.MkdirAll(filepath.Dir(path), 0o755) != nil {
+		return
+	}
+	line, err := json.Marshal(coveragePoint{At: nowUTC(), Percent: percent, Anchored: anchored, Total: total})
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	_, _ = f.Write(append(line, '\n'))
+	_ = f.Close()
+	// Poda: conservamos la mitad más reciente al superar el cap.
+	if data, err := os.ReadFile(path); err == nil {
+		lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+		if len(lines) > coverageHistoryMax {
+			_ = os.WriteFile(path, []byte(strings.Join(lines[len(lines)/2:], "\n")+"\n"), 0o644)
+		}
+	}
+}
+
+// printCoverageHistory muestra la tendencia: cada punto con una barra
+// proporcional — un sparkline honesto en texto plano.
+func printCoverageHistory(projectDir string) int {
+	data, err := os.ReadFile(coverageHistoryPath(projectDir))
+	if err != nil {
+		fmt.Println("No coverage history yet — run `sf coverage` to record the first point.")
+		return 0
+	}
+	var points []coveragePoint
+	for line := range strings.SplitSeq(strings.TrimRight(string(data), "\n"), "\n") {
+		var p coveragePoint
+		if json.Unmarshal([]byte(line), &p) == nil {
+			points = append(points, p)
+		}
+	}
+	if len(points) == 0 {
+		fmt.Println("No coverage history yet.")
+		return 0
+	}
+	fmt.Printf("spec coverage trend (%d point(s)):\n\n", len(points))
+	show := points
+	if len(show) > 20 {
+		show = show[len(show)-20:] // los últimos 20 alcanzan para ver la pendiente
+	}
+	for _, p := range show {
+		bar := strings.Repeat("█", int(p.Percent/4)) // 25 chars = 100%
+		fmt.Printf("  %s  %5.1f%%  %s\n", p.At, p.Percent, bar)
+	}
+	first, last := points[0], points[len(points)-1]
+	fmt.Printf("\n%+.1f%% since %s (%d → %d anchored files)\n",
+		last.Percent-first.Percent, first.At, first.Anchored, last.Anchored)
+	return 0
+}
+
+// coverageBadgeSVG genera el badge (estilo shields flat, auto-contenido: sin
+// fuentes ni requests externos). El color sube con la cobertura — la señal
+// visual del ratchet.
+func coverageBadgeSVG(percent float64) string {
+	color := "#e05d44" // rojo
+	switch {
+	case percent >= 75:
+		color = "#4c1" // verde
+	case percent >= 50:
+		color = "#dfb317" // amarillo
+	case percent >= 25:
+		color = "#fe7d37" // naranja
+	}
+	label := "spec coverage"
+	value := fmt.Sprintf("%.1f%%", percent)
+	// Ancho aproximado: ~6.5px por carácter + padding (suficiente para un badge).
+	lw := len(label)*7 + 10
+	vw := len(value)*7 + 10
+	w := lw + vw
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="20" role="img" aria-label="%s: %s">
+  <rect width="%d" height="20" fill="#555"/>
+  <rect x="%d" width="%d" height="20" fill="%s"/>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="%d" y="14">%s</text>
+    <text x="%d" y="14">%s</text>
+  </g>
+</svg>
+`, w, label, value, lw, lw, vw, color, lw/2, label, lw+vw/2, value)
 }
 
 // writeCoverageBaseline persiste la marca (best-effort: un fallo de escritura

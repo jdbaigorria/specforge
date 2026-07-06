@@ -35,3 +35,9 @@ jobs:
 
       - name: SpecForge verify
         run: sf verify
+
+      # Spec coverage ratchet (F3): the % of code anchored to a live spec can
+      # only go up. A drop fails the job — a deleted trace or a rename without
+      # resync un-anchored code somewhere.
+      - name: Spec coverage ratchet
+        run: sf coverage

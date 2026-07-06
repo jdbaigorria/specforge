@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,39 @@ func TestRunOnboardScanWrites(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(proj, "specforge", "context", p)); err != nil {
 			t.Errorf("%s no escrito: %v", p, err)
 		}
+	}
+}
+
+// TestCoverageBadgeAndHistory (F3): --badge escribe el SVG auto-contenido y
+// cada corrida deja un punto en la historia; --history no explota vacío ni lleno.
+func TestCoverageBadgeAndHistory(t *testing.T) {
+	proj := t.TempDir()
+	mustWrite(t, filepath.Join(proj, "specforge", "features", "f", "trace.json"),
+		`{"feature":"f","requirements":{"R1":{"code":["src/a.py:fn"],"test":["t"],"status":"ok"}}}`)
+	mustWrite(t, filepath.Join(proj, "src", "a.py"), "def fn():\n    pass\n")
+
+	// Historia vacía → mensaje amable, exit 0.
+	if code := runCoverage([]string{"--history", proj}); code != 0 {
+		t.Errorf("--history sin datos → exit 0, got %d", code)
+	}
+
+	if code := runCoverage([]string{"--badge", proj}); code != 0 {
+		t.Fatalf("--badge exit=%d", code)
+	}
+	svg, err := os.ReadFile(filepath.Join(proj, "specforge", "coverage-badge.svg"))
+	if err != nil {
+		t.Fatal("el badge debería escribirse")
+	}
+	if !strings.Contains(string(svg), "spec coverage") || !strings.Contains(string(svg), "100.0%") {
+		t.Errorf("badge inesperado: %s", svg)
+	}
+
+	// La corrida dejó un punto en la historia.
+	if _, err := os.Stat(coverageHistoryPath(proj)); err != nil {
+		t.Error("cada corrida debe registrar un punto en coverage-history.jsonl")
+	}
+	if code := runCoverage([]string{"--history", proj}); code != 0 {
+		t.Errorf("--history con datos → exit 0, got %d", code)
 	}
 }
 
