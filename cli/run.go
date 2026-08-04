@@ -98,9 +98,19 @@ func runRun(args []string) int {
 		return 4
 	}
 
+	// retriedForContext recuerda qué waves ya consumieron su único reintento por
+	// NEEDS_CONTEXT. Vive fuera del loop porque el loop re-deriva la wave del
+	// disco en cada vuelta: sin esto, un agente que siempre pide contexto
+	// loopearía hasta agotar el bound en vez de escalar.
+	retriedForContext := map[int]bool{}
+
 	// El loop. Releemos el estado en cada vuelta: cada checkpoint sellado mueve
 	// la frontera, y derivePhase la recomputa del disco (no de esta memoria).
-	for iter := 0; iter <= total; iter++ {
+	//
+	// El bound contempla los reintentos: cada wave puede consumir hasta DOS
+	// vueltas (intento + reintento por NEEDS_CONTEXT), más una final para
+	// detectar que ya no quedan waves.
+	for iter := 0; iter <= 2*total+1; iter++ {
 		ff, err := readFeaturesFile(projectDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "sf run: %v\n", err)
@@ -128,7 +138,37 @@ func runRun(args []string) int {
 		}
 
 		fmt.Printf("── wave %d/%d ── agent: %s\n", wave+1, total, agentCmd)
-		if exit := runAgent(projectDir, agentCmd, seed); exit != 0 {
+		exit := runAgent(projectDir, agentCmd, seed)
+		switch classifyAgentExit(exit) {
+		case outcomeDone:
+			// Camino normal: al checkpoint.
+
+		case outcomeConcerns:
+			// La wave SE HIZO; el agente avisa que algo no cierra. El checkpoint
+			// corre igual — si pasa, se sella y se sigue. Frenar acá castigaría
+			// al agente por ser honesto, y la preocupación ya quedó escrita.
+			fmt.Printf("  agent reported CONCERNS — running the checkpoint anyway; "+
+				"the detail is in progress/wave-%d.md\n", wave)
+
+		case outcomeNeedsContext:
+			// No es un fallo: el agente dice que le falta material. Se relanza la
+			// wave UNA vez. Dos veces seguidas significa que falta algo que el
+			// seed no puede dar, y ahí decide un humano.
+			if retriedForContext[wave] {
+				fmt.Fprintf(os.Stderr, "\nsf run: agent still reports NEEDS_CONTEXT on wave %d after a retry — STOP.\n"+
+					"Two in a row means the seed can't supply it. See progress/wave-%d.md for what it asked for.\n", wave, wave)
+				return 6
+			}
+			retriedForContext[wave] = true
+			fmt.Printf("  agent reported NEEDS_CONTEXT — relaunching wave %d once\n", wave)
+			continue
+
+		case outcomeBlocked:
+			fmt.Fprintf(os.Stderr, "\nsf run: agent reports BLOCKED on wave %d — STOP.\n"+
+				"It needs a decision that isn't its to make. See progress/wave-%d.md.\n", wave, wave)
+			return 6
+
+		case outcomeCrash:
 			fmt.Fprintf(os.Stderr, "sf run: agent exited %d on wave %d — STOP. Fix/resume manually or re-run.\n", exit, wave)
 			return 1
 		}
@@ -178,9 +218,23 @@ Work ONLY on the tasks listed in the seed below. Rules:
 - When the wave's tasks are done and their tests pass, finish. The orchestrator
   verifies the contract and runs the suite — narration is not evidence.
 
+Report how the wave ended with your EXIT CODE. The orchestrator routes on it,
+so prose about being blocked changes nothing — the code is what it reads:
+-   0  DONE               — tasks complete, tests pass.
+-  10  DONE_WITH_CONCERNS — you finished, but something doesn't add up. The
+                            checkpoint still runs; say what worries you in
+                            progress/wave-%d.md.
+-  11  NEEDS_CONTEXT      — you can't proceed without material the seed didn't
+                            give you. Write exactly what you need in
+                            progress/wave-%d.md; the wave is relaunched once.
+-  12  BLOCKED            — this needs a decision that isn't yours to make (it
+                            invalidates the design, or it's a product call).
+                            Explain it in progress/wave-%d.md and stop.
+Any other non-zero code is read as a crash, not as a status.
+
 ── WAVE SEED (deterministic, from sf context for-wave) ──
 %s
-`, wave, feature, feature, slice)
+`, wave, feature, feature, wave, wave, wave, slice)
 	return b.String(), true
 }
 
@@ -199,4 +253,62 @@ func runAgent(projectDir, agentCmd, seed string) int {
 		return 127
 	}
 	return 0
+}
+
+// ----------------------------------------------------------------------------
+// DL-12 — protocolo de estado del subagente.
+//
+// Antes el orquestador leía UN BIT: cero o no cero. "Terminé pero algo huele
+// mal" y "me falta contexto" no eran expresables, así que colapsaban a "no
+// cero" y `sf run` frenaba igual que ante un crash.
+//
+// El enum viaja por EXIT CODE, no por un archivo de estado. La razón es de
+// seguridad: `decidePreToolUse` protege por NOMBRE DE ARCHIVO BASE, así que un
+// `progress/wave-N.status.json` no caería en ninguna categoría protegida y
+// sería escribible a mano con Write. Sería estado autoritativo sin proteger
+// ruteando una decisión del CLI — exactamente el agujero de FIXBUGHIGH. El
+// exit code lo produce el proceso al terminar y `sf run` ya lo leía.
+//
+// El DETALLE no viaja acá: el exit code lleva la decisión, y el porqué lo
+// escribe el subagente en progress/wave-N.md, que ya escribe. Canal angosto
+// para la decisión, artefacto para la evidencia.
+//
+// Esto es tier COOPERATIVO: un agente puede salir 0 sin haber hecho nada, igual
+// que antes. Lo que cambia no es la garantía sino la resolución. La garantía la
+// sigue dando el checkpoint (contrato + suite verde), que corre después y NO
+// le cree al exit code.
+// ----------------------------------------------------------------------------
+
+type waveOutcome int
+
+const (
+	outcomeDone         waveOutcome = iota // 0
+	outcomeConcerns                        // 10 — hecho, pero algo no cierra
+	outcomeNeedsContext                    // 11 — no es fallo: falta material
+	outcomeBlocked                         // 12 — hace falta una decisión ajena
+	outcomeCrash                           // cualquier otro no-cero
+)
+
+// Rango reservado ALTO a propósito: un `claude -p` que falla por su cuenta sale
+// 1 o 2, y eso tiene que seguir siendo un crash. Sin la reserva, un error del
+// harness sería indistinguible de un estado del protocolo.
+const (
+	exitWaveConcerns     = 10
+	exitWaveNeedsContext = 11
+	exitWaveBlocked      = 12
+)
+
+func classifyAgentExit(exit int) waveOutcome {
+	switch exit {
+	case 0:
+		return outcomeDone
+	case exitWaveConcerns:
+		return outcomeConcerns
+	case exitWaveNeedsContext:
+		return outcomeNeedsContext
+	case exitWaveBlocked:
+		return outcomeBlocked
+	default:
+		return outcomeCrash
+	}
 }
