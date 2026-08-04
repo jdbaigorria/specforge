@@ -3,8 +3,8 @@ name: sf-build
 description: >
   Plan and execute feature implementation from approved specs. Use when the user says
   "sf-build", "build feature", "implement", "start building", "execute tasks", or
-  references an approved feature they want to implement. Reads the approved tasks.md,
-  organizes execution by waves, and implements with a human gate after each wave.
+  references an approved feature they want to implement. Requires approved tasks; execution
+  is gated, not free-running.
 ---
 
 # sf-build

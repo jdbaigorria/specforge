@@ -1,8 +1,7 @@
 ---
 name: sf-init
 description: >
-  Initialize a SpecForge project. Scaffolds directory structure, detects greenfield vs brownfield,
-  and generates foundational artefacts (constitution, project context, conventions). Use when the
+  Initialize a SpecForge project. Works on both greenfield and brownfield codebases. Use when the
   user says "sf-init", "init specforge", "start a new project with specforge", "initialize SDD",
   or begins describing a new software project from scratch. Also triggers on brownfield signals
   like "add specforge to this project", "I have existing code and want to add specs", or

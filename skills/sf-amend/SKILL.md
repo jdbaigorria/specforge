@@ -2,8 +2,8 @@
 name: sf-amend
 description: >
   Modify a feature that was already shipped and archived, without creating a parallel spec.
-  Loads the archived feature and runs a delta mini-pipeline (propose-delta → gate → build →
-  check) that edits the EXISTING requirements, design, tasks, and trace.json in place. Use when
+  The archived spec is edited in place, so the traceability link to code stays alive instead
+  of a second, diverging truth being spawned. Use when
   the user wants to change, extend, or fix an already-completed feature — "amend <feature>",
   "change the shipped <feature>", "the archived spec for X is out of date", "update feature X",
   "/sf-amend <feature>". Distinct from sf-propose: amend changes an existing capability; propose
