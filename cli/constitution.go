@@ -31,6 +31,25 @@ type constitutionFile struct {
 	Audit         *auditConfig `json:"audit,omitempty"` // config del auditor de fase (paso 6)
 	Build         *buildConfig `json:"build,omitempty"` // config de ejecución del build
 	Flow          *flowConfig  `json:"flow,omitempty"`  // serial (default) | parallel (F2)
+	// Coverage declara qué código NO corresponde especificar (DL-4, cat. 4).
+	Coverage *coverageConfig `json:"coverage,omitempty"`
+}
+
+// coverageConfig: la mitad "excluir" del flujo de disposición de la categoría 4
+// (fuera de spec). Cada archivo de código no anclado tiene dos salidas —
+// adoptarlo (escribirle el requisito que le falta) o excluirlo. Excluirlo vive
+// ACÁ, en un artefacto sellado por gate, y no en la cabeza de quien decidió:
+// una exclusión sin registro es indistinguible de un olvido.
+type coverageConfig struct {
+	Exclude []coverageExclusion `json:"exclude,omitempty"`
+}
+
+// coverageExclusion saca un archivo (o un directorio, con "/" al final) del
+// denominador de `sf coverage`. El motivo es OBLIGATORIO: excluir sube el
+// porcentaje, así que sin motivo la métrica se puede maquillar sin dejar rastro.
+type coverageExclusion struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
 }
 
 // flowConfig (F2): el flujo serial (una feature activa a la vez, F22) es el
@@ -275,6 +294,27 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	// Flujo (F2): serial | parallel.
 	if cf.Flow != nil && cf.Flow.Mode != "" && !flowModes[cf.Flow.Mode] {
 		rep.errorf("flow.mode must be serial|parallel, got %q", cf.Flow.Mode)
+	}
+	// Exclusiones de cobertura: cada una con ruta y MOTIVO. El motivo no es
+	// ceremonia — excluir sube el porcentaje, y una exclusión sin razón escrita
+	// es exactamente cómo se maquilla la métrica sin que quede rastro.
+	if cf.Coverage != nil {
+		seenPath := map[string]bool{}
+		for i, e := range cf.Coverage.Exclude {
+			label := fmt.Sprintf("coverage.exclude #%d", i+1)
+			path := strings.TrimSpace(e.Path)
+			switch {
+			case path == "":
+				rep.errorf("%s: path is required", label)
+			case seenPath[path]:
+				rep.errorf("%s: duplicate path %q", label, path)
+			default:
+				seenPath[path] = true
+			}
+			if strings.TrimSpace(e.Reason) == "" {
+				rep.errorf("%s (%s): reason is required — an exclusion without a reason is indistinguishable from an oversight", label, orDash(path))
+			}
+		}
 	}
 	// Reporte por-test (A2): formato conocido, y junit exige el placeholder en
 	// test_cmd (sin él, `sf check run` no tendría dónde leer el reporte).

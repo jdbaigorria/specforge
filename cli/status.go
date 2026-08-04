@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,11 +66,14 @@ func runStatus(args []string) int {
 	// --feature la acota a una feature.
 	projectDir := "."
 	artifacts := false
+	asJSON := false
 	featureFilter := ""
 	for _, a := range args {
 		switch {
 		case a == "--artifacts":
 			artifacts = true
+		case a == "--json":
+			asJSON = true
 		case strings.HasPrefix(a, "--feature="):
 			featureFilter = strings.TrimPrefix(a, "--feature=")
 		case strings.HasPrefix(a, "-"):
@@ -79,15 +83,29 @@ func runStatus(args []string) int {
 			projectDir = a
 		}
 	}
+	// --json cubre la vista principal. La de artefactos ya tiene su propio
+	// consumidor máquina (`sf verify --json`), así que en vez de inventarle un
+	// segundo esquema, rechazamos la combinación: mejor un error claro que un
+	// JSON que nadie definió.
+	if artifacts && asJSON {
+		fmt.Fprintln(os.Stderr, "sf status: --json does not cover --artifacts — use `sf verify --json` for artifact state")
+		return 2
+	}
 
 	specforge := filepath.Join(projectDir, "specforge")
 	ff, err := readFeaturesFile(projectDir)
 	if err != nil {
 		// Igual que el Python: ausencia no es error, solo no hay nada que mostrar.
+		if asJSON {
+			return printStatusJSON(statusReport{Features: []statusFeature{}, Statuses: map[string]int{}})
+		}
 		fmt.Printf("No feature state under %s/specforge.\n", projectDir)
 		return 0
 	}
 	if len(ff.Features) == 0 {
+		if asJSON {
+			return printStatusJSON(statusReport{Features: []statusFeature{}, Statuses: map[string]int{}})
+		}
 		fmt.Println("No features registered yet.")
 		return 0
 	}
@@ -125,6 +143,13 @@ func runStatus(args []string) int {
 			gaps:    gapsState(specforge, n),
 			blocked: joinOrDash(blockers(f, feats)),
 		})
+	}
+
+	// --json corta acá: mismo dato que la tabla, en un objeto. El histograma por
+	// status es lo que `sf-audit` consume para sus filas de features (DL-9) —
+	// contarlas leyendo la tabla es justo lo que el ítem viene a eliminar.
+	if asJSON {
+		return printStatusJSON(buildStatusReport(rows, feats, order, cycle, ff))
 	}
 
 	printStatusTable(rows)
@@ -172,6 +197,82 @@ func runStatus(args []string) int {
 
 type statusRow struct {
 	feature, lane, status, phase, drift, gaps, blocked string
+}
+
+// ----------------------------------------------------------------------------
+// `sf status --json` — la misma vista, machine-readable.
+//
+// Por qué existe: el Paso 6 de `sf-audit` pedía "features completed / active"
+// como un {N} que estimaba un LLM leyendo la tabla. El dato ya está en
+// features.json; lo que faltaba era una salida que no hubiera que parsear con
+// ojos. `statuses` es el histograma que responde esa fila de una.
+// ----------------------------------------------------------------------------
+
+type statusFeature struct {
+	Feature string   `json:"feature"`
+	Lane    string   `json:"lane"`
+	Status  string   `json:"status"`
+	Phase   string   `json:"phase"`
+	Drift   string   `json:"drift"` // "ok" | "DRIFT" | "—" (sin trace.json)
+	Gaps    string   `json:"gaps"`
+	Blocked []string `json:"blocked"`
+}
+
+type statusReport struct {
+	Features []statusFeature `json:"features"`
+	// Statuses: histograma {"done":2,"building":1}. Los status que valen 0 no
+	// aparecen — el consumidor pregunta por el que le importa y toma el cero.
+	Statuses       map[string]int `json:"statuses"`
+	CriticalPath   []string       `json:"critical_path"`
+	Cycle          []string       `json:"cycle,omitempty"`
+	LedgerProblems []string       `json:"ledger_problems,omitempty"`
+}
+
+// buildStatusReport traduce las filas ya calculadas al objeto JSON. No recalcula
+// nada: la tabla humana y el JSON salen de la MISMA fuente, así que no pueden
+// discrepar (dos cálculos paralelos es cómo se llega a que la tabla diga una
+// cosa y el JSON otra).
+func buildStatusReport(rows []statusRow, feats map[string]*feature, order, cycle []string, ff featuresFile) statusReport {
+	rep := statusReport{
+		Features:     make([]statusFeature, 0, len(rows)),
+		Statuses:     map[string]int{},
+		CriticalPath: order,
+		Cycle:        uniqSorted(cycle),
+	}
+	for _, r := range rows {
+		var blocked []string
+		if f, ok := feats[r.feature]; ok {
+			blocked = blockers(f, feats)
+		}
+		if blocked == nil {
+			blocked = []string{}
+		}
+		rep.Features = append(rep.Features, statusFeature{
+			Feature: r.feature,
+			Lane:    r.lane,
+			Status:  r.status,
+			Phase:   r.phase,
+			Drift:   r.drift,
+			Gaps:    r.gaps,
+			Blocked: blocked,
+		})
+		rep.Statuses[r.status]++
+	}
+	rep.LedgerProblems = ledgerProblemsAll(ff)
+	return rep
+}
+
+func printStatusJSON(rep statusReport) int {
+	if rep.CriticalPath == nil {
+		rep.CriticalPath = []string{}
+	}
+	out, err := json.MarshalIndent(rep, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf status: marshal failed (%v)\n", err)
+		return 1
+	}
+	fmt.Println(string(out))
+	return 0
 }
 
 var statusCols = []string{"feature", "lane", "status", "phase", "drift", "gaps", "blocked"}

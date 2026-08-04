@@ -190,7 +190,10 @@ record-verdict`. Opt-in and governed by config:
       "applies_to": ["design", "build"] }
   ],
   "audit": { "phase": "off" | "nudge" | "block" },   // default off
-  "build": { "mode": "inline" | "single" | "per-wave" } // default inline
+  "build": { "mode": "inline" | "single" | "per-wave" }, // default inline
+  "coverage": {                                       // default: measure everything
+    "exclude": [{ "path": "scripts/", "reason": "release tooling, not product" }]
+  }
 }
 ```
 
@@ -200,6 +203,12 @@ record-verdict`. Opt-in and governed by config:
   (the whole build in one fresh sub-agent), `per-wave` (one fresh sub-agent per
   wave, for large features — each wave starts clean, with an automated checkpoint
   between waves).
+- **`coverage.exclude`** — code that shouldn't be specified at all (generated,
+  tooling, scripts) comes out of `sf coverage`'s denominator. A `path` is an
+  exact file or a directory prefix ending in `/` — no globs, because a stray `*`
+  silently excludes half a repo. `reason` is required: excluding *raises* the
+  percentage, so an unexplained exclusion is how the metric gets dressed up
+  without anyone noticing.
 
 Quality principles like **`P-min`** (minimal code) are just constitution
 principles with `applies_to` — the phase auditor checks them for free, no special

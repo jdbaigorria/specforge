@@ -108,16 +108,16 @@ usage: sf <command> [flags]
 
 commands:
   lint    check the skill suite for consistency
-  status  project health view, or artifact staleness with --artifacts [--feature=NAME]
+  status  project health view [--json], or artifact staleness with --artifacts [--feature=NAME]
   gate    gate ledger + approvals + verdicts + evidence (gate approve|status|record-verdict|show --feature=NAME)
   check   run the project test suite via build.test_cmd and record a deterministic result (check run --feature=NAME)
   feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME)
-  doctor  detect drift between archived specs and code (--drift), or check install health (--install [--global])
+  doctor  classify spec-to-code drift in 4 categories (--drift [--json] [--run-tests]), or check install health (--install [--global])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME] [--contract [--wave=N]])
   graph   export or query the knowledge graph from declared structure (graph export|query <term> [--json])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
-  metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME])
+  metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME] [--json])
   state   emit the current feature/phase/wave as JSON (state current) — the brain hooks consult
   next    the agent compass: next valid action + write/read contract (next [--json] [--explain])
   recover diagnose stale/inconsistent artifacts + emit an ordered recovery plan (recover [--feature=NAME] [--json])
@@ -137,7 +137,7 @@ commands:
   events  enforcement telemetry — denies, nudges, judge verdicts (events [--json] [--tail=N])
   onboard deterministic brownfield inventory — tree, symbols, test map (onboard scan [--json])
   init    minimal scaffold — 3-principle constitution + detected test_cmd (init --minimal)
-  delta   first-class change objects for amends (delta new|list|set-status --feature=NAME)
+  delta   first-class change objects for amends (delta new|list|set-status --feature=NAME [--kind=spec-wrong|code-wrong])
   run     CLI-driven wave execution — fresh agent per wave, machine-verified checkpoints (run --feature=NAME [--dry-run])
   coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json])
   help    show this message

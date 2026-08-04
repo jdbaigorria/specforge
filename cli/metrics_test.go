@@ -15,9 +15,9 @@ func TestEstimateTokens(t *testing.T) {
 		{"", 0},
 		{"hello", 1},
 		{"hello world", 2},
-		{`{"a":1}`, 7},     // { " a " : 1 } → 7 puntuaciones+corridas (a, 1)
-		{"R1, R2", 3},      // R1 | , | R2 → 3 (el espacio no cuenta)
-		{"café crème", 2},  // acentos: cada corrida de letras Unicode = 1 token
+		{`{"a":1}`, 7},    // { " a " : 1 } → 7 puntuaciones+corridas (a, 1)
+		{"R1, R2", 3},     // R1 | , | R2 → 3 (el espacio no cuenta)
+		{"café crème", 2}, // acentos: cada corrida de letras Unicode = 1 token
 	}
 	for _, c := range cases {
 		if got := estimateTokens(c.in); got != c.want {
@@ -56,7 +56,7 @@ func TestCollectContextMetrics(t *testing.T) {
 		}
 		labels := map[string]sliceMetric{}
 		for _, r := range rows {
-			labels[r.label] = r
+			labels[r.Label] = r
 		}
 		for _, want := range []string{"breadcrumb", "context current", "for-wave --n=0"} {
 			m, ok := labels[want]
@@ -64,8 +64,8 @@ func TestCollectContextMetrics(t *testing.T) {
 				t.Errorf("missing row %q (got %v)", want, labels)
 				continue
 			}
-			if m.tokens <= 0 || m.chars <= 0 {
-				t.Errorf("row %q has non-positive size: tokens=%d chars=%d", want, m.tokens, m.chars)
+			if m.Tokens <= 0 || m.Chars <= 0 {
+				t.Errorf("row %q has non-positive size: tokens=%d chars=%d", want, m.Tokens, m.Chars)
 			}
 		}
 	})
