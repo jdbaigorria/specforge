@@ -137,7 +137,7 @@ commands:
   events  enforcement telemetry — denies, nudges, judge verdicts (events [--json] [--tail=N])
   onboard deterministic brownfield inventory — tree, symbols, test map (onboard scan [--json])
   init    minimal scaffold — 3-principle constitution + detected test_cmd (init --minimal)
-  delta   first-class change objects for amends (delta new|list|set-status --feature=NAME)
+  delta   first-class change objects for amends (delta new|list|set-status --feature=NAME [--kind=spec-wrong|code-wrong])
   run     CLI-driven wave execution — fresh agent per wave, machine-verified checkpoints (run --feature=NAME [--dry-run])
   coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json])
   help    show this message

@@ -32,14 +32,58 @@ import (
 // ----------------------------------------------------------------------------
 
 type deltaFile struct {
-	SchemaVersion string        `json:"schema_version"`
-	ID            string        `json:"id"` // D1, D2, … (por feature)
-	Feature       string        `json:"feature"`
-	Status        string        `json:"status"` // proposed | applied | archived
-	Why           string        `json:"why"`
-	Changes       []deltaChange `json:"changes"`
-	CreatedAt     string        `json:"created_at"`
-	AppliedAt     string        `json:"applied_at,omitempty"`
+	SchemaVersion string `json:"schema_version"`
+	ID            string `json:"id"` // D1, D2, … (por feature)
+	Feature       string `json:"feature"`
+	Status        string `json:"status"` // proposed | applied | archived
+	// Kind es la RUTA que se eligió ante una divergencia spec↔código (DL-4).
+	// `omitempty` + default implícito: los deltas escritos antes de este campo
+	// se leen como spec-wrong, que es lo que asumían. Migración cero.
+	Kind      string        `json:"kind,omitempty"` // spec-wrong (default) | code-wrong
+	Why       string        `json:"why"`
+	Changes   []deltaChange `json:"changes"`
+	CreatedAt string        `json:"created_at"`
+	AppliedAt string        `json:"applied_at,omitempty"`
+	// Expected/Observed son la evidencia de un code-wrong: qué pedía el requisito
+	// y qué hace el código. En un spec-wrong no aplican.
+	Expected string `json:"expected,omitempty"`
+	Observed string `json:"observed,omitempty"`
+}
+
+// ----------------------------------------------------------------------------
+// LA REGLA DE LAS DOS RUTAS (DL-4).
+//
+// El amend asumía SIEMPRE que el spec estaba mal: entrás a enmendar, editás el
+// spec. La ruta contraria — "el spec tenía razón, esto es un bug" — no estaba
+// modelada en ningún lado. Esa asimetría erosiona el spec como fuente de verdad:
+// si toda divergencia se resuelve actualizando el spec a lo que el código hace,
+// el spec deja de ser un contrato y pasa a ser un registro de lo que pasó.
+//
+// Las dos rutas se presentan siempre, sin default sugerido:
+//
+//	spec-wrong → el spec quedó desactualizado  → se edita el spec
+//	code-wrong → el spec tenía razón           → NO se toca el spec; se registra
+//	                                             el defecto contra el requisito
+//
+// Un code-wrong abierto BLOQUEA la edición de artefactos de spec de esa feature
+// (ver deltaBlockingSpecEdits). Sin ese bloqueo, "elegir code-wrong" sería una
+// anotación decorativa y la ruta (a) volvería por la puerta de atrás.
+// ----------------------------------------------------------------------------
+
+const (
+	deltaKindSpecWrong = "spec-wrong"
+	deltaKindCodeWrong = "code-wrong"
+)
+
+var deltaKinds = map[string]bool{deltaKindSpecWrong: true, deltaKindCodeWrong: true}
+
+// deltaKindOf normaliza el campo: vacío ⇒ spec-wrong (los deltas legados no lo
+// traen y ese era su comportamiento implícito).
+func deltaKindOf(d deltaFile) string {
+	if d.Kind == "" {
+		return deltaKindSpecWrong
+	}
+	return d.Kind
 }
 
 type deltaChange struct {
@@ -78,7 +122,7 @@ func runDelta(args []string) int {
 }
 
 func deltaUsage() {
-	fmt.Fprintln(os.Stderr, "usage: sf delta new --feature=NAME [--json -|FILE | --from=DRAFT] [project_dir]")
+	fmt.Fprintln(os.Stderr, "usage: sf delta new --feature=NAME [--kind=spec-wrong|code-wrong] [--json -|FILE | --from=DRAFT] [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf delta list --feature=NAME [--json] [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf delta set-status --feature=NAME --id=ID --to=applied|archived [project_dir]")
 }
@@ -91,7 +135,7 @@ func deltaDir(projectDir, feature string) string {
 // ── new ──────────────────────────────────────────────────────────────────────
 
 func runDeltaNew(args []string) int {
-	projectDir, feature, jsonSrc, fromDraft := ".", "", "-", ""
+	projectDir, feature, jsonSrc, fromDraft, kind := ".", "", "-", "", ""
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
@@ -101,6 +145,8 @@ func runDeltaNew(args []string) int {
 			jsonSrc = strings.TrimPrefix(a, "--json=")
 		case strings.HasPrefix(a, "--from="):
 			fromDraft = strings.TrimPrefix(a, "--from=")
+		case strings.HasPrefix(a, "--kind="):
+			kind = strings.TrimPrefix(a, "--kind=")
 		case a == "--json":
 			if i+1 < len(args) {
 				jsonSrc = args[i+1]
@@ -133,7 +179,7 @@ func runDeltaNew(args []string) int {
 	}
 
 	// El CLI fija lo que es suyo: feature, id secuencial, estado inicial,
-	// timestamp, versión. El productor solo declara why + changes.
+	// timestamp, versión. El productor solo declara why + changes (+ kind).
 	d.SchemaVersion = schemaVersionCurrent
 	d.Feature = feature
 	d.Status = "proposed"
@@ -141,6 +187,11 @@ func runDeltaNew(args []string) int {
 	if d.ID == "" {
 		d.ID = fmt.Sprintf("D%d", len(listDeltas(projectDir, feature))+1)
 	}
+	// El flag gana sobre el JSON: es lo que el humano tecleó recién.
+	if kind != "" {
+		d.Kind = kind
+	}
+	d.Kind = deltaKindOf(d)
 
 	var rep report
 	checkDelta(d, &rep)
@@ -177,6 +228,20 @@ func checkDelta(d deltaFile, rep *report) {
 	if strings.TrimSpace(d.Why) == "" {
 		rep.errorf("why is required — a delta without a reason is not auditable")
 	}
+	if !deltaKinds[deltaKindOf(d)] {
+		rep.errorf("kind must be %s|%s, got %q", deltaKindSpecWrong, deltaKindCodeWrong, d.Kind)
+	}
+	// Un code-wrong afirma "el spec tenía razón y el código no". Esa afirmación
+	// sin evidencia es una opinión: exigimos qué se esperaba y qué se observó,
+	// que es lo mismo que se le pide a cualquier reporte de defecto.
+	if deltaKindOf(d) == deltaKindCodeWrong {
+		if strings.TrimSpace(d.Expected) == "" {
+			rep.errorf("kind=code-wrong: expected is required — what the requirement asked for")
+		}
+		if strings.TrimSpace(d.Observed) == "" {
+			rep.errorf("kind=code-wrong: observed is required — what the code actually does")
+		}
+	}
 	if len(d.Changes) == 0 {
 		rep.errorf("at least one change is required")
 	}
@@ -211,6 +276,25 @@ func writeDelta(path string, d deltaFile) int {
 		return 1
 	}
 	return 0
+}
+
+// deltaBlockingSpecEdits devuelve el primer delta `code-wrong` NO archivado de
+// la feature, si hay alguno.
+//
+// Es el diente de la ruta (b). Elegir "el spec tenía razón" y poder editar el
+// spec igual convierte la elección en decoración: al primer roce, el agente
+// actualiza los requisitos a lo que el código hace y la divergencia desaparece
+// sin que nadie haya decidido nada. Mientras el defecto esté abierto, el spec de
+// esa feature es de sólo lectura.
+//
+// Cerrarlo es explícito y barato: `sf delta set-status --to=archived`.
+func deltaBlockingSpecEdits(projectDir, feature string) (deltaFile, bool) {
+	for _, d := range listDeltas(projectDir, feature) {
+		if deltaKindOf(d) == deltaKindCodeWrong && d.Status != "archived" {
+			return d, true
+		}
+	}
+	return deltaFile{}, false
 }
 
 // listDeltas lee todos los deltas de una feature, ordenados por id.

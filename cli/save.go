@@ -119,6 +119,13 @@ func runSave(args []string) int {
 		jsonSrc = draftPath(projectDir, feature, fromDraft)
 	}
 
+	// La ruta (b) de DL-4, con dientes: si hay un defecto de código abierto
+	// contra esta feature, alguien ya decidió que el SPEC TENÍA RAZÓN. Editarlo
+	// ahora sería deshacer esa decisión sin declararlo.
+	if deltaSpecEditGuard(projectDir, feature, name) {
+		return 5
+	}
+
 	raw, err := readJSONInput(jsonSrc)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sf save: cannot read input (%v)\n", err)
@@ -219,6 +226,31 @@ func runSave(args []string) int {
 		}
 	}
 	return code
+}
+
+// specArtifacts: los artefactos que SON el contrato de la feature. Un delta
+// code-wrong los congela. `trace` queda afuera a propósito — arreglar el defecto
+// implica re-anclar código y tests, y bloquear eso dejaría la ruta (b) sin
+// salida. `review` y `plan` tampoco son el contrato.
+var specArtifacts = map[string]bool{"requirements": true, "design": true, "tasks": true}
+
+// deltaSpecEditGuard imprime el rechazo y devuelve true si hay que abortar.
+func deltaSpecEditGuard(projectDir, feature, artifact string) bool {
+	if feature == "" || !specArtifacts[artifact] {
+		return false
+	}
+	d, blocked := deltaBlockingSpecEdits(projectDir, feature)
+	if !blocked {
+		return false
+	}
+	fmt.Fprintf(os.Stderr, "sf save: refusing to edit %s — delta %s (%s) is open on %s\n",
+		artifact, d.ID, deltaKindCodeWrong, feature)
+	fmt.Fprintf(os.Stderr, "  %s declares the spec was RIGHT and the code is wrong:\n", d.ID)
+	fmt.Fprintf(os.Stderr, "    expected: %s\n", d.Expected)
+	fmt.Fprintf(os.Stderr, "    observed: %s\n", d.Observed)
+	fmt.Fprintln(os.Stderr, "  Fix the code, or — if you changed your mind about which side was right —")
+	fmt.Fprintf(os.Stderr, "  close it explicitly: sf delta set-status --feature=%s --id=%s --to=archived\n", feature, d.ID)
+	return true
 }
 
 // draftPath resuelve el nombre de un borrador contra su dir de drafts (el ÚNICO
