@@ -70,9 +70,45 @@ Engage the user in conversation:
 Keep the conversation focused. 3-5 exchanges should be enough for most features.
 Don't interrogate — if the user gives a clear description, proceed.
 
-### Step 2: Generate requirements.md
+#### Batch mode — when the gaps are already known
 
-Create `specforge/features/<name>/requirements.md` using `templates/requirements.tmpl.md`.
+The conversation above is for *discovering* what the feature is. Once you can
+already name the open questions — after reading a PRD, or when `--from` seeded
+the feature — asking them one at a time is pure fatigue. Switch to a batch:
+
+1. **List the whole batch first** — number + topic, asking for no answers yet.
+   The user sees the scope before committing to anything.
+2. **Closed options, numbered, 2 to 4 per question.** This maps 1:1 to
+   `AskUserQuestion`.
+3. **Group only what is genuinely interdependent.** Bundling unrelated questions
+   forces a single answer onto separate decisions.
+4. **Open questions stay loose, in prose.** Don't force them into the selector —
+   a 4-option menu on a genuinely open question just hides the real answer.
+
+> **This is not `sfx-grill-me`, and the two rules do not conflict.** They do
+> different jobs:
+>
+> | | `sfx-grill-me` (adaptive) | Batch mode (here) |
+> |---|---|---|
+> | For | Probing assumptions — each answer changes the next question | Filling gaps **known in advance** |
+> | Why one-at-a-time / batched | Batching destroys the adaptation | Asking 20 known gaps one by one is fatigue |
+>
+> If the gaps are not yet known, you are still discovering: stay in the
+> conversation above, or use `sfx-grill-me`.
+
+### Step 2: Generate requirements
+
+Author the draft, then promote it — **never write the artifact directly**:
+
+```bash
+# 1) Write specforge/features/<name>/drafts/requirements.json with the Write tool
+sf save requirements --feature=<name> --from=drafts/requirements.json
+```
+
+`sf save` validates against the schema and only then writes both the
+authoritative `requirements.json` and the rendered `requirements.md`. Writing
+either by hand is denied by the hook — `drafts/` is the authoring corner, and
+`sf save` is the only sanctioned writer.
 
 Use EARS notation for system behaviors (`WHEN [trigger] THE SYSTEM SHALL
 [behavior]`). Read `references/ears-notation.md` if needed. Every requirement
@@ -84,9 +120,14 @@ section.
 - Changes requested → iterate on requirements, re-present
 - If user edits the file directly → acknowledge changes, proceed
 
-### Step 3: Generate design.md
+### Step 3: Generate design
 
-Create `specforge/features/<name>/design.md` using `templates/design.tmpl.md`.
+Same path as Step 2 — draft, then promote:
+
+```bash
+# 1) Write specforge/features/<name>/drafts/design.json with the Write tool
+sf save design --feature=<name> --from=drafts/design.json
+```
 
 If a technical decision requires investigation, read `references/research.md`.
 
@@ -102,9 +143,14 @@ Error Handling, Testing Strategy, Security, or Performance only when relevant.
 - Changes requested → iterate, re-present
 - If design changes invalidate requirements → flag and offer to update requirements
 
-### Step 4: Generate tasks.md
+### Step 4: Generate tasks
 
-Create `specforge/features/<name>/tasks.md` using `templates/tasks.tmpl.md`.
+Same path again:
+
+```bash
+# 1) Write specforge/features/<name>/drafts/tasks.json with the Write tool
+sf save tasks --feature=<name> --from=drafts/tasks.json
+```
 
 Tasks are a **flat** list. Each task declares its dependencies (`depends_on`) —
 **do NOT group tasks into waves here.** Wave grouping is an execution concern

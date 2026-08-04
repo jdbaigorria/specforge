@@ -116,9 +116,18 @@ Write to `specforge/context/grills/{slug}.md`:
 {sf-propose, sf-research, or "resolve open issues first"}
 ```
 
+## Not this skill: when the gaps are already known
+
+"Never batch" below is right *for this job* — probing assumptions, where each
+answer changes the next question. It is not a universal rule.
+
+If you can already name the open questions — after reading a PRD, or with a
+feature seeded from `--from` — this is the wrong mode: asking 20 known gaps one
+at a time is fatigue, not rigour. Use `sf-propose`'s batch mode instead.
+
 ## Rules
 
-- ONE question at a time. Never batch.
+- ONE question at a time. Never batch. (Probing assumptions only — see above.)
 - ALWAYS provide recommended answer with each question.
 - If answerable by reading code/artifacts, do that FIRST.
 - Adapt depth to responses. Quick "yes" → move faster. Long deliberation → dig deeper.
