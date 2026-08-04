@@ -246,7 +246,9 @@ func TestPickJournalNudge(t *testing.T) {
 	feats := []feature{
 		{Name: "old", Status: "done"},
 		{Name: "cur", Status: "building"},
-		{Name: "add-export", Status: "archived"}, // nombre con guion
+		// `retired` y no `"archived"`: ese era un status FANTASMA que nunca
+		// existió en validStatuses — este test era lo único que lo ejercitaba.
+		{Name: "add-export", Status: "retired"}, // nombre con guion
 	}
 	if got := pickJournalNudge(feats, map[string]bool{}, map[string]bool{}); got != "old" {
 		t.Errorf("primera archivada sin journal → old, got %q", got)

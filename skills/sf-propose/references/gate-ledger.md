@@ -25,6 +25,33 @@ stated by the user); it drives the critical-path ordering and blocker view in
 `/sf-status` (F37). `set-status`/`set-lane` move the lifecycle; both validate the
 transition and enforce the serial flow (one active feature at a time, F22).
 
+### Closing a feature that won't continue
+
+`done` is not the only ending. Two states say *why* a feature stopped, and they
+are not interchangeable — the difference is whether code ever ran in production:
+
+| State | What happened | Reachable from |
+|---|---|---|
+| `retired` | it shipped, then was removed | `done` only |
+| `abandoned` | it was specified and never shipped | any non-terminal state |
+
+```bash
+sf feature set-status --feature=<name> --to=retired   --reason="replaced by Y"
+sf feature set-status --feature=<name> --to=abandoned --reason="the client cancelled the module"
+```
+
+`--reason` is **required** — a terminal state without one is indistinguishable
+from an oversight, which is the exact thing these states exist to disambiguate.
+The date is stamped by the CLI (`retired_at` / `abandoned_at`), never by you.
+
+Once closed, `sf doctor` stops reporting the feature as drift (its code is gone
+*by decision*, and it says how many it skipped) and `sf coverage` drops its files
+from the denominator — otherwise the ratchet would punish cleanup and the
+rational move would be to never retire anything.
+
+**Don't reach for these to make a red check go green.** If a feature is still
+wanted, a failing drift report is the signal, not the noise.
+
 ## 2. Seal each approved gate with `sf gate approve`
 
 **Do not hand-write `approve` gate entries.** For each phase the user approved,
