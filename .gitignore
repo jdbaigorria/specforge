@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.claude
+
+# local planning / design / research / learning notes — used to BUILD
+# SpecForge, NOT part of the product. Never committed. See planning/README.md.
+planning/
+
+# local research / experiments — never commit
+eval/

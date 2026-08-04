@@ -34,12 +34,12 @@ Read all of these (don't skip any that exist):
 
 ```
 specforge/constitution.md          ← the law
-specforge/features.json            ← all features and statuses
+sf status (features/*/feature.json) ← all features and statuses
 specforge/features/*/               ← active features (requirements, design, tasks)
 specforge/archive/*/                ← completed features
 specforge/history.md               ← project log + recurring issues
-.ai/project.md                     ← stack and architecture
-.ai/conventions.md                 ← coding standards
+specforge/context/project.md                     ← stack and architecture
+specforge/context/conventions.md                 ← coding standards
 ```
 
 Scan the actual codebase for the audit checks below.
@@ -98,7 +98,7 @@ is archived, and the specs become stale without anyone noticing.
 
 ## Step 5: Convention Adherence
 
-Read `.ai/conventions.md` and scan the codebase:
+Read `specforge/context/conventions.md` and scan the codebase:
 
 - Naming conventions consistent?
 - Error handling patterns followed everywhere?

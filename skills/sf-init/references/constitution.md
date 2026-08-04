@@ -21,6 +21,17 @@ Guide with examples:
 - "Convention over configuration: sensible defaults"
 - "Speed over features: fast MVP, iterate later"
 
+**Recommended default — `P-min` (minimal code).** Unless the user opts out, seed
+this principle:
+> **P-min** — Minimal code: climb the ladder (stdlib → native → installed dep →
+> one line) before writing new code. Necessary code, not clever code.
+
+It's the code-parsimony counterpart of "no ceremony without purpose". When the
+constitution is structured (`constitution.json`), tag it
+`"applies_to": ["design", "build"]` so the phase auditor checks it (see
+`sf-check/references/minimal-code.md`). Credit: the **ponytail** project
+(https://github.com/DietrichGebert/ponytail, MIT).
+
 ### Constraints
 - **Technical:** language, framework, cloud provider, existing infrastructure
 - **Organizational:** team size, timeline, compliance requirements

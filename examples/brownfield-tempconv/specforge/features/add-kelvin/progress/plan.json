@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "feature": "add-kelvin",
+  "waves": [
+    {
+      "n": 0,
+      "tasks": [
+        "T1"
+      ]
+    },
+    {
+      "n": 1,
+      "tasks": [
+        "T2"
+      ]
+    }
+  ]
+}

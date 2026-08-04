@@ -22,11 +22,63 @@ List features ready to check:
 Ask: "Which feature do you want to validate?"
 
 ### `sf-check <name>`
-Normal flow: validate the named feature.
+Normal flow: validate the named feature (full, end-of-feature). Continue below.
+
+### `sf-check --phase=<phase> <name>`
+**Phase audit (shift-left).** A narrow, *fresh-context* quality check of ONE
+just-completed phase against the constitution rules mapped to it — not the full
+end-of-feature validation. Run at a phase gate (e.g. after design, before build).
+This is the **same engine, scoped to one phase and run in a fresh subagent**. See
+"Phase audit mode" below, then stop — do not run the full flow.
+
+## Phase audit mode (`--phase`)
+
+Opt-in, governed by `audit.phase` in `constitution.json`:
+`"audit": { "phase": "off" | "nudge" | "block" }` (default `off`).
+
+Read `audit.phase`. If `off` or absent → do nothing, return silently. Otherwise:
+
+1. **Fetch the judge material** (deterministic — `sf` does the slicing):
+   ```
+   sf context for-judge --phase=<phase> --feature=<name>
+   ```
+   Returns the phase artifact + ONLY the principles/invariants whose `applies_to`
+   includes `<phase>`. If it returns no rules, there's nothing to audit → return.
+   If a parsimony principle (`P-min` / minimal-code) is in scope, also hand the
+   subagent the rubric in `references/minimal-code.md`.
+
+2. **Spawn a FRESH subagent** (Task tool) to judge. Freshness is the whole point:
+   a clean context window escapes the degradation that hits a long main session.
+   Hand it ONLY the for-judge output and this narrow prompt:
+
+   > You are a strict spec auditor. Below is one artifact and the rules that apply
+   > to its phase. For EACH rule, decide `pass` or `fail` and cite the exact element
+   > of the artifact that justifies it — no citation means you cannot pass it. Judge
+   > nothing outside these rules. Output ONLY JSON:
+   > `{"phase":"<phase>","verdicts":[{"rule":"<id>","result":"pass|fail","citation":"..."}]}`
+   >
+   > <paste the `sf context for-judge` output here>
+
+3. **Persist the verdict** (deterministic — `sf` records, never judges):
+   ```
+   echo '<subagent JSON>' | sf gate record-verdict --feature=<name> --phase=<phase>
+   ```
+   Exit `0` = all pass · exit `3` = at least one `fail` (recorded in `audit.json`).
+
+4. **Act per `audit.phase`:**
+   - `nudge`: surface the failing rules + citations to the user as a heads-up.
+     **Do not block** — the human decides; the fail is already visible in `audit.json`.
+   - `block` (advanced): treat a `fail` as a stop — do not proceed past the gate
+     until the artifact is fixed and the audit re-run passes.
+   - On all-pass: a one-line confirmation is enough.
+
+The judge is **cooperative** (an LLM can err) → best-effort: it raises the floor on
+quality, it doesn't guarantee it. The structural gates (PreToolUse) stay the
+hermetic layer; this is the quality layer. Do **not** run the full check steps below.
 
 ## Pre-flight
 
-1. Read `specforge/features.json` — verify status is `checking`
+1. Run `sf status` — verify the feature's status is `checking`
 2. Read the feature's `requirements.md`
 3. Read the feature's `tasks.md`
 4. Read the feature's `design.md`
@@ -36,6 +88,12 @@ Normal flow: validate the named feature.
 
 If status is not `checking`:
 "Feature `<name>` is in status `<status>`. Complete `sf-build <name>` first."
+
+**Lite lane.** If the feature's `feature.json` has `"lane": "lite"` (see `sf status`), read `change.md` instead
+of requirements/design/tasks. The check is **minimal but still real**: build the
+trivial matrix (one requirement → one change → one test) and **still emit
+`trace.json`** so the change stays inside drift detection (F33). Lite means
+lighter ceremony, not lower integrity.
 
 ## Step 1: Traceability Analysis
 
@@ -64,6 +122,60 @@ Build the matrix:
 
 **If any requirement has status ❌ MISSING, the verdict CANNOT be APPROVE.**
 
+### Complete and audit the structured matrix (`trace.json`)
+
+`trace.json` is **not generated from scratch here** — `sf-build` already wrote it
+during the build as the verification contract (each requirement with its code +
+test anchors). sf-check's job is to **complete and audit** it: fill any gaps,
+correct anchors that drifted during the build, set the final `status` per
+requirement, and confirm it matches the markdown matrix above. The build declares;
+check seals.
+
+The markdown matrix above is the human-readable contract. Keep the same anchors in
+machine-readable form so drift can be checked later without re-analyzing the repo
+(F33). The file lives at `specforge/features/<name>/trace.json`:
+
+```json
+{
+  "schema_version": "1.0",
+  "feature": "<name>",
+  "requirements": {
+    "R1": { "code": ["src/foo.py:funcname"], "test": ["tests/test_foo.py::test_case"], "status": "ok" },
+    "R2": { "code": ["src/bar.py:Klass.method"], "test": [], "status": "no-test" }
+  }
+}
+```
+
+- `code` entries are `path:symbol` — the exact anchor, **not a line number**
+  (lines drift, symbols are stable).
+- `test` entries are runnable test ids.
+- `status`: `ok` | `no-test` | `missing`.
+
+**Persist it through the CLI — never write `trace.json` by hand.** It is
+SpecForge state: the hook denies a direct `Write`/`Edit`, and the verdict gate
+hashes it. Write the draft with your `Write` tool to the feature's `drafts/`
+dir (the one writable corner of `specforge/`), then promote it — `sf save`
+validates, writes the canonical file, and removes the draft:
+
+```bash
+# 1) Write specforge/features/<name>/drafts/trace.json with the Write tool
+# 2) Promote it:
+sf save trace --feature=<name> --from=drafts/trace.json
+```
+
+(For small payloads, piping still works: `echo '<json>' | sf save trace --feature=<name> --json -`.)
+
+Then confirm it holds up against the real repo — this is what the verdict gate
+checks, so do it now, not after:
+
+```bash
+sf trace verify --feature=<name>   # every requirement's code AND named test must resolve
+```
+
+This file travels with the feature into the archive and is what drift detection
+(`sf doctor --drift`) reads. Keep it consistent with the markdown matrix —
+they describe the same thing.
+
 ## Step 2: Gap Analysis
 
 Check for:
@@ -88,6 +200,11 @@ If `failures.md` exists, verify:
 For each principle in `constitution.md`:
 - Does the implementation respect this principle?
 - Are there violations?
+
+For a **parsimony** principle (`P-min` / minimal-code), apply the rubric in
+`references/minimal-code.md`: over-engineering (reinvented stdlib, premature
+abstraction, speculative generality, unjustified dependency) is a valid reason
+for **REVISE**. `P-min` never overrides correctness or security.
 
 ## Step 4: Verdict
 
@@ -137,25 +254,50 @@ The review must include a structured **Failure Analysis** section:
 This gives the user a clear map of what went wrong, why, and exactly what to do
 about it — not just "gaps found, go back to build."
 
+Before presenting, run `sf gate show --feature=<name>` and lead with that
+evidence view (trace coverage, test freshness, judge verdicts, commits since the
+last gate) — the human decides from evidence, not from re-reading the whole
+artifact. Gate fatigue is how governance degrades into theater.
+
 → 🔴 **GATE**: Present the review to the user.
-- User accepts APPROVE → proceed to archive
-- User accepts REVISE → follow the recommended path
-- User overrides verdict → respect the override, log it
+- User accepts APPROVE → seal the verdict gate, then proceed to archive:
+  ```bash
+  sf check run --feature=<name>        # run the suite; records a fresh, real exit code
+  sf gate approve --feature=<name> --phase=verdict
+  ```
+  `sf gate approve --phase=verdict` **refuses** unless `sf trace verify` is clean,
+  every requirement names a test that resolves, AND `sf check run` recorded a
+  fresh green result (the code hash at test time matches the current code). It
+  seals a content hash of `review.json` over the real file — you cannot hand-write
+  the entry (features.json is protected). If it refuses, the gaps are real: fix
+  them and re-run, don't try to bypass.
+- User accepts REVISE → follow the recommended path (no verdict gate sealed)
+- User overrides verdict → an override still goes through `sf gate approve
+  --phase=verdict --comment="override: <reason>"`. It will only seal once the
+  preconditions hold — there is no hand-written bypass.
+
+**Team mode (F35).** When the feature is on a `feature/<slug>` branch with a PR,
+this verdict gate **maps to the PR approval** — the reviewer approves code and
+spec together. Don't run a separate verdict gate *and* a PR review; the PR
+approval satisfies it, and `archive` corresponds to the merge. See
+`skills/sfx-github/references/specforge-integration.md`.
 
 ## Step 6: Archive (on APPROVE)
 
 Read `references/archive.md` for detailed procedure.
 
 **Quick summary:**
-1. Copy feature folder to `specforge/archive/<date>-<name>/`
-2. Update `features.json` status to `done`
-3. Append to `specforge/history.md`:
+1. `sf feature archive --feature=<name>` — this copies the feature folder to
+   `specforge/archive/<date>-<name>/` AND sets status `done` in one step. It
+   refuses unless the verdict gate is sealed, so do Step 5 first. (Never copy the
+   folder or set `done` by hand — features.json is protected.)
+2. Append to `specforge/history.md`:
    ```
    ## [date] — Feature completed: <name>
    - Verdict: [APPROVE / APPROVE WITH NOTES]
    - Requirements: [count] | Tasks: [count] | Coverage: [%]
    ```
-4. Update `specforge/roadmap.md` if it exists (mark feature as completed)
+3. Update `specforge/roadmap.md` if it exists (mark feature as completed)
 
 ## Step 7: Backprop (cross-feature learning)
 

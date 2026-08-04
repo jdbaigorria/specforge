@@ -5,10 +5,11 @@
 ### 1. Copy to Archive
 ```
 specforge/archive/<YYYY-MM-DD>-<feature-name>/
-├── requirements.md     # Final approved version
+├── requirements.md     # Living contract (NOT frozen — see below)
 ├── design.md           # Final approved version
 ├── tasks.md            # All tasks marked [x]
-├── review.md           # Verdict document
+├── review.md           # Verdict document (historical)
+├── trace.json          # Structured matrix — the live link to code (F33)
 └── progress/           # All wave logs
     ├── plan.md
     ├── wave-0.md
@@ -16,16 +17,35 @@ specforge/archive/<YYYY-MM-DD>-<feature-name>/
     └── ...
 ```
 
+**Archive seals with a live link, it does not freeze (F33).** Git already holds
+the historical snapshot (this archive commit). So the archived spec stays a
+*living document*: `review.md` is the historical verdict, but `requirements.md`
+remains the current contract and `trace.json` is its live link to the code. To
+change a shipped feature, use `sf-amend <name>` — never hand-edit the archive
+into a parallel truth. Drift detection (`sf doctor --drift`) reads
+`trace.json` to catch the spec and code diverging over time.
+
 ### 2. Update Feature Registry
 
-In `features.json`, set:
-```json
-{
-  "name": "<feature-name>",
-  "status": "done",
-  "completed": "<date>"
-}
+The verdict gate should already be sealed (`sf gate approve --feature=<name>
+--phase=verdict`, run at the APPROVE gate in `SKILL.md` Step 5). If it wasn't,
+seal it now — don't hand-write the entry; the CLI seals a content hash of
+`review.json` that the stale model relies on.
+
+Finish the feature through the CLI — it is the only writer of `features.json`:
+
+```bash
+sf feature archive --feature=<name>
 ```
+
+This copies the feature folder to `specforge/archive/<date>-<name>/` and sets
+`status` to `done` in one atomic step. It **refuses unless the verdict gate is
+sealed**, so it cannot archive a feature whose code doesn't pass — that is the
+whole point. Record the human-readable completion date in `history.md` (yours to
+write), not in features.json.
+
+A `revise` verdict means the feature is NOT archived — don't run `sf feature
+archive`; loop back to `sf-build`.
 
 ### 3. Append to History
 

@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "feature": "slugify",
+  "summary": "Convert arbitrary text into a URL-safe slug: lowercase, hyphen-joined, accents folded to ASCII, punctuation removed.",
+  "actors": [
+    "library caller"
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "ears_type": "event",
+      "trigger": "slugify is called with a string of words separated by spaces",
+      "state": "",
+      "behavior": "return the words lowercased and joined by single hyphens",
+      "acceptance": [
+        "slugify(\"Hello World\") == \"hello-world\""
+      ],
+      "source": "slugify",
+      "tags": [
+        "core"
+      ]
+    },
+    {
+      "id": "R2",
+      "ears_type": "event",
+      "trigger": "the input contains accented or non-ASCII Latin characters",
+      "state": "",
+      "behavior": "fold them to their closest ASCII equivalent",
+      "acceptance": [
+        "slugify(\"Café Olé\") == \"cafe-ole\""
+      ],
+      "source": "slugify",
+      "tags": [
+        "unicode"
+      ]
+    },
+    {
+      "id": "R3",
+      "ears_type": "event",
+      "trigger": "the input contains punctuation or repeated separators",
+      "state": "",
+      "behavior": "drop the punctuation and collapse runs of separators into a single hyphen, with no leading or trailing hyphen",
+      "acceptance": [
+        "slugify(\"  --A, B \u0026 C!! \") == \"a-b-c\""
+      ],
+      "source": "slugify",
+      "tags": [
+        "core"
+      ]
+    },
+    {
+      "id": "R4",
+      "ears_type": "error",
+      "trigger": "the input contains no slug-able characters",
+      "state": "",
+      "behavior": "return an empty string (never raise)",
+      "acceptance": [
+        "slugify(\"!!!\") == \"\"",
+        "slugify(\"\") == \"\""
+      ],
+      "source": "slugify",
+      "tags": [
+        "edge-case"
+      ]
+    }
+  ]
+}

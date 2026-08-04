@@ -4,31 +4,91 @@
 
 # SpecForge — Support Skills
 
-Standalone skills that complement the SpecForge pipeline. Each works independently — none require `specforge/` to be initialized. They produce artifacts in `.ai/` or interact conversationally.
+Standalone skills that complement the SpecForge pipeline. Each works independently — none require `specforge/` to be initialized. They produce artifacts in `specforge/context/` or interact conversationally.
 
 ---
 
 ## Skills Overview
 
+**Mode is decided by interactivity, not by tier.** A sub-agent runs in an
+isolated context and cannot stop to ask the user, so any skill with a gate or
+back-and-forth must run **inline**. Skills that are pure transforms (take input,
+return output, no human turn in the middle) are marked **delegate**: they *may*
+be delegated to a sub-agent where the harness supports it, and fall back to
+inline otherwise. Delegation is an optional, per-harness optimization — the
+portable default is always inline.
+
 | Skill | Mode | Purpose | Artifact |
 |-------|------|---------|----------|
-| [triage](#triage) | inline | Investigate bugs, find root cause, produce fix plan | `.ai/triages/{slug}.md` |
-| [documenter](#documenter) | inline | Generate exhaustive docs from code with examples | `docs/` or inline |
-| [explain](#explain) | inline | Teach concepts with Feynman method | `.ai/explanations/{slug}.md` (optional) |
-| [product-owner](#product-owner) | inline | Define product briefs with MoSCoW priorities | `.ai/briefs/{slug}.md` |
-| [aws-architect](#aws-architect) | delegate | Design AWS infrastructure with tradeoffs | `.ai/architectures/{slug}.md` |
-| [data-engineer](#data-engineer) | delegate | Design data pipelines with quality gates | `.ai/data-designs/{slug}.md` |
-| [grill-me](#grill-me) | inline | Stress-test a plan through relentless interviewing | `.ai/grills/{slug}.md` (optional) |
-| [tdd](#tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
-| [github](#github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
+| [sfx-think](#sfx-think) | inline | Debate an idea, explore options, reach a documented conclusion | `specforge/context/thinks/{slug}.md` |
+| [sfx-journal](#sfx-journal) | inline | Capture evidence-anchored learnings, consolidate, propose backprop | `specforge/context/journal/{date}.md` + `specforge/learnings.md` |
+| [sfx-triage](#sfx-triage) | delegate | Investigate bugs, find root cause, produce fix plan | `specforge/context/triages/{slug}.md` |
+| [sfx-documenter](#sfx-documenter) | delegate | Generate exhaustive docs from code with examples | `docs/` or inline |
+| [sfx-explain](#sfx-explain) | delegate | Teach concepts with Feynman method | `specforge/context/explanations/{slug}.md` (optional) |
+| [sfx-grill-me](#sfx-grill-me) | inline | Stress-test a plan through relentless interviewing | `specforge/context/grills/{slug}.md` (optional) |
+| [sfx-tdd](#sfx-tdd) | inline | Implement code with Red-Green-Refactor discipline | code + tests |
+| [sfx-github](#sfx-github) | delegate | Execute git workflow: branch, commit, PR, merge | git state |
 
 ---
 
-## triage
+## sfx-think
+
+Debate an idea, explore options, and reach a documented conclusion. The space
+between "I have a vague idea" and "I'm ready to specify" — not propose (no
+requirements/tasks), not explain (not teaching), not grill-me (not stress-testing
+an existing plan).
+
+**Triggers:** `/sfx-think`, `/sfx-think <topic>`, "let's think about", "should I use X or Y", "I'm considering", "pros and cons of", "evaluate this approach"
+
+**Flow:**
+1. Identify the type of thinking (decision, exploration, validation, strategy)
+2. Debate: play devil's advocate, offer unconsidered alternatives, ground in specifics
+3. Converge when the direction is clear (5-10 exchanges is the sweet spot)
+4. Summarize the conclusion, then write the artifact
+
+**Key rules:**
+- Challenge the user's initial leaning — stress-test it, don't just agree
+- Offer at least one alternative the user didn't consider
+- Ground abstract debate in concrete specifics from the user's context
+- "We don't know enough yet" is a valid conclusion — document what's needed to decide
+
+**Output:** `specforge/context/thinks/{slug}.md` — topic, options with pros/cons, the conclusion with rationale, alternatives rejected, next steps. Default is to save (unlike explain/grill-me).
+
+---
+
+## sfx-journal
+
+Turn what actually happened in a session into durable, curated knowledge —
+without growing into noise. Three levels: journal (raw, per session) →
+consolidate (deduped, small) → promote (gated, into the constitution).
+
+**Triggers:** `/sfx-journal`, `/sfx-journal consolidate`, "journal this", "capture what we learned", "what went wrong", "log this lesson", "consolidate learnings"
+
+**Flow:**
+1. Capture — evidence-anchored observations only (rejected gate, error→fix, user correction, repeated mistake). No evidence → no entry.
+2. Judge — each candidate must be anchored, generalizable, and actionable; delegate the judge to a fresh sub-agent where supported. Drop the rest.
+3. Write the raw entry to `specforge/context/journal/{date}.md` with `[[wikilinks]]`.
+4. Consolidate into `specforge/learnings.md` (small, curated, injected each session): first occurrence = note, recurring (~3×) = promotion candidate, dedup always.
+5. Promote — recurring patterns proposed as constitution invariants at a 🔴 gate (backprop, never automatic).
+
+**Key rules:**
+- Evidence or it didn't happen — anchor every note to a real event.
+- "What went wrong + how it resolved" beats a symmetric good/bad list.
+- `learnings.md` is curated and small (it's injected every session); the firehose stays in `journal/`.
+- Project learnings vs meta-agent habits are different layers — don't mix them.
+- Markdown is the source of truth; ICM is an optional recall/consolidation engine, never a second truth.
+
+**Output:** `specforge/context/journal/{date}.md` (raw, Obsidian-compatible vault with wikilinks) + `specforge/learnings.md` (consolidated). Promotions land in `constitution.md` after the gate.
+
+**References:** `references/consolidation.md` (judge rubric, consolidation rules, layers, vault).
+
+---
+
+## sfx-triage
 
 Investigate a bug systematically. No fixes without understanding the root cause first.
 
-**Triggers:** `/triage`, `/triage <description>`, "there's a bug", "this is broken", "why is this failing"
+**Triggers:** `/sfx-triage`, `/sfx-triage <description>`, "there's a bug", "this is broken", "why is this failing"
 
 **Flow:**
 1. Gather symptoms (observed vs expected, reproduction steps, frequency)
@@ -43,7 +103,7 @@ Investigate a bug systematically. No fixes without understanding the root cause 
 - Root cause found → write the failing test BEFORE the fix recommendation
 - Unresolved is a valid outcome — document what was tested and what remains
 
-**Output:** `.ai/triages/{slug}.md` — symptoms, investigation trace, hypotheses tested, root cause, fix plan with TDD test, risks.
+**Output:** `specforge/context/triages/{slug}.md` — symptoms, investigation trace, hypotheses tested, root cause, fix plan with TDD test, risks.
 
 **References:** `references/investigation.md` (methodology), `references/fix-plan.md` (TDD fix strategy)
 
@@ -51,17 +111,17 @@ Investigate a bug systematically. No fixes without understanding the root cause 
 
 ---
 
-## documenter
+## sfx-documenter
 
 Generate exhaustive documentation from code. Every function gets an example. Every edge case gets documented.
 
-**Triggers:** `/documenter`, "document this", "generate docs", "API docs", "how-to guide", "create a README for"
+**Triggers:** `/sfx-documenter`, "document this", "generate docs", "API docs", "how-to guide", "create a README for"
 
 **Modes:**
-- `/documenter <path>` — Document a specific file or module
-- `/documenter --api <path>` — API reference (signatures, params, returns, examples)
-- `/documenter --guide <topic>` — How-to guide (narrative, step-by-step)
-- `/documenter --project` — Full project docs (README + architecture + API + guides)
+- `/sfx-documenter <path>` — Document a specific file or module
+- `/sfx-documenter --api <path>` — API reference (signatures, params, returns, examples)
+- `/sfx-documenter --guide <topic>` — How-to guide (narrative, step-by-step)
+- `/sfx-documenter --project` — Full project docs (README + architecture + API + guides)
 
 **Key rules:**
 - Every public function/class/endpoint gets a runnable example — no exceptions
@@ -78,11 +138,11 @@ Generate exhaustive documentation from code. Every function gets an example. Eve
 
 ---
 
-## explain
+## sfx-explain
 
 Explain any concept using the Feynman method. Simple language, analogies from everyday life, concrete examples.
 
-**Triggers:** `/explain`, `/explain <topic>`, "how does X work", "I don't understand", "teach me", "break it down"
+**Triggers:** `/sfx-explain`, `/sfx-explain <topic>`, "how does X work", "I don't understand", "teach me", "break it down"
 
 **Flow:**
 1. Core idea in one sentence (no jargon)
@@ -98,90 +158,17 @@ Explain any concept using the Feynman method. Simple language, analogies from ev
 - Always name tradeoffs — "no downsides" means you haven't understood it
 - Code examples must be runnable, not pseudocode
 
-**Output:** Conversational. Optionally saved to `.ai/explanations/{slug}.md` if user requests.
+**Output:** Conversational. Optionally saved to `specforge/context/explanations/{slug}.md` if user requests.
 
 **References:** `references/feynman-method.md` (detailed teaching methodology with examples and anti-patterns)
 
 ---
 
-## product-owner
-
-Define product requirements. Translate vague ideas into testable user stories with MoSCoW priorities.
-
-**Triggers:** `/product-owner`, `/brief`, "user story", "requirements", "what should we build", "define MVP"
-
-**Flags:** `--from <path>` to import an existing PRD or document as primary input
-
-**Flow:**
-1. Understand the problem (who, what, why, how to measure)
-2. Scope with MoSCoW (Must 3-5 items, Should, Could, Won't)
-3. Write user stories with GIVEN/WHEN/THEN acceptance criteria
-4. Generate brief
-
-**Key rules:**
-- Start with the problem, not the solution
-- Metrics must be measurable numbers
-- Always include "Won't" items — explicit exclusion prevents scope creep
-- With --from: extract what exists, ask only what's missing
-
-**Output:** `.ai/briefs/{slug}.md` — problem, metric, persona, MoSCoW scope, user stories with acceptance criteria.
-
-**Template:** `templates/brief.tmpl.md`
-
----
-
-## aws-architect
-
-Design AWS infrastructure evaluated through the Well-Architected Framework. Every service choice justified with tradeoffs and cost.
-
-**Triggers:** `/aws-architect`, "design the infra", "how should I deploy", "what AWS services", "architecture for"
-
-**Flow:**
-1. Clarify requirements (workload, scale, budget, compliance, team)
-2. Design with explicit tradeoffs per service (what, why not alternatives, cost, blast radius, scaling)
-3. Generate architecture document
-
-**Key rules:**
-- Always state cost estimates — ranges, not "it depends"
-- Simplest architecture first — add complexity only when justified
-- Never recommend a service without explaining why not a simpler alternative
-- Security is never optional — IAM, encryption, network isolation always included
-
-**Output:** `.ai/architectures/{slug}.md` — requirements, services with rationale, data flow, security, scaling, cost breakdown, risks, decisions log.
-
-**Template:** `templates/architecture.tmpl.md`
-
----
-
-## data-engineer
-
-Design data pipelines with quality gates, idempotency, and observability built in.
-
-**Triggers:** `/data-engineer`, "data pipeline", "ETL", "data model", "schema design", "data quality"
-
-**Flow:**
-1. Understand the data (source, destination, transformations, quality, freshness)
-2. Design pipeline stages (extract → validate → transform → load → verify)
-3. Generate pipeline document
-
-**Key rules:**
-- Every pipeline must be idempotent and re-runnable
-- Quality gate before loading — bad data never reaches consumers
-- Error handling defined per stage, not just "it'll fail"
-- Observability is not optional — metrics, alerts, lineage always included
-- If volume doesn't justify streaming, use batch
-
-**Output:** `.ai/data-designs/{slug}.md` — data contract, schema, stages, quality gates, idempotency, backfill, observability, storage design.
-
-**Template:** `templates/pipeline.tmpl.md`
-
----
-
-## grill-me
+## sfx-grill-me
 
 Stress-test a plan, design, or decision through relentless interviewing. Walk down every branch of the decision tree.
 
-**Triggers:** `/grill-me`, `/grill-me <artifact>`, "grill me", "stress-test this plan", "poke holes in this"
+**Triggers:** `/sfx-grill-me`, `/sfx-grill-me <artifact>`, "grill me", "stress-test this plan", "poke holes in this"
 
 **Flow:**
 1. Read the target (artifact, topic, or pasted plan)
@@ -198,15 +185,15 @@ Stress-test a plan, design, or decision through relentless interviewing. Walk do
 - 3 consecutive "I don't know" → pause, suggest research first
 - Never lecture — extract the user's thinking, don't teach
 
-**Output:** Summary always returned. Full transcript optionally saved to `.ai/grills/{slug}.md`.
+**Output:** Summary always returned. Full transcript optionally saved to `specforge/context/grills/{slug}.md`.
 
 ---
 
-## tdd
+## sfx-tdd
 
 Implement code using strict Test-Driven Development. One failing test, one minimal implementation, one cycle.
 
-**Triggers:** `/tdd`, `/tdd <task>`, "tdd this", "use TDD", "red-green-refactor"
+**Triggers:** `/sfx-tdd`, `/sfx-tdd <task>`, "tdd this", "use TDD", "red-green-refactor"
 
 **Flow:**
 1. Plan: identify interface changes, list 3-7 behaviors to test, check testability
@@ -224,11 +211,11 @@ Implement code using strict Test-Driven Development. One failing test, one minim
 
 ---
 
-## github
+## sfx-github
 
 Execute standardized git workflow. Branch, commit, PR, merge — clean and quiet.
 
-**Triggers:** `/github`, `/git`, "create a PR", "push this", "commit", "merge"
+**Triggers:** `/sfx-github`, `/git`, "create a PR", "push this", "commit", "merge"
 
 **Conventions:**
 - Branches: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/`

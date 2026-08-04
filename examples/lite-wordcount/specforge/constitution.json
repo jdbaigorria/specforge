@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "identity_md": "textstats — minimal text-statistics helpers.",
+  "principles": [
+    {
+      "id": "P1",
+      "statement": "Pure functions, no I/O.",
+      "applies_to": [
+        "build"
+      ]
+    }
+  ],
+  "constraints": [
+    "Python 3.10+"
+  ],
+  "anti_goals": [
+    "Not an NLP library."
+  ],
+  "invariants": []
+}

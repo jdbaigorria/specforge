@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "feature": "slugify",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Create slug.py with slugify signature + NFKD accent folding and lowercase",
+      "requirement_refs": [
+        "R1",
+        "R2"
+      ],
+      "component_refs": [
+        "C1"
+      ],
+      "files_touched": [
+        "src/texttools/slug.py"
+      ],
+      "estimated_effort": "S",
+      "status": "done",
+      "depends_on": []
+    },
+    {
+      "id": "T2",
+      "title": "Add regex tokenizing + sep join; collapse separators, no leading/trailing hyphen",
+      "requirement_refs": [
+        "R1",
+        "R3"
+      ],
+      "component_refs": [
+        "C1"
+      ],
+      "files_touched": [
+        "src/texttools/slug.py"
+      ],
+      "estimated_effort": "S",
+      "status": "done",
+      "depends_on": [
+        "T1"
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Handle the empty/no-slug-able case to return empty string",
+      "requirement_refs": [
+        "R4"
+      ],
+      "component_refs": [
+        "C1"
+      ],
+      "files_touched": [
+        "src/texttools/slug.py"
+      ],
+      "estimated_effort": "S",
+      "status": "done",
+      "depends_on": [
+        "T1"
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Re-export slugify from __init__.py; add tests covering R1-R4",
+      "requirement_refs": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ],
+      "component_refs": [
+        "C1"
+      ],
+      "files_touched": [
+        "src/texttools/__init__.py",
+        "tests/test_slug.py"
+      ],
+      "estimated_effort": "S",
+      "status": "done",
+      "depends_on": [
+        "T2",
+        "T3"
+      ]
+    }
+  ]
+}

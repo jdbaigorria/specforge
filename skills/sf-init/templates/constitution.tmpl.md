@@ -10,6 +10,11 @@
 
 ## Principles
 
+<!-- Project-specific principles only. The universal engineering principles
+     (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven
+     Execution) live in AGENT.md — do NOT copy them here. List only this
+     project's own invariants, or an explicit override of a universal one. -->
+
 1. **{{principle_1_name}}** — {{principle_1_explanation}}
 2. **{{principle_2_name}}** — {{principle_2_explanation}}
 3. **{{principle_3_name}}** — {{principle_3_explanation}}
@@ -36,10 +41,18 @@ What this project deliberately does NOT do:
 
 ## Invariants
 
-Project-wide rules discovered through backprop (added automatically by `sdd-check`):
+Project-wide rules discovered through backprop (added automatically by `sf-check`):
 
 <!-- This section starts empty. Rules are promoted here when a pattern
-     appears in 3+ features. See sdd-check/references/backprop.md -->
+     appears in 3+ features. See sf-check/references/backprop.md -->
+
+## Owners
+
+<!-- Team mode (F35). Who may approve changes to invariants (the highest-stakes
+     edits). Omit this section for a single-player project. Everything else is
+     governed by git CODEOWNERS. -->
+
+- {{owner_or_team}}
 
 ---
 *Last updated: {{date}}*

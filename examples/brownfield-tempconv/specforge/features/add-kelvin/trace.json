@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "feature": "add-kelvin",
+  "requirements": {
+    "R1": { "code": ["src/tempconv/convert.py:c_to_k"], "test": ["tests/test_convert.py::test_c_to_k"], "status": "ok" },
+    "R2": { "code": ["src/tempconv/convert.py:k_to_c"], "test": ["tests/test_convert.py::test_k_to_c"], "status": "ok" },
+    "R3": { "code": ["src/tempconv/convert.py:_guard_abs_zero"], "test": ["tests/test_convert.py::test_abs_zero"], "status": "ok" }
+  }
+}

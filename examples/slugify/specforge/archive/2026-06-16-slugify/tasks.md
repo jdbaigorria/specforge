@@ -1,0 +1,26 @@
+# Tasks — slugify
+
+- **T1** — Create slug.py with slugify signature + NFKD accent folding and lowercase `[done]`
+  - requirements: R1,R2
+  - components: C1
+  - files: src/texttools/slug.py
+  - depends on: —
+  - effort: S
+- **T2** — Add regex tokenizing + sep join; collapse separators, no leading/trailing hyphen `[done]`
+  - requirements: R1,R3
+  - components: C1
+  - files: src/texttools/slug.py
+  - depends on: T1
+  - effort: S
+- **T3** — Handle the empty/no-slug-able case to return empty string `[done]`
+  - requirements: R4
+  - components: C1
+  - files: src/texttools/slug.py
+  - depends on: T1
+  - effort: S
+- **T4** — Re-export slugify from __init__.py; add tests covering R1-R4 `[done]`
+  - requirements: R1,R2,R3,R4
+  - components: C1
+  - files: src/texttools/__init__.py,tests/test_slug.py
+  - depends on: T2,T3
+  - effort: S
