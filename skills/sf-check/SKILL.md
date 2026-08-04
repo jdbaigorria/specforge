@@ -3,9 +3,9 @@ name: sf-check
 description: >
   Validate feature implementation against specs and archive on approval. Use when the user
   says "sf-check", "check feature", "validate", "review implementation", or after completing
-  a build. Verifies traceability (every requirement has implementation + test), runs gap
-  analysis, and archives the feature on APPROVE. Also handles the backprop pattern where
-  recurring issues become project invariants.
+  a build. The verdict is gated on machine-verified evidence, not on a reading — every step
+  in the skill body is load-bearing. Also covers backprop, where recurring issues become
+  project invariants.
 ---
 
 # sf-check

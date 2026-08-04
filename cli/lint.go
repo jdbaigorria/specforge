@@ -214,6 +214,13 @@ func checkSkills(root string, skills []string, rep *report) {
 			rep.errorf("%s/SKILL.md: frontmatter has no `description`", name)
 		case len(desc) > descMax:
 			rep.errorf("%s/SKILL.md: description %d chars > %d", name, len(desc), descMax)
+		default:
+			if score, signals := workflowSummaryScore(desc); score >= 2 {
+				rep.warnf("%s/SKILL.md: description reads like a workflow summary (%s). "+
+					"An agent may follow the summary instead of opening the skill. "+
+					"Say WHAT it does and WHEN to use it; leave HOW to the skill body.",
+					name, strings.Join(signals, " + "))
+			}
 		}
 	}
 }
@@ -474,4 +481,73 @@ func checkParity(root string, rep *report) {
 			rep.errorf("parity: %s documents %d sfx- skills, %s %d", en, a, es, b)
 		}
 	}
+}
+
+// ----------------------------------------------------------------------------
+// DL-2 — "la description no resume el workflow".
+//
+// Una description que enumera el procedimiento le da al agente la ilusión de
+// que ya sabe cómo se hace, y puede seguir el resumen en vez de abrir la skill.
+// La description dice QUÉ hace y CUÁNDO usarla; el CÓMO vive en el cuerpo.
+//
+// Es una HEURÍSTICA, y por eso sale como warning y no como error: acá se juzga
+// criterio, no estructura, y un falso positivo no debe romper el build. El
+// juicio de verdad vive en el tier cooperativo (`sf-check --phase`), que ya
+// existe; `sf lint` es la capa determinista y se queda con lo mecánico.
+// ----------------------------------------------------------------------------
+
+// processVerbs: verbos de proceso en TERCERA PERSONA. La forma importa y es el
+// discriminador central de la regla: "Reads the tasks.md, organizes execution,
+// and implements…" DESCRIBE el procedimiento; "Find root cause. Produce a fix
+// plan." le HABLA al agente, que es exactamente lo que una description debe
+// hacer. Por eso no se listan los imperativos.
+var processVerbs = regexp.MustCompile(`(?i)\b(reads|runs|organizes|verifies|loads|edits|` +
+	`implements|archives|generates|validates|scaffolds|detects|executes|produces|creates|` +
+	`updates|computes|records|applies|writes|parses|emits)\b`)
+
+// artifactNames: los artefactos del pipeline. Enumerar tres o más es señal de
+// que se está listando el recorrido, no el alcance.
+var artifactNames = regexp.MustCompile(`(?i)\b(requirements|design|tasks|trace\.json|review|` +
+	`plan|constitution|domain)\b`)
+
+// processArrows: encadenamiento explícito de pasos.
+var processArrows = regexp.MustCompile(`(→|->|\bthen\b|\bfollowed by\b)`)
+
+// workflowSummaryScore puntúa cuánto se parece una description a un resumen de
+// procedimiento, y devuelve también qué señales dispararon (para que el mensaje
+// pueda nombrarlas — un warning que no dice QUÉ vio no enseña nada).
+//
+// Los pesos no son iguales a propósito. Tres o más verbos de proceso en tercera
+// persona encadenados ES la definición de resumir un workflow, así que alcanza
+// solo; las flechas y la enumeración de artefactos son corroborantes, porque
+// cada una por separado tiene usos legítimos (una flecha puede nombrar una
+// transformación `md → json`; nombrar dos artefactos es declarar alcance).
+func workflowSummaryScore(desc string) (int, []string) {
+	score := 0
+	var signals []string
+
+	// Distintos, no repetidos: "runs X and runs Y" es un verbo, no dos.
+	uniq := map[string]bool{}
+	for _, m := range processVerbs.FindAllString(desc, -1) {
+		uniq[strings.ToLower(m)] = true
+	}
+	if len(uniq) >= 3 {
+		score += 2
+		signals = append(signals, "chained process verbs")
+	}
+
+	arts := map[string]bool{}
+	for _, m := range artifactNames.FindAllString(desc, -1) {
+		arts[strings.ToLower(m)] = true
+	}
+	if len(arts) >= 3 {
+		score++
+		signals = append(signals, "artifact list")
+	}
+
+	if processArrows.MatchString(desc) {
+		score++
+		signals = append(signals, "process arrows")
+	}
+	return score, signals
 }
