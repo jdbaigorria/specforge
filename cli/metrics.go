@@ -22,17 +22,20 @@ import (
 // es `context`.
 func runMetrics(args []string) int {
 	if len(args) == 0 || args[0] != "context" {
-		fmt.Fprintln(os.Stderr, "usage: sf metrics context [project_dir] [--feature=NAME]")
+		fmt.Fprintln(os.Stderr, "usage: sf metrics context [project_dir] [--feature=NAME] [--json]")
 		return 2
 	}
 	args = args[1:] // descartamos "context"
 
 	projectDir := "."
 	feature := ""
+	asJSON := false
 	for _, a := range args {
 		switch {
 		case strings.HasPrefix(a, "--feature="):
 			feature = strings.TrimPrefix(a, "--feature=")
+		case a == "--json":
+			asJSON = true
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf metrics: unknown flag %q\n", a)
 			return 2
@@ -40,22 +43,49 @@ func runMetrics(args []string) int {
 			projectDir = a
 		}
 	}
-	return metricsContext(projectDir, feature)
+	return metricsContext(projectDir, feature, asJSON)
 }
 
 // sliceMetric es una fila de la tabla: el slice medido y su tamaño.
+//
+// Los campos son EXPORTADOS porque `--json` (R6) los serializa. En Go
+// `encoding/json` sólo ve los campos que empiezan con mayúscula: un campo
+// minúscula es invisible para el marshaller, sin error ni aviso. Es la razón
+// por la que este struct pasó de tener campos privados a públicos.
 type sliceMetric struct {
-	label  string
-	tokens int
-	chars  int
+	Label  string `json:"label"`
+	Tokens int    `json:"tokens"`
+	Chars  int    `json:"chars"`
 }
 
 // metricsContext recolecta las métricas y las imprime. La recolección vive en
 // collectContextMetrics (testeable sin tocar stdout); esta función solo formatea.
-func metricsContext(projectDir, feature string) int {
+//
+// asJSON emite el mismo dato machine-readable (R6). Sin el flag, la salida
+// humana es idéntica a la de siempre — ese invariante tiene su propio test.
+func metricsContext(projectDir, feature string, asJSON bool) int {
 	rows, code := collectContextMetrics(projectDir, feature)
 	if code != 0 {
 		return code
+	}
+
+	if asJSON {
+		// `rows` puede venir nil (proyecto sin plan): un nil slice marshalea como
+		// `null`, no como `[]`. Normalizamos para que el consumidor siempre reciba
+		// un array — un `null` inesperado rompe a quien itera sin chequear.
+		if rows == nil {
+			rows = []sliceMetric{}
+		}
+		out, err := json.MarshalIndent(map[string]any{
+			"feature": feature,
+			"slices":  rows,
+		}, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sf metrics: marshal failed (%v)\n", err)
+			return 1
+		}
+		fmt.Println(string(out))
+		return 0
 	}
 
 	header := "context output size"
@@ -67,7 +97,7 @@ func metricsContext(projectDir, feature string) int {
 	cols := []string{"slice", "~tokens", "chars"}
 	var table [][]string
 	for _, r := range rows {
-		table = append(table, []string{r.label, fmt.Sprintf("%d", r.tokens), fmt.Sprintf("%d", r.chars)})
+		table = append(table, []string{r.Label, fmt.Sprintf("%d", r.Tokens), fmt.Sprintf("%d", r.Chars)})
 	}
 	renderTable(cols, table)
 	fmt.Println("\n~tokens is a heuristic (alnum runs + punctuation), not a model tokenizer.")
@@ -94,7 +124,7 @@ func collectContextMetrics(projectDir, feature string) ([]sliceMetric, int) {
 	var rows []sliceMetric
 	measure := func(label, body string) {
 		// len([]rune) cuenta CARACTERES (no bytes): un acento es 1 char.
-		rows = append(rows, sliceMetric{label, estimateTokens(body), len([]rune(body))})
+		rows = append(rows, sliceMetric{Label: label, Tokens: estimateTokens(body), Chars: len([]rune(body))})
 	}
 
 	// Tier barato: el breadcrumb (texto plano, una línea — lo que un hook

@@ -108,7 +108,7 @@ usage: sf <command> [flags]
 
 commands:
   lint    check the skill suite for consistency
-  status  project health view, or artifact staleness with --artifacts [--feature=NAME]
+  status  project health view [--json], or artifact staleness with --artifacts [--feature=NAME]
   gate    gate ledger + approvals + verdicts + evidence (gate approve|status|record-verdict|show --feature=NAME)
   check   run the project test suite via build.test_cmd and record a deterministic result (check run --feature=NAME)
   feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME)
@@ -117,7 +117,7 @@ commands:
   graph   export or query the knowledge graph from declared structure (graph export|query <term> [--json])
   tasks   render/validate tasks.json (tasks render|validate --feature=NAME)
   context emit a JSON slice (context for-wave --n=N | context current [--breadcrumb] | context for-judge --phase=PHASE)
-  metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME])
+  metrics measure context-slice output size for a token baseline (metrics context [--feature=NAME] [--json])
   state   emit the current feature/phase/wave as JSON (state current) — the brain hooks consult
   next    the agent compass: next valid action + write/read contract (next [--json] [--explain])
   recover diagnose stale/inconsistent artifacts + emit an ordered recovery plan (recover [--feature=NAME] [--json])
