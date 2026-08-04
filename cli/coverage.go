@@ -102,12 +102,16 @@ func runCoverage(args []string) int {
 			"percent": percent, "anchored": anchored, "total": total,
 			"baseline": baseline.Percent, "had_baseline": hadBaseline,
 			"unanchored": unanchored, "excluded": detail.Excluded,
+			"retired": detail.Retired,
 		}, "", "  ")
 		fmt.Println(string(out))
 	} else {
 		fmt.Printf("spec coverage: %.1f%% (%d/%d code files anchored to a trace)\n", percent, anchored, total)
 		if detail.Excluded > 0 {
 			fmt.Printf("%d file(s) excluded by constitution.json coverage.exclude — not counted in the denominator.\n", detail.Excluded)
+		}
+		if detail.Retired > 0 {
+			fmt.Printf("%d file(s) only anchored by a retired/abandoned feature — not counted in the denominator.\n", detail.Retired)
 		}
 	}
 
@@ -157,6 +161,9 @@ type coverageDetail struct {
 	// declarada. Se reporta aparte a propósito — excluir sube el porcentaje, así
 	// que el número tiene que quedar a la vista de quien audite.
 	Excluded int
+	// Retired: archivos que sólo anclaba una feature retirada o abandonada.
+	// También salen del denominador, y por el mismo motivo se cuentan aparte.
+	Retired int
 }
 
 // computeSpecCoverageDetail mide la cobertura de spec: archivos de código del
@@ -168,24 +175,31 @@ func computeSpecCoverageDetail(projectDir string) coverageDetail {
 		files = walkListFiles(projectDir)
 	}
 
-	// El conjunto de archivos anclados por los traces.
+	// Dos conjuntos, no uno. `anchoredSet` es lo que gobierna una spec VIVA;
+	// `closedSet` es lo que gobernaba una feature cerrada a propósito (DL-5 F3).
+	//
+	// La diferencia importa para el ratchet: si el código de una feature retirada
+	// siguiera contando en el denominador, retirarla haría bajar el porcentaje —
+	// el ratchet castigaría la limpieza y la salida racional sería no retirar
+	// nada. Y contarlo como anclado sería mentir: nadie la gobierna ya. Sale del
+	// denominador, que es lo único honesto: no es cobertura faltante.
+	closed := closedFeatures(projectDir)
 	anchoredSet := map[string]bool{}
-	for _, pattern := range []string{
-		filepath.Join(projectDir, "specforge", "features", "*", "trace.json"),
-		filepath.Join(projectDir, "specforge", "archive", "*", "trace.json"),
-	} {
-		paths, _ := filepath.Glob(pattern)
-		for _, p := range paths {
-			var tf traceFile
-			data, err := os.ReadFile(p)
-			if err != nil || json.Unmarshal(data, &tf) != nil {
-				continue
-			}
-			for _, req := range tf.Requirements {
-				for _, a := range req.Code {
-					pathPart, _ := splitAnchor(a)
-					anchoredSet[filepath.ToSlash(pathPart)] = true
-				}
+	closedSet := map[string]bool{}
+	for _, t := range loadTraces(filepath.Join(projectDir, "specforge")) {
+		var tf traceFile
+		data, err := os.ReadFile(t.path)
+		if err != nil || json.Unmarshal(data, &tf) != nil {
+			continue
+		}
+		dst := anchoredSet
+		if _, isClosed := closed[t.feature]; isClosed {
+			dst = closedSet
+		}
+		for _, req := range tf.Requirements {
+			for _, a := range req.Code {
+				pathPart, _ := splitAnchor(a)
+				dst[filepath.ToSlash(pathPart)] = true
 			}
 		}
 	}
@@ -200,6 +214,12 @@ func computeSpecCoverageDetail(projectDir string) coverageDetail {
 		if coverageExcluded(rel, excludes) {
 			d.Excluded++
 			continue // fuera del denominador: se declaró que no corresponde especificarlo
+		}
+		// Una spec viva gana sobre una cerrada: si otra feature todavía ancla el
+		// archivo, sigue gobernado y cuenta como tal.
+		if !anchoredSet[rel] && closedSet[rel] {
+			d.Retired++
+			continue
 		}
 		d.Total++
 		if anchoredSet[rel] {

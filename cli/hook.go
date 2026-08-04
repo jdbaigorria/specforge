@@ -40,8 +40,17 @@ import (
 // Override por env SPECFORGE_FULL_SLICE_EVERY.
 const fullSliceEveryDefault = 10
 
-// archivedStatuses: estados que cuentan como "archivada" para el nudge del journal.
-var archivedStatuses = map[string]bool{"done": true, "archived": true}
+// archivedStatuses: estados en que una feature está CERRADA — sus artefactos no
+// se editan más por la vía normal (para eso está `sf-amend`).
+//
+// `"archived"` estaba acá y era un status FANTASMA: nunca existió en
+// validStatuses, así que ninguna feature podía tenerlo y la rama estaba muerta.
+// Se reemplaza por los dos estados reales de cierre (DL-5 F2): `retired` y
+// `abandoned` cuentan como archivadas a ojos del hook — ninguno de los dos debe
+// habilitar edición de artefactos.
+var archivedStatuses = map[string]bool{
+	"done": true, "retired": true, "abandoned": true,
+}
 
 // artifactRe reconoce la ruta-relativa de un artefacto gateable. JSON-first:
 // matchea .json (la fuente) Y .md (el render); plan vive bajo progress/.

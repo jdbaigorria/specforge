@@ -144,6 +144,18 @@ type driftReport struct {
 	ImplementedDifferently any         `json:"implemented_differently"`
 	Unverified             []driftItem `json:"unverified"`
 	OutOfSpec              []string    `json:"out_of_spec"`
+	// Skipped: las features cerradas a propósito que NO se chequearon (DL-5 F3).
+	// Se listan en vez de omitirse en silencio — un chequeo que saltea cosas sin
+	// decirlo es indistinguible de uno que no las encontró.
+	Skipped []skippedFeature `json:"skipped"`
+}
+
+// skippedFeature documenta una omisión deliberada del drift.
+type skippedFeature struct {
+	Feature string `json:"feature"`
+	Status  string `json:"status"` // retired | abandoned
+	Reason  string `json:"reason"`
+	At      string `json:"at,omitempty"`
 }
 
 // diverged: ¿hay drift de COMPORTAMIENTO? Sólo las categorías 1 y 2 lo son —
@@ -192,14 +204,24 @@ func runDrift(projectDir, runTests string, quiet, asJSON bool) int {
 // cita).
 func buildDriftReport(projectDir, runTests string) driftReport {
 	traces := loadTraces(filepath.Join(projectDir, "specforge"))
+	closed := closedFeatures(projectDir)
 
 	rep := driftReport{
-		Checked:        len(traces),
 		NotImplemented: []driftItem{},
 		Unverified:     []driftItem{},
+		Skipped:        []skippedFeature{},
 	}
 	var differently []driftItem
 	for _, t := range traces {
+		// DL-5 F3: una feature retirada o abandonada no diverge — su código no
+		// está por decisión, no por deriva. Se saltea, y la omisión se reporta.
+		if f, ok := closed[t.feature]; ok {
+			rep.Skipped = append(rep.Skipped, skippedFeature{
+				Feature: f.Name, Status: f.Status, Reason: f.ClosedReason, At: f.closedAt(),
+			})
+			continue
+		}
+		rep.Checked++
 		c := classifyFeatureDrift(projectDir, t.feature, t.path, runTests)
 		rep.NotImplemented = append(rep.NotImplemented, c.notImplemented...)
 		differently = append(differently, c.implementedDifferently...)
@@ -229,7 +251,10 @@ func buildDriftReport(projectDir, runTests string) driftReport {
 // emptyDriftReport: el reporte de un proyecto sin specforge/. Mismo esquema —
 // un consumidor no debería necesitar un caso especial para "no hay nada".
 func emptyDriftReport(runTests string) driftReport {
-	rep := driftReport{NotImplemented: []driftItem{}, Unverified: []driftItem{}, OutOfSpec: []string{}}
+	rep := driftReport{
+		NotImplemented: []driftItem{}, Unverified: []driftItem{},
+		OutOfSpec: []string{}, Skipped: []skippedFeature{},
+	}
 	if runTests == "" {
 		rep.ImplementedDifferently = undetermined{Status: "undetermined", Reason: "requires --run-tests"}
 	} else {
@@ -254,6 +279,11 @@ func printDriftJSON(rep driftReport) int {
 func printDriftHuman(rep driftReport, runTests string, quiet bool) int {
 	if !quiet {
 		fmt.Printf("Checked %d feature(s) with trace.json.\n", rep.Checked)
+		// La omisión se DICE. Un "skipped: 2" es información; que las dos features
+		// simplemente no aparezcan es indistinguible de que no existieran.
+		for _, s := range rep.Skipped {
+			fmt.Printf("  skipped %s (%s): %s\n", s.Feature, s.Status, s.Reason)
+		}
 	}
 
 	printDriftSection("1 — not implemented", rep.NotImplemented)

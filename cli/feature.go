@@ -25,21 +25,63 @@ import (
 // ----------------------------------------------------------------------------
 
 // validStatuses: el vocabulario del ciclo de vida (sale de los skills).
+//
+// `retired` y `abandoned` (DL-5 F2) cierran un agujero del modelo: el enum
+// terminaba en `done`, así que no había forma de expresar "esto se removió a
+// propósito" ni "esto nunca shippeó". Sin eso, el ruido del `doctor` crece
+// monótonamente — una feature retirada reporta drift para siempre, porque su
+// código no está *por diseño* — y en algún momento se deja de correr.
 var validStatuses = map[string]bool{
 	"planned": true, "approved": true, "building": true,
 	"checking": true, "done": true, "blocked": true,
+	"retired": true, "abandoned": true,
+}
+
+// terminalStatuses: los dos finales de línea EXPLÍCITOS. No son intercambiables
+// y la diferencia es si hubo código en producción:
+//
+//	retired   → se shippeó y después se removió  (sale de `done`)
+//	abandoned → se especificó y nunca shippeó    (sale de cualquier estado vivo)
+//
+// Confundirlos borra justo el dato que hace falta después: si hay que buscar el
+// código en la historia de git o si nunca existió.
+var terminalStatuses = map[string]bool{"retired": true, "abandoned": true}
+
+// closedFeatures devuelve el set de features cerradas a propósito, con su motivo.
+//
+// Lo consultan drift y coverage (DL-5 F3): una feature retirada tiene el código
+// borrado *por diseño*, así que reportarla como divergencia es ruido garantizado
+// — y el ruido garantizado es cómo un chequeo deja de correrse. Lectura QUIETA:
+// sin estado, no hay cerradas.
+func closedFeatures(projectDir string) map[string]feature {
+	out := map[string]feature{}
+	ff, err := readFeaturesFile(projectDir)
+	if err != nil {
+		return out
+	}
+	for _, f := range ff.Features {
+		if terminalStatuses[f.Status] {
+			out[f.Name] = f
+		}
+	}
+	return out
 }
 
 // statusTransitions declara, por status origen, los destinos permitidos. Forward
 // es el pipeline normal; las back-edges cubren revisar (checking→building),
-// despausar y bloquear/desbloquear. `done` es terminal (solo lo pone `archive`).
+// despausar y bloquear/desbloquear.
+//
+// `done` DEJA DE SER TERMINAL — es la única transición existente que cambia:
+// ahora puede pasar a `retired`. Los dos estados nuevos sí son terminales.
 var statusTransitions = map[string][]string{
-	"planned":  {"approved", "blocked"},
-	"approved": {"building", "planned", "blocked"},
-	"building": {"checking", "blocked"},
-	"checking": {"done", "building", "blocked"}, // building = revisar
-	"blocked":  {"planned", "approved", "building", "checking"},
-	"done":     {}, // terminal
+	"planned":   {"approved", "blocked", "abandoned"},
+	"approved":  {"building", "planned", "blocked", "abandoned"},
+	"building":  {"checking", "blocked", "abandoned"},
+	"checking":  {"done", "building", "blocked", "abandoned"}, // building = revisar
+	"blocked":   {"planned", "approved", "building", "checking", "abandoned"},
+	"done":      {"retired"}, // se shippeó; puede retirarse
+	"retired":   {},          // terminal
+	"abandoned": {},          // terminal
 }
 
 // validLanes: los dos carriles.
@@ -69,37 +111,57 @@ func runFeature(args []string) int {
 
 func featureUsage() {
 	fmt.Fprintln(os.Stderr, "usage: sf feature add --feature=NAME [--lane=lite|standard] [--depends-on=a,b] [project_dir]")
-	fmt.Fprintln(os.Stderr, "       sf feature set-status --feature=NAME --to=STATUS [project_dir]")
+	fmt.Fprintln(os.Stderr, "       sf feature set-status --feature=NAME --to=STATUS [--reason=WHY] [project_dir]")
+	fmt.Fprintln(os.Stderr, "         (--reason is required for --to=retired|abandoned)")
 	fmt.Fprintln(os.Stderr, "       sf feature set-lane --feature=NAME --to=lite|standard [project_dir]")
 	fmt.Fprintln(os.Stderr, "       sf feature archive --feature=NAME [project_dir]")
 }
 
 // featureFlags parsea el set común de flags. Devuelve (projectDir, feature, to,
 // lane, dependsOn, ok). Un flag desconocido imprime el error y deja ok=false.
-func featureFlags(args []string) (projectDir, feature, to, lane string, dependsOn []string, ok bool) {
-	projectDir = "."
+// featureArgs son los flags parseados de `sf feature`. Es un STRUCT y no una
+// tupla de retorno porque con `--reason` ya serían siete valores posicionales, y
+// una llamada como `_, name, to, _, _, _, ok :=` no dice nada sobre qué se está
+// descartando — el próximo campo que se agregue se inserta mal sin que compile
+// distinto.
+type featureArgs struct {
+	projectDir string
+	feature    string
+	to         string
+	lane       string
+	dependsOn  []string
+	// reason: obligatorio al retirar o abandonar. Un estado terminal sin motivo
+	// es indistinguible de un abandono por olvido, que es justo lo que estos
+	// estados existen para desambiguar.
+	reason string
+}
+
+func featureFlags(args []string) (featureArgs, bool) {
+	fa := featureArgs{projectDir: "."}
 	for _, a := range args {
 		switch {
 		case strings.HasPrefix(a, "--feature="):
-			feature = strings.TrimPrefix(a, "--feature=")
+			fa.feature = strings.TrimPrefix(a, "--feature=")
 		case strings.HasPrefix(a, "--to="):
-			to = strings.TrimPrefix(a, "--to=")
+			fa.to = strings.TrimPrefix(a, "--to=")
 		case strings.HasPrefix(a, "--lane="):
-			lane = strings.TrimPrefix(a, "--lane=")
+			fa.lane = strings.TrimPrefix(a, "--lane=")
+		case strings.HasPrefix(a, "--reason="):
+			fa.reason = strings.TrimPrefix(a, "--reason=")
 		case strings.HasPrefix(a, "--depends-on="):
 			for _, d := range strings.Split(strings.TrimPrefix(a, "--depends-on="), ",") {
 				if d = strings.TrimSpace(d); d != "" {
-					dependsOn = append(dependsOn, d)
+					fa.dependsOn = append(fa.dependsOn, d)
 				}
 			}
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf feature: unknown flag %q\n", a)
-			return "", "", "", "", nil, false
+			return featureArgs{}, false
 		default:
-			projectDir = a
+			fa.projectDir = a
 		}
 	}
-	return projectDir, feature, to, lane, dependsOn, true
+	return fa, true
 }
 
 // findFeature devuelve el puntero al elemento real del slice (mutable), o nil.
@@ -115,10 +177,11 @@ func findFeature(ff *featuresFile, name string) *feature {
 // ── add ──────────────────────────────────────────────────────────────────────
 
 func runFeatureAdd(args []string) int {
-	projectDir, name, _, lane, dependsOn, ok := featureFlags(args)
+	fa, ok := featureFlags(args)
 	if !ok {
 		return 2
 	}
+	projectDir, name, lane, dependsOn := fa.projectDir, fa.feature, fa.lane, fa.dependsOn
 	if name == "" {
 		fmt.Fprintln(os.Stderr, "sf feature add: --feature=NAME is required")
 		return 2
@@ -164,16 +227,26 @@ func laneSuffix(lane string) string {
 // ── set-status ───────────────────────────────────────────────────────────────
 
 func runFeatureSetStatus(args []string) int {
-	projectDir, name, to, _, _, ok := featureFlags(args)
+	fa, ok := featureFlags(args)
 	if !ok {
 		return 2
 	}
+	projectDir, name, to := fa.projectDir, fa.feature, fa.to
 	if name == "" || to == "" {
 		fmt.Fprintln(os.Stderr, "sf feature set-status: --feature=NAME and --to=STATUS are required")
 		return 2
 	}
 	if !validStatuses[to] {
-		fmt.Fprintf(os.Stderr, "sf feature set-status: unknown status %q (valid: planned|approved|building|checking|done|blocked)\n", to)
+		fmt.Fprintf(os.Stderr, "sf feature set-status: unknown status %q (valid: planned|approved|building|checking|done|blocked|retired|abandoned)\n", to)
+		return 2
+	}
+	// El motivo se exige ANTES de tocar nada: un estado terminal sin razón
+	// escrita es indistinguible de un olvido, y desambiguar eso es literalmente
+	// para lo que existen estos dos estados.
+	if terminalStatuses[to] && strings.TrimSpace(fa.reason) == "" {
+		fmt.Fprintf(os.Stderr, "sf feature set-status: --reason is required for %s "+
+			"(a terminal state without a reason is indistinguishable from an oversight)\n", to)
+		fmt.Fprintf(os.Stderr, "  e.g. sf feature set-status --feature=%s --to=%s --reason=\"replaced by Y\"\n", name, to)
 		return 2
 	}
 
@@ -218,10 +291,25 @@ func runFeatureSetStatus(args []string) int {
 	}
 
 	f.Status = to
+	// Motivo y fecha del cierre. La FECHA la pone el CLI, nunca el agente: es el
+	// mismo principio que el resto del estado — el productor declara el porqué,
+	// el CLI estampa el cuándo.
+	if terminalStatuses[to] {
+		f.ClosedReason = strings.TrimSpace(fa.reason)
+		if to == "retired" {
+			f.RetiredAt = nowUTC()
+		} else {
+			f.AbandonedAt = nowUTC()
+		}
+	}
 	if code := writeFeatureState(projectDir, *f); code != 0 {
 		return code
 	}
 	fmt.Printf("feature %q: %s → %s\n", name, orPlanned(from), to)
+	if terminalStatuses[to] {
+		fmt.Printf("  reason: %s\n", f.ClosedReason)
+		fmt.Println("  drift and coverage will skip it from now on — the omission is reported, not silent")
+	}
 	return 0
 }
 
@@ -246,10 +334,11 @@ func orPlanned(s string) string {
 // ── set-lane ─────────────────────────────────────────────────────────────────
 
 func runFeatureSetLane(args []string) int {
-	projectDir, name, to, _, _, ok := featureFlags(args)
+	fa, ok := featureFlags(args)
 	if !ok {
 		return 2
 	}
+	projectDir, name, to := fa.projectDir, fa.feature, fa.to
 	// set-lane usa --to= para el carril (uniforme con set-status).
 	if name == "" || to == "" {
 		fmt.Fprintln(os.Stderr, "sf feature set-lane: --feature=NAME and --to=lite|standard are required")
@@ -288,10 +377,11 @@ func runFeatureSetLane(args []string) int {
 // ── archive ──────────────────────────────────────────────────────────────────
 
 func runFeatureArchive(args []string) int {
-	projectDir, name, _, _, _, ok := featureFlags(args)
+	fa, ok := featureFlags(args)
 	if !ok {
 		return 2
 	}
+	projectDir, name := fa.projectDir, fa.feature
 	if name == "" {
 		fmt.Fprintln(os.Stderr, "sf feature archive: --feature=NAME is required")
 		return 2

@@ -111,7 +111,7 @@ commands:
   status  project health view [--json], or artifact staleness with --artifacts [--feature=NAME]
   gate    gate ledger + approvals + verdicts + evidence (gate approve|status|record-verdict|show --feature=NAME)
   check   run the project test suite via build.test_cmd and record a deterministic result (check run --feature=NAME)
-  feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME)
+  feature feature lifecycle — the sole writer of status/lane in features.json (feature add|set-status|set-lane|archive --feature=NAME [--reason=WHY])
   doctor  classify spec-to-code drift in 4 categories (--drift [--json] [--run-tests]), or check install health (--install [--global])
   trace   verify the traceability matrix vs code (trace verify [--feature=NAME] [--contract [--wave=N]])
   graph   export or query the knowledge graph from declared structure (graph export|query <term> [--json])

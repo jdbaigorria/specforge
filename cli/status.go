@@ -35,6 +35,22 @@ type feature struct {
 	// Seq es el orden de creación (1, 2, …). Con el estado partido por feature
 	// no hay array global que recuerde el orden — lo recuerda cada feature.
 	Seq int `json:"seq,omitempty"`
+	// Cierre explícito (DL-5 F2). ClosedReason lo declara el humano; la fecha la
+	// estampa el CLI. Son DOS campos de fecha y no uno porque el nombre del campo
+	// es el que lleva la semántica: leyendo un features.json crudo, `retired_at`
+	// dice que hubo código en producción y `abandoned_at` que nunca lo hubo. Sólo
+	// uno puede estar seteado — la transición que los escribe es excluyente.
+	ClosedReason string `json:"closed_reason,omitempty"`
+	RetiredAt    string `json:"retired_at,omitempty"`
+	AbandonedAt  string `json:"abandoned_at,omitempty"`
+}
+
+// closedAt devuelve la fecha de cierre, venga del campo que venga.
+func (f feature) closedAt() string {
+	if f.RetiredAt != "" {
+		return f.RetiredAt
+	}
+	return f.AbandonedAt
 }
 
 type gate struct {
