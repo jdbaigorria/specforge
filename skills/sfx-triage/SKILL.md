@@ -53,7 +53,25 @@ Context to read if available (don't require any of these):
 - `specforge/` specs — expected behavior per spec (if SpecForge is initialized)
 - Source code in the affected area
 
-## Step 3: Hypothesize
+## Step 3: Pattern Analysis
+
+Before hypothesizing, find something analogous that *works* in this same
+codebase. In a mature codebase this is the highest-yield move available, and
+it turns hypothesis 1 from an intuition into an observation.
+
+1. **Find the working example** — same layer, same kind of operation. Another
+   endpoint on the same router, another handler of the same type, the same test
+   against a different fixture.
+2. **Diff it against the broken one.** Don't read them side by side; actually
+   compare them.
+3. **Isolate the minimal difference.** That difference is hypothesis 1, and it
+   arrives with evidence attached.
+
+If no analogous working case exists, say so explicitly and move on. The absence
+is information too: it may mean this path never worked, in which case you're not
+looking at a regression and the git-history angle from Step 2 is a dead end.
+
+## Step 4: Hypothesize
 
 Read `references/investigation.md` → Hypothesis section.
 
@@ -62,16 +80,16 @@ Form the top 2-3 possible root causes ranked by likelihood. Each needs:
 - Evidence against (observations that contradict)
 - Verification step (specific check to confirm or reject)
 
-## Step 4: Verify (Circuit Breaker)
+## Step 5: Verify (Circuit Breaker)
 
 Test each hypothesis starting with most likely:
 - Execute the verification step (read code, check logs, trace execution)
-- Confirmed → root cause found, go to Step 5
+- Confirmed → root cause found, go to Step 6
 - Rejected → next hypothesis
 - **HARD LIMIT: 3 hypotheses.** If all rejected → mark `unresolved`, document
   what was tested, recommend next steps. Do NOT force a conclusion.
 
-## Step 5: Write Artifact
+## Step 6: Write Artifact
 
 Read `references/fix-plan.md` for fix strategy and TDD approach.
 
@@ -87,7 +105,7 @@ The artifact covers:
 
 → 🔴 **GATE**: Present summary to user. If root cause found, recommend next step.
 
-## Step 6: Next Steps
+## Step 7: Next Steps
 
 Based on fix scope:
 - **Trivial** (<10 lines, no architectural change) → "Apply directly, here's the fix"
