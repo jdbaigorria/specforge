@@ -160,6 +160,23 @@ escalate to the human with the failing detail. A per-wave human gate is
 - Gap that INVALIDATES the design → stop and escalate to the main/human; do not
   improvise an architectural decision alone.
 
+**Under `sf run`, say it with your exit code.** The orchestrator routes on the
+code, so prose about being blocked changes nothing:
+
+| Code | Meaning | What the orchestrator does |
+|---|---|---|
+| `0` | DONE | Runs the checkpoint, seals, next wave |
+| `10` | DONE_WITH_CONCERNS | Runs the checkpoint anyway — finishing honestly isn't punished. If it passes, seals and continues with the concern surfaced |
+| `11` | NEEDS_CONTEXT | Not a failure. Relaunches the wave **once**; twice in a row escalates, because the seed clearly can't supply it |
+| `12` | BLOCKED | Stops and escalates |
+
+Any other non-zero code reads as a crash, not a status — the range is high on
+purpose so a harness that dies on its own stays distinguishable.
+
+The code carries the *decision*; the *reason* goes in `progress/wave-N.md`,
+which you're writing anyway. Narrow channel for the routing, artifact for the
+evidence.
+
 ### Observability
 
 The main agent loses the play-by-play. Mitigate it like the phase judge: the
