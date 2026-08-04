@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -65,7 +66,8 @@ func runCoverage(args []string) int {
 		return printCoverageHistory(projectDir)
 	}
 
-	anchored, total := computeSpecCoverage(projectDir)
+	detail := computeSpecCoverageDetail(projectDir)
+	anchored, total := detail.Anchored, detail.Total
 	percent := 0.0
 	if total > 0 {
 		percent = 100 * float64(anchored) / float64(total)
@@ -90,13 +92,23 @@ func runCoverage(args []string) int {
 	baseline, hadBaseline := readCoverageBaseline(projectDir)
 
 	if asJSON {
+		// unanchored va SIEMPRE presente (aunque vacío): un consumidor que
+		// distingue "no hay pendientes" de "el campo no vino" necesita el array.
+		unanchored := detail.Unanchored
+		if unanchored == nil {
+			unanchored = []string{}
+		}
 		out, _ := json.MarshalIndent(map[string]any{
 			"percent": percent, "anchored": anchored, "total": total,
 			"baseline": baseline.Percent, "had_baseline": hadBaseline,
+			"unanchored": unanchored, "excluded": detail.Excluded,
 		}, "", "  ")
 		fmt.Println(string(out))
 	} else {
 		fmt.Printf("spec coverage: %.1f%% (%d/%d code files anchored to a trace)\n", percent, anchored, total)
+		if detail.Excluded > 0 {
+			fmt.Printf("%d file(s) excluded by constitution.json coverage.exclude — not counted in the denominator.\n", detail.Excluded)
+		}
 	}
 
 	// El ratchet. Tolerancia mínima (0.01) para no fallar por redondeo.
@@ -121,10 +133,36 @@ func runCoverage(args []string) int {
 	return 0
 }
 
-// computeSpecCoverage cuenta (anclados, totales): archivos de código del repo
-// vs archivos citados por algún anchor de algún trace.json (features activas y
-// archivadas — el legado anclado cuenta, de eso se trata la adopción).
+// computeSpecCoverage cuenta (anclados, totales). Envoltorio de conveniencia
+// sobre computeSpecCoverageDetail para los llamadores que sólo quieren el ratio.
 func computeSpecCoverage(projectDir string) (anchored, total int) {
+	d := computeSpecCoverageDetail(projectDir)
+	return d.Anchored, d.Total
+}
+
+// coverageDetail es la medición completa: el ratio Y las rutas que lo explican.
+//
+// Por qué la lista y no sólo el número (DL-4, categoría 4 "fuera de spec"): un
+// porcentaje que baja no le dice a nadie qué hacer. Una lista de archivos sí —
+// cada uno tiene exactamente dos salidas, ADOPTAR (escribir el requisito que le
+// falta) o EXCLUIR (declararlo con motivo en constitution.json). Sin la lista,
+// la única acción posible era mirar el número bajar.
+type coverageDetail struct {
+	Anchored int
+	Total    int
+	// Unanchored: rutas relativas ordenadas de los archivos de código que no
+	// cita ningún trace. Es el trabajo pendiente, enumerado.
+	Unanchored []string
+	// Excluded: cuántos archivos salieron del denominador por una exclusión
+	// declarada. Se reporta aparte a propósito — excluir sube el porcentaje, así
+	// que el número tiene que quedar a la vista de quien audite.
+	Excluded int
+}
+
+// computeSpecCoverageDetail mide la cobertura de spec: archivos de código del
+// repo vs archivos citados por algún anchor de algún trace.json (features
+// activas y archivadas — el legado anclado cuenta, de eso se trata la adopción).
+func computeSpecCoverageDetail(projectDir string) coverageDetail {
 	files, ok := gitListFiles(projectDir)
 	if !ok {
 		files = walkListFiles(projectDir)
@@ -152,16 +190,64 @@ func computeSpecCoverage(projectDir string) (anchored, total int) {
 		}
 	}
 
+	excludes := coverageExclusions(projectDir)
+
+	var d coverageDetail
 	for _, rel := range files {
 		if !codeExtensions[filepath.Ext(rel)] || isTestFile(rel) {
 			continue // la métrica es sobre código de producto, no sobre tests
 		}
-		total++
+		if coverageExcluded(rel, excludes) {
+			d.Excluded++
+			continue // fuera del denominador: se declaró que no corresponde especificarlo
+		}
+		d.Total++
 		if anchoredSet[rel] {
-			anchored++
+			d.Anchored++
+			continue
+		}
+		d.Unanchored = append(d.Unanchored, rel)
+	}
+	sort.Strings(d.Unanchored) // salida estable: la lista se diffea entre corridas
+	return d
+}
+
+// coverageExclusions lee las exclusiones declaradas en la constitución. Lectura
+// QUIETA: una constitución ausente o inválida significa "sin exclusiones", que
+// es el default correcto (medir todo).
+func coverageExclusions(projectDir string) []coverageExclusion {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return nil
+	}
+	var c constitutionFile
+	if json.Unmarshal(data, &c) != nil || c.Coverage == nil {
+		return nil
+	}
+	return c.Coverage.Exclude
+}
+
+// coverageExcluded: ¿la ruta cae bajo alguna exclusión declarada?
+//
+// Dos formas y nada más: la ruta exacta, o un prefijo de directorio terminado en
+// "/" (vendor/ excluye todo lo que cuelgue). Sin globs a propósito — un `*` mal
+// puesto excluye medio repo en silencio, y acá el costo de equivocarse es un
+// porcentaje inflado que nadie va a auditar de nuevo.
+func coverageExcluded(rel string, excludes []coverageExclusion) bool {
+	rel = filepath.ToSlash(rel)
+	for _, e := range excludes {
+		p := filepath.ToSlash(strings.TrimSpace(e.Path))
+		if p == "" {
+			continue
+		}
+		if p == rel {
+			return true
+		}
+		if strings.HasSuffix(p, "/") && strings.HasPrefix(rel, p) {
+			return true
 		}
 	}
-	return anchored, total
+	return false
 }
 
 func readCoverageBaseline(projectDir string) (coverageBaseline, bool) {
