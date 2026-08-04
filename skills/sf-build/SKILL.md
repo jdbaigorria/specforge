@@ -351,3 +351,15 @@ If a feature has status `building`:
 2. Read `failures.md` if it exists — show unresolved failures
 3. Show the user what's done and what remains
 4. Resume from the next incomplete wave
+## Rationalizations
+
+The failure and escalation protocols above are imperatives. These are the
+specific ways an agent talks itself out of them.
+
+| The excuse | Why it doesn't hold |
+|---|---|
+| "This wave is small, I'll record it at the end" | This is the FIXBUGHIGH failure verbatim: state written from memory instead of as it happens. By the end you're reconstructing, and reconstruction is where invented anchors come from. Record per wave, via `sf save`. |
+| "I'll complete the trace once everything works" | The trace is the checkpoint's input, not its output. A wave with no trace can't pass `sf trace verify --contract`, so "later" means the checkpoint never ran. |
+| "The deviation is small, no need to write it down" | Small deviations are exactly the ones nobody remembers deciding. Write it in `progress/wave-N.md`; it costs a line and it's the only record that survives the subagent. |
+| "I can decide this architectural point myself" | If it invalidates the design, it's not yours to decide alone — that's the escalation rule. Improvising here is how a build ends up correct against a design nobody approved. |
+| "The test runner is flaky, I'll mark it green" | A flaky test is a finding, not a rounding error. Report it as a failure with the evidence; a green you asserted rather than observed is the one thing the whole verification tier exists to prevent. |

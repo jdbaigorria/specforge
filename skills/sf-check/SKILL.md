@@ -327,3 +327,16 @@ Check `failures.md` from this and previous features for recurring patterns.
 - Don't invent gaps. Style differences aren't gaps.
 - Don't use REJECT as escape. If fixable with REVISE, use REVISE.
 - Don't skip backprop. Cumulative value.
+
+## Rationalizations
+
+The Rules above are imperatives. These are the specific ways an agent talks
+itself out of them.
+
+| The excuse | Why it doesn't hold |
+|---|---|
+| "The AC is *substantially* covered" | Substantially is not a verdict. Either a test names the acceptance criterion or it doesn't — and "Don't be lenient with ACs" means exactly this case, not a hypothetical one. |
+| "The test covers the happy path, the edge case is obvious" | Obvious to whom, at what hour? The edge case is where the defect lives. An untested edge is a gap, and gaps go in the review. |
+| "I'll fix that in the next feature" | Then it's an unresolved gap in *this* review, recorded as such. A promise made during check is not evidence, and nothing carries it forward. |
+| "The trace is basically right, one anchor is stale" | A stale anchor is drift and `sf trace verify` will say so. Fixing it now costs one edit; shipping it moves the cost to whoever runs `sf doctor` next month and can't tell which anchors to trust. |
+| "It's REJECT-worthy but REVISE is less disruptive" | Backwards: REJECT is the escape hatch, REVISE is the workhorse. If it's fixable, REVISE — and say precisely what to fix. |
