@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -96,4 +97,100 @@ func TestRunDrift(t *testing.T) {
 			t.Errorf("exit=%d, want 0", code)
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// DL-5 F1 — el join trace↔feature.
+//
+// El defecto: `sf feature archive` COPIA la carpeta de la feature a archive/ sin
+// borrar la original, y loadTraces globea las DOS bases. Resultado: una feature
+// archivada aporta su trace dos veces, con dos nombres distintos —
+// "slugify" (de features/) y "2026-06-16-slugify" (de archive/) — así que cada
+// ancla divergente se reporta duplicada y la mitad bajo un nombre que no existe
+// en features.json.
+//
+// Nota de Go: los tests de abajo llaman a loadTraces, que es una función NO
+// exportada (minúscula). Se puede porque el archivo de test está en el mismo
+// paquete (`package main`, no `main_test`) — el test ve todo el paquete.
+// ---------------------------------------------------------------------------
+
+// makeArchivedFeature arma un proyecto donde `slugify` ya fue archivada: su
+// trace existe en features/ (la copia viva) y en archive/ (la foto histórica),
+// que es exactamente el estado que deja `sf feature archive`.
+func makeArchivedFeature(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "src/slug.py"), "def slugify(text):\n    return text\n")
+	writeFile(t, filepath.Join(dir, "tests/test_slug.py"), "def test_slugify():\n    assert True\n")
+	trace := `{"feature":"slugify","requirements":{"R1":{"code":["src/slug.py:slugify"],"test":["tests/test_slug.py:test_slugify"],"status":"ok"}}}`
+	writeFile(t, filepath.Join(dir, "specforge/features/slugify/trace.json"), trace)
+	writeFile(t, filepath.Join(dir, "specforge/archive/2026-06-16-slugify/trace.json"), trace)
+	return dir
+}
+
+func TestLoadTracesDedupesArchivedCopy(t *testing.T) {
+	dir := makeArchivedFeature(t)
+	traces := loadTraces(filepath.Join(dir, "specforge"))
+
+	if len(traces) != 1 {
+		// %+v imprime el struct con nombres de campo — útil para ver QUÉ vino.
+		t.Fatalf("loadTraces devolvió %d entradas, want 1: %+v", len(traces), traces)
+	}
+	if traces[0].feature != "slugify" {
+		t.Errorf("feature=%q, want %q", traces[0].feature, "slugify")
+	}
+	// La entrada que sobrevive tiene que ser la VIVA (features/), no la foto
+	// archivada: es la que refleja el estado actual del proyecto.
+	if !strings.Contains(filepath.ToSlash(traces[0].path), "/features/slugify/") {
+		t.Errorf("path=%q, want la copia viva bajo features/", traces[0].path)
+	}
+}
+
+func TestLoadTracesStripsArchiveDatePrefix(t *testing.T) {
+	cases := []struct {
+		name string // nombre del directorio bajo archive/
+		want string // nombre de feature esperado
+	}{
+		{"2026-06-16-slugify", "slugify"},
+		// Se quita UN solo prefijo de fecha. Una feature que de verdad se llame
+		// "2026-06-16-slugify" y se archive el 2026-08-04 queda como
+		// "2026-08-04-2026-06-16-slugify" y tiene que resolver a su nombre real.
+		{"2026-08-04-2026-06-16-slugify", "2026-06-16-slugify"},
+		// Sin prefijo de fecha (carpeta legada) → el nombre queda intacto.
+		{"slugify", "slugify"},
+		// Prefijo con forma parecida pero inválido → no se toca.
+		{"2026-6-16-slugify", "2026-6-16-slugify"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "specforge/archive", c.name, "trace.json"),
+				`{"feature":"x","requirements":{}}`)
+			traces := loadTraces(filepath.Join(dir, "specforge"))
+			if len(traces) != 1 {
+				t.Fatalf("len=%d, want 1", len(traces))
+			}
+			if traces[0].feature != c.want {
+				t.Errorf("feature=%q, want %q", traces[0].feature, c.want)
+			}
+		})
+	}
+}
+
+// TestDriftReportsArchivedAnchorOnce es la regresión del defecto tal como se
+// observó con el binario: UN ancla borrada producía DOS líneas DRIFT.
+func TestDriftReportsArchivedAnchorOnce(t *testing.T) {
+	dir := makeArchivedFeature(t)
+	if err := os.Remove(filepath.Join(dir, "src/slug.py")); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+
+	// Recomponemos lo que hace runDrift: por cada trace, juntar sus drifts.
+	var drifts []string
+	for _, tr := range loadTraces(filepath.Join(dir, "specforge")) {
+		drifts = append(drifts, checkFeatureDrift(dir, tr.feature, tr.path, "")...)
+	}
+	if len(drifts) != 1 {
+		t.Errorf("drifts=%d, want 1 (un ancla, un reporte): %v", len(drifts), drifts)
+	}
 }
