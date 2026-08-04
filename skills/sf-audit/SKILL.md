@@ -34,7 +34,7 @@ Read all of these (don't skip any that exist):
 
 ```
 specforge/constitution.md          ← the law
-sf status (features/*/feature.json) ← all features and statuses
+sf status --json                   ← all features and statuses, already counted
 specforge/features/*/               ← active features (requirements, design, tasks)
 specforge/archive/*/                ← completed features
 specforge/history.md               ← project log + recurring issues
@@ -87,14 +87,33 @@ Check for contradictions and conflicts across features:
 
 ## Step 4: Spec-to-Code Drift
 
-For each completed feature (in archive + active):
+Start from `sf doctor --drift --run-tests --json`, not from reading. The engine
+classifies every finding into four categories, and they are not interchangeable:
 
-1. Read the requirements — do they still match what the code does?
-2. Read the design — does the architecture still match?
-3. Were there post-approval changes to code that were never reflected in specs?
+| Category | What it means | What it asks of the reader |
+|---|---|---|
+| **not implemented** | the anchor doesn't resolve — the code is gone or was never written | is the requirement still wanted? |
+| **implemented differently** | the anchor resolves and its test is red — the code does something else | **which side was wrong?** (see below) |
+| **unverified** | the requirement names no test, or the test couldn't be run | it's a gap, not a contradiction |
+| **out of spec** | code that no trace anchors | adopt it or exclude it (Step 6) |
 
-This catches the common case where someone edits code directly after a feature
-is archived, and the specs become stale without anyone noticing.
+Then read, for what the engine cannot see: does the *design* still match the
+architecture? Did a post-approval edit change behavior the tests don't pin down?
+
+### The two routes — never assume the spec is the one that's wrong
+
+For every **implemented differently** finding, both readings are live:
+
+> **(a)** the spec went out of date → accept the implementation, amend the spec.
+> **(b)** the spec was right → this is a defect; the code has to change.
+
+Present both, with no default. The pull toward (a) is structural — it makes the
+finding disappear with one edit — and a project that always picks (a) has a spec
+that records what happened instead of governing what should. Route (b) is
+`sf delta new --feature=<name> --kind=code-wrong` with `expected` and `observed`.
+
+**One at a time.** An audit that ends with "approve all 12" is 12 decisions
+nobody made.
 
 ## Step 5: Convention Adherence
 
@@ -109,25 +128,59 @@ Read `specforge/context/conventions.md` and scan the codebase:
 Flag areas where conventions drifted — often the earliest features don't
 follow conventions that were established later.
 
-## Step 6: Health Metrics
+## Step 6: Health Metrics — read them, don't estimate them
 
-Compute project-level metrics:
+**The dividing line: if two runs over an unchanged repo can produce different
+numbers, it isn't a metric — it's an opinion.**
 
-```markdown
-## Project Health
+Most of this table is already computed. Run the commands and transcribe. Counting
+by reading is how an audit reports 7 drifted features on Monday and 9 on Friday
+with nothing having changed in between — and once the numbers move on their own,
+nobody trusts any of them.
 
-| Metric | Value | Assessment |
-|--------|-------|------------|
-| Features completed | {N} | |
-| Features active | {N} | |
-| Constitution principles | {N} | |
-| Invariants (backprop) | {N} | |
-| Principle violations found | {N} | {good/concerning/critical} |
-| Cross-feature conflicts | {N} | |
-| Spec-to-code drift | {N} features | |
-| Convention violations | {N} files | |
-| Test coverage gaps | {N} requirements | |
+```bash
+sf status --json                            # features by status
+sf doctor --drift --run-tests --json        # drift in 4 categories
+sf coverage --json                          # anchored ratio + unanchored files
+sf verify --json                            # invariants and integrity checks
 ```
+
+Without `--run-tests`, `implemented_differently` comes back
+`{"status":"undetermined"}`. Report it as undetermined. Do **not** write 0 —
+that would state a fact nobody checked.
+
+| Row | Where it comes from |
+|---|---|
+| Features completed / active | `sf status --json` → `statuses` |
+| Spec-to-code drift | `sf doctor --drift --json`, broken out by the 4 categories |
+| Not implemented / Implemented differently | same, `not_implemented` / `implemented_differently` |
+| Unverified requirements | same, `unverified` |
+| Out of spec (code with no requirement) | same, `out_of_spec` — and `sf coverage --json` → `unanchored` |
+| Test coverage gaps | `sf coverage --json` → `percent`, `anchored`, `total` |
+| Constitution principles / Invariants | `constitution.json` (count them) |
+| Integrity / invariant checks | `sf verify --json` → `checks` |
+| **Cross-feature conflicts** | **Judgment** — two specs have to be read and found to contradict |
+| **Convention violations** | **Judgment** — `conventions.md` is prose |
+
+Mark the last two as judgment in the artifact. They're the rows where an
+adversarial reader is the only instrument that works — which is precisely why
+they shouldn't be competing for attention with nine numbers the CLI already
+knows.
+
+### Category 4: turn the list into decisions
+
+`out_of_spec` / `unanchored` is code that no requirement governs. A count there
+is useless; the list is actionable. For each file, exactly two outcomes — and
+say which one you're recommending and why:
+
+- **Adopt** — it's real product code and should be specified. Feeds a retroactive
+  requirement (`sf-propose` on the existing code).
+- **Exclude** — it isn't product (generated, tooling, scripts). Record it, with a
+  reason, under `coverage.exclude` in `constitution.json`. Excluding *raises* the
+  percentage, so an exclusion without a reason is how the metric gets quietly
+  dressed up.
+
+Never propose excluding a file just to move the number.
 
 ## Step 7: Produce Verdict
 
@@ -145,6 +198,27 @@ Accumulated debt threatens future development. Major remediation needed.
 ## Step 8: Write Artifact
 
 Generate `specforge/audits/{date}-{scope}.md` using `templates/audit.tmpl.md`.
+
+Alongside it, write `specforge/audits/{date}-{scope}.json` with the computed
+rows verbatim — the raw output of the four commands from Step 6, plus the
+verdict. Two audits of a markdown file can't be compared; two JSON files can.
+That's what makes "drift went from 3 to 7 since May" a sentence anyone can
+check.
+
+```json
+{
+  "date": "…", "scope": "…", "verdict": "HEALTHY|NEEDS_ATTENTION|AT_RISK",
+  "computed": {"status": {…}, "drift": {…}, "coverage": {…}, "verify": {…}},
+  "judgment": {"cross_feature_conflicts": 0, "convention_violations": 0}
+}
+```
+
+`computed` and `judgment` stay separated in the artifact for the same reason
+they're separated in Step 6: one is reproducible and the other is a reading.
+Collapsing them lends the numbers' authority to the opinions.
+
+For the trend, `sf coverage --history` already keeps every measurement — read it
+instead of reporting a lone point.
 
 → 🔴 **GATE**: Present audit results. User reviews findings.
 
@@ -167,6 +241,12 @@ Append to `specforge/history.md`:
 
 ## Rules
 
+- **Never estimate a number the CLI computes.** Every row in Step 6 marked as
+  computed comes from a command. Two runs over an unchanged repo must produce
+  identical computed rows — if they don't, the audit is fiction and its judgment
+  rows inherit that.
+- **Undetermined is not zero.** If `--run-tests` wasn't run, say the category
+  wasn't evaluated. Writing 0 asserts something nobody checked.
 - Be adversarial. Your job is to find problems, not confirm everything is fine.
 - Be specific. "Code quality could improve" is useless. "3 API endpoints in
   add-export feature lack error handling, violating principle 4 and INV1" is useful.

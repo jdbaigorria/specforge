@@ -10,15 +10,36 @@
 
 ## Project Health
 
-| Metric | Value | Assessment |
-|--------|-------|------------|
-| Features completed | {{n}} | |
-| Features active | {{n}} | |
-| Constitution principles | {{n}} | |
-| Invariants (backprop) | {{n}} | |
+### Computed — transcribed from the CLI, not estimated
+
+<!-- sf status --json · sf doctor --drift --run-tests --json · sf coverage --json · sf verify --json
+     Two runs over an unchanged repo must produce this table identically. -->
+
+| Metric | Value | Source | Assessment |
+|--------|-------|--------|------------|
+| Features completed | {{n}} | `sf status --json` | |
+| Features active | {{n}} | `sf status --json` | |
+| Not implemented | {{n}} requirements | `sf doctor --json` | |
+| Implemented differently | {{n | undetermined}} | `sf doctor --json` | |
+| Unverified | {{n}} requirements | `sf doctor --json` | |
+| Out of spec | {{n}} files | `sf coverage --json` | |
+| Spec coverage | {{pct}}% ({{anchored}}/{{total}}) | `sf coverage --json` | |
+| Integrity checks | {{n_ok}}/{{n_total}} passing | `sf verify --json` | |
+| Constitution principles | {{n}} | `constitution.json` | |
+| Invariants (backprop) | {{n}} | `constitution.json` | |
+
+<!-- "Implemented differently" is `undetermined` unless --run-tests was passed.
+     Write `undetermined`, never 0 — 0 asserts a check that didn't happen. -->
+
+### Judgment — an adversarial reading, not a measurement
+
+<!-- These two can legitimately differ between runs. That's why they're separate:
+     collapsing them into the table above lends them authority they don't have. -->
+
+| Finding | Count | Assessment |
+|---------|-------|------------|
 | Principle violations | {{n}} | {{good / concerning / critical}} |
 | Cross-feature conflicts | {{n}} | |
-| Spec-to-code drift | {{n}} features | |
 | Convention violations | {{n}} files | |
 
 ## Constitution Compliance
@@ -55,9 +76,29 @@
 
 ## Spec-to-Code Drift
 
-| Feature | Spec Status | Drift Found | Detail |
-|---------|-------------|-------------|--------|
-| {{feature}} | {{current / stale}} | {{yes / no}} | {{what_drifted}} |
+<!-- One row per finding from `sf doctor --drift --run-tests --json`, by category. -->
+
+| Feature | Requirement | Category | Detail |
+|---------|-------------|----------|--------|
+| {{feature}} | {{R#}} | {{not implemented / implemented differently / unverified}} | {{reason}} |
+
+### Which side was wrong
+
+<!-- Only for "implemented differently". BOTH routes, no default, one row each —
+     never a batch recommendation. -->
+
+| Feature / Req | (a) spec went stale | (b) spec was right, code has a defect | Recommendation |
+|---|---|---|---|
+| {{feature}} / {{R#}} | {{what amending would say}} | {{expected vs observed}} | {{a or b + why}} |
+
+## Out of Spec — code no requirement governs
+
+<!-- From `sf coverage --json` → unanchored. Two outcomes per file, nothing else.
+     Excluding raises the percentage, so every exclusion carries a reason. -->
+
+| File | Disposition | Reason |
+|------|-------------|--------|
+| {{path}} | {{adopt / exclude}} | {{why}} |
 
 ## Convention Adherence
 
