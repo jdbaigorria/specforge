@@ -115,22 +115,63 @@ func runDrift(projectDir, runTests string, quiet bool) int {
 
 // traceEntry empareja una feature con la ruta de su trace.json.
 type traceEntry struct {
-	feature string
-	path    string
+	feature  string
+	path     string
+	archived bool // true si la ruta vive bajo archive/ (la foto histórica)
 }
 
-// loadTraces busca todos los specforge/{archive,features}/*/trace.json. El
-// nombre de la feature es el nombre del directorio contenedor.
+// archiveDatePrefix matchea el prefijo `YYYY-MM-DD-` que `sf feature archive`
+// le antepone al nombre de la carpeta al copiarla a archive/.
+//
+// Concepto Go: `MustCompile` compila la regex al cargar el paquete y panica si
+// está mal escrita — es lo que se usa para regexes literales (un error acá es
+// un bug del programador, no una condición de runtime que valga la pena
+// manejar). `^` ancla al principio: sólo se saca un prefijo, nunca uno del medio.
+var archiveDatePrefix = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}-`)
+
+// featureNameFromDir resuelve el nombre real de la feature a partir del nombre
+// del directorio que contiene su trace.json.
+//
+// Para las copias archivadas hay que sacar el prefijo de fecha, y hay que sacar
+// EXACTAMENTE UNO: una feature que de verdad se llame `2026-06-16-slugify` y se
+// archive el 2026-08-04 vive en `archive/2026-08-04-2026-06-16-slugify`, y su
+// nombre real es `2026-06-16-slugify`. Sacar todos los prefijos que matcheen la
+// dejaría en `slugify`, que es otra feature.
+func featureNameFromDir(dir string, archived bool) string {
+	if !archived {
+		return dir
+	}
+	// ReplaceAllString con la regex anclada en ^ reemplaza como mucho una vez.
+	return archiveDatePrefix.ReplaceAllString(dir, "")
+}
+
+// loadTraces busca todos los specforge/{features,archive}/*/trace.json y
+// devuelve UNA entrada por feature.
+//
+// Por qué la deduplicación (DL-5 F1): `sf feature archive` COPIA la carpeta de
+// la feature a archive/ y NO borra la original. Sin dedup, una feature archivada
+// aporta su trace dos veces y cada ancla divergente se reporta duplicada — una
+// vez bajo su nombre real y otra bajo `<fecha>-<nombre>`, que no existe en
+// features.json y por lo tanto no se puede resolver contra ningún status.
+//
+// features/ se recorre PRIMERO a propósito: ante duplicado gana la copia viva,
+// que es la que refleja el estado actual del proyecto. La archivada es la foto.
 func loadTraces(specforge string) []traceEntry {
 	var out []traceEntry
-	for _, base := range []string{"archive", "features"} {
+	seen := map[string]bool{} // nombre de feature ya emitido
+
+	for _, base := range []string{"features", "archive"} {
 		matches, _ := filepath.Glob(filepath.Join(specforge, base, "*", "trace.json"))
 		sort.Strings(matches) // salida estable
 		for _, m := range matches {
-			out = append(out, traceEntry{
-				feature: filepath.Base(filepath.Dir(m)),
-				path:    m,
-			})
+			dir := filepath.Base(filepath.Dir(m))
+			archived := base == "archive"
+			name := featureNameFromDir(dir, archived)
+			if seen[name] {
+				continue // ya la vimos viva: la copia archivada no se re-chequea
+			}
+			seen[name] = true
+			out = append(out, traceEntry{feature: name, path: m, archived: archived})
 		}
 	}
 	return out
