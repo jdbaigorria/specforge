@@ -43,9 +43,19 @@ Read `audit.phase`. If `off` or absent → do nothing, return silently. Otherwis
    sf context for-judge --phase=<phase> --feature=<name>
    ```
    Returns the phase artifact + ONLY the principles/invariants whose `applies_to`
-   includes `<phase>`. If it returns no rules, there's nothing to audit → return.
-   If a parsimony principle (`P-min` / minimal-code) is in scope, also hand the
-   subagent the rubric in `references/minimal-code.md`.
+   includes `<phase>`, plus a `rubrics` array naming the **built-in rubrics** that
+   apply to this phase.
+
+   For every name in `rubrics`, hand the subagent `references/<name>.md` as well.
+   The CLI decides which apply — do not decide it yourself:
+   - `requirement-quality` — returned on **every** `requirements` phase, with or
+     without a constitution. Requirement quality is universal, so it ships from
+     the factory; a thin constitution must not yield an audit that audits nothing.
+   - `minimal-code` — returned only when a parsimony principle (`P-min`) is in
+     scope for this phase.
+
+   Return early ONLY if `principles`, `invariants`, `domain_rules` **and**
+   `rubrics` are all empty — that is what "nothing to audit" means.
 
 2. **Spawn a FRESH subagent** (Task tool) to judge. Freshness is the whole point:
    a clean context window escapes the degradation that hits a long main session.

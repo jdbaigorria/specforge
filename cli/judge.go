@@ -26,6 +26,7 @@ type judgeContext struct {
 	Principles  []principle     `json:"principles"`
 	Invariants  []invariant     `json:"invariants"`
 	DomainRules []domainRule    `json:"domain_rules,omitempty"` // reglas de negocio que aplican a esta fase
+	Rubrics     []string        `json:"rubrics,omitempty"`      // rúbricas built-in que el juez debe aplicar (DL-1)
 	Artifact    json.RawMessage `json:"artifact,omitempty"`     // el artefacto crudo, pasa tal cual
 	Note        string          `json:"note,omitempty"`
 }
@@ -55,7 +56,51 @@ func contextForJudgeCmd(args []string) int {
 	return contextForJudge(projectDir, feature, phase)
 }
 
-func contextForJudge(projectDir, feature, phase string) int {
+// Rúbricas built-in: archivos de criterios que viven en la skill (hoy, en
+// `skills/sf-check/references/<nombre>.md`) y que el juez aplica ADEMÁS de los
+// principios del usuario.
+//
+// El CLI sólo las NOMBRA — no las lee, no las interpreta, no juzga con ellas.
+// Sigue siendo un slicer: dice "para esta fase aplica esta rúbrica" y el
+// contenido lo resuelve quien la usa.
+const (
+	rubricRequirementQuality = "requirement-quality"
+	rubricMinimalCode        = "minimal-code"
+	principleMinimalCode     = "P-min" // convención sembrada por sf-init
+)
+
+// rubricsForPhase decide qué rúbricas built-in aplican a una fase.
+//
+// Por qué existe (DL-1): la calidad intrínseca de un requisito —¿es ambiguo?,
+// ¿es singular?, ¿es verificable?— NO depende del proyecto. Es universal, así
+// que no puede quedar sujeta a que el usuario haya escrito el principio: su
+// razón de ser es cubrir justo al que NO lo escribió. Por eso
+// `requirement-quality` se devuelve siempre en la fase `requirements`,
+// haya o no constitución.
+//
+// `minimal-code`, en cambio, SÍ es opt-in: audita un principio concreto
+// (`P-min`), así que sólo aplica cuando ese principio está en scope. Antes esa
+// decisión era prosa que el agente evaluaba ("si un principio de parsimonia
+// está en scope, además pasale la rúbrica"); ahora la computa el CLI y la skill
+// sólo obedece.
+func rubricsForPhase(phase string, principles []principle) []string {
+	var out []string
+	if phase == "requirements" {
+		out = append(out, rubricRequirementQuality)
+	}
+	for _, p := range principles {
+		if p.ID == principleMinimalCode {
+			out = append(out, rubricMinimalCode)
+			break
+		}
+	}
+	return out
+}
+
+// buildJudgeContext arma el material del juez. Es PURA respecto de la salida
+// (no imprime), que es lo que la vuelve testeable — mismo patrón que
+// buildAuditEntry en gate.go: la función que decide se separa de la que imprime.
+func buildJudgeContext(projectDir, feature, phase string) judgeContext {
 	jc := judgeContext{Feature: feature, Phase: phase}
 
 	// constitution.json es la fuente de los principios. Si falta, degradamos con
@@ -73,6 +118,10 @@ func contextForJudge(projectDir, feature, phase string) int {
 		jc.DomainRules = domainRulesForPhase(df, phase)
 	}
 
+	// Las rúbricas se computan DESPUÉS de los principios porque `minimal-code`
+	// depende de cuáles quedaron en scope para esta fase.
+	jc.Rubrics = rubricsForPhase(phase, jc.Principles)
+
 	// El artefacto de la fase (lo que se juzga), si la fase tiene uno y existe.
 	if path := phaseArtifactPath(projectDir, feature, phase); path != "" {
 		if raw, err := os.ReadFile(path); err == nil {
@@ -82,9 +131,20 @@ func contextForJudge(projectDir, feature, phase string) int {
 		}
 	}
 
-	if len(jc.Principles) == 0 && len(jc.Invariants) == 0 && len(jc.DomainRules) == 0 {
+	// Esta nota es la señal que sf-check usa para retornar temprano ("si no
+	// devuelve reglas, no hay nada que auditar"). Las rúbricas CUENTAN como
+	// material: sin sumarlas acá, un proyecto de constitución flaca seguiría
+	// saliendo por esa puerta sin aplicar nunca la rúbrica built-in — que es
+	// exactamente el defecto que DL-1 arregla.
+	if len(jc.Principles) == 0 && len(jc.Invariants) == 0 &&
+		len(jc.DomainRules) == 0 && len(jc.Rubrics) == 0 {
 		jc.Note = appendNote(jc.Note, fmt.Sprintf("no rules mapped to phase %q (applies_to)", phase))
 	}
+	return jc
+}
+
+func contextForJudge(projectDir, feature, phase string) int {
+	jc := buildJudgeContext(projectDir, feature, phase)
 
 	out, err := json.MarshalIndent(jc, "", "  ")
 	if err != nil {
