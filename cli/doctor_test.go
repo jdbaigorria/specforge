@@ -69,7 +69,7 @@ func makeDriftProject(t *testing.T) string {
 func TestRunDrift(t *testing.T) {
 	t.Run("clean project: no drift", func(t *testing.T) {
 		dir := makeDriftProject(t)
-		if code := runDrift(dir, "", true); code != 0 {
+		if code := runDrift(dir, "", true, false); code != 0 {
 			t.Errorf("exit=%d, want 0", code)
 		}
 	})
@@ -77,7 +77,7 @@ func TestRunDrift(t *testing.T) {
 	t.Run("symbol removed: drift detected", func(t *testing.T) {
 		dir := makeDriftProject(t)
 		writeFile(t, filepath.Join(dir, "src/slug.py"), "def something_else():\n    return 1\n")
-		if code := runDrift(dir, "", true); code != 1 {
+		if code := runDrift(dir, "", true, false); code != 1 {
 			t.Errorf("exit=%d, want 1", code)
 		}
 	})
@@ -87,13 +87,13 @@ func TestRunDrift(t *testing.T) {
 		if err := os.Remove(filepath.Join(dir, "src/slug.py")); err != nil {
 			t.Fatalf("remove: %v", err)
 		}
-		if code := runDrift(dir, "", true); code != 1 {
+		if code := runDrift(dir, "", true, false); code != 1 {
 			t.Errorf("exit=%d, want 1", code)
 		}
 	})
 
 	t.Run("non-SpecForge dir: no-op pass", func(t *testing.T) {
-		if code := runDrift(t.TempDir(), "", true); code != 0 {
+		if code := runDrift(t.TempDir(), "", true, false); code != 0 {
 			t.Errorf("exit=%d, want 0", code)
 		}
 	})

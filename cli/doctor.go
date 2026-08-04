@@ -48,6 +48,7 @@ func runDoctor(args []string) int {
 	runTests := ""
 	install := false
 	global := false
+	asJSON := false
 
 	// Parseo manual de flags. i++ extra cuando un flag consume su valor.
 	for i := 0; i < len(args); i++ {
@@ -61,6 +62,8 @@ func runDoctor(args []string) int {
 			global = true
 		case a == "--quiet":
 			quiet = true
+		case a == "--json":
+			asJSON = true
 		case a == "--run-tests":
 			if i+1 < len(args) {
 				runTests = args[i+1]
@@ -79,38 +82,216 @@ func runDoctor(args []string) int {
 	if install {
 		return runDoctorInstall(projectDir, global)
 	}
-	return runDrift(projectDir, runTests, quiet)
+	return runDrift(projectDir, runTests, quiet, asJSON)
 }
 
-// runDrift recorre todos los trace.json del proyecto y reporta los anchors que
-// ya no existen en el código. Devuelve 1 si hay drift, 0 si todo en sync.
-func runDrift(projectDir, runTests string, quiet bool) int {
+// ----------------------------------------------------------------------------
+// La ONTOLOGÍA DE DRIFT (DL-4) — cuatro categorías, no un booleano.
+//
+// El motor veía existencia (¿resuelve el símbolo?) y reportaba una lista plana.
+// Pero "el código no está" y "el código está y hace otra cosa" son hallazgos
+// distintos que piden decisiones distintas, y aplanarlos los volvía un solo
+// "DRIFT" sin acción asociada.
+//
+// La categoría difícil es la 2. `checkAnchor` mira que el símbolo RESUELVA, no
+// qué hace — así que "implementado distinto" no se puede ver estáticamente.
+// Dejarla a juicio de un LLM sería repetir justo el defecto que este bloque
+// viene a corregir. Tiene una definición computable:
+//
+//	el anchor de código resuelve Y el test que ancla ese requisito falla.
+//
+// Si el símbolo está y su test da rojo, el código hace algo distinto de lo que
+// el requisito pide. Eso es gratis con --run-tests.
+//
+// La tabla de decisión, por requisito:
+//
+//	anchor de código │ test                    │ categoría
+//	─────────────────┼─────────────────────────┼──────────────────────────
+//	no resuelve      │ —                       │ 1 — no implementado
+//	resuelve         │ falla                   │ 2 — implementado distinto
+//	resuelve         │ no existe               │ 3 — sin verificar
+//	resuelve         │ pasa                    │ (sin drift)
+//
+// EL LÍMITE, DICHO: sin --run-tests la categoría 2 es INDETERMINABLE, no
+// ausente. El reporte lo dice con todas las letras en vez de emitir una lista
+// vacía — un `[]` se lee como "no hay", y ahí es donde la falta de información
+// se disfraza de limpio.
+// ----------------------------------------------------------------------------
+
+// driftItem es un hallazgo ya clasificado.
+type driftItem struct {
+	Feature     string `json:"feature"`
+	Requirement string `json:"requirement"`
+	Reason      string `json:"reason"`
+}
+
+// undetermined es lo que ocupa el lugar de una lista cuando el chequeo no se
+// pudo correr. Es un OBJETO y no un array a propósito: obliga al consumidor a
+// distinguir "no hay hallazgos" de "no se miró".
+type undetermined struct {
+	Status string `json:"status"` // siempre "undetermined"
+	Reason string `json:"reason"`
+}
+
+// driftReport es la salida de `sf doctor --drift --json`.
+//
+// ImplementedDifferently es `any` porque lleva []driftItem o undetermined según
+// se hayan corrido los tests. Es incómodo de tipar y ese es el punto: un
+// consumidor no puede leerlo como lista vacía sin darse cuenta.
+type driftReport struct {
+	Checked                int         `json:"checked"`
+	NotImplemented         []driftItem `json:"not_implemented"`
+	ImplementedDifferently any         `json:"implemented_differently"`
+	Unverified             []driftItem `json:"unverified"`
+	OutOfSpec              []string    `json:"out_of_spec"`
+}
+
+// diverged: ¿hay drift de COMPORTAMIENTO? Sólo las categorías 1 y 2 lo son —
+// el código no está, o hace otra cosa.
+//
+// Las categorías 3 y 4 son HUECOS, no divergencias: un requisito sin test y un
+// archivo sin spec son trabajo que falta, no una contradicción entre spec y
+// código. Se reportan siempre (la regla anti-omisión), pero no mueven el exit
+// code, porque `sf doctor` saliendo 1 en todo repo brownfield es un comando que
+// se deja de correr en una semana — y un chequeo que nadie corre no chequea nada.
+func (r driftReport) diverged() int {
+	n := len(r.NotImplemented)
+	if items, ok := r.ImplementedDifferently.([]driftItem); ok {
+		n += len(items)
+	}
+	return n
+}
+
+// runDrift recorre todos los trace.json del proyecto, clasifica lo que encuentra
+// y lo reporta. Devuelve 1 si hay drift de comportamiento, 0 si no.
+func runDrift(projectDir, runTests string, quiet, asJSON bool) int {
 	specforge := filepath.Join(projectDir, "specforge")
 	if info, err := os.Stat(specforge); err != nil || !info.IsDir() {
+		if asJSON {
+			return printDriftJSON(emptyDriftReport(runTests))
+		}
 		fmt.Printf("No specforge/ under %s — nothing to check.\n", projectDir)
 		return 0
 	}
 
-	traces := loadTraces(specforge)
-	var drifts []string
+	rep := buildDriftReport(projectDir, runTests)
+	if asJSON {
+		if code := printDriftJSON(rep); code != 0 {
+			return code
+		}
+		if rep.diverged() > 0 {
+			return 1
+		}
+		return 0
+	}
+	return printDriftHuman(rep, runTests, quiet)
+}
+
+// buildDriftReport arma el reporte completo: las tres categorías por requisito
+// más la cuarta, que sale de la cobertura (archivos de código que ningún trace
+// cita).
+func buildDriftReport(projectDir, runTests string) driftReport {
+	traces := loadTraces(filepath.Join(projectDir, "specforge"))
+
+	rep := driftReport{
+		Checked:        len(traces),
+		NotImplemented: []driftItem{},
+		Unverified:     []driftItem{},
+	}
+	var differently []driftItem
 	for _, t := range traces {
-		// El operador `...` expande el slice devuelto como argumentos variádicos
-		// de append (concatena dos slices).
-		drifts = append(drifts, checkFeatureDrift(projectDir, t.feature, t.path, runTests)...)
+		c := classifyFeatureDrift(projectDir, t.feature, t.path, runTests)
+		rep.NotImplemented = append(rep.NotImplemented, c.notImplemented...)
+		differently = append(differently, c.implementedDifferently...)
+		rep.Unverified = append(rep.Unverified, c.unverified...)
 	}
 
+	// R2: sin --run-tests la categoría 2 no se pudo mirar. El objeto lo dice.
+	if runTests == "" {
+		rep.ImplementedDifferently = undetermined{
+			Status: "undetermined",
+			Reason: "requires --run-tests",
+		}
+	} else {
+		if differently == nil {
+			differently = []driftItem{}
+		}
+		rep.ImplementedDifferently = differently
+	}
+
+	rep.OutOfSpec = computeSpecCoverageDetail(projectDir).Unanchored
+	if rep.OutOfSpec == nil {
+		rep.OutOfSpec = []string{}
+	}
+	return rep
+}
+
+// emptyDriftReport: el reporte de un proyecto sin specforge/. Mismo esquema —
+// un consumidor no debería necesitar un caso especial para "no hay nada".
+func emptyDriftReport(runTests string) driftReport {
+	rep := driftReport{NotImplemented: []driftItem{}, Unverified: []driftItem{}, OutOfSpec: []string{}}
+	if runTests == "" {
+		rep.ImplementedDifferently = undetermined{Status: "undetermined", Reason: "requires --run-tests"}
+	} else {
+		rep.ImplementedDifferently = []driftItem{}
+	}
+	return rep
+}
+
+func printDriftJSON(rep driftReport) int {
+	out, err := json.MarshalIndent(rep, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sf doctor: marshal failed (%v)\n", err)
+		return 1
+	}
+	fmt.Println(string(out))
+	return 0
+}
+
+// printDriftHuman rinde el reporte para una persona. Las cuatro categorías van
+// SIEMPRE, incluso vacías: ver "sin verificar: 0" es información; que la sección
+// no aparezca es indistinguible de que no se haya mirado.
+func printDriftHuman(rep driftReport, runTests string, quiet bool) int {
 	if !quiet {
-		fmt.Printf("Checked %d feature(s) with trace.json.\n", len(traces))
+		fmt.Printf("Checked %d feature(s) with trace.json.\n", rep.Checked)
 	}
-	for _, d := range drifts {
-		fmt.Printf("  DRIFT: %s\n", d)
+
+	printDriftSection("1 — not implemented", rep.NotImplemented)
+	if items, ok := rep.ImplementedDifferently.([]driftItem); ok {
+		printDriftSection("2 — implemented differently", items)
+	} else {
+		fmt.Println("\n2 — implemented differently: undetermined (re-run with --run-tests)")
 	}
-	if len(drifts) > 0 {
-		fmt.Printf("\nDRIFT: %d anchor(s) diverged from the spec.\n", len(drifts))
+	printDriftSection("3 — unverified", rep.Unverified)
+
+	fmt.Printf("\n4 — out of spec: %d code file(s) anchored to no trace\n", len(rep.OutOfSpec))
+	for _, f := range rep.OutOfSpec {
+		fmt.Printf("  %s\n", f)
+	}
+	if len(rep.OutOfSpec) > 0 {
+		fmt.Println("  each one: adopt it (write the requirement) or exclude it " +
+			"(constitution.json coverage.exclude, with a reason)")
+	}
+
+	if n := rep.diverged(); n > 0 {
+		fmt.Printf("\nDRIFT: %d requirement(s) diverged from the spec.\n", n)
+		if runTests == "" {
+			fmt.Println("Category 2 was not evaluated — the count is a floor, not a total.")
+		}
 		return 1
 	}
 	fmt.Println("\nOK: specs and code in sync.")
+	if runTests == "" {
+		fmt.Println("(category 2 not evaluated: re-run with --run-tests to check behaviour, not just existence)")
+	}
 	return 0
+}
+
+func printDriftSection(title string, items []driftItem) {
+	fmt.Printf("\n%s: %d\n", title, len(items))
+	for _, it := range items {
+		fmt.Printf("  %s / %s: %s\n", it.Feature, it.Requirement, it.Reason)
+	}
 }
 
 // traceEntry empareja una feature con la ruta de su trace.json.
@@ -177,17 +358,30 @@ func loadTraces(specforge string) []traceEntry {
 	return out
 }
 
-// checkFeatureDrift devuelve los mensajes de drift de una feature. runTests
-// vacío = solo chequeo estático (no corre tests). Esta función la reutiliza
-// `sf status` para su columna drift.
-func checkFeatureDrift(projectDir, feature, tracePath, runTests string) []string {
+// featureDrift son los hallazgos de UNA feature, ya repartidos por categoría.
+// (La 4 es a nivel proyecto, no por feature: sale de la cobertura.)
+type featureDrift struct {
+	notImplemented         []driftItem
+	implementedDifferently []driftItem
+	unverified             []driftItem
+}
+
+// classifyFeatureDrift aplica la tabla de decisión a cada requisito del trace.
+func classifyFeatureDrift(projectDir, feature, tracePath, runTests string) featureDrift {
+	var out featureDrift
+	add := func(bucket *[]driftItem, req, reason string) {
+		*bucket = append(*bucket, driftItem{Feature: feature, Requirement: req, Reason: reason})
+	}
+
 	data, err := os.ReadFile(tracePath)
 	if err != nil {
-		return []string{fmt.Sprintf("%s: unreadable trace.json (%v)", feature, err)}
+		add(&out.notImplemented, "—", fmt.Sprintf("unreadable trace.json (%v)", err))
+		return out
 	}
 	var tf traceFile
 	if err := json.Unmarshal(data, &tf); err != nil {
-		return []string{fmt.Sprintf("%s: unreadable trace.json (%v)", feature, err)}
+		add(&out.notImplemented, "—", fmt.Sprintf("unreadable trace.json (%v)", err))
+		return out
 	}
 
 	// Orden estable de los requirements.
@@ -197,21 +391,80 @@ func checkFeatureDrift(projectDir, feature, tracePath, runTests string) []string
 	}
 	sort.Strings(reqIDs)
 
-	var drifts []string
 	for _, req := range reqIDs {
 		info := tf.Requirements[req]
+
+		// Categoría 1: el código no está. Un requisito sin ningún anchor de
+		// código es el caso extremo — `sf save trace` ya lo rechaza, así que
+		// sólo aparece en traces legados o escritos a mano.
+		codeResolves := len(info.Code) > 0
+		if len(info.Code) == 0 {
+			add(&out.notImplemented, req, "no code anchor — nothing implements this requirement")
+		}
 		for _, anchor := range info.Code {
 			if ok, reason := checkAnchor(projectDir, anchor); !ok {
-				drifts = append(drifts, fmt.Sprintf("%s / %s: %s", feature, req, reason))
+				add(&out.notImplemented, req, reason)
+				codeResolves = false
 			}
 		}
-		if runTests != "" {
-			for _, testID := range info.Test {
-				if ok, reason := runTest(projectDir, testID, runTests); !ok {
-					drifts = append(drifts, fmt.Sprintf("%s / %s: %s", feature, req, reason))
-				}
+
+		// Categoría 3, mitad estática: el requisito no nombra ningún test. Esto
+		// se sabe sin correr nada y es un hueco real de la matriz.
+		if len(info.Test) == 0 {
+			add(&out.unverified, req, "names no test — nothing verifies this requirement")
+			continue
+		}
+
+		// Sin --run-tests no hay nada más que mirar: el requisito tiene test
+		// declarado, pero si pasa o falla es justamente lo indeterminado (R2).
+		if runTests == "" {
+			continue
+		}
+
+		for _, testID := range info.Test {
+			ok, reason := runTest(projectDir, testID, runTests)
+			switch {
+			case ok:
+				// nada: el requisito está implementado y verificado.
+			case !isTestFailure(reason):
+				// El test no se pudo ni lanzar (binario ausente, timeout). No es
+				// un veredicto sobre el código: es que no se pudo verificar.
+				add(&out.unverified, req, reason)
+			case codeResolves:
+				// R3, el caso que da sentido a la categoría: el símbolo está y su
+				// test da rojo → el código hace algo distinto de lo que se pidió.
+				add(&out.implementedDifferently, req, reason)
+			default:
+				// R3, la otra mitad: EL ANCLA MANDA. Si el símbolo no resuelve, el
+				// test rojo no agrega una categoría nueva — es la misma ausencia
+				// vista desde otro lado.
+				add(&out.notImplemented, req, reason)
 			}
 		}
+	}
+	return out
+}
+
+// isTestFailure distingue "el test corrió y falló" de "no se pudo correr". La
+// distinción viene de runTest, que ya separa el ExitError del resto; acá la
+// leemos del prefijo del mensaje para no cambiarle la firma.
+func isTestFailure(reason string) bool {
+	return strings.HasPrefix(reason, "test failed:")
+}
+
+// checkFeatureDrift devuelve los mensajes de drift de COMPORTAMIENTO de una
+// feature (categorías 1 y 2). runTests vacío = solo chequeo estático.
+//
+// Sigue existiendo con esta firma porque la consumen `sf status` (columna drift)
+// y `sf verify` (chequeo 4), y las dos preguntan lo mismo: ¿spec y código se
+// contradicen? Los huecos (categoría 3) los reporta `sf doctor`, que es donde se
+// va a hacer algo con ellos — meterlos acá pondría en DRIFT a toda feature sin
+// tests y volvería inútil la columna.
+func checkFeatureDrift(projectDir, feature, tracePath, runTests string) []string {
+	c := classifyFeatureDrift(projectDir, feature, tracePath, runTests)
+	var drifts []string
+	for _, it := range append(append([]driftItem{}, c.notImplemented...), c.implementedDifferently...) {
+		drifts = append(drifts, fmt.Sprintf("%s / %s: %s", it.Feature, it.Requirement, it.Reason))
 	}
 	return drifts
 }
