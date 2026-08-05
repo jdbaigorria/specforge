@@ -63,6 +63,11 @@ type verificationConfig struct {
 	// ortogonalidad es lo que decidió DEC-3 contra un `lane: strict` que los
 	// hubiera atado en un paquete todo-o-nada.
 	RequireArch bool `json:"require_arch,omitempty"`
+	// RequireMutation (RM-C6) exige que el suite detecte defectos inyectados.
+	// Default `false` y ortogonal a RequireArch: es la más cara de todas las
+	// verificaciones (corre el suite una vez por mutante), así que es un gate de
+	// CIERRE DE FEATURE, nunca algo por wave ni por PR.
+	RequireMutation bool `json:"require_mutation,omitempty"`
 }
 
 // verificationOpts: lectura QUIETA de la config de verificación. Sin
@@ -192,6 +197,16 @@ type buildConfig struct {
 	// delega en la herramienta del stack y consume su exit code, igual que
 	// TestCmd delega el runner. Opcional; sin él la conformidad se omite.
 	ArchCmd string `json:"arch_cmd,omitempty"`
+	// MutationCmd (RM-C6) corre mutation testing. `{files}` se sustituye con los
+	// archivos de producción anclados por el trace de la feature — el alcance
+	// por trace es la ventaja que ninguna herramienta genérica tiene, porque
+	// ninguna sabe qué código pertenece a qué requisito.
+	//
+	// A DIFERENCIA de ArchCmd, aquí el placeholder es OPCIONAL: sin `{files}` el
+	// comando corre tal cual y el usuario define su propio alcance, que es más
+	// lento pero no es incorrecto. En ArchCmd omitir `{config}` sí invierte la
+	// garantía (se verificaría contra reglas que nadie aprobó); acá no.
+	MutationCmd string `json:"mutation_cmd,omitempty"`
 }
 
 var auditPhaseModes = map[string]bool{"off": true, "nudge": true, "block": true}
@@ -442,6 +457,21 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	if cf.Verification != nil && cf.Verification.RequireArch &&
 		(cf.Build == nil || strings.TrimSpace(cf.Build.ArchCmd) == "") {
 		rep.errorf("verification.require_arch is on but build.arch_cmd is not set — nothing would check the approved dependency graph")
+	}
+
+	// Mutation testing (RM-C6). Acá NO se exige `{files}`: sin él el comando
+	// corre con el alcance que el usuario definió, que es más lento pero no es
+	// incorrecto. Se avisa porque perderse el alcance por trace es la diferencia
+	// entre minutos y horas, y esa es la razón nº1 por la que un gate caro se
+	// termina apagando.
+	if cf.Build != nil && strings.TrimSpace(cf.Build.MutationCmd) != "" &&
+		!strings.Contains(cf.Build.MutationCmd, "{files}") {
+		rep.warnf("build.mutation_cmd has no {files} placeholder — it will mutate whatever scope the command " +
+			"defines instead of just the code this feature anchors, which is much slower")
+	}
+	if cf.Verification != nil && cf.Verification.RequireMutation &&
+		(cf.Build == nil || strings.TrimSpace(cf.Build.MutationCmd) == "") {
+		rep.errorf("verification.require_mutation is on but build.mutation_cmd is not set — nothing would check that the suite detects defects")
 	}
 }
 
