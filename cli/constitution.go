@@ -56,6 +56,13 @@ type verificationConfig struct {
 	// existente, porque sus testigos nunca se acumularon. Se enciende cuando el
 	// registro ya tiene historia.
 	RequireRedWitness bool `json:"require_red_witness,omitempty"`
+	// RequireArch (RM-C7) exige que el código respete el grafo de dependencias
+	// que `design.json` declaró y el gate de diseño aprobó. Default `false`, y
+	// ORTOGONAL a los demás: un proyecto puede querer conformidad de
+	// arquitectura (segundos) sin pagar mutation testing (minutos). Esa
+	// ortogonalidad es lo que decidió DEC-3 contra un `lane: strict` que los
+	// hubiera atado en un paquete todo-o-nada.
+	RequireArch bool `json:"require_arch,omitempty"`
 }
 
 // verificationOpts: lectura QUIETA de la config de verificación. Sin
@@ -178,6 +185,13 @@ type buildConfig struct {
 	// nombrado en el trace corrió y pasó). Opcional: sin él, el verdict solo
 	// garantiza "suite verde y fresca".
 	Report string `json:"report,omitempty"`
+	// ArchCmd (RM-C7) es el comando que verifica conformidad de arquitectura,
+	// con `{config}` sustituido por el archivo de reglas que `sf` GENERA desde
+	// `design.json` (ej. "go-arch-lint check --config={config}",
+	// "lint-imports --config {config}"). SpecForge no implementa el analizador:
+	// delega en la herramienta del stack y consume su exit code, igual que
+	// TestCmd delega el runner. Opcional; sin él la conformidad se omite.
+	ArchCmd string `json:"arch_cmd,omitempty"`
 }
 
 var auditPhaseModes = map[string]bool{"off": true, "nudge": true, "block": true}
@@ -409,6 +423,25 @@ func checkConstitution(cf constitutionFile, rep *report) {
 		case cf.Build.Report == "go-json" && !strings.Contains(cf.Build.TestCmd, "-json"):
 			rep.warnf("build.report=go-json but test_cmd doesn't mention -json — the report will come back empty")
 		}
+	}
+
+	// Conformidad de arquitectura (RM-C7). El `{config}` no es opcional: sin él
+	// la herramienta corre con SU PROPIO archivo de reglas, escrito a mano, y
+	// entonces la conformidad se verifica contra algo que nadie aprobó y que se
+	// desincroniza del diseño. Eso es exactamente lo que C7 existe para evitar,
+	// así que un arch_cmd sin placeholder no es una config incompleta: es la
+	// garantía dada vuelta.
+	if cf.Build != nil && strings.TrimSpace(cf.Build.ArchCmd) != "" &&
+		!strings.Contains(cf.Build.ArchCmd, "{config}") {
+		rep.errorf(`build.arch_cmd requires a {config} placeholder (e.g. "go-arch-lint check --config={config}") — ` +
+			`without it the tool checks a hand-written config instead of the approved design graph`)
+	}
+	// El opt-in encendido sin comando es la otra mitad: se rechaza en el gate,
+	// pero decirlo acá lo convierte en un error de config y no en una sorpresa
+	// el día que alguien intenta sellar.
+	if cf.Verification != nil && cf.Verification.RequireArch &&
+		(cf.Build == nil || strings.TrimSpace(cf.Build.ArchCmd) == "") {
+		rep.errorf("verification.require_arch is on but build.arch_cmd is not set — nothing would check the approved dependency graph")
 	}
 }
 
