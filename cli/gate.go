@@ -119,6 +119,13 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 	// real, o si no hay un resultado de test verde y fresco. El LLM no puede
 	// saltearse esto editando a mano: features.json está protegido (Capa 1).
 	if phase == "verdict" {
+		// Las advertencias se imprimen SIEMPRE, se bloquee o no. Bajar el listón
+		// con `blocking_priorities` es decidir que algo no frena el release, no
+		// decidir dejar de verlo — y una advertencia que sólo aparece cuando ya
+		// hay un bloqueo es una advertencia que nadie lee nunca.
+		for _, w := range verdictWarnings(projectDir, name) {
+			fmt.Fprintf(os.Stderr, "  warning: %s\n", w)
+		}
 		if reasons := verdictPreconditions(projectDir, name); len(reasons) > 0 {
 			// Telemetría (A7): un verdict rehusado es exactamente el dato que
 			// queremos poder contar después.
@@ -475,8 +482,52 @@ func consecutiveFails(projectDir, feature, phase string) int {
 //     == el code_hash actual (no se tocó el código después de correr).
 //  4. (si la corrida sellada trae reporte por-test) cada test nombrado en el
 //     trace CORRIÓ y PASÓ en esa corrida — causalidad test→requirement (A2/R4).
+//
+// verdictIssue es un incumplimiento del contrato, con su severidad.
+//
+// Que la severidad viaje CON la razón (y no en dos listas paralelas) es lo que
+// impide el bug clásico: alguien filtra por bloqueantes, reporta esa lista, y
+// las advertencias desaparecen sin que nadie note que se perdieron.
+type verdictIssue struct {
+	Reason   string
+	Blocking bool
+}
+
+// verdictPreconditions devuelve sólo las razones BLOQUEANTES. Es el envoltorio
+// que consumen `sf verify` y el gate para decidir sí/no.
 func verdictPreconditions(projectDir, feature string) []string {
-	var reasons []string
+	var out []string
+	for _, is := range verdictIssues(projectDir, feature) {
+		if is.Blocking {
+			out = append(out, is.Reason)
+		}
+	}
+	return out
+}
+
+// verdictWarnings devuelve las razones NO bloqueantes: incumplimientos reales de
+// requisitos cuya prioridad el proyecto declaró como no-bloqueante. Se reportan
+// siempre — bajar el listón no es lo mismo que dejar de mirar.
+func verdictWarnings(projectDir, feature string) []string {
+	var out []string
+	for _, is := range verdictIssues(projectDir, feature) {
+		if !is.Blocking {
+			out = append(out, is.Reason)
+		}
+	}
+	return out
+}
+
+func verdictIssues(projectDir, feature string) []verdictIssue {
+	var issues []verdictIssue
+
+	// block: incumplimientos que NO son atribuibles a un requisito con
+	// prioridad — falta el trace, no se corrió la suite, el resultado está
+	// stale. Nada de eso se gradúa: son condiciones del proceso, no del
+	// contenido de un requisito.
+	block := func(format string, a ...any) {
+		issues = append(issues, verdictIssue{Reason: fmt.Sprintf(format, a...), Blocking: true})
+	}
 
 	// traced queda apuntando al trace parseado OK — lo necesita la condición 4
 	// (causalidad test→requirement contra el reporte sellado).
@@ -485,15 +536,15 @@ func verdictPreconditions(projectDir, feature string) []string {
 	specforge := filepath.Join(projectDir, "specforge")
 	tracePath := findArtifact(specforge, feature, "trace.json")
 	if tracePath == "" {
-		reasons = append(reasons, "no trace.json — produce it with `sf save trace --feature="+feature+" --json -`")
+		block("no trace.json — produce it with `sf save trace --feature=%s --json -`", feature)
 	} else if data, err := os.ReadFile(tracePath); err != nil {
-		reasons = append(reasons, "trace.json is unreadable")
+		block("trace.json is unreadable")
 	} else {
 		var tf traceFile
 		if json.Unmarshal(data, &tf) != nil {
-			reasons = append(reasons, "trace.json is invalid JSON")
+			block("trace.json is invalid JSON")
 		} else if len(tf.Requirements) == 0 {
-			reasons = append(reasons, "trace.json declares no requirements")
+			block("trace.json declares no requirements")
 		} else {
 			traced = &tf
 			// Orden estable para que el reporte sea reproducible.
@@ -506,22 +557,51 @@ func verdictPreconditions(projectDir, feature string) []string {
 			// `acceptance` estructurada corre bajo el contrato v2 (un test POR
 			// CRITERIO); uno legado conserva la regla vieja.
 			criteria := acceptanceCriteriaOf(projectDir, feature)
+			// RM-C2: la prioridad de cada requisito y hasta dónde bloquea el
+			// proyecto. `blocks` viene con TODO en true salvo que la constitución
+			// diga otra cosa — el default no afloja nada.
+			prio := requirementPriorities(projectDir, feature)
+			blocks := blockingPriorities(projectDir)
+
 			for _, req := range ids {
 				info := tf.Requirements[req]
+
+				// Código que ya no existe: BLOQUEA siempre, sin importar la
+				// prioridad. Un ancla rota no es "un requisito menor sin test":
+				// es un artefacto que miente sobre dónde vive lo que describe, y
+				// eso corrompe el drift de todo el proyecto. R5 gradúa el
+				// CONTRATO DE VERIFICACIÓN, no la integridad del trace.
 				for _, anchor := range info.Code {
 					if ok, why := checkAnchor(projectDir, anchor); !ok {
-						reasons = append(reasons, fmt.Sprintf("%s: code drift (%s)", req, why))
+						block("%s: code drift (%s)", req, why)
 					}
 				}
+
+				// De acá para abajo sí se gradúa: son incumplimientos del
+				// contrato de verificación, atribuibles a UN requisito.
+				p := prio[req]
+				if p == "" {
+					p = "must" // sin spec que lo declare: fail-closed
+				}
+				blocking := blocks[p]
+				add := func(reason string) {
+					if !blocking {
+						reason = fmt.Sprintf("%s [priority: %s — reported, not blocking]", reason, p)
+					}
+					issues = append(issues, verdictIssue{Reason: reason, Blocking: blocking})
+				}
+
 				if wanted, v2 := criteria[req]; v2 {
-					reasons = append(reasons, scenarioReasons(projectDir, req, wanted, info)...)
+					for _, r := range scenarioReasons(projectDir, req, wanted, info) {
+						add(r)
+					}
 				} else if len(info.Test) == 0 {
 					// R4: contrato v1 intacto para los requisitos legados.
-					reasons = append(reasons, fmt.Sprintf("%s: names no test (verification contract unmet)", req))
+					add(fmt.Sprintf("%s: names no test (verification contract unmet)", req))
 				}
 				for _, tref := range info.Test {
 					if ok, why := checkAnchor(projectDir, tref); !ok {
-						reasons = append(reasons, fmt.Sprintf("%s: test %q does not resolve (%s)", req, tref, why))
+						add(fmt.Sprintf("%s: test %q does not resolve (%s)", req, tref, why))
 					}
 				}
 			}
@@ -532,21 +612,45 @@ func verdictPreconditions(projectDir, feature string) []string {
 	res, ok := readCheckResult(projectDir, feature)
 	switch {
 	case !ok:
-		reasons = append(reasons, "no test result on record — run `sf check run --feature="+feature+"`")
+		block("no test result on record — run `sf check run --feature=%s`", feature)
 	case !res.Passed:
-		reasons = append(reasons, fmt.Sprintf("last `sf check run` FAILED (exit %d) — fix the code and re-run", res.ExitCode))
+		block("last `sf check run` FAILED (exit %d) — fix the code and re-run", res.ExitCode)
 	case res.CodeHash != codeHash(projectDir):
-		reasons = append(reasons, "test result is STALE — code changed since the last `sf check run`; re-run it")
+		block("test result is STALE — code changed since the last `sf check run`; re-run it")
 	default:
 		// 4. Causalidad test→requirement (A2/R4): con reporte estructurado en la
 		//    corrida sellada, cada test nombrado en el trace debe haber CORRIDO y
 		//    PASADO en esa corrida. Sin reporte (len==0) no hay evidencia por-test
 		//    y no inventamos la garantía — quedan las condiciones 1-3.
 		if traced != nil && len(res.Tests) > 0 {
-			reasons = append(reasons, causalityReasons(traced, res.Tests)...)
+			for _, r := range causalityReasons(traced, res.Tests) {
+				block("%s", r)
+			}
 		}
 	}
-	return reasons
+	return issues
+}
+
+// requirementPriorities mapea id → prioridad, leyendo requirements.json.
+// Lectura QUIETA: sin spec, el mapa vacío y todo cae a `must` (fail-closed).
+func requirementPriorities(projectDir, feature string) map[string]string {
+	out := map[string]string{}
+	path := findArtifact(filepath.Join(projectDir, "specforge"), feature, "requirements.json")
+	if path == "" {
+		return out
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return out
+	}
+	var rf requirementsFile
+	if json.Unmarshal(data, &rf) != nil {
+		return out
+	}
+	for _, r := range rf.Requirements {
+		out[r.ID] = priorityOf(r)
+	}
+	return out
 }
 
 // ----------------------------------------------------------------------------

@@ -193,6 +193,9 @@ record-verdict`. Opt-in and governed by config:
   "build": { "mode": "inline" | "single" | "per-wave" }, // default inline
   "coverage": {                                       // default: measure everything
     "exclude": [{ "path": "scripts/", "reason": "release tooling, not product" }]
+  },
+  "verification": {                                   // default: everything blocks
+    "blocking_priorities": ["must", "should"]
   }
 }
 ```
@@ -209,6 +212,21 @@ record-verdict`. Opt-in and governed by config:
   silently excludes half a repo. `reason` is required: excluding *raises* the
   percentage, so an unexplained exclusion is how the metric gets dressed up
   without anyone noticing.
+- **`verification.blocking_priorities`** — which requirement priorities
+  (`must` / `should` / `could`) can *block* the verdict gate. **Omitting it
+  blocks on all three**, exactly as before the field existed; an empty list means
+  the same thing, not "block on nothing" — a `[]` typed by mistake would
+  otherwise disable the gate silently. Lowering the bar is an explicit project
+  decision, written in a gated artifact and therefore auditable.
+
+  Non-blocking violations are still **reported** every time — by `sf gate
+  approve` on stderr and in `sf verify`'s note. Deciding something shouldn't
+  stop a release is not deciding to stop looking at it.
+
+  Priority grades the *verification contract* only. A broken code anchor blocks
+  regardless: an anchor that no longer resolves isn't a minor requirement
+  without a test, it's an artifact lying about where its subject lives, and that
+  corrupts drift detection for the whole project.
 
 Quality principles like **`P-min`** (minimal code) are just constitution
 principles with `applies_to` — the phase auditor checks them for free, no special

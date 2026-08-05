@@ -4,7 +4,7 @@
 {{ end }}{{ if .Actors }}
 **Actors:** {{ list .Actors }}
 {{ end }}{{ range .Requirements }}
-## {{ .ID }} ({{ .EarsType }})
+## {{ .ID }} ({{ .EarsType }}{{ with .Priority }} · {{ . }}{{ end }})
 
 {{ ears . }}
 {{ if .Acceptance }}
