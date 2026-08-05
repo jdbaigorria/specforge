@@ -79,6 +79,7 @@ var cliSurface = map[string]cmdSurface{
 	"run":          {flags: set("--feature", "--dry-run")},
 	"coverage":     {flags: set("--json", "--badge", "--history", "--by-priority")},
 	"arch":         {subs: set("rules", "check"), flags: set("--feature")},
+	"mutation":     {subs: set("scope", "run"), flags: set("--feature")},
 	"help":         {},
 }
 

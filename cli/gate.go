@@ -666,6 +666,17 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 			block("%s", r)
 		}
 	}
+
+	// 7. Mutation testing (RM-C6), OPT-IN y ÚLTIMO a propósito: es la
+	//    verificación más cara de todas (corre el suite una vez por mutante).
+	//    Ponerla al final significa que un proyecto con un problema barato —un
+	//    ancla rota, un criterio sin test— se entera en segundos en vez de
+	//    después de veinte minutos de mutación que igual iba a rechazar.
+	if requireMutationEnabled(projectDir) {
+		for _, r := range mutationGateReasons(projectDir, feature) {
+			block("%s", r)
+		}
+	}
 	return issues
 }
 
