@@ -143,6 +143,10 @@ release (`verification.blocking_priorities` in the constitution). Ask the user
 rather than guessing: a `could` you invented is a requirement nobody agreed to
 deprioritise. When in doubt, leave it out and get `must`.
 
+Under `--all`, **do not copy a feature's roadmap priority onto its
+requirements** — the roadmap ranks what to build, this ranks what can hold up a
+release. See `references/product-decomposition.md` Step A2.
+
 ### Non-functional requirements: say how they get verified
 
 `kind` says **what** a requirement is; `verification` says **how** it's checked.

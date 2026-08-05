@@ -23,6 +23,23 @@ Classify each feature:
 | **Should** | Important but can launch without. v1.1. |
 | **Could** | Nice to have. Backlog. |
 
+**This is not the same axis as a requirement's `priority`.** Both use the MoSCoW
+words, so they read as one thing and they are not:
+
+| | Question it answers | What it controls |
+|---|---|---|
+| Feature priority (here) | Do we build this, and when? | The order of the roadmap |
+| Requirement `priority` | Within a feature we *are* building, what can hold up a release? | How hard the verdict gate bites (`verification.blocking_priorities`) |
+
+**Do not inherit one from the other.** A `could` feature you decided to build
+still has requirements that are `must` *for that feature* — "we chose to build
+it, so it has to work". Copying `could` down would silently ship it ungated,
+which is the opposite of what classifying it as backlog meant. The reverse is
+just as wrong: a `must` feature routinely contains `could` polish.
+
+Ask per requirement, as `SKILL.md` says. The roadmap priority is context for
+that question, never the answer to it.
+
 ## Step A3: Generate roadmap
 
 Create `specforge/roadmap.md`:
@@ -59,6 +76,37 @@ just omit `serves`.
 
 ## Step A4: Propose each feature
 
-After roadmap approval, start proposing features in priority order.
-For each: run the normal Requirements-First flow in `SKILL.md`.
+After roadmap approval, propose features in **priority order — except that
+dependencies win**. A feature cannot be proposed before the ones it depends on,
+whatever its priority. Record the edges with `--depends-on` when you create the
+feature so the order is data, not something you re-derive each session:
+
+```bash
+sf feature add --feature=checkout --depends-on=user-auth
+```
+
+**When a `must` depends on a `could`, stop and say so.** Don't quietly pull the
+`could` forward — the ordering is the symptom, not the problem. Either the
+dependency is real and that feature was mis-classified (it's load-bearing for the
+MVP, so it isn't backlog), or the dependency is accidental and the `must` should
+not need it. Both readings change the roadmap, and only the user can pick.
+
+For each feature: run the normal Requirements-First flow in `SKILL.md`.
 Gate after each feature's 3 artefacts. User can stop at any point.
+
+## Step A5: Check the roadmap against reality
+
+Once features start closing, the classification stops being a plan and becomes a
+claim you can check:
+
+```bash
+sf coverage --by-priority
+```
+
+It reports, per requirement priority, how many have a satisfied verification
+contract — and which ones don't, by name. The unit is the **requirement**, not
+the feature and not the file, so read it against Step A2's second table.
+
+The number to look at is `must`: anything under 100% there is a requirement that
+the project itself declared release-blocking and has not verified. `should` and
+`could` under 100% may be entirely fine — that's what classifying them was for.
