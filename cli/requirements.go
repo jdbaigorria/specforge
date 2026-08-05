@@ -40,8 +40,82 @@ type requirement struct {
 	State      string         `json:"state"`
 	Behavior   string         `json:"behavior"`
 	Acceptance acceptanceList `json:"acceptance"`
-	Source     string         `json:"source"`
-	Tags       []string       `json:"tags"`
+	// Source pasó de string libre a REFS a sources.json (RM-C3). Hasta ahora era
+	// un campo muerto: existía en el struct, no lo renderizaba el template y no
+	// lo leía nadie.
+	Source sourceRefs `json:"source,omitempty"`
+	Tags   []string   `json:"tags"`
+}
+
+// sourceRefs son las fuentes de un requisito, con doble lectura como
+// `acceptance`: acepta la forma legada (un string suelto de prosa libre) y la
+// v2 (una lista de refs `S#`).
+//
+// Un string que YA tiene forma de ref (`"S1"`) entra como ref — no hay
+// ambigüedad ahí. Cualquier otro string se preserva como prosa: no lo
+// convertimos ni lo tiramos. Convertir prosa en un ref sería inventar un id que
+// nadie declaró, y tirarla sería perder el único rastro de procedencia que ese
+// requisito tenía.
+type sourceRefs struct {
+	Refs  []string
+	Prose string
+}
+
+func (s *sourceRefs) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "null" {
+		return nil
+	}
+	if strings.HasPrefix(trimmed, `"`) {
+		var one string
+		if err := json.Unmarshal(data, &one); err != nil {
+			return err
+		}
+		if one = strings.TrimSpace(one); one == "" {
+			return nil
+		}
+		if sourceIDRe.MatchString(one) {
+			s.Refs = []string{one}
+			return nil
+		}
+		s.Prose = one
+		return nil
+	}
+	var many []string
+	if err := json.Unmarshal(data, &many); err != nil {
+		return fmt.Errorf("source must be a ref list or a string: %w", err)
+	}
+	s.Refs = many
+	return nil
+}
+
+// MarshalJSON re-emite la forma que entró, por el mismo motivo que
+// `acceptanceList`: un `sf save` no debe convertir prosa en refs por su cuenta.
+func (s sourceRefs) MarshalJSON() ([]byte, error) {
+	if s.Prose != "" && len(s.Refs) == 0 {
+		return json.Marshal(s.Prose)
+	}
+	if s.Refs == nil {
+		return json.Marshal([]string{})
+	}
+	return json.Marshal(s.Refs)
+}
+
+// empty: ni refs ni prosa. `omitempty` no funciona con structs, así que el
+// campo se emite siempre; esto es para las decisiones de validación.
+func (s sourceRefs) empty() bool { return len(s.Refs) == 0 && s.Prose == "" }
+
+// sourceLine rinde la procedencia para el markdown. La prosa legada se marca
+// como tal: que se vea que ese requisito todavía no tiene procedencia
+// verificable es la mitad del punto.
+func sourceLine(r requirement) string {
+	if len(r.Source.Refs) > 0 {
+		return strings.Join(r.Source.Refs, ", ")
+	}
+	if r.Source.Prose != "" {
+		return r.Source.Prose + " _(free prose — not a ref)_"
+	}
+	return ""
 }
 
 // ----------------------------------------------------------------------------
@@ -245,6 +319,9 @@ var reqTmpl = template.Must(
 			// como RENDER, igual que `ears` arma la oración EARS desde campos
 			// estructurados: la fuente sigue siendo JSON.
 			"criterion": acceptanceCriterion.line,
+			// `source` rinde la procedencia. Hasta RM-C3 el campo existía y el
+			// template no lo mostraba — un dato muerto en los dos extremos.
+			"source": sourceLine,
 		}).
 		Parse(reqTemplate),
 )
@@ -397,10 +474,29 @@ func validateRequirements(projectDir, feature string) int {
 
 // checkRequirements valida la gramática EARS (CLI-SPEC §4.2): cada tipo exige
 // ciertos campos y prohíbe otros.
+//
+// Es el validador que consume `sf save` vía la interfaz `artifact`, y no conoce
+// el project dir — por eso los refs de `source` se chequean aparte, en
+// checkRequirementsIn.
 func checkRequirements(rf requirementsFile, rep *report) {
+	checkRequirementsIn(rf, "", rep)
+}
+
+// checkRequirementsIn agrega, cuando hay project dir, la validación cruzada
+// contra sources.json (R2).
+func checkRequirementsIn(rf requirementsFile, projectDir string, rep *report) {
 	if rf.Feature == "" {
 		rep.errorf("missing `feature`")
 	}
+
+	// R2: los refs de fuente tienen que existir. Un ref colgando es peor que no
+	// declarar fuente — declara procedencia y no la tiene, así que pasaría el
+	// chequeo de "requisito sin fuente" sin haberlo cumplido.
+	var declared map[string]bool
+	if projectDir != "" {
+		declared = sourceIDSet(projectDir)
+	}
+	requireSource := projectDir != "" && requireSourceEnabled(projectDir)
 
 	seen := map[string]bool{}
 	for _, r := range rf.Requirements {
@@ -455,6 +551,41 @@ func checkRequirements(rf requirementsFile, rep *report) {
 		}
 
 		checkAcceptance(r, rep)
+		checkSourceRefs(r, declared, requireSource, rep)
+	}
+}
+
+// checkSourceRefs valida la procedencia de UN requisito (R2).
+//
+// `declared == nil` significa "no sabemos qué fuentes existen" (validación sin
+// project dir): en ese caso sólo se chequea la forma del ref, nunca su
+// existencia. Inventar un error de "S9 no existe" cuando ni siquiera se pudo
+// abrir sources.json sería reportar una ausencia que no se midió.
+func checkSourceRefs(r requirement, declared map[string]bool, requireSource bool, rep *report) {
+	if r.Source.Prose != "" {
+		rep.warnf("%s: source is free prose, not a ref (%q) — declare it in sources.json and cite its id, "+
+			"otherwise nothing can check where this requirement came from", r.ID, r.Source.Prose)
+	}
+	if r.Source.empty() && requireSource {
+		rep.errorf("%s: no source — with verification.require_source enabled, a requirement must cite "+
+			"where it came from (a requirement with no source was invented by the model)", r.ID)
+	}
+
+	seen := map[string]bool{}
+	for _, ref := range r.Source.Refs {
+		ref = strings.TrimSpace(ref)
+		switch {
+		case !sourceIDRe.MatchString(ref):
+			rep.errorf("%s: source ref %q must have the form S<n>", r.ID, ref)
+			continue
+		case seen[ref]:
+			rep.warnf("%s: source ref %s listed twice", r.ID, ref)
+			continue
+		}
+		seen[ref] = true
+		if declared != nil && !declared[ref] {
+			rep.errorf("%s: source ref %s is not declared in sources.json", r.ID, ref)
+		}
 	}
 }
 
