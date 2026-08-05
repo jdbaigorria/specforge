@@ -76,6 +76,17 @@ needs reading the message. That's why it lives here and not in a gate — the
 verification tier records that a RED happened, this rubric raises what that
 record is worth.
 
+> **Where the record lives.** Every `sf check run` that sees a test fail writes a
+> **RED witness** for it — the timestamp and the hash of the code it failed
+> against — and never overwrites one. You don't do anything to produce it; it's a
+> side effect of working RED-GREEN. A project can later require it
+> (`verification.require_red_witness`), at which point the verdict demands that
+> every test have failed against *different* code than the code passing it today.
+>
+> That check is a lower bound, not proof of TDD: a test written afterwards that
+> failed because of a bug also counts. The three conditions above are what make
+> the witness worth having.
+
 ### GREEN
 MINIMAL code to pass. No speculation. No "while I'm here..."
 Run all tests. This test passes ✅. Previous tests still pass ✅.

@@ -646,7 +646,53 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 			}
 		}
 	}
+
+	// 5. Testigo RED (RM-C5 / R12), OPT-IN. Bloquea siempre que esté encendido:
+	//    el proyecto que lo enciende está pidiendo exactamente esta garantía, así
+	//    que graduarla por prioridad la vaciaría de sentido.
+	if requireRedWitnessEnabled(projectDir) {
+		for _, r := range redWitnessGateReasons(projectDir, feature, traced) {
+			block("%s", r)
+		}
+	}
 	return issues
+}
+
+// redWitnessGateReasons aplica R12 con sus dos exenciones y su caso de
+// configuración faltante.
+func redWitnessGateReasons(projectDir, feature string, traced *traceFile) []string {
+	// Sin reporte por-test no hay forma de atribuir un fallo a un test, así que
+	// los testigos nunca se acumulan. Aprobar en silencio sería lo peor: el
+	// proyecto creería tener una garantía que nunca se evaluó.
+	if !perTestReportConfigured(projectDir) {
+		return []string{
+			"require_red_witness is on but build.report is not configured — without a per-test report " +
+				"no witness can ever be attributed. Set build.report (go-json|junit) or turn the flag off",
+		}
+	}
+
+	// RM-C4: un requisito verificado por benchmark o auditoría no tiene testigo
+	// RED y no debe exigírsele — no falló nunca como test porque nunca fue uno.
+	exempt := map[string]bool{}
+	for _, r := range requirementsOf(projectDir, feature) {
+		if verificationOf(r) != "test" {
+			exempt[r.ID] = true
+		}
+	}
+	return redWitnessReasons(projectDir, feature, traced, exempt)
+}
+
+// perTestReportConfigured: ¿la constitución declara build.report?
+func perTestReportConfigured(projectDir string) bool {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return false
+	}
+	var c constitutionFile
+	if json.Unmarshal(data, &c) != nil || c.Build == nil {
+		return false
+	}
+	return strings.TrimSpace(c.Build.Report) != ""
 }
 
 // ----------------------------------------------------------------------------

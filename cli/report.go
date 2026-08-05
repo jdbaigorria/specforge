@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 )
 
@@ -129,25 +128,25 @@ func testRefLeaf(ref string) string {
 // aparece como passed en la corrida sellada. La invocan las precondiciones del
 // verdict SOLO cuando la corrida trae reporte estructurado (len(tests) > 0):
 // sin reporte no hay evidencia por-test y no fabricamos garantías.
+//
+// Recorre los DOS niveles del trace vía traceTestRefs: los tests de nivel
+// requisito y los de cada escenario. Cuando RM-C1 movió los tests a
+// `scenarios`, esta función siguió mirando sólo `info.Test` — así que un
+// proyecto bajo contrato v2 no tenía ningún test que chequear y la ausencia se
+// leía como "todo en orden". El agujero más silencioso posible: una garantía que
+// deja de aplicarse sin que nada falle.
 func causalityReasons(tf *traceFile, tests map[string]string) []string {
 	var reasons []string
-	ids := make([]string, 0, len(tf.Requirements))
-	for id := range tf.Requirements {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids) // orden estable → reporte reproducible
-	for _, req := range ids {
-		for _, tref := range tf.Requirements[req].Test {
-			leaf := testRefLeaf(tref)
-			status, ran := tests[leaf]
-			switch {
-			case !ran:
-				reasons = append(reasons, fmt.Sprintf(
-					"%s: test %q did not run in the sealed `sf check run` (test→requirement causality unproven)", req, tref))
-			case status != "pass":
-				reasons = append(reasons, fmt.Sprintf(
-					"%s: test %q ran but was %s (not passed) in the sealed run", req, tref, status))
-			}
+	for _, t := range traceTests(tf, nil) {
+		leaf := testRefLeaf(t.ref)
+		status, ran := tests[leaf]
+		switch {
+		case !ran:
+			reasons = append(reasons, fmt.Sprintf(
+				"%s: test %q did not run in the sealed `sf check run` (test→requirement causality unproven)", t.owner, t.ref))
+		case status != "pass":
+			reasons = append(reasons, fmt.Sprintf(
+				"%s: test %q ran but was %s (not passed) in the sealed run", t.owner, t.ref, status))
 		}
 	}
 	return reasons

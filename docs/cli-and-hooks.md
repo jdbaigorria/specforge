@@ -233,6 +233,29 @@ record-verdict`. Opt-in and governed by config:
   stops a model from inventing requirements. Either way, `sf sources coverage`
   reports both directions — requirements with no source, and sources no
   requirement uses.
+- **`verification.require_red_witness`** — default `false`. With `true`, the
+  verdict requires every test named in `trace.json` to have been **observed
+  failing against different code** than the code that passes it today.
+
+  The gap it closes: the CLI already proves a test exists, ran, went green and is
+  fresh — but not the **order**. A test written after the code tends to assert
+  what the code does instead of what the requirement asks. That's the most common
+  and least malicious form of semantic fraud: the agent implements, reads its own
+  implementation, and writes a test describing it.
+
+  **This does not impose TDD.** The witness accumulates on its own — `sf check
+  run` records any test it sees fail, and whoever works RED-GREEN builds the
+  record without doing anything special. Turning the flag on is what makes it a
+  requirement, and you turn it on once the record already has history; on day one
+  it would reject every existing project.
+
+  **Honest limits.** It proves there was a state of the code where the test
+  failed — not strict ordering. A test written afterwards that failed because of
+  a bug also counts. It's a lower bound, not a demonstration of TDD. And it needs
+  `build.report` (`go-json` | `junit`): without a per-test report no failure can
+  be attributed to a test, so the flag **rejects asking for the configuration**
+  rather than approving in silence. Requirements whose `verification` isn't
+  `test` are exempt — they never failed as a test because they never were one.
 
 Quality principles like **`P-min`** (minimal code) are just constitution
 principles with `applies_to` — the phase auditor checks them for free, no special

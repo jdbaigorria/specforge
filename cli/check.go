@@ -161,6 +161,12 @@ func runCheckRun(args []string) int {
 		return c
 	}
 
+	// R11 (RM-C5): todo test que falló en esta corrida y todavía no tenía
+	// testigo, lo gana. Se llena solo: quien trabaja en RED-GREEN lo acumula sin
+	// hacer nada especial, y quien no, no se entera. La garantía sólo se exige
+	// si el proyecto la pide con `require_red_witness`.
+	accumulateRedWitnesses(projectDir, feature, res)
+
 	if passed {
 		fmt.Printf("PASS — %s/%s (exit 0, code %s…)\n", feature, "tests", short(codeHash))
 		return 0

@@ -51,19 +51,34 @@ type verificationConfig struct {
 	// eso es legítimo. En greenfield esto sería burocracia; en el camino
 	// consultora es el chequeo que impide que el modelo invente requisitos.
 	RequireSource bool `json:"require_source,omitempty"`
+	// RequireRedWitness (RM-C5) exige que cada test haya demostrado poder
+	// fallar. Default `false`: encenderlo el día uno rompería todo proyecto
+	// existente, porque sus testigos nunca se acumularon. Se enciende cuando el
+	// registro ya tiene historia.
+	RequireRedWitness bool `json:"require_red_witness,omitempty"`
 }
 
-// requireSourceEnabled: lectura QUIETA del flag. Sin constitución, `false`.
-func requireSourceEnabled(projectDir string) bool {
+// verificationOpts: lectura QUIETA de la config de verificación. Sin
+// constitución (o inválida), todos los opt-in quedan apagados — que es el
+// default correcto: nadie pidió esas garantías.
+func verificationOpts(projectDir string) verificationConfig {
 	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
 	if err != nil {
-		return false
+		return verificationConfig{}
 	}
 	var c constitutionFile
 	if json.Unmarshal(data, &c) != nil || c.Verification == nil {
-		return false
+		return verificationConfig{}
 	}
-	return c.Verification.RequireSource
+	return *c.Verification
+}
+
+func requireSourceEnabled(projectDir string) bool {
+	return verificationOpts(projectDir).RequireSource
+}
+
+func requireRedWitnessEnabled(projectDir string) bool {
+	return verificationOpts(projectDir).RequireRedWitness
 }
 
 // blockingPriorities devuelve el set de prioridades que BLOQUEAN el veredicto.
