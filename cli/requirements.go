@@ -31,14 +31,47 @@ type requirementsFile struct {
 }
 
 type requirement struct {
-	ID         string         `json:"id"`
-	EarsType   string         `json:"ears_type"`
+	ID       string `json:"id"`
+	EarsType string `json:"ears_type"`
+	// Priority gradúa la severidad del gate (RM-C2). `omitempty` + default
+	// implícito: los requisitos escritos antes del campo se leen como `must`.
+	Priority   string         `json:"priority,omitempty"`
 	Trigger    string         `json:"trigger"`
 	State      string         `json:"state"`
 	Behavior   string         `json:"behavior"`
 	Acceptance acceptanceList `json:"acceptance"`
 	Source     string         `json:"source"`
 	Tags       []string       `json:"tags"`
+}
+
+// ----------------------------------------------------------------------------
+// RM-C2 — `priority` tipada.
+//
+// Sin este eje, todo requisito pesa lo mismo: `sf coverage` no distingue un 78%
+// al que le falta todo lo `must` de uno al que le falta todo lo `could`, y el
+// gate del veredicto sólo sabe bloquear o no bloquear.
+//
+// EL ANTÍDOTO A LA FATIGA DE GATE. Un gate que bloquea por todo se termina
+// salteando por todo — no porque alguien sea deshonesto, sino porque un
+// bloqueo que no discrimina deja de informar. Graduar la severidad es lo que
+// hace que un bloqueo vuelva a significar algo.
+// ----------------------------------------------------------------------------
+
+// priorities: MoSCoW sin el "won't" — un requisito que no se va a hacer no se
+// escribe, se borra.
+var priorities = map[string]bool{"must": true, "should": true, "could": true}
+
+// priorityOf normaliza: ausente ⇒ `must`.
+//
+// FAIL-CLOSED, y es deliberado. El default tenía que ser el extremo más
+// exigente: si un requisito sin prioridad declarada valiera `could`, omitir el
+// campo sería la forma más barata de bajar el listón, y un agente bajo presión
+// de contexto encuentra esas formas solo. Acá omitirlo cuesta más, no menos.
+func priorityOf(r requirement) string {
+	if r.Priority == "" {
+		return "must"
+	}
+	return r.Priority
 }
 
 // ----------------------------------------------------------------------------
@@ -378,6 +411,10 @@ func checkRequirements(rf requirementsFile, rep *report) {
 			rep.errorf("duplicate requirement id %s", r.ID)
 		default:
 			seen[r.ID] = true
+		}
+
+		if !priorities[priorityOf(r)] {
+			rep.errorf("%s: invalid priority %q (must|should|could)", r.ID, r.Priority)
 		}
 
 		if !earsTypes[r.EarsType] {

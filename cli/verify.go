@@ -143,7 +143,15 @@ func buildVerifyReport(projectDir, featureFilter string) verifyReport {
 		for _, r := range verdictPreconditions(projectDir, target) {
 			probs = append(probs, target+": "+r)
 		}
-		add(verifyCheck{Name: "verdict", Problems: probs, Note: "feature: " + target})
+		// RM-C2: los incumplimientos no bloqueantes no rompen CI (para eso está
+		// `blocking_priorities`), pero tienen que verse. Van a la nota:
+		// visibilidad sin bloqueo, el mismo criterio que el resto del sistema.
+		note := "feature: " + target
+		if warns := verdictWarnings(projectDir, target); len(warns) > 0 {
+			note += fmt.Sprintf(" — %d non-blocking contract issue(s): %s",
+				len(warns), strings.Join(warns, "; "))
+		}
+		add(verifyCheck{Name: "verdict", Problems: probs, Note: note})
 	}
 
 	return rep

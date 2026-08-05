@@ -120,12 +120,15 @@ section.
 and a requirement with five criteria seals green on one:
 
 ```jsonc
-"acceptance": [
-  { "id": "R5.1", "text": "the order is persisted as `pending`" },
-  // the long form, when the precondition carries weight:
-  { "id": "R5.2", "given": "an empty cart", "when": "the user confirms",
-    "then": "it is rejected with `EMPTY_CART`" }
-]
+{
+  "id": "R5", "ears_type": "event", "priority": "must",
+  "acceptance": [
+    { "id": "R5.1", "text": "the order is persisted as `pending`" },
+    // the long form, when the precondition carries weight:
+    { "id": "R5.2", "given": "an empty cart", "when": "the user confirms",
+      "then": "it is rejected with `EMPTY_CART`" }
+  ]
+}
 ```
 
 `id` is `<requirement>.<n>`, numbered from 1. Use `text` **or** given/when/then,
@@ -133,6 +136,12 @@ never both, and never half the long form (a `when` without a `then` says less
 than the one-liner). The id is permanent: a new criterion takes the next free
 number, and **a retired id is never reused** — anchors point at ids, so reusing
 one silently re-points a test at a different case.
+
+**`priority` is `must` | `should` | `could`**, and omitting it means `must`. Set
+it deliberately — it's how a project decides what can and can't hold up a
+release (`verification.blocking_priorities` in the constitution). Ask the user
+rather than guessing: a `could` you invented is a requirement nobody agreed to
+deprioritise. When in doubt, leave it out and get `must`.
 
 → 🔴 **GATE**: Present `requirements.md` to the user.
 - "Approved" → proceed to Step 3

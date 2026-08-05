@@ -33,6 +33,44 @@ type constitutionFile struct {
 	Flow          *flowConfig  `json:"flow,omitempty"`  // serial (default) | parallel (F2)
 	// Coverage declara qué código NO corresponde especificar (DL-4, cat. 4).
 	Coverage *coverageConfig `json:"coverage,omitempty"`
+	// Verification gradúa la severidad del gate del veredicto (RM-C2).
+	Verification *verificationConfig `json:"verification,omitempty"`
+}
+
+// verificationConfig: hasta dónde bloquea el contrato de verificación.
+//
+// EL DEFAULT NO AFLOJA NADA. Ausente equivale a `["must","should","could"]`, o
+// sea: todo bloquea, exactamente como antes de que este campo existiera. Bajar
+// el listón es una decisión EXPLÍCITA del proyecto, escrita en la constitución
+// —y por lo tanto sellada por gate y auditable— y no una configuración invisible
+// que alguien tocó un martes.
+type verificationConfig struct {
+	BlockingPriorities []string `json:"blocking_priorities,omitempty"`
+}
+
+// blockingPriorities devuelve el set de prioridades que BLOQUEAN el veredicto.
+// Lectura QUIETA: sin constitución, sin campo o con lista vacía → todo bloquea.
+//
+// Que la lista vacía signifique "todo bloquea" y no "nada bloquea" es a
+// propósito: es el mismo criterio fail-closed que `priorityOf`. Un
+// `"blocking_priorities": []` escrito por error desactivaría el gate entero, y
+// ese es justo el error que no queremos que sea silencioso.
+func blockingPriorities(projectDir string) map[string]bool {
+	all := map[string]bool{"must": true, "should": true, "could": true}
+
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return all
+	}
+	var c constitutionFile
+	if json.Unmarshal(data, &c) != nil || c.Verification == nil || len(c.Verification.BlockingPriorities) == 0 {
+		return all
+	}
+	out := map[string]bool{}
+	for _, p := range c.Verification.BlockingPriorities {
+		out[strings.TrimSpace(p)] = true
+	}
+	return out
 }
 
 // coverageConfig: la mitad "excluir" del flujo de disposición de la categoría 4
@@ -295,6 +333,17 @@ func checkConstitution(cf constitutionFile, rep *report) {
 	if cf.Flow != nil && cf.Flow.Mode != "" && !flowModes[cf.Flow.Mode] {
 		rep.errorf("flow.mode must be serial|parallel, got %q", cf.Flow.Mode)
 	}
+	// blocking_priorities: sólo valores del enum. Un typo acá ("MUST", "high")
+	// no afloja el gate por accidente — pero sí lo dejaría sin ese valor, así
+	// que se rechaza en vez de ignorarse.
+	if cf.Verification != nil {
+		for i, p := range cf.Verification.BlockingPriorities {
+			if !priorities[strings.TrimSpace(p)] {
+				rep.errorf("verification.blocking_priorities[%d]: %q is not a priority (must|should|could)", i, p)
+			}
+		}
+	}
+
 	// Exclusiones de cobertura: cada una con ruta y MOTIVO. El motivo no es
 	// ceremonia — excluir sube el porcentaje, y una exclusión sin razón escrita
 	// es exactamente cómo se maquilla la métrica sin que quede rastro.
