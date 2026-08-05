@@ -560,7 +560,13 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 			// RM-C2: la prioridad de cada requisito y hasta dónde bloquea el
 			// proyecto. `blocks` viene con TODO en true salvo que la constitución
 			// diga otra cosa — el default no afloja nada.
-			prio := requirementPriorities(projectDir, feature)
+			// RM-C4: y CÓMO se verifica cada uno (test, benchmark, audit, …).
+			prio := map[string]string{}
+			method := map[string]string{}
+			for _, r := range requirementsOf(projectDir, feature) {
+				prio[r.ID] = priorityOf(r)
+				method[r.ID] = verificationOf(r)
+			}
 			blocks := blockingPriorities(projectDir)
 
 			for _, req := range ids {
@@ -591,13 +597,25 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 					issues = append(issues, verdictIssue{Reason: reason, Blocking: blocking})
 				}
 
+				m := method[req]
+				if m == "" {
+					m = "test" // sin spec que lo declare: fail-closed
+				}
 				if wanted, v2 := criteria[req]; v2 {
-					for _, r := range scenarioReasons(projectDir, req, wanted, info) {
+					for _, r := range scenarioReasons(projectDir, req, m, wanted, info) {
 						add(r)
 					}
 				} else if len(info.Test) == 0 {
-					// R4: contrato v1 intacto para los requisitos legados.
-					add(fmt.Sprintf("%s: names no test (verification contract unmet)", req))
+					// R4: contrato v1 intacto para los requisitos legados. Un
+					// legado que declara `verification != test` no tiene dónde
+					// poner la evidencia (no hay escenarios), así que se le pide
+					// lo único que puede dar: subir a acceptance con ids.
+					if m != "test" {
+						add(fmt.Sprintf("%s: verification is %q but the requirement has no acceptance ids — "+
+							"give its criteria ids so the evidence has somewhere to live", req, m))
+					} else {
+						add(fmt.Sprintf("%s: names no test (verification contract unmet)", req))
+					}
 				}
 				for _, tref := range info.Test {
 					if ok, why := checkAnchor(projectDir, tref); !ok {
@@ -631,28 +649,6 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 	return issues
 }
 
-// requirementPriorities mapea id → prioridad, leyendo requirements.json.
-// Lectura QUIETA: sin spec, el mapa vacío y todo cae a `must` (fail-closed).
-func requirementPriorities(projectDir, feature string) map[string]string {
-	out := map[string]string{}
-	path := findArtifact(filepath.Join(projectDir, "specforge"), feature, "requirements.json")
-	if path == "" {
-		return out
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return out
-	}
-	var rf requirementsFile
-	if json.Unmarshal(data, &rf) != nil {
-		return out
-	}
-	for _, r := range rf.Requirements {
-		out[r.ID] = priorityOf(r)
-	}
-	return out
-}
-
 // ----------------------------------------------------------------------------
 // El contrato de verificación v2 (RM-C1 / R3).
 //
@@ -676,19 +672,7 @@ func requirementPriorities(projectDir, feature string) map[string]string {
 // lugar para volver a quejarse de él.
 func acceptanceCriteriaOf(projectDir, feature string) map[string][]string {
 	out := map[string][]string{}
-	path := findArtifact(filepath.Join(projectDir, "specforge"), feature, "requirements.json")
-	if path == "" {
-		return out
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return out
-	}
-	var rf requirementsFile
-	if json.Unmarshal(data, &rf) != nil {
-		return out
-	}
-	for _, r := range rf.Requirements {
+	for _, r := range requirementsOf(projectDir, feature) {
 		if !r.Acceptance.hasIDs() {
 			continue
 		}
@@ -706,13 +690,52 @@ func acceptanceCriteriaOf(projectDir, feature string) map[string][]string {
 	return out
 }
 
-// scenarioReasons exige un test por criterio y nombra EL CRITERIO al rechazar,
-// no el requisito. Que el mensaje diga `R5.2` y no `R5` es la mitad del valor:
-// "R5 no tiene test" manda a releer cinco criterios para encontrar cuál falta.
-func scenarioReasons(projectDir, req string, wanted []string, info traceReq) []string {
+// requirementsOf lee los requisitos de una feature. Lectura QUIETA: sin spec o
+// con spec inválida, la lista vacía — el artefacto ya lo validó su propio gate y
+// acá no es lugar para volver a quejarse de él.
+func requirementsOf(projectDir, feature string) []requirement {
+	path := findArtifact(filepath.Join(projectDir, "specforge"), feature, "requirements.json")
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var rf requirementsFile
+	if json.Unmarshal(data, &rf) != nil {
+		return nil
+	}
+	return rf.Requirements
+}
+
+// scenarioReasons exige verificación por criterio y nombra EL CRITERIO al
+// rechazar, no el requisito. Que el mensaje diga `R5.2` y no `R5` es la mitad
+// del valor: "R5 no tiene test" manda a releer cinco criterios para encontrar
+// cuál falta.
+//
+// `method` es el `verification` del requisito (RM-C4): con `test` se exige un
+// test anclado; con cualquier otro, una evidencia declarada.
+func scenarioReasons(projectDir, req, method string, wanted []string, info traceReq) []string {
 	var reasons []string
 	for _, id := range wanted {
 		sc, ok := info.Scenarios[id]
+
+		if method != "test" {
+			// R9: el requisito declaró que NO se verifica con un test, así que
+			// exigirle uno sería absurdo — pero dejarlo pasar sin nada es
+			// exactamente el agujero de C4. Se le exige la evidencia que dijo
+			// que iba a tener.
+			if !ok || sc.Evidence == nil {
+				reasons = append(reasons, fmt.Sprintf(
+					"%s: verification is %q but no evidence is declared — record it under "+
+						"trace.json requirements.%s.scenarios.%s.evidence", id, method, req, id))
+				continue
+			}
+			reasons = append(reasons, evidenceReasons(projectDir, id, method, *sc.Evidence)...)
+			continue
+		}
+
 		if !ok || len(sc.Test) == 0 {
 			reasons = append(reasons, fmt.Sprintf(
 				"%s: names no test (verification contract unmet) — anchor one under trace.json requirements.%s.scenarios.%s",
@@ -744,6 +767,39 @@ func scenarioReasons(projectDir, req string, wanted []string, info traceReq) []s
 		reasons = append(reasons, fmt.Sprintf(
 			"%s: trace anchors a scenario that %s no longer declares — the criterion was removed, or its ids were renumbered",
 			id, req))
+	}
+	return reasons
+}
+
+// evidenceReasons valida UNA evidencia contra lo que el requisito prometió.
+//
+// El chequeo que importa es el primero: si el requisito declara `benchmark` y la
+// evidencia dice `test`, alguien anotó lo que tenía a mano en vez de lo que hacía
+// falta. Sin ese contraste, `evidence` sería un campo de texto libre que se
+// llena para pasar el gate — o sea, nada.
+func evidenceReasons(projectDir, id, method string, e scenarioEvidence) []string {
+	var reasons []string
+
+	if e.Kind != method {
+		reasons = append(reasons, fmt.Sprintf(
+			"%s: evidence kind %q does not match the declared verification %q", id, e.Kind, method))
+	}
+
+	ref := strings.TrimSpace(e.Ref)
+	switch {
+	case ref == "":
+		reasons = append(reasons, fmt.Sprintf("%s: evidence has no ref — nothing to open", id))
+	case !isSourceURL(ref) && !fileExists(filepath.Join(projectDir, filepath.FromSlash(ref))):
+		reasons = append(reasons, fmt.Sprintf(
+			"%s: evidence ref %q does not exist — evidence nobody can open is an assertion", id, ref))
+	}
+
+	// La fecha no se compara contra nada todavía: la frescura de la verificación
+	// manual es su propio ítem (DL-15). Acá se exige que EXISTA y esté bien
+	// formada, porque una evidencia sin fecha no se puede evaluar después.
+	if !capturedRe.MatchString(e.Recorded) {
+		reasons = append(reasons, fmt.Sprintf(
+			"%s: evidence recorded %q must be YYYY-MM-DD — undated evidence cannot be aged", id, e.Recorded))
 	}
 	return reasons
 }

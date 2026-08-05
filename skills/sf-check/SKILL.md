@@ -185,6 +185,34 @@ touched. No bad faith required — the rule was just measuring the wrong thing.
 The gate now rejects naming `R5.2`, not `R5`, so you know which case is missing
 instead of re-reading five criteria to find out.
 
+#### If the requirement declares `verification` other than `test`
+
+A requirement whose `verification` is `benchmark`, `audit`, `manual` or
+`analysis` won't have a test to anchor — asking for one would contradict what it
+declared. It anchors an **evidence** instead:
+
+```json
+"R9": {
+  "code": ["src/api.go:Handle"],
+  "scenarios": {
+    "R9.1": { "evidence": {
+        "kind": "benchmark",
+        "ref": "bench/latency.json",
+        "recorded": "2026-07-30" } }
+  },
+  "status": "ok"
+}
+```
+
+All three fields are required, each for its own reason: `kind` must **match the
+requirement's `verification`** (otherwise you recorded whatever was at hand
+instead of what was needed), `ref` must resolve to a real file or URL (evidence
+nobody can open is an assertion), and `recorded` dates it so it can be aged later.
+
+Record what actually happened. An `evidence` block pointing at a file you didn't
+produce is the same fabrication as a test that doesn't exist — it just looks more
+respectable.
+
 Two rules that are easy to get wrong:
 
 - **A requirement-level `test` does not satisfy a criterion.** That list is for
