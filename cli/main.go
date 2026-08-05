@@ -86,6 +86,8 @@ func run(args []string) int {
 		return runRun(rest)
 	case "coverage":
 		return runCoverage(rest)
+	case "arch":
+		return runArch(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -143,5 +145,6 @@ commands:
   delta   first-class change objects for amends (delta new|list|set-status --feature=NAME [--kind=spec-wrong|code-wrong])
   run     CLI-driven wave execution — fresh agent per wave, machine-verified checkpoints (run --feature=NAME [--dry-run])
   coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json] [--by-priority])
+  arch    architecture conformance vs the approved design graph (arch rules|check --feature=NAME)
   help    show this message
 `

@@ -655,6 +655,17 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 			block("%s", r)
 		}
 	}
+
+	// 6. Conformidad de arquitectura (RM-C7), OPT-IN. Bloquea siempre que esté
+	//    encendido, por el mismo motivo que el testigo RED: el proyecto que lo
+	//    enciende está pidiendo exactamente esta garantía. Y no se gradúa por
+	//    prioridad porque no es atribuible a UN requisito — una violación del
+	//    grafo es una propiedad de la feature entera.
+	if requireArchEnabled(projectDir) {
+		for _, r := range archGateReasons(projectDir, feature) {
+			block("%s", r)
+		}
+	}
 	return issues
 }
 
