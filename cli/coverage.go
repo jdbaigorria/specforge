@@ -41,6 +41,7 @@ func runCoverage(args []string) int {
 	asJSON := false
 	badge := false
 	history := false
+	byPriority := false
 	for _, a := range args {
 		switch {
 		case a == "--json":
@@ -49,6 +50,8 @@ func runCoverage(args []string) int {
 			badge = true
 		case a == "--history":
 			history = true
+		case a == "--by-priority":
+			byPriority = true
 		case strings.HasPrefix(a, "-"):
 			fmt.Fprintf(os.Stderr, "sf coverage: unknown flag %q\n", a)
 			return 2
@@ -98,12 +101,21 @@ func runCoverage(args []string) int {
 		if unanchored == nil {
 			unanchored = []string{}
 		}
-		out, _ := json.MarshalIndent(map[string]any{
+		payload := map[string]any{
 			"percent": percent, "anchored": anchored, "total": total,
 			"baseline": baseline.Percent, "had_baseline": hadBaseline,
 			"unanchored": unanchored, "excluded": detail.Excluded,
 			"retired": detail.Retired,
-		}, "", "  ")
+		}
+		// RM-C2b: la cobertura por prioridad viaja bajo su propia clave y NO se
+		// mezcla con las de arriba. Las de arriba cuentan archivos; ésta cuenta
+		// requisitos. Un consumidor que las sume estaría sumando unidades
+		// distintas, así que el anidamiento no es cosmético: es lo que hace
+		// imposible confundirlas.
+		if byPriority {
+			payload["requirement_coverage"] = computeRequirementCoverage(projectDir)
+		}
+		out, _ := json.MarshalIndent(payload, "", "  ")
 		fmt.Println(string(out))
 	} else {
 		fmt.Printf("spec coverage: %.1f%% (%d/%d code files anchored to a trace)\n", percent, anchored, total)
@@ -112,6 +124,9 @@ func runCoverage(args []string) int {
 		}
 		if detail.Retired > 0 {
 			fmt.Printf("%d file(s) only anchored by a retired/abandoned feature — not counted in the denominator.\n", detail.Retired)
+		}
+		if byPriority {
+			printRequirementCoverage(computeRequirementCoverage(projectDir))
 		}
 	}
 
