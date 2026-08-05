@@ -45,6 +45,25 @@ type feature struct {
 	AbandonedAt  string `json:"abandoned_at,omitempty"`
 }
 
+// sealedContract devuelve el contrato de verificación bajo el que se selló el
+// verdict de esta feature, o "" si todavía no tiene verdict.
+//
+// Se recorre de atrás para adelante: si una feature se amendó, el verdict que
+// vale es el ÚLTIMO — el ledger es append-only, así que los anteriores siguen
+// ahí y son historia, no estado.
+func (f feature) sealedContract() string {
+	for i := len(f.Gates) - 1; i >= 0; i-- {
+		if g := f.Gates[i]; g.Phase == "verdict" && strings.HasPrefix(g.Result, "approve") {
+			if g.Contract == "" {
+				// Sellado antes de que existiera el campo: era la regla vieja.
+				return contractV1
+			}
+			return g.Contract
+		}
+	}
+	return ""
+}
+
 // closedAt devuelve la fecha de cierre, venga del campo que venga.
 func (f feature) closedAt() string {
 	if f.RetiredAt != "" {
@@ -71,6 +90,18 @@ type gate struct {
 	// visible — es la capa de detección que complementa la prevención del hook.
 	// `omitempty`: gates legacy (pre-cadena) no lo traen.
 	Prev string `json:"prev,omitempty"`
+	// Contract registra bajo qué contrato de verificación se selló el verdict
+	// (RM-C1 / R10): `v1` = un test por requisito, `v2` = uno por criterio de
+	// aceptación. Sin esto, un proyecto mixto no puede decir qué features se
+	// verificaron con la regla vieja — y un sello no dice qué certifica si la
+	// regla que aplicó no quedó registrada.
+	//
+	// NO entra en gateEntryHash a propósito. Meterlo cambiaría el hash de TODAS
+	// las entradas existentes y rompería la cadena de integridad de cualquier
+	// proyecto vivo. Y no hace falta: el contrato se computa del dato
+	// (`acceptance` con ids) en el momento de aprobar, así que editar este campo
+	// después no relaja ningún chequeo — es un registro, no una llave.
+	Contract string `json:"contract,omitempty"`
 }
 
 // runStatus es el punto de entrada de `sf status [project_dir]`. Renderiza el
@@ -232,6 +263,9 @@ type statusFeature struct {
 	Drift   string   `json:"drift"` // "ok" | "DRIFT" | "—" (sin trace.json)
 	Gaps    string   `json:"gaps"`
 	Blocked []string `json:"blocked"`
+	// Contract: bajo qué regla de verificación se selló el verdict (RM-C1 /
+	// §4 "visibilidad, no bloqueo"). Vacío = todavía sin verdict.
+	Contract string `json:"contract,omitempty"`
 }
 
 type statusReport struct {
@@ -263,14 +297,19 @@ func buildStatusReport(rows []statusRow, feats map[string]*feature, order, cycle
 		if blocked == nil {
 			blocked = []string{}
 		}
+		contract := ""
+		if f, ok := feats[r.feature]; ok {
+			contract = f.sealedContract()
+		}
 		rep.Features = append(rep.Features, statusFeature{
-			Feature: r.feature,
-			Lane:    r.lane,
-			Status:  r.status,
-			Phase:   r.phase,
-			Drift:   r.drift,
-			Gaps:    r.gaps,
-			Blocked: blocked,
+			Feature:  r.feature,
+			Lane:     r.lane,
+			Status:   r.status,
+			Phase:    r.phase,
+			Drift:    r.drift,
+			Gaps:     r.gaps,
+			Blocked:  blocked,
+			Contract: contract,
 		})
 		rep.Statuses[r.status]++
 	}

@@ -161,6 +161,42 @@ machine-readable form so drift can be checked later without re-analyzing the rep
 - `test` entries are runnable test ids.
 - `status`: `ok` | `no-test` | `missing`.
 
+#### If the requirement's `acceptance` criteria have ids, anchor per criterion
+
+Open `requirements.json`. When a requirement's `acceptance` entries carry ids
+(`R5.1`, `R5.2`, …), that requirement runs under the **v2 verification
+contract**: every criterion needs its own test, anchored under `scenarios`.
+
+```json
+"R5": {
+  "code": ["src/order.go:CreateOrder"],
+  "scenarios": {
+    "R5.1": { "test": ["order_test.go:TestCreateOrder_Persists"] },
+    "R5.2": { "test": ["order_test.go:TestCreateOrder_EmptyCart"] }
+  },
+  "test": [],
+  "status": "ok"
+}
+```
+
+Why the extra level: without it, a requirement with five acceptance criteria
+seals green on **one** test of the happy path, and the other four are never
+touched. No bad faith required — the rule was just measuring the wrong thing.
+The gate now rejects naming `R5.2`, not `R5`, so you know which case is missing
+instead of re-reading five criteria to find out.
+
+Two rules that are easy to get wrong:
+
+- **A requirement-level `test` does not satisfy a criterion.** That list is for
+  tests covering the requirement *transversally*. A test that proves "something
+  about R5" does not prove `R5.2`.
+- **Never renumber criterion ids to close a gap.** Anchors point at ids, so
+  reusing a freed id silently re-points a test at a different case. `R5.1, R5.3`
+  with no `R5.2` is correct and means a criterion was retired.
+
+Requirements whose `acceptance` is still a plain list of strings keep the old
+rule (one test per requirement) — nothing to do for those.
+
 **Persist it through the CLI — never write `trace.json` by hand.** It is
 SpecForge state: the hook denies a direct `Write`/`Edit`, and the verdict gate
 hashes it. Write the draft with your `Write` tool to the feature's `drafts/`

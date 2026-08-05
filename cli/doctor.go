@@ -33,9 +33,22 @@ type traceFile struct {
 }
 
 type traceReq struct {
-	Code   []string `json:"code"`
-	Test   []string `json:"test"`
-	Status string   `json:"status"`
+	Code []string `json:"code"`
+	// Test sigue a nivel requisito: es la forma legada (contrato v1) y también
+	// el lugar de los tests que cubren el requisito de forma TRANSVERSAL. No
+	// satisface a un escenario — un test que prueba "algo de R5" no prueba
+	// `R5.2`, y confundirlos es justo el agujero que RM-C1 tapa.
+	Test []string `json:"test"`
+	// Scenarios ancla tests por criterio de aceptación (RM-C1): id → sus tests.
+	// `code` NO se descompone por escenario: el código no se parte así de forma
+	// natural, los tests sí.
+	Scenarios map[string]traceScenario `json:"scenarios,omitempty"`
+	Status    string                   `json:"status"`
+}
+
+// traceScenario son los tests de UN criterio de aceptación.
+type traceScenario struct {
+	Test []string `json:"test"`
 }
 
 // runDoctor es el punto de entrada de `sf doctor`. Por ahora el único chequeo es

@@ -36,8 +36,28 @@ func checkTrace(t traceFile, rep *report) {
 		if len(info.Code) == 0 {
 			rep.errorf("%s: at least one code anchor (path:symbol) is required", id)
 		}
-		if len(info.Test) == 0 {
+		if len(info.Test) == 0 && len(info.Scenarios) == 0 {
 			rep.warnf("%s: names no test — the verdict gate will reject this until it does", id)
+		}
+
+		// RM-C1: los ids de escenario tienen que pertenecer a SU requisito. Un
+		// `R6.1` colgando de `R5` anclaría tests a un requisito ajeno, y el
+		// contrato del veredicto los daría por buenos.
+		scenarioIDs := make([]string, 0, len(info.Scenarios))
+		for sid := range info.Scenarios {
+			scenarioIDs = append(scenarioIDs, sid)
+		}
+		sort.Strings(scenarioIDs) // los mapas de Go iteran al azar
+		for _, sid := range scenarioIDs {
+			m := acceptanceIDRe.FindStringSubmatch(sid)
+			switch {
+			case m == nil:
+				rep.errorf("%s: scenario id %q must have the form <requirement>.<n>, e.g. %s.1", id, sid, id)
+			case m[1] != id:
+				rep.errorf("%s: scenario %s belongs to %s, not to %s", id, sid, m[1], id)
+			case len(info.Scenarios[sid].Test) == 0:
+				rep.warnf("%s: names no test — the verdict gate will reject this until it does", sid)
+			}
 		}
 	}
 }

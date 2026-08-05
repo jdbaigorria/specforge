@@ -155,6 +155,9 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 		Comment: comment,
 		Hash:    hash,
 		Prev:    nextPrev(f),
+		// R10: sólo el verdict lleva contrato — es el único gate que verifica
+		// trazabilidad. Anotarlo en `requirements` o `design` sería ruido.
+		Contract: verdictContract(projectDir, name, phase),
 	})
 
 	if code := writeFeatureState(projectDir, *f); code != 0 {
@@ -165,7 +168,33 @@ func gateApprove(projectDir, name, phase, by, comment string) int {
 	} else {
 		fmt.Printf("approved %s/%s\n", name, phase)
 	}
+	if phase == "verdict" {
+		fmt.Printf("  verification contract: %s\n", verdictContract(projectDir, name, phase))
+	}
 	return 0
+}
+
+// contractV1 / contractV2: las dos reglas de verificación que pueden haber
+// sellado un verdict.
+const (
+	contractV1 = "v1" // un test por requisito
+	contractV2 = "v2" // un test por criterio de aceptación
+)
+
+// verdictContract responde bajo qué contrato se está sellando.
+//
+// Un proyecto puede ser MIXTO durante la transición, así que la respuesta es la
+// del conjunto: alcanza con que UN requisito tenga acceptance estructurada para
+// que la feature se haya verificado bajo la regla estricta. Decir `v1` en ese
+// caso subvaluaría lo que el sello certifica.
+func verdictContract(projectDir, feature, phase string) string {
+	if phase != "verdict" {
+		return ""
+	}
+	if len(acceptanceCriteriaOf(projectDir, feature)) > 0 {
+		return contractV2
+	}
+	return contractV1
 }
 
 // runGateStatusCmd parsea los flags de `status`.
@@ -473,6 +502,10 @@ func verdictPreconditions(projectDir, feature string) []string {
 				ids = append(ids, id)
 			}
 			sort.Strings(ids)
+			// RM-C1: qué criterios declara cada requisito. Un requisito con
+			// `acceptance` estructurada corre bajo el contrato v2 (un test POR
+			// CRITERIO); uno legado conserva la regla vieja.
+			criteria := acceptanceCriteriaOf(projectDir, feature)
 			for _, req := range ids {
 				info := tf.Requirements[req]
 				for _, anchor := range info.Code {
@@ -480,7 +513,10 @@ func verdictPreconditions(projectDir, feature string) []string {
 						reasons = append(reasons, fmt.Sprintf("%s: code drift (%s)", req, why))
 					}
 				}
-				if len(info.Test) == 0 {
+				if wanted, v2 := criteria[req]; v2 {
+					reasons = append(reasons, scenarioReasons(projectDir, req, wanted, info)...)
+				} else if len(info.Test) == 0 {
+					// R4: contrato v1 intacto para los requisitos legados.
 					reasons = append(reasons, fmt.Sprintf("%s: names no test (verification contract unmet)", req))
 				}
 				for _, tref := range info.Test {
@@ -509,6 +545,101 @@ func verdictPreconditions(projectDir, feature string) []string {
 		if traced != nil && len(res.Tests) > 0 {
 			reasons = append(reasons, causalityReasons(traced, res.Tests)...)
 		}
+	}
+	return reasons
+}
+
+// ----------------------------------------------------------------------------
+// El contrato de verificación v2 (RM-C1 / R3).
+//
+// v1 exige "el requisito nombra al menos un test". v2 exige "CADA criterio de
+// aceptación nombra al menos un test". La diferencia no es de grado: bajo v1, un
+// requisito con cinco criterios sella en verde con un test del caso feliz y los
+// otros cuatro quedan sin tocar, con el sello certificando correctamente el
+// cumplimiento de una regla que mide poco.
+//
+// Qué requisito corre bajo qué contrato lo dice EL DATO, no una perilla: si su
+// `acceptance` tiene ids, corre bajo v2. Los legados conservan v1 (R4), y esa
+// ventana se cierra sola cuando `sf migrate` les asigne ids.
+// ----------------------------------------------------------------------------
+
+// acceptanceCriteriaOf devuelve, por requisito, los ids de sus criterios — pero
+// SÓLO para los requisitos con acceptance estructurada. Un requisito ausente del
+// mapa corre bajo v1.
+//
+// Lectura QUIETA: sin requirements.json (o inválido) no hay criterios que
+// exigir y todo cae a v1. El artefacto ya lo validó su propio gate; acá no es
+// lugar para volver a quejarse de él.
+func acceptanceCriteriaOf(projectDir, feature string) map[string][]string {
+	out := map[string][]string{}
+	path := findArtifact(filepath.Join(projectDir, "specforge"), feature, "requirements.json")
+	if path == "" {
+		return out
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return out
+	}
+	var rf requirementsFile
+	if json.Unmarshal(data, &rf) != nil {
+		return out
+	}
+	for _, r := range rf.Requirements {
+		if !r.Acceptance.hasIDs() {
+			continue
+		}
+		ids := make([]string, 0, len(r.Acceptance))
+		for _, c := range r.Acceptance {
+			if c.ID != "" {
+				ids = append(ids, c.ID)
+			}
+		}
+		if len(ids) > 0 {
+			sort.Strings(ids) // reporte reproducible
+			out[r.ID] = ids
+		}
+	}
+	return out
+}
+
+// scenarioReasons exige un test por criterio y nombra EL CRITERIO al rechazar,
+// no el requisito. Que el mensaje diga `R5.2` y no `R5` es la mitad del valor:
+// "R5 no tiene test" manda a releer cinco criterios para encontrar cuál falta.
+func scenarioReasons(projectDir, req string, wanted []string, info traceReq) []string {
+	var reasons []string
+	for _, id := range wanted {
+		sc, ok := info.Scenarios[id]
+		if !ok || len(sc.Test) == 0 {
+			reasons = append(reasons, fmt.Sprintf(
+				"%s: names no test (verification contract unmet) — anchor one under trace.json requirements.%s.scenarios.%s",
+				id, req, id))
+			continue
+		}
+		for _, tref := range sc.Test {
+			if ok, why := checkAnchor(projectDir, tref); !ok {
+				reasons = append(reasons, fmt.Sprintf("%s: test %q does not resolve (%s)", id, tref, why))
+			}
+		}
+	}
+	// Un escenario en el trace que ya no existe en el spec: el criterio se
+	// retiró y su ancla quedó colgando. Es exactamente el síntoma que delata un
+	// renumerado — el ancla sigue apuntando a un id que ahora nombra otra cosa,
+	// o nada.
+	declared := map[string]bool{}
+	for _, id := range wanted {
+		declared[id] = true
+	}
+	orphans := make([]string, 0, len(info.Scenarios))
+	for id := range info.Scenarios {
+		if !declared[id] {
+			orphans = append(orphans, id)
+		}
+	}
+	sort.Strings(orphans)
+	for _, id := range orphans {
+		reasons = append(reasons, fmt.Sprintf(
+			"%s: trace anchors a scenario that %s no longer declares — the criterion was removed, or its ids were renumbered",
+			id, req))
 	}
 	return reasons
 }
