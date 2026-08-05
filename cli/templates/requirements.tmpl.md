@@ -9,6 +9,6 @@
 {{ ears . }}
 {{ if .Acceptance }}
 **Acceptance:**
-{{ range .Acceptance }}- {{ . }}
+{{ range .Acceptance }}- {{ with .ID }}**{{ . }}** — {{ end }}{{ criterion . }}
 {{ end }}{{ end -}}
 {{ end }}

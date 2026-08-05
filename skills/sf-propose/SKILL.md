@@ -115,6 +115,25 @@ Use EARS notation for system behaviors (`WHEN [trigger] THE SYSTEM SHALL
 needs testable acceptance criteria, plus edge cases and an explicit out-of-scope
 section.
 
+**Give every acceptance criterion an id.** The id is what lets a test anchor to
+*that* case — without it, the verdict gate can only ask "does R5 have a test?",
+and a requirement with five criteria seals green on one:
+
+```jsonc
+"acceptance": [
+  { "id": "R5.1", "text": "the order is persisted as `pending`" },
+  // the long form, when the precondition carries weight:
+  { "id": "R5.2", "given": "an empty cart", "when": "the user confirms",
+    "then": "it is rejected with `EMPTY_CART`" }
+]
+```
+
+`id` is `<requirement>.<n>`, numbered from 1. Use `text` **or** given/when/then,
+never both, and never half the long form (a `when` without a `then` says less
+than the one-liner). The id is permanent: a new criterion takes the next free
+number, and **a retired id is never reused** — anchors point at ids, so reusing
+one silently re-points a test at a different case.
+
 → 🔴 **GATE**: Present `requirements.md` to the user.
 - "Approved" → proceed to Step 3
 - Changes requested → iterate on requirements, re-present
