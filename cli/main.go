@@ -64,6 +64,8 @@ func run(args []string) int {
 		return runConstitution(rest)
 	case "domain":
 		return runDomain(rest)
+	case "sources":
+		return runSources(rest)
 	case "plan":
 		return runPlan(rest)
 	case "review":
@@ -130,9 +132,10 @@ commands:
   design  render/validate design.json (design render|validate --feature=NAME)
   constitution  render/validate constitution.json (constitution render|validate)
   domain  render/validate domain.json — project domain knowledge (domain render|validate)
+  sources render/validate the ingested material + its coverage (sources render|validate|coverage [--json])
   plan    render/validate/compute the wave layout (plan render|validate|compute --feature=NAME)
   review  render/validate review.json (review render|validate --feature=NAME)
-  save    validate JSON, then write it + render md (save <artifact> --feature=NAME --json -|--from=drafts/FILE)
+  save    validate JSON, then write it + render md (save constitution|domain|sources|requirements|design|tasks|plan|review|trace [--feature=NAME] --json -|--from=drafts/FILE)
   journal persist durable lessons to specforge/journal/ + git-stage (journal add --feature=NAME --json - [--bridge-icm])
   events  enforcement telemetry — denies, nudges, judge verdicts (events [--json] [--tail=N])
   onboard deterministic brownfield inventory — tree, symbols, test map (onboard scan [--json])

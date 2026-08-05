@@ -7,7 +7,9 @@
 ## {{ .ID }} ({{ .EarsType }}{{ with .Priority }} · {{ . }}{{ end }})
 
 {{ ears . }}
-{{ if .Acceptance }}
+{{ with source . }}
+**Source:** {{ . }}
+{{ end }}{{ if .Acceptance }}
 **Acceptance:**
 {{ range .Acceptance }}- {{ with .ID }}**{{ . }}** — {{ end }}{{ criterion . }}
 {{ end }}{{ end -}}

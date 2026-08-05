@@ -46,6 +46,24 @@ type constitutionFile struct {
 // que alguien tocó un martes.
 type verificationConfig struct {
 	BlockingPriorities []string `json:"blocking_priorities,omitempty"`
+	// RequireSource (RM-C3) exige que todo requisito cite de dónde salió.
+	// Default `false` a propósito: una idea propia no tiene fuente de cliente y
+	// eso es legítimo. En greenfield esto sería burocracia; en el camino
+	// consultora es el chequeo que impide que el modelo invente requisitos.
+	RequireSource bool `json:"require_source,omitempty"`
+}
+
+// requireSourceEnabled: lectura QUIETA del flag. Sin constitución, `false`.
+func requireSourceEnabled(projectDir string) bool {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return false
+	}
+	var c constitutionFile
+	if json.Unmarshal(data, &c) != nil || c.Verification == nil {
+		return false
+	}
+	return c.Verification.RequireSource
 }
 
 // blockingPriorities devuelve el set de prioridades que BLOQUEAN el veredicto.

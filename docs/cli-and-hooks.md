@@ -227,6 +227,12 @@ record-verdict`. Opt-in and governed by config:
   regardless: an anchor that no longer resolves isn't a minor requirement
   without a test, it's an artifact lying about where its subject lives, and that
   corrupts drift detection for the whole project.
+- **`verification.require_source`** — default `false`. With `true`, every
+  requirement must cite a `sources.json` id. Off by default because a founder's
+  own idea has no client source and that's legitimate; on, it's the check that
+  stops a model from inventing requirements. Either way, `sf sources coverage`
+  reports both directions — requirements with no source, and sources no
+  requirement uses.
 
 Quality principles like **`P-min`** (minimal code) are just constitution
 principles with `applies_to` — the phase auditor checks them for free, no special

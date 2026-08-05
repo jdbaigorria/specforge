@@ -67,6 +67,7 @@ var protectedJSONRe = regexp.MustCompile(
 	`^specforge/(` +
 		`features\.json` +
 		`|constitution\.json` +
+		`|sources\.json` +
 		`|context/domain\.json` +
 		`|journal/[^/]+\.json` +
 		`|features/[^/]+/(?:progress/)?(?:requirements|design|tasks|plan|review|trace|audit|feature)\.json` +
@@ -424,6 +425,10 @@ func protectedStateDeny(rel string) (string, bool) {
 		return "domain.json is SpecForge state — don't write it directly. " +
 			"Draft it at specforge/drafts/domain.json (writable), then promote with " +
 			"`sf save domain --from=drafts/domain.json` (it validates, then writes).", true
+	case "sources.json":
+		return "sources.json is SpecForge state — don't write it directly. " +
+			"Draft it at specforge/drafts/sources.json (writable), then promote with " +
+			"`sf save sources --from=drafts/sources.json` (it validates, then writes).", true
 	case "trace.json":
 		return "trace.json is SpecForge state — don't write it directly. " +
 			"Draft it under the feature's drafts/ dir and promote with " +

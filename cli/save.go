@@ -48,6 +48,9 @@ func (v constitutionFile) renderMarkdown() (string, error) { return execTemplate
 func (v domainFile) validate(r *report)              { checkDomain(v, r) }
 func (v domainFile) renderMarkdown() (string, error) { return execTemplate(domainTmpl, v) }
 
+func (v sourcesFile) validate(r *report)              { checkSources(v, r) }
+func (v sourcesFile) renderMarkdown() (string, error) { return execTemplate(sourcesTmpl, v) }
+
 func (v requirementsFile) validate(r *report)              { checkRequirements(v, r) }
 func (v requirementsFile) renderMarkdown() (string, error) { return execTemplate(reqTmpl, v) }
 
@@ -100,8 +103,8 @@ func runSave(args []string) int {
 		}
 	}
 
-	// constitution y domain son a nivel proyecto; el resto necesita --feature.
-	if name != "constitution" && name != "domain" && feature == "" {
+	// constitution, domain y sources son a nivel proyecto; el resto necesita --feature.
+	if name != "constitution" && name != "domain" && name != "sources" && feature == "" {
 		fmt.Fprintln(os.Stderr, "sf save: --feature=NAME is required")
 		return 2
 	}
@@ -157,6 +160,15 @@ func runSave(args []string) int {
 			v.SchemaVersion = schemaVersionCurrent
 		}
 		a = v
+	case "sources":
+		var v sourcesFile
+		if !decodeInto(raw, &v) {
+			return 2
+		}
+		if v.SchemaVersion == "" {
+			v.SchemaVersion = schemaVersionCurrent
+		}
+		a = v
 	case "requirements":
 		var v requirementsFile
 		if !decodeInto(raw, &v) {
@@ -164,6 +176,18 @@ func runSave(args []string) int {
 		}
 		if v.SchemaVersion == "" {
 			v.SchemaVersion = schemaVersionCurrent
+		}
+		// R2: los refs de fuente se validan contra sources.json, que la
+		// interfaz `artifact` no puede ver (no conoce el project dir). Se
+		// chequea acá, ANTES de escribir nada.
+		var rep report
+		checkRequirementsIn(v, projectDir, &rep)
+		if len(rep.errors) > 0 {
+			for _, e := range rep.errors {
+				fmt.Printf("  ERROR:   %s\n", e)
+			}
+			fmt.Printf("\nFAIL: not saved — %d error(s).\n", len(rep.errors))
+			return 2
 		}
 		a = v
 	case "design":
@@ -345,6 +369,9 @@ func artifactPaths(name, projectDir, feature string) (string, string) {
 		return base + ".json", base + ".md"
 	case "domain":
 		base := domainPath(projectDir) // specforge/context/domain
+		return base + ".json", base + ".md"
+	case "sources":
+		base := sourcesPath(projectDir) // specforge/sources
 		return base + ".json", base + ".md"
 	case "plan":
 		base := filepath.Join(fdir, "progress", "plan")

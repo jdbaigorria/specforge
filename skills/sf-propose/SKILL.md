@@ -143,6 +143,37 @@ release (`verification.blocking_priorities` in the constitution). Ask the user
 rather than guessing: a `could` you invented is a requirement nobody agreed to
 deprioritise. When in doubt, leave it out and get `must`.
 
+### Cite where each requirement came from
+
+If the user handed you material — an email, a transcript, a ticket, a document —
+declare it once, at project level, and cite its id from every requirement it
+produced:
+
+```bash
+# 1) Write specforge/drafts/sources.json with the Write tool:
+#    {"sources":[{"id":"S1","kind":"email","ref":"inputs/client.md",
+#                 "captured":"2026-07-14","note":"original billing request"}]}
+sf save sources --from=drafts/sources.json
+```
+
+Then `"source": ["S1"]` on each requirement. `ref` is a project-relative path or
+a URL, and a path **must exist** — a source pointing at a missing file can't be
+told apart from a fabricated one.
+
+**Why this is not bookkeeping.** `trace.json` already stops you from claiming
+"I implemented R5" with no code and no test. Nothing stopped you from *inventing
+R5*. Citing the source closes that same hole at the other end of the pipe, and
+`sf sources coverage` reads it both ways:
+
+- **a requirement with no source** — you invented it;
+- **a source no requirement uses** — material that was read and never made it
+  into the spec.
+
+A requirement with no source is legitimate when the idea is the user's own —
+that's why nothing blocks by default. Don't invent a ref to silence the report;
+if you don't know where a requirement came from, that *is* the finding. Projects
+that want it enforced set `verification.require_source: true`.
+
 → 🔴 **GATE**: Present `requirements.md` to the user.
 - "Approved" → proceed to Step 3
 - Changes requested → iterate on requirements, re-present
