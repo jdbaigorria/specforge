@@ -143,6 +143,37 @@ release (`verification.blocking_priorities` in the constitution). Ask the user
 rather than guessing: a `could` you invented is a requirement nobody agreed to
 deprioritise. When in doubt, leave it out and get `must`.
 
+### Non-functional requirements: say how they get verified
+
+`kind` says **what** a requirement is; `verification` says **how** it's checked.
+They're separate axes and don't map 1:1 — a security requirement can be covered
+by an automated test, and a functional one can need a human.
+
+```jsonc
+{ "id": "R9", "ears_type": "ubiquitous", "kind": "performance",
+  "verification": "benchmark", "behavior": "respond in under 200 ms",
+  "acceptance": [{ "id": "R9.1", "text": "p99 under 200ms" }] }
+```
+
+- `kind`: `functional` (default) · `performance` · `security` · `reliability` ·
+  `usability` · `compliance`
+- `verification`: `test` (default) · `benchmark` · `audit` · `manual` ·
+  `analysis`
+
+Neither touches `ears_type`. A non-functional requirement states perfectly well
+as `ubiquitous` — "THE SYSTEM SHALL respond in under 200 ms". No new EARS type.
+
+**Why this matters more than it looks.** "Respond in under 200 ms" can't be
+proven by a unit test, so it never anchored to one — and the contract, which only
+knew how to ask for tests, let it through. It didn't anchor, so it didn't count
+in coverage either. The requirement existed, nobody verified it, and the metric
+never showed it. Now `verification != "test"` makes the verdict demand a declared
+**evidence** instead: `sf-check` records it in `trace.json` with a `kind` that
+must match, a `ref` that must resolve, and a date.
+
+Don't set `verification: manual` to dodge writing a test. If the thing is
+testable, test it — the field is for what genuinely isn't.
+
 ### Cite where each requirement came from
 
 If the user handed you material — an email, a transcript, a ticket, a document —

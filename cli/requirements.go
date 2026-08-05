@@ -35,11 +35,15 @@ type requirement struct {
 	EarsType string `json:"ears_type"`
 	// Priority gradúa la severidad del gate (RM-C2). `omitempty` + default
 	// implícito: los requisitos escritos antes del campo se leen como `must`.
-	Priority   string         `json:"priority,omitempty"`
-	Trigger    string         `json:"trigger"`
-	State      string         `json:"state"`
-	Behavior   string         `json:"behavior"`
-	Acceptance acceptanceList `json:"acceptance"`
+	Priority string `json:"priority,omitempty"`
+	// Kind clasifica QUÉ es el requisito y Verification declara CÓMO se
+	// comprueba (RM-C4). Los dos con default implícito, igual que Priority.
+	Kind         string         `json:"kind,omitempty"`
+	Verification string         `json:"verification,omitempty"`
+	Trigger      string         `json:"trigger"`
+	State        string         `json:"state"`
+	Behavior     string         `json:"behavior"`
+	Acceptance   acceptanceList `json:"acceptance"`
 	// Source pasó de string libre a REFS a sources.json (RM-C3). Hasta ahora era
 	// un campo muerto: existía en el struct, no lo renderizaba el template y no
 	// lo leía nadie.
@@ -146,6 +150,60 @@ func priorityOf(r requirement) string {
 		return "must"
 	}
 	return r.Priority
+}
+
+// ----------------------------------------------------------------------------
+// RM-C4 — `kind` y `verification`.
+//
+// EL PROBLEMA. Un requisito no funcional entra a presión en los tipos EARS y no
+// declara CÓMO se comprueba. "El sistema responderá en menos de 200 ms" no se
+// prueba con un test unitario, así que nunca ancla a uno — y el contrato de
+// verificación, que sólo sabe pedir tests, lo deja pasar. Peor: como no ancla,
+// tampoco cuenta en la cobertura. El requisito existe, nadie lo verificó, y la
+// métrica no lo refleja. **Decae en silencio**, que es la peor forma de decaer.
+//
+// LOS DOS EJES SON ORTOGONALES, y esa separación es la que hace que el modelo
+// funcione:
+//
+//	kind         → QUÉ es el requisito   (performance, security, …)
+//	verification → CÓMO se comprueba     (benchmark, audit, …)
+//
+// No se colapsan en uno porque no se corresponden 1:1: un requisito de seguridad
+// puede verificarse con un test automatizado, y uno funcional puede necesitar
+// verificación manual. Y ninguno de los dos toca `ears_type`, que dice cómo se
+// ENUNCIA — un NFR se enuncia perfectamente como `ubiquitous`
+// ("THE SYSTEM SHALL responder en menos de 200 ms"). No se agrega ningún tipo
+// EARS nuevo.
+// ----------------------------------------------------------------------------
+
+var requirementKinds = map[string]bool{
+	"functional": true, "performance": true, "security": true,
+	"reliability": true, "usability": true, "compliance": true,
+}
+
+// verificationMethods: cómo se comprueba. `test` es el único totalmente
+// automatizable, y por eso es el default.
+var verificationMethods = map[string]bool{
+	"test": true, "benchmark": true, "audit": true, "manual": true, "analysis": true,
+}
+
+func kindOf(r requirement) string {
+	if r.Kind == "" {
+		return "functional"
+	}
+	return r.Kind
+}
+
+// verificationOf normaliza: ausente ⇒ `test`.
+//
+// Fail-closed, por el mismo motivo que `priorityOf`: el default es el camino más
+// exigente y el único que la máquina puede comprobar sola. Si el default fuera
+// `manual`, omitir el campo sería la forma más barata de salir del contrato.
+func verificationOf(r requirement) string {
+	if r.Verification == "" {
+		return "test"
+	}
+	return r.Verification
 }
 
 // ----------------------------------------------------------------------------
@@ -511,6 +569,12 @@ func checkRequirementsIn(rf requirementsFile, projectDir string, rep *report) {
 
 		if !priorities[priorityOf(r)] {
 			rep.errorf("%s: invalid priority %q (must|should|could)", r.ID, r.Priority)
+		}
+		if !requirementKinds[kindOf(r)] {
+			rep.errorf("%s: invalid kind %q (functional|performance|security|reliability|usability|compliance)", r.ID, r.Kind)
+		}
+		if !verificationMethods[verificationOf(r)] {
+			rep.errorf("%s: invalid verification %q (test|benchmark|audit|manual|analysis)", r.ID, r.Verification)
 		}
 
 		if !earsTypes[r.EarsType] {

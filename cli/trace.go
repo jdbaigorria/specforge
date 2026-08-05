@@ -55,8 +55,25 @@ func checkTrace(t traceFile, rep *report) {
 				rep.errorf("%s: scenario id %q must have the form <requirement>.<n>, e.g. %s.1", id, sid, id)
 			case m[1] != id:
 				rep.errorf("%s: scenario %s belongs to %s, not to %s", id, sid, m[1], id)
-			case len(info.Scenarios[sid].Test) == 0:
-				rep.warnf("%s: names no test — the verdict gate will reject this until it does", sid)
+			default:
+				sc := info.Scenarios[sid]
+				// RM-C4: un escenario se verifica con tests O con evidencia.
+				// Los dos juntos no es un error (un benchmark puede tener además
+				// un test de humo), pero ninguno de los dos sí.
+				if len(sc.Test) == 0 && sc.Evidence == nil {
+					rep.warnf("%s: names no test and declares no evidence — the verdict gate will reject this until it does", sid)
+				}
+				if sc.Evidence != nil {
+					if !verificationMethods[sc.Evidence.Kind] {
+						rep.errorf("%s: evidence kind %q is not one of test|benchmark|audit|manual|analysis", sid, sc.Evidence.Kind)
+					}
+					if strings.TrimSpace(sc.Evidence.Ref) == "" {
+						rep.errorf("%s: evidence ref is required — evidence nobody can open is an assertion", sid)
+					}
+					if !capturedRe.MatchString(sc.Evidence.Recorded) {
+						rep.errorf("%s: evidence recorded %q must be YYYY-MM-DD", sid, sc.Evidence.Recorded)
+					}
+				}
 			}
 		}
 	}

@@ -46,9 +46,28 @@ type traceReq struct {
 	Status    string                   `json:"status"`
 }
 
-// traceScenario son los tests de UN criterio de aceptación.
+// traceScenario es la verificación de UN criterio de aceptación: tests cuando
+// el requisito se comprueba con tests, o una EVIDENCIA declarada cuando no
+// (RM-C4).
 type traceScenario struct {
-	Test []string `json:"test"`
+	Test     []string          `json:"test,omitempty"`
+	Evidence *scenarioEvidence `json:"evidence,omitempty"`
+}
+
+// scenarioEvidence es lo que ocupa el lugar del test cuando el requisito no se
+// verifica con uno: el resultado de un benchmark, un informe de auditoría, una
+// planilla de verificación manual.
+//
+// Los tres campos son obligatorios y por el mismo motivo: sin `kind` no se
+// puede contrastar contra lo que el requisito declaró, sin `ref` no hay nada que
+// abrir, y sin `recorded` no se sabe si la evidencia es de esta versión del
+// sistema o de hace ocho meses. Una evidencia que no se puede contrastar, abrir
+// ni fechar es una afirmación, y el punto entero de SpecForge es no sellar
+// afirmaciones.
+type scenarioEvidence struct {
+	Kind     string `json:"kind"`
+	Ref      string `json:"ref"`
+	Recorded string `json:"recorded"` // YYYY-MM-DD
 }
 
 // runDoctor es el punto de entrada de `sf doctor`. Por ahora el único chequeo es
