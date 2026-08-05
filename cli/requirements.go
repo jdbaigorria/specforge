@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -29,15 +31,172 @@ type requirementsFile struct {
 }
 
 type requirement struct {
-	ID         string   `json:"id"`
-	EarsType   string   `json:"ears_type"`
-	Trigger    string   `json:"trigger"`
-	State      string   `json:"state"`
-	Behavior   string   `json:"behavior"`
-	Acceptance []string `json:"acceptance"`
-	Source     string   `json:"source"`
-	Tags       []string `json:"tags"`
+	ID         string         `json:"id"`
+	EarsType   string         `json:"ears_type"`
+	Trigger    string         `json:"trigger"`
+	State      string         `json:"state"`
+	Behavior   string         `json:"behavior"`
+	Acceptance acceptanceList `json:"acceptance"`
+	Source     string         `json:"source"`
+	Tags       []string       `json:"tags"`
 }
+
+// ----------------------------------------------------------------------------
+// RM-C1 — el criterio de aceptación con ID.
+//
+// EL AGUJERO QUE TAPA. El contrato de verificación se cumple a granularidad de
+// requisito (`cli/gate.go`: "R5: names no test"). O sea: un requisito con cinco
+// criterios de aceptación y UN test pasa el contrato, sale verde y queda sellado
+// con hash encadenado. No hace falta mala fe — el agente cumple lo que se le
+// pide; la regla es la que mide poco.
+//
+// POR QUÉ EL ID Y NO GIVEN/WHEN/THEN OBLIGATORIO (DEC-1, 2026-08-05). Lo que
+// tapa el agujero es poder ANCLAR un test a cada criterio, y para eso alcanza
+// con que el criterio tenga nombre. El humano aprueba `R5.2`; la máquina exige
+// un test para `R5.2`; son el mismo objeto. Given/When/Then agrega rigor de
+// REDACCIÓN, no de verificación — así que entra como opción.
+//
+// Medido sobre los ejemplos del repo: los criterios que el proyecto escribe de
+// verdad ya son asertos atómicos (`slugify("Café Olé") == "cafe-ole"`), no prosa.
+// Envolverlos en Given/When/Then sería ceremonia sobre algo que ya es preciso.
+// ----------------------------------------------------------------------------
+
+// acceptanceCriterion es UN caso observable que prueba el requisito.
+//
+// `text` y la terna given/when/then son dos formas de escribir lo mismo: la
+// corta para un aserto que ya se explica solo, la larga cuando la precondición
+// aporta. Nunca las dos.
+type acceptanceCriterion struct {
+	ID    string `json:"id"`
+	Text  string `json:"text,omitempty"`
+	Given string `json:"given,omitempty"`
+	When  string `json:"when,omitempty"`
+	Then  string `json:"then,omitempty"`
+}
+
+// structured responde si el criterio usa la forma rica.
+func (c acceptanceCriterion) structured() bool {
+	return c.When != "" || c.Then != "" || c.Given != ""
+}
+
+// line devuelve el criterio como una sola línea, para el render y los mensajes.
+func (c acceptanceCriterion) line() string {
+	if !c.structured() {
+		return c.Text
+	}
+	var b strings.Builder
+	if c.Given != "" {
+		fmt.Fprintf(&b, "Given %s, ", c.Given)
+	}
+	fmt.Fprintf(&b, "when %s, then %s", c.When, c.Then)
+	return b.String()
+}
+
+// acceptanceList es la lista de criterios, y sabe leerse en las DOS formas:
+//
+//	legado: ["slugify(\"\") == \"\"", "..."]          → sin ids
+//	v2:     [{"id":"R4.1","text":"..."}, ...]         → con ids
+//
+// Concepto Go: implementando `UnmarshalJSON` y `MarshalJSON` sobre un tipo
+// propio, ese tipo toma el control total de cómo se serializa. `encoding/json`
+// chequea si el valor satisface las interfaces `json.Unmarshaler` /
+// `json.Marshaler` y, si las satisface, delega en ellas en vez de usar la
+// reflexión por defecto. Es el gancho que permite aceptar dos esquemas distintos
+// para el mismo campo sin duplicar el struct entero.
+type acceptanceList []acceptanceCriterion
+
+// UnmarshalJSON acepta las dos formas. El array vacío y `null` se leen como lista
+// vacía, sin error.
+//
+// Concepto Go: el receptor es un PUNTERO (`*acceptanceList`) porque el método
+// tiene que MODIFICAR el valor. Con receptor por valor escribiríamos sobre una
+// copia y el llamador no vería nada — y json ni siquiera lo tomaría como
+// Unmarshaler.
+func (a *acceptanceList) UnmarshalJSON(data []byte) error {
+	// json.RawMessage difiere el parseo: guardamos los bytes crudos de cada
+	// elemento y decidimos elemento por elemento cómo interpretarlos.
+	var raw []json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("acceptance must be a list: %w", err)
+	}
+
+	out := make(acceptanceList, 0, len(raw))
+	for i, item := range raw {
+		trimmed := strings.TrimSpace(string(item))
+		if strings.HasPrefix(trimmed, `"`) {
+			// Forma legada: un string suelto. Entra SIN id, y esa ausencia es
+			// exactamente lo que después distingue el contrato v1 del v2.
+			var s string
+			if err := json.Unmarshal(item, &s); err != nil {
+				return fmt.Errorf("acceptance[%d]: %w", i, err)
+			}
+			out = append(out, acceptanceCriterion{Text: s})
+			continue
+		}
+		var c acceptanceCriterion
+		if err := json.Unmarshal(item, &c); err != nil {
+			return fmt.Errorf("acceptance[%d]: expected a string or an object with an id: %w", i, err)
+		}
+		out = append(out, c)
+	}
+	*a = out
+	return nil
+}
+
+// MarshalJSON re-emite la MISMA forma que entró.
+//
+// Por qué importa: `sf save` re-serializa el JSON canónico. Si un requisito
+// legado (strings sin id) volviera escrito como objetos, un simple save lo
+// habría subido de contrato v1 a v2 — y con eso el veredicto pasaría a exigir un
+// test por criterio sin que nadie lo haya decidido. Subir de contrato es un acto
+// EXPLÍCITO (`sf migrate`, que asigna los ids, o escribir los objetos a mano),
+// nunca el efecto colateral de guardar.
+//
+// El discriminador sale del dato, no de un flag escondido: sin ids y sin forma
+// rica ⇒ es legado.
+func (a acceptanceList) MarshalJSON() ([]byte, error) {
+	if a.legacy() {
+		out := make([]string, len(a))
+		for i, c := range a {
+			out[i] = c.Text
+		}
+		return json.Marshal(out)
+	}
+	// Alias de tipo para evitar la recursión infinita: si hiciéramos
+	// json.Marshal(a) acá, json volvería a llamar a este mismo método. `plain`
+	// tiene la misma representación pero NO hereda los métodos, así que json usa
+	// su reflexión normal.
+	type plain []acceptanceCriterion
+	return json.Marshal(plain(a))
+}
+
+// legacy: ningún criterio tiene id ni forma rica. Una lista vacía cuenta como
+// legada — no hay nada que distinga una cosa de la otra, y emitir `[]` es lo
+// mismo en las dos formas.
+func (a acceptanceList) legacy() bool {
+	for _, c := range a {
+		if c.ID != "" || c.structured() {
+			return false
+		}
+	}
+	return true
+}
+
+// hasIDs: ¿el requisito corre bajo el contrato v2? Basta UN id para que el
+// requisito entre al contrato estricto; los que falten los caza la validación.
+func (a acceptanceList) hasIDs() bool {
+	for _, c := range a {
+		if c.ID != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// acceptanceIDRe valida la forma de un id de criterio: el id del requisito
+// padre, un punto, y un entero. El prefijo hace evidente la pertenencia sin
+// necesidad de un índice aparte.
+var acceptanceIDRe = regexp.MustCompile(`^(R\d+)\.(\d+)$`)
 
 //go:embed templates/requirements.tmpl.md
 var reqTemplate string
@@ -49,6 +208,10 @@ var reqTmpl = template.Must(
 			"list":   joinOrDash,
 			"orDash": orDash,
 			"ears":   earsSentence,
+			// `criterion` rinde el criterio en una línea. Given/When/Then entra
+			// como RENDER, igual que `ears` arma la oración EARS desde campos
+			// estructurados: la fuente sigue siendo JSON.
+			"criterion": acceptanceCriterion.line,
 		}).
 		Parse(reqTemplate),
 )
@@ -253,5 +416,106 @@ func checkRequirements(rf requirementsFile, rep *report) {
 				rep.errorf("%s: ubiquitous requires a behavior", r.ID)
 			}
 		}
+
+		checkAcceptance(r, rep)
 	}
+}
+
+// checkAcceptance valida los criterios de un requisito (RM-C1 / R1).
+//
+// La regla de entrada: o TODOS los criterios tienen id, o NINGUNO. Una lista
+// mitad y mitad es la peor de las tres — el contrato del veredicto pregunta
+// "¿este requisito corre bajo v2?" y una respuesta ambigua ahí significa
+// criterios que nadie verifica y nadie ve.
+func checkAcceptance(r requirement, rep *report) {
+	if len(r.Acceptance) == 0 {
+		rep.warnf("%s: no acceptance criteria — nothing can anchor a test to it", r.ID)
+		return
+	}
+	if !r.Acceptance.hasIDs() {
+		return // legado íntegro: conserva la regla vieja, sin ruido (R4)
+	}
+
+	seen := map[string]bool{}
+	for i, c := range r.Acceptance {
+		label := fmt.Sprintf("%s: acceptance #%d", r.ID, i+1)
+
+		// 1) id presente y bien formado.
+		switch {
+		case c.ID == "":
+			rep.errorf("%s: missing id — all criteria of a requirement must have one, or none may "+
+				"(a half-structured requirement runs under neither contract)", label)
+			continue
+		case seen[c.ID]:
+			rep.errorf("%s: duplicate criterion id %s", label, c.ID)
+			continue
+		}
+		seen[c.ID] = true
+
+		m := acceptanceIDRe.FindStringSubmatch(c.ID)
+		if m == nil {
+			rep.errorf("%s: id %q must have the form <requirement>.<n>, e.g. %s.1", label, c.ID, r.ID)
+			continue
+		}
+		// 2) el prefijo tiene que ser el requisito padre. Un `R6.1` colgando de
+		//    `R5` ancla tests a un requisito que no es el suyo.
+		if m[1] != r.ID {
+			rep.errorf("%s: id %s belongs to %s, not to %s", label, c.ID, m[1], r.ID)
+			continue
+		}
+		// 3) el índice arranca en 1. El 0 no es un criterio, es un off-by-one.
+		if n, err := strconv.Atoi(m[2]); err == nil && n < 1 {
+			rep.errorf("%s: id %s — criterion numbering starts at 1", label, c.ID)
+		}
+
+		// 4) contenido: la forma corta o la larga, nunca media larga.
+		switch {
+		case c.structured() && c.Text != "":
+			rep.errorf("%s (%s): set either `text` or given/when/then, not both", label, c.ID)
+		case c.structured():
+			if c.When == "" || c.Then == "" {
+				rep.errorf("%s (%s): given/when/then requires both `when` and `then` "+
+					"(half the rich form says less than the short one)", label, c.ID)
+			}
+		case strings.TrimSpace(c.Text) == "":
+			rep.errorf("%s (%s): empty — needs `text`, or `when` + `then`", label, c.ID)
+		}
+	}
+
+	// 5) LA REGLA DE ESTABILIDAD, dicha donde se lee. No se puede hacer cumplir
+	//    acá (la validación no tiene memoria del archivo anterior), así que la
+	//    hacemos visible: los huecos son LEGALES y son la señal de que un id se
+	//    retiró. Renumerar para taparlos es lo que rompe anclas en silencio.
+	if gaps := acceptanceGaps(r); len(gaps) > 0 {
+		rep.warnf("%s: criterion ids skip %s — that is fine if a criterion was retired. "+
+			"Never renumber to close a gap: trace.json anchors point at ids, and re-using a freed id "+
+			"silently re-points them at a different case", r.ID, strings.Join(gaps, ", "))
+	}
+}
+
+// acceptanceGaps devuelve los índices faltantes entre 1 y el máximo declarado.
+func acceptanceGaps(r requirement) []string {
+	present := map[int]bool{}
+	max := 0
+	for _, c := range r.Acceptance {
+		m := acceptanceIDRe.FindStringSubmatch(c.ID)
+		if m == nil || m[1] != r.ID {
+			continue
+		}
+		n, err := strconv.Atoi(m[2])
+		if err != nil || n < 1 {
+			continue
+		}
+		present[n] = true
+		if n > max {
+			max = n
+		}
+	}
+	var gaps []string
+	for n := 1; n < max; n++ {
+		if !present[n] {
+			gaps = append(gaps, fmt.Sprintf("%s.%d", r.ID, n))
+		}
+	}
+	return gaps
 }
