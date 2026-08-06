@@ -92,6 +92,17 @@ $ sf trace verify --feature=X     # the requirement → code → test matrix vs 
 $ sf lint                         # the skill suite's own consistency
 ```
 
+**Inspect the opt-in guarantees** (see `verification.*` below — each is off until
+you turn it on, and each answers a different question):
+
+```console
+$ sf coverage --by-priority       # of my requirements, which have a satisfied contract?
+$ sf arch rules --feature=X       # the dependency rules derived from the approved design
+$ sf arch check --feature=X       # does the built code respect that graph?
+$ sf mutation scope --feature=X   # which files would the mutator touch?
+$ sf mutation run --feature=X     # does the suite actually detect injected defects?
+```
+
 **Export the knowledge graph (deterministic — the opposite of RAG).**
 
 ```console
@@ -195,7 +206,9 @@ record-verdict`. Opt-in and governed by config:
     "exclude": [{ "path": "scripts/", "reason": "release tooling, not product" }]
   },
   "verification": {                                   // default: everything blocks
-    "blocking_priorities": ["must", "should"]
+    "blocking_priorities": ["must", "should"],
+    "require_arch": false,                            // opt-in, all three
+    "require_mutation": false                         // independent of each other
   }
 }
 ```
@@ -256,6 +269,91 @@ record-verdict`. Opt-in and governed by config:
   be attributed to a test, so the flag **rejects asking for the configuration**
   rather than approving in silence. Requirements whose `verification` isn't
   `test` are exempt — they never failed as a test because they never were one.
+- **`verification.require_arch`** — default `false`. With `true`, the verdict
+  requires the built code to respect the dependency graph `design.json` declared
+  and the design gate approved.
+
+  The gap it closes: `component.depends_on` passes a human gate, gets sealed, and
+  then **nobody looks at it again**. A wave could implement every requirement,
+  name every test, pass causality, go green and seal **having violated the
+  approved design outright**. The seal certified traceability and verification; it
+  never certified that the code respects its own declared structure.
+
+  SpecForge doesn't implement the analyzer — it shells out to your stack's tool
+  (`go-arch-lint` / `depguard`, `import-linter`, `dependency-cruiser`) via
+  `build.arch_cmd` and consumes the **exit code**. What it adds is what none of
+  them can: **the rule is generated from the approved design**, so when the design
+  changes through `sf-amend` the rule changes with it and both stay under the same
+  seal.
+
+  ```jsonc
+  "build": { "arch_cmd": "go-arch-lint check --config={config}" },
+  "verification": { "require_arch": true }
+  ```
+
+  **`{config}` is required.** Without it the tool would check a hand-written
+  config instead of the approved graph — that's the guarantee inverted, not a
+  config that's merely incomplete, so it's a validation error. `sf` writes the
+  rules to `specforge/.state/arch-rules-<feature>.json` and regenerates them every
+  run; inspect them with `sf arch rules --feature=NAME` before wiring the tool.
+
+  **Where the component→files mapping comes from.** `tasks.json` already carries
+  it: `component_refs` × `files_touched`, both approved at the tasks gate. No new
+  schema, and the source stays a sealed artifact. When it can't be derived —a file
+  claimed by two components, a component with no production files, an edge to a
+  component nobody declared— it **stops and asks for the mapping** instead of
+  guessing. An invented mapping makes every conformance check afterwards
+  decorative.
+
+  **Honest limits.** It checks the dependency graph, which is the mechanizable
+  part of an architecture — cohesion, naming and well-split responsibilities are
+  the phase auditor's job, not this one. Test files are excluded: a test crossing
+  component boundaries is normal, and counting it would produce false violations.
+- **`verification.require_mutation`** — default `false`. With `true`, the verdict
+  requires your mutation tool to pass its own threshold.
+
+  What it proves that the RED witness doesn't: the witness shows a test *could*
+  fail once; mutation shows the suite **detects defects now**. Defects get injected
+  into the code (flip an operator, negate a condition, move a boundary) and some
+  test must go red. If the suite stays green with the code broken, the suite
+  doesn't verify — it accompanies.
+
+  ```jsonc
+  "build": { "mutation_cmd": "gremlins unleash --tags={files}" },
+  "verification": { "require_mutation": true }
+  ```
+
+  `{files}` is substituted with the production files this feature's trace anchors
+  — **the advantage no generic tool has**, because none of them knows which code
+  belongs to which requirement. It's what makes the runtime tolerable. Unlike
+  `{config}` above, it's **optional**: omitting it just means the command defines
+  its own scope, which is slower but not wrong, so it's a warning. Inspect the
+  scope with `sf mutation scope --feature=NAME`.
+
+  **Only the exit code is consumed, never a parsed score.** The threshold is your
+  tool's configuration. This is also the only honest stance on **equivalent
+  mutants**: some are semantically identical to the original and no test can ever
+  kill them, so the score is permanently imperfect and demanding 100% would demand
+  the impossible.
+
+  **Honest limits.** It's slow — it runs the suite once per mutant, so it's a
+  feature-close gate, never something to run per wave or per PR. It runs last in
+  the verdict for that reason: a broken anchor should surface in seconds, not
+  after twenty minutes of mutation that was going to reject anyway. And not every
+  stack has a tool; without `mutation_cmd` the check is skipped, not failed.
+
+**The three opt-ins are orthogonal on purpose.** `require_red_witness`,
+`require_arch` and `require_mutation` are independent flags, not steps on a
+ladder: a project can demand architecture conformance (seconds) without paying
+for mutation testing (minutes). Bundling them behind a single "strict mode" would
+have made the cheap guarantee cost as much as the expensive one, and the
+predictable result is that nobody turns any of them on.
+
+**All three reject when switched on without their command configured**, instead
+of degrading quietly. Approving would be worse than blocking: the project would
+believe it holds a guarantee that was never evaluated. Running the commands by
+hand (`sf arch check`, `sf mutation run`) *does* degrade gracefully — that's a
+question, not a gate somebody is about to cross.
 
 Quality principles like **`P-min`** (minimal code) are just constitution
 principles with `applies_to` — the phase auditor checks them for free, no special

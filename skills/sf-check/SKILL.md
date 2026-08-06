@@ -269,6 +269,29 @@ If `failures.md` exists, verify:
 - Do failure root causes point to spec issues (→ REVISE) or implementation
   issues (→ fix and re-check)?
 
+### Run the opt-in gates before the verdict, not at it
+
+Read `verification` in `constitution.json`. Whichever of these the project turned
+on **will run inside `sf gate approve`** — running them here means you find out
+in a command you chose, not in a rejection you didn't:
+
+| If the project set | Run first | It answers |
+|---|---|---|
+| `require_arch: true` | `sf arch check --feature=<name>` | does the built code respect the approved `depends_on` graph? |
+| `require_mutation: true` | `sf mutation run --feature=<name>` | does the suite actually detect injected defects? |
+
+Both are **deterministic and machine-checked** — do not narrate a conclusion
+about architecture conformance or test strength that these commands can give you.
+That is the same defect this skill exists to prevent one level down.
+
+`sf mutation run` is slow by nature (it runs the suite once per mutant), so run
+it once, here, at feature close — never per wave.
+
+Regardless of the flags, `sf coverage --by-priority` is worth reading at this
+point: it reports which requirements have a satisfied verification contract,
+split by priority. Anything under 100% on `must` is a requirement the project
+itself called release-blocking and has not verified.
+
 ## Step 3: Constitution Compliance (if constitution exists)
 
 For each principle in `constitution.md`:

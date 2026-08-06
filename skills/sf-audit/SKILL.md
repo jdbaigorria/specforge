@@ -141,7 +141,7 @@ nobody trusts any of them.
 ```bash
 sf status --json                            # features by status
 sf doctor --drift --run-tests --json        # drift in 4 categories
-sf coverage --json                          # anchored ratio + unanchored files
+sf coverage --json --by-priority            # anchored ratio + unanchored files + contract by priority
 sf verify --json                            # invariants and integrity checks
 ```
 
@@ -157,6 +157,7 @@ that would state a fact nobody checked.
 | Unverified requirements | same, `unverified` |
 | Out of spec (code with no requirement) | same, `out_of_spec` — and `sf coverage --json` → `unanchored` |
 | Test coverage gaps | `sf coverage --json` → `percent`, `anchored`, `total` |
+| Verification contract by priority | `sf coverage --json --by-priority` → `requirement_coverage.by_priority`. **Different unit** from the row above: that one counts *files*, this one counts *requirements*. Don't merge them — an audit that adds the two totals is adding apples to oranges. The row that matters is `must`: anything short of `total` there is release-blocking work the project declared and never verified |
 | Constitution principles / Invariants | `constitution.json` (count them) |
 | Integrity / invariant checks | `sf verify --json` → `checks` |
 | **Cross-feature conflicts** | **Judgment** — two specs have to be read and found to contradict |
