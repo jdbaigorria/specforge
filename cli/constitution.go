@@ -205,6 +205,16 @@ type buildConfig struct {
 	// delega en la herramienta del stack y consume su exit code, igual que
 	// TestCmd delega el runner. Opcional; sin él la conformidad se omite.
 	ArchCmd string `json:"arch_cmd,omitempty"`
+	// ArchFormat elige en qué formato se emite el archivo que `{config}` nombra.
+	//
+	//	"json"          contrato neutral (default) — inspeccionable, y la base
+	//	                para escribir un adaptador a una herramienta que no
+	//	                soportemos todavía.
+	//	"go-arch-lint"  el `.go-arch-lint.yml` v3 nativo — anda sin adaptador.
+	//
+	// El default es `json` para no cambiarle el comportamiento a un proyecto
+	// existente sólo por actualizar el binario.
+	ArchFormat string `json:"arch_format,omitempty"`
 	// MutationCmd (RM-C6) corre mutation testing. `{files}` se sustituye con los
 	// archivos de producción anclados por el trace de la feature — el alcance
 	// por trace es la ventaja que ninguna herramienta genérica tiene, porque

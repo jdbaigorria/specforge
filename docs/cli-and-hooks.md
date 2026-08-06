@@ -340,9 +340,26 @@ record-verdict`. Opt-in and governed by config:
   seal.
 
   ```jsonc
-  "build": { "arch_cmd": "go-arch-lint check --config={config}" },
+  "build": {
+    "arch_cmd": "go-arch-lint check --arch-file={config}",
+    "arch_format": "go-arch-lint"        // default "json"
+  },
   "verification": { "require_arch": true }
   ```
+
+  **`arch_format` decides what `{config}` points at.** With `"go-arch-lint"` we
+  emit that tool's native `.go-arch-lint.yml` (v3) and it works with no adapter
+  in between — verified end to end against `go-arch-lint v1.17`, which both
+  accepts the generated file and catches a real violation the Go compiler is
+  perfectly happy with. The default `"json"` emits a neutral contract instead:
+  inspect it with `sf arch rules --feature=NAME --format=json`, and use it as the
+  base for an adapter to a tool we don't emit natively yet.
+
+  **Your component must own whole directories.** `go-arch-lint` maps components
+  to *packages*, while our mapping is per file — finer than the tool can consume.
+  If two components own files in the same directory the config cannot express it,
+  and `sf` refuses rather than emitting rules that would verify an architecture
+  nobody declared.
 
   **`{config}` is required.** Without it the tool would check a hand-written
   config instead of the approved graph — that's the guarantee inverted, not a

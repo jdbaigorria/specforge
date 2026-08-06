@@ -176,7 +176,7 @@ func TestWriteArchRules(t *testing.T) {
 		`[{"id":"C1","name":"api","depends_on":[]}]`,
 		`[{"id":"T1","component_refs":["C1"],"files_touched":["src/api.go"]}]`)
 
-	path, reasons := writeArchRules(dir, "f")
+	path, reasons := writeArchRules(dir, "f", "json")
 	if len(reasons) != 0 {
 		t.Fatalf("reasons = %v", reasons)
 	}

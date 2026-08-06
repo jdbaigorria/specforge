@@ -72,8 +72,26 @@ type archComponent struct {
 // protegido por el hook. Se REGENERA en cada corrida y nunca se edita a mano —
 // su fuente de verdad es el diseño sellado, así que una edición manual sería una
 // regla que ya no representa a ningún diseño aprobado.
-func archRulesPath(projectDir, feature string) string {
-	return filepath.Join(projectDir, "specforge", ".state", "arch-rules-"+feature+".json")
+func archRulesPath(projectDir, feature, format string) string {
+	return filepath.Join(projectDir, "specforge", ".state", archRulesFilename(feature, format))
+}
+
+// archFormat lee `build.arch_format`. Ausente ⇒ `json`, el contrato neutral —
+// que es lo que ya emitíamos, así que un proyecto existente no cambia de
+// comportamiento por actualizar el binario.
+func archFormat(projectDir string) string {
+	data, err := os.ReadFile(filepath.Join(projectDir, "specforge", "constitution.json"))
+	if err != nil {
+		return "json"
+	}
+	var c constitutionFile
+	if json.Unmarshal(data, &c) != nil || c.Build == nil {
+		return "json"
+	}
+	if f := strings.TrimSpace(c.Build.ArchFormat); f != "" {
+		return f
+	}
+	return "json"
 }
 
 // componentFiles deriva el mapeo componente → archivos desde tasks.json.
@@ -225,21 +243,38 @@ func buildArchRules(projectDir, feature string) (archRules, []string) {
 	return rules, reasons
 }
 
-// writeArchRules genera el archivo y devuelve su ruta.
-func writeArchRules(projectDir, feature string) (string, []string) {
+// writeArchRules genera el archivo en el formato pedido y devuelve su ruta.
+func writeArchRules(projectDir, feature, format string) (string, []string) {
+	if !archFormats[format] {
+		return "", []string{fmt.Sprintf("unknown arch format %q — known: %s",
+			format, strings.Join(sortedKeys(archFormats), ", "))}
+	}
 	rules, reasons := buildArchRules(projectDir, feature)
 	if len(reasons) > 0 {
 		return "", reasons
 	}
-	path := archRulesPath(projectDir, feature)
+
+	var body []byte
+	switch format {
+	case "go-arch-lint":
+		yaml, why := archLintYAML(rules)
+		if len(why) > 0 {
+			return "", why
+		}
+		body = []byte(yaml)
+	default:
+		data, err := json.MarshalIndent(rules, "", "  ")
+		if err != nil {
+			return "", []string{fmt.Sprintf("cannot encode arch rules: %v", err)}
+		}
+		body = append(data, '\n')
+	}
+
+	path := archRulesPath(projectDir, feature, format)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", []string{fmt.Sprintf("cannot create .state directory: %v", err)}
 	}
-	data, err := json.MarshalIndent(rules, "", "  ")
-	if err != nil {
-		return "", []string{fmt.Sprintf("cannot encode arch rules: %v", err)}
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(path, body, 0o644); err != nil {
 		return "", []string{fmt.Sprintf("cannot write arch rules: %v", err)}
 	}
 	return path, nil
@@ -304,7 +339,7 @@ func archGateReasons(projectDir, feature string) []string {
 				"approved dependency graph. Set build.arch_cmd or turn the flag off",
 		}
 	}
-	path, reasons := writeArchRules(projectDir, feature)
+	path, reasons := writeArchRules(projectDir, feature, archFormat(projectDir))
 	if len(reasons) > 0 {
 		return reasons
 	}
@@ -371,11 +406,23 @@ func parseArchArgs(args []string) (projectDir, feature string, code int) {
 // qué se le va a pasar a la herramienta ANTES de cablearla — sin esto, la
 // primera experiencia con C7 sería un exit code sin explicación.
 func runArchRules(args []string) int {
-	projectDir, feature, code := parseArchArgs(args)
+	format := ""
+	var rest []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "--format=") {
+			format = strings.TrimPrefix(a, "--format=")
+			continue
+		}
+		rest = append(rest, a)
+	}
+	projectDir, feature, code := parseArchArgs(rest)
 	if code != 0 {
 		return code
 	}
-	path, reasons := writeArchRules(projectDir, feature)
+	if format == "" {
+		format = archFormat(projectDir)
+	}
+	path, reasons := writeArchRules(projectDir, feature, format)
 	if len(reasons) > 0 {
 		fmt.Fprintf(os.Stderr, "sf arch rules: cannot derive the component→files mapping (%d issue(s)):\n", len(reasons))
 		for _, r := range reasons {

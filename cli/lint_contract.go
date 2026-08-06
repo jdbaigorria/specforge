@@ -78,7 +78,7 @@ var cliSurface = map[string]cmdSurface{
 	"delta":        {subs: set("new", "list", "set-status"), flags: set("--feature", "--json", "--from", "--id", "--to", "--kind")},
 	"run":          {flags: set("--feature", "--dry-run")},
 	"coverage":     {flags: set("--json", "--badge", "--history", "--by-priority")},
-	"arch":         {subs: set("rules", "check"), flags: set("--feature")},
+	"arch":         {subs: set("rules", "check"), flags: set("--feature", "--format")},
 	"mutation":     {subs: set("scope", "run"), flags: set("--feature")},
 	"evidence":     {subs: set("checklist", "record"), flags: set("--feature", "--json", "--scenario", "--kind", "--ref", "--recorded")},
 	"question":     {subs: set("add", "answer", "adopt", "list"), flags: set("--text", "--impact", "--blocks", "--asked-of", "--id", "--answer", "--source", "--json", "--blocking")},
