@@ -93,10 +93,13 @@ func runMigrate(args []string) int {
 
 	var actions []migrateAction
 	var unknown []string
+	// upgraded: cuántos requisitos pasaron a criterios con id. No es cosmético —
+	// es la medida de una consecuencia que hay que avisar (reportContractTightened).
+	upgraded := 0
 
 	// 1) Artefactos: versión faltante → estampar; desconocida → error.
 	//    Si estampamos, re-sellamos los gates cuyo sello era válido antes.
-	stampArtifacts(projectDir, sf, &ff, dryRun, &actions, &unknown)
+	stampArtifacts(projectDir, sf, &ff, dryRun, &actions, &unknown, &upgraded)
 
 	// 2) Split del estado (A1/R3): si el features.json legacy todavía existe, el
 	//    estado pasa a vivir POR FEATURE (features/<name>/feature.json) y el
@@ -202,8 +205,35 @@ func runMigrate(args []string) int {
 		}
 		fmt.Println(line)
 	}
+	reportContractTightened(upgraded)
 	reportArchivedSkip(skipped)
 	return 0
+}
+
+// reportContractTightened avisa la consecuencia que la migración NO puede
+// resolver por su cuenta.
+//
+// Al darle ids a los criterios, el requisito pasa del contrato v1 (un test por
+// requisito) al v2 (un test POR CRITERIO). Pero el `trace.json` sigue anclando a
+// nivel requisito, y repartir esos tests entre criterios es CONTENIDO — decidir
+// cuál test cubre cuál caso necesita un modelo, que es justo lo que migrate no
+// puede hacer sin perder la autorización que tiene para re-sellar.
+//
+// El resultado es correcto pero contraintuitivo: justo después de migrar, la
+// cobertura por contrato cae y el próximo veredicto rechaza. Descubierto
+// migrando `examples/brownfield-tempconv`, que pasó de 3/3 a 0/3 sin que nada lo
+// dijera. Un costo real y silencioso es cómo una migración se revierte a mano.
+func reportContractTightened(n int) {
+	if n == 0 {
+		return
+	}
+	fmt.Printf("\n%d requirement(s) now carry per-criterion acceptance ids — their verification\n", n)
+	fmt.Println("contract just got stricter: the verdict will ask for a test per CRITERION, not per")
+	fmt.Println("requirement. Their traces still anchor at requirement level, so expect them to read")
+	fmt.Println("as uncovered until each criterion gets its own anchor under")
+	fmt.Println("`trace.json` → requirements.<R#>.scenarios.<R#.n>.")
+	fmt.Println("Splitting those anchors is a content decision, so migrate cannot do it for you.")
+	fmt.Println("See exactly which ones with `sf coverage --by-priority`.")
 }
 
 // archivedFeatureCount cuenta las features archivadas que tienen artefactos.
@@ -225,7 +255,7 @@ func reportArchivedSkip(n int) {
 
 // stampArtifacts recorre todos los artefactos .json existentes; estampa la
 // versión faltante y acumula las desconocidas. Con dryRun no escribe.
-func stampArtifacts(projectDir, sf string, ff *featuresFile, dryRun bool, actions *[]migrateAction, unknown *[]string) {
+func stampArtifacts(projectDir, sf string, ff *featuresFile, dryRun bool, actions *[]migrateAction, unknown *[]string, upgraded *int) {
 	type target struct {
 		abs   string
 		owner *feature // dueña del gate a re-sellar (nil: constitution/domain, sin sello)
@@ -277,8 +307,9 @@ func stampArtifacts(projectDir, sf string, ff *featuresFile, dryRun bool, action
 		// actual. Todos deterministas: ninguno decide contenido.
 		var did []string
 		if v == "" || v == "1.0" {
-			if upgradeAcceptanceToV2(doc, filepath.Base(tg.abs)) {
-				did = append(did, "acceptance ids")
+			if n := upgradeAcceptanceToV2(doc, filepath.Base(tg.abs)); n > 0 {
+				did = append(did, fmt.Sprintf("acceptance ids on %d requirement(s)", n))
+				*upgraded += n
 			}
 		}
 		doc["schema_version"] = schemaVersionCurrent
@@ -335,15 +366,17 @@ func stampArtifacts(projectDir, sf string, ff *featuresFile, dryRun bool, action
 // imposible y el sistema quedaba BIMODAL PARA SIEMPRE (legado con contrato débil,
 // v2 con contrato fuerte, y cada feature subiendo a mano por `sf-amend`). Con id
 // obligatorio y G/W/T opcional, todo el legado sube solo.
-func upgradeAcceptanceToV2(doc map[string]any, base string) bool {
+// Devuelve CUÁNTOS requisitos convirtió, no un booleano: ese número es el que
+// mide la consecuencia que hay que avisar (ver reportContractTightened).
+func upgradeAcceptanceToV2(doc map[string]any, base string) int {
 	if base != "requirements.json" {
-		return false
+		return 0
 	}
 	reqs, ok := doc["requirements"].([]any)
 	if !ok {
-		return false
+		return 0
 	}
-	changed := false
+	changed := 0
 	for _, r := range reqs {
 		req, ok := r.(map[string]any)
 		if !ok {
@@ -376,7 +409,7 @@ func upgradeAcceptanceToV2(doc map[string]any, base string) bool {
 			})
 		}
 		req["acceptance"] = out
-		changed = true
+		changed++
 	}
 	return changed
 }

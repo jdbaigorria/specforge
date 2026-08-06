@@ -232,6 +232,28 @@ func TestMigrateV2Reseals(t *testing.T) {
 	})
 }
 
+func TestMigrateWarnsContractGotStricter(t *testing.T) {
+	// La consecuencia que migrate NO puede resolver: darle ids a los criterios
+	// sube el requisito al contrato v2 (un test POR CRITERIO), pero el trace
+	// sigue anclando a nivel requisito y repartir esos tests es CONTENIDO.
+	// El resultado es correcto y contraintuitivo — justo después de migrar la
+	// cobertura CAE. Apareció migrando examples/brownfield-tempconv, que pasó de
+	// 3/3 a 0/3 sin que nada lo dijera. Un costo silencioso es cómo una
+	// migración se revierte a mano.
+	proj := v1Project(t, `["uno","dos"]`)
+
+	out := captureStdout(t, func() { runMigrate([]string{proj}) })
+	if !strings.Contains(out, "contract just got stricter") {
+		t.Errorf("migrate debe avisar que el contrato se endureció:\n%s", out)
+	}
+	if !strings.Contains(out, "sf coverage --by-priority") {
+		t.Errorf("el aviso debe decir CÓMO ver cuáles quedaron descubiertos:\n%s", out)
+	}
+	if !strings.Contains(out, "1 requirement(s)") {
+		t.Errorf("debe contar los requisitos afectados, no sólo avisar:\n%s", out)
+	}
+}
+
 func TestMigrateReportsArchivedSkip(t *testing.T) {
 	// El salteo es correcto (una feature sellada no se re-sella bajo un contrato
 	// que no existía cuando se aprobó), pero saltear EN SILENCIO haría creer que
