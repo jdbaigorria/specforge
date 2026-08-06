@@ -68,6 +68,7 @@ var protectedJSONRe = regexp.MustCompile(
 		`features\.json` +
 		`|constitution\.json` +
 		`|sources\.json` +
+		`|questions\.json` +
 		`|context/domain\.json` +
 		`|journal/[^/]+\.json` +
 		`|features/[^/]+/(?:progress/)?(?:requirements|design|tasks|plan|review|trace|audit|feature)\.json` +

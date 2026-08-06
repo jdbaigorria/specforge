@@ -81,6 +81,7 @@ var cliSurface = map[string]cmdSurface{
 	"arch":         {subs: set("rules", "check"), flags: set("--feature")},
 	"mutation":     {subs: set("scope", "run"), flags: set("--feature")},
 	"evidence":     {subs: set("checklist", "record"), flags: set("--feature", "--json", "--scenario", "--kind", "--ref", "--recorded")},
+	"question":     {subs: set("add", "answer", "adopt", "list"), flags: set("--text", "--impact", "--blocks", "--asked-of", "--id", "--answer", "--source", "--json", "--blocking")},
 	"help":         {},
 }
 
