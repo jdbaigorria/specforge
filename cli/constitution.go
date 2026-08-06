@@ -68,6 +68,14 @@ type verificationConfig struct {
 	// verificaciones (corre el suite una vez por mutante), así que es un gate de
 	// CIERRE DE FEATURE, nunca algo por wave ni por PR.
 	RequireMutation bool `json:"require_mutation,omitempty"`
+	// EvidenceMaxAgeDays (DL-15) es la vida útil de una evidencia NO automática.
+	// Cero o ausente ⇒ apagado: no vence.
+	//
+	// Es el único chequeo del producto que puede poner en rojo un proyecto que
+	// nadie tocó — el tiempo pasa solo. Por eso es opt-in: encenderlo es decidir
+	// que una verificación manual de hace ocho meses ya no describe este sistema,
+	// y esa es una decisión del proyecto, no un default que le podamos imponer.
+	EvidenceMaxAgeDays int `json:"evidence_max_age_days,omitempty"`
 }
 
 // verificationOpts: lectura QUIETA de la config de verificación. Sin
