@@ -279,6 +279,11 @@ in a command you chose, not in a rejection you didn't:
 |---|---|---|
 | `require_arch: true` | `sf arch check --feature=<name>` | does the built code respect the approved `depends_on` graph? |
 | `require_mutation: true` | `sf mutation run --feature=<name>` | does the suite actually detect injected defects? |
+| any requirement with `verification` ≠ `test` | `sf evidence checklist --feature=<name>` | what does a human still have to verify, and what expired? |
+
+`sf evidence checklist` is worth running even when nothing is configured: it is
+derived from the spec, so it tells you which criteria the machine *cannot* verify
+for you. Those are the ones a verdict can be wrong about.
 
 Both are **deterministic and machine-checked** — do not narrate a conclusion
 about architecture conformance or test strength that these commands can give you.

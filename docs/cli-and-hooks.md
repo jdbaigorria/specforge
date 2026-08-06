@@ -101,6 +101,7 @@ $ sf arch rules --feature=X       # the dependency rules derived from the approv
 $ sf arch check --feature=X       # does the built code respect that graph?
 $ sf mutation scope --feature=X   # which files would the mutator touch?
 $ sf mutation run --feature=X     # does the suite actually detect injected defects?
+$ sf evidence checklist --feature=X  # what a human still has to verify, and what expired
 ```
 
 **Export the knowledge graph (deterministic — the opposite of RAG).**
@@ -341,6 +342,45 @@ record-verdict`. Opt-in and governed by config:
   the verdict for that reason: a broken anchor should surface in seconds, not
   after twenty minutes of mutation that was going to reject anyway. And not every
   stack has a tool; without `mutation_cmd` the check is skipped, not failed.
+
+- **`verification.evidence_max_age_days`** — default `0` (off). With a number,
+  evidence recorded further back than that many days **stops counting** and the
+  verdict blocks.
+
+  It closes the other half of `verification` ≠ `test`. `RM-C4` made a
+  non-automated requirement declare its evidence; this asks whether that evidence
+  still describes *this* system. A security audit from eight months and forty
+  merges ago is not a current statement about the code.
+
+  ```jsonc
+  "verification": { "evidence_max_age_days": 180 }
+  ```
+
+  Work the circuit with `sf evidence`:
+
+  ```console
+  $ sf evidence checklist --feature=X   # what a human still has to verify
+  $ sf evidence record --feature=X --scenario=R1.1 --kind=benchmark --ref=docs/bench.md
+  ```
+
+  The checklist is **derived from the spec**, never hand-kept: it lists exactly
+  the criteria whose requirement declares a non-test `verification`, and marks
+  each `missing`, `recorded` or `stale`. `record` writes into `trace.json` for
+  you — that file is authoritative state the hook protects, and asking someone to
+  rewrite a whole document to note three fields is how people end up noting
+  whatever makes it pass. It validates with the **same rules as the gate**, so a
+  mismatched `kind` or an unopenable `ref` is refused there and then.
+
+  **`stale` and `missing` are different states on purpose**, and the tool never
+  merges them: one means re-verify, the other means verify for the first time. If
+  an expired item just read as "evidence missing", the cheap way out would be
+  re-dating the old evidence without re-checking anything — precisely the fraud
+  this exists to catch. Every message says so.
+
+  **Honest limit — this is the one check that can turn a green project red with
+  nobody touching it.** Time passes on its own. That's why it's off by default:
+  deciding that a manual verification expires is a project's call about its own
+  rate of change, not a default anyone can pick for it.
 
 **The three opt-ins are orthogonal on purpose.** `require_red_witness`,
 `require_arch` and `require_mutation` are independent flags, not steps on a

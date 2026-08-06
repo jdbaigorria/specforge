@@ -677,6 +677,14 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 			block("%s", r)
 		}
 	}
+
+	// 8. Frescura de la evidencia NO automática (DL-15), OPT-IN. Va acá y no
+	//    junto al chequeo de evidencia de RM-C4 porque son preguntas distintas:
+	//    aquél exige que la evidencia EXISTA y esté bien formada, éste que
+	//    todavía describa a este sistema.
+	for _, r := range staleEvidenceReasons(projectDir, feature) {
+		block("%s", r)
+	}
 	return issues
 }
 

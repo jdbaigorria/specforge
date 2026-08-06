@@ -90,6 +90,8 @@ func run(args []string) int {
 		return runArch(rest)
 	case "mutation":
 		return runMutation(rest)
+	case "evidence":
+		return runEvidence(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -149,5 +151,6 @@ commands:
   coverage spec coverage with ratchet — % of code anchored to a live trace (coverage [--json] [--by-priority])
   arch    architecture conformance vs the approved design graph (arch rules|check --feature=NAME)
   mutation does the suite detect injected defects? (mutation scope|run --feature=NAME)
+  evidence what a human still has to verify, and re-ingesting it (evidence checklist|record --feature=NAME)
   help    show this message
 `
