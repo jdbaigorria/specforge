@@ -33,10 +33,17 @@ import (
 
 // schemaVersionCurrent es LA versión que escribe este binario. Cuando exista
 // una "2.0", este archivo gana la lógica real de conversión 1.0→2.0.
-const schemaVersionCurrent = "1.0"
+// RM-MIG: la 2.0 es el modelo de requisito v2 — `acceptance` con id por criterio
+// (RM-C1), y con él el contrato de verificación a nivel criterio. Los demás
+// campos que trajo el bloque (`priority`, `kind`, `verification`, `source` como
+// refs) NO necesitan migración: todos tienen default implícito y fail-closed, así
+// que un artefacto que los omite ya se comporta como corresponde. Materializarlos
+// sería agregar bytes a cada requisito para cero cambio de comportamiento.
+const schemaVersionCurrent = "2.0"
 
-// knownSchemaVersions: las versiones que este binario sabe leer.
-var knownSchemaVersions = map[string]bool{"1.0": true}
+// knownSchemaVersions: las versiones que este binario sabe leer. La 1.0 sigue
+// acá porque leerla es justamente lo que permite migrarla.
+var knownSchemaVersions = map[string]bool{"1.0": true, "2.0": true}
 
 // migrateAction registra un cambio hecho (o por hacer, en --dry-run).
 type migrateAction struct {
@@ -153,8 +160,18 @@ func runMigrate(args []string) int {
 		return 5
 	}
 
+	// Las features archivadas se saltean, Y SE DICE. Es lo correcto según la
+	// estrategia de contrato versionado: una feature ya sellada no se re-evalúa
+	// ni se re-sella bajo el contrato nuevo — reescribir un sello para que cumpla
+	// una regla que no existía cuando se selló es exactamente lo que el sello
+	// existe para impedir. Pero saltearlas EN SILENCIO haría creer que el
+	// proyecto entero subió a 2.0, y no es así: sus artefactos siguen en 1.0 y
+	// corren bajo contrato v1, que es como fueron aprobados.
+	skipped := archivedFeatureCount(sf)
+
 	if len(actions) == 0 {
 		fmt.Println("OK — everything already at schema " + schemaVersionCurrent + ", ledger fully chained. Nothing to migrate.")
+		reportArchivedSkip(skipped)
 		return 0
 	}
 
@@ -185,7 +202,25 @@ func runMigrate(args []string) int {
 		}
 		fmt.Println(line)
 	}
+	reportArchivedSkip(skipped)
 	return 0
+}
+
+// archivedFeatureCount cuenta las features archivadas que tienen artefactos.
+func archivedFeatureCount(sf string) int {
+	matches, _ := filepath.Glob(filepath.Join(sf, "archive", "*", "requirements.json"))
+	return len(matches)
+}
+
+// reportArchivedSkip explica la omisión en vez de dejarla implícita.
+func reportArchivedSkip(n int) {
+	if n == 0 {
+		return
+	}
+	fmt.Printf("\n%d archived feature(s) left at their sealed schema — not migrated, on purpose.\n", n)
+	fmt.Println("They were approved under the contract of their time, and rewriting a seal to satisfy " +
+		"a rule that didn't exist then is what the seal exists to prevent. They keep running under " +
+		"contract v1; `sf-amend` is the explicit way to bring one up.")
 }
 
 // stampArtifacts recorre todos los artefactos .json existentes; estampa la
@@ -225,41 +260,125 @@ func stampArtifacts(projectDir, sf string, ff *featuresFile, dryRun bool, action
 		}
 
 		relPath := filepath.ToSlash(tg.abs)
-		switch v, _ := doc["schema_version"].(string); {
-		case v == "":
-			before, _ := hashArtifact(tg.abs) // el hash canónico PRE-estampado
-			doc["schema_version"] = schemaVersionCurrent
-			*actions = append(*actions, migrateAction{Path: relPath, Action: "stamp-version"})
-			if dryRun {
-				continue
+		v, _ := doc["schema_version"].(string)
+
+		// Una versión que este binario no conoce = el proyecto viene de un sf más
+		// nuevo. No se toca: la migración correcta es actualizar sf, no degradar
+		// el artefacto.
+		if v != "" && !knownSchemaVersions[v] {
+			*unknown = append(*unknown, relPath+": "+v)
+			continue
+		}
+		if v == schemaVersionCurrent {
+			continue // ya está donde queremos
+		}
+
+		// Los cambios de FORMATO que separan a este artefacto de la versión
+		// actual. Todos deterministas: ninguno decide contenido.
+		var did []string
+		if v == "" || v == "1.0" {
+			if upgradeAcceptanceToV2(doc, filepath.Base(tg.abs)) {
+				did = append(did, "acceptance ids")
 			}
-			out, err := json.MarshalIndent(doc, "", "  ")
-			if err != nil {
-				continue
-			}
-			if os.WriteFile(tg.abs, append(out, '\n'), 0o644) != nil {
-				continue
-			}
-			// Re-sellado: todo gate de la feature dueña cuyo sello coincidía con
-			// el hash PRE-estampado pasa al hash nuevo. Un sello que YA no
-			// coincidía (silent edit real) se deja como está: migrate no amnistía.
-			if tg.owner != nil {
-				after, _ := hashArtifact(tg.abs)
-				for gi := range tg.owner.Gates {
-					if g := &tg.owner.Gates[gi]; g.Hash != "" && g.Hash == before {
-						g.Hash = after
-						*actions = append(*actions, migrateAction{
-							Path:   relPath,
-							Action: "reseal-gate",
-							Detail: fmt.Sprintf("%s/%s", tg.owner.Name, g.Phase),
-						})
-					}
+		}
+		doc["schema_version"] = schemaVersionCurrent
+
+		action := migrateAction{Path: relPath, Action: "stamp-version"}
+		if len(did) > 0 {
+			action.Action = "upgrade-" + schemaVersionCurrent
+			action.Detail = strings.Join(did, ", ")
+		}
+		*actions = append(*actions, action)
+		if dryRun {
+			continue
+		}
+
+		before, _ := hashArtifact(tg.abs) // el hash canónico PRE-cambio
+		out, err := json.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			continue
+		}
+		if os.WriteFile(tg.abs, append(out, '\n'), 0o644) != nil {
+			continue
+		}
+		// Re-sellado: todo gate de la feature dueña cuyo sello coincidía con
+		// el hash PRE-cambio pasa al hash nuevo. Un sello que YA no
+		// coincidía (silent edit real) se deja como está: migrate no amnistía.
+		if tg.owner != nil {
+			after, _ := hashArtifact(tg.abs)
+			for gi := range tg.owner.Gates {
+				if g := &tg.owner.Gates[gi]; g.Hash != "" && g.Hash == before {
+					g.Hash = after
+					*actions = append(*actions, migrateAction{
+						Path:   relPath,
+						Action: "reseal-gate",
+						Detail: fmt.Sprintf("%s/%s", tg.owner.Name, g.Phase),
+					})
 				}
 			}
-		case !knownSchemaVersions[v]:
-			*unknown = append(*unknown, relPath+": "+v)
 		}
 	}
+}
+
+// upgradeAcceptanceToV2 convierte `acceptance: []string` en criterios con id,
+// asignados POR ÍNDICE: `acceptance[0]` → `R5.1`, `acceptance[1]` → `R5.2`, y el
+// string original pasa a `text` sin tocarse.
+//
+// POR QUÉ ESTO SÍ ES FORMATO Y PARTIRLO EN GIVEN/WHEN/THEN NO LO SERÍA. `migrate`
+// está autorizado a re-sellar precisamente porque migra formato; hacerle tocar
+// contenido rompería esa justificación y con ella la validez del sello. Decidir
+// cuál parte de una frase es la precondición y cuál el resultado requiere un
+// modelo — es contenido. Numerar por índice no requiere ninguno: dos corridas
+// sobre el mismo archivo producen exactamente los mismos ids.
+//
+// Es lo que `DEC-1` destrabó. Con `when`/`then` obligatorios la migración era
+// imposible y el sistema quedaba BIMODAL PARA SIEMPRE (legado con contrato débil,
+// v2 con contrato fuerte, y cada feature subiendo a mano por `sf-amend`). Con id
+// obligatorio y G/W/T opcional, todo el legado sube solo.
+func upgradeAcceptanceToV2(doc map[string]any, base string) bool {
+	if base != "requirements.json" {
+		return false
+	}
+	reqs, ok := doc["requirements"].([]any)
+	if !ok {
+		return false
+	}
+	changed := false
+	for _, r := range reqs {
+		req, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := req["id"].(string)
+		list, ok := req["acceptance"].([]any)
+		if !ok || id == "" || len(list) == 0 {
+			continue
+		}
+		// Se convierte SÓLO si TODOS los elementos son strings. Una lista mixta
+		// significa que alguien ya la tocó a mano, y adivinar qué quiso hacer es
+		// exactamente el tipo de decisión que migrate no puede tomar: se deja
+		// como está y el gate de su feature la reportará.
+		allStrings := true
+		for _, it := range list {
+			if _, isStr := it.(string); !isStr {
+				allStrings = false
+				break
+			}
+		}
+		if !allStrings {
+			continue
+		}
+		out := make([]any, 0, len(list))
+		for i, it := range list {
+			out = append(out, map[string]any{
+				"id":   fmt.Sprintf("%s.%d", id, i+1),
+				"text": it.(string),
+			})
+		}
+		req["acceptance"] = out
+		changed = true
+	}
+	return changed
 }
 
 // chainLedger recomputa `prev` de TODAS las entradas de una feature (genesis,
