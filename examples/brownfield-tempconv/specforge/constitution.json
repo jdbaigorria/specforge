@@ -1,29 +1,29 @@
 {
-  "schema_version": "1.0",
-  "identity_md": "tempconv — a tiny, dependency-free temperature-conversion library.",
-  "principles": [
-    {
-      "id": "P1",
-      "statement": "Pure functions only — no I/O, no global state.",
-      "applies_to": [
-        "design",
-        "build"
-      ]
-    },
-    {
-      "id": "P2",
-      "statement": "Every public function has a docstring and a test.",
-      "applies_to": [
-        "build"
-      ]
-    }
+  "anti_goals": [
+    "Not a units framework — temperature only."
   ],
   "constraints": [
     "Python 3.10+",
     "standard library only"
   ],
-  "anti_goals": [
-    "Not a units framework — temperature only."
+  "identity_md": "tempconv — a tiny, dependency-free temperature-conversion library.",
+  "invariants": [],
+  "principles": [
+    {
+      "applies_to": [
+        "design",
+        "build"
+      ],
+      "id": "P1",
+      "statement": "Pure functions only — no I/O, no global state."
+    },
+    {
+      "applies_to": [
+        "build"
+      ],
+      "id": "P2",
+      "statement": "Every public function has a docstring and a test."
+    }
   ],
-  "invariants": []
+  "schema_version": "2.0"
 }

@@ -1,42 +1,42 @@
 {
-  "schema_version": "1.0",
   "feature": "add-kelvin",
+  "schema_version": "2.0",
   "tasks": [
     {
-      "id": "T1",
-      "title": "Add absolute-zero guard helper",
-      "requirement_refs": [
-        "R3"
-      ],
       "component_refs": [
         "C2"
       ],
+      "depends_on": [],
+      "estimated_effort": "S",
       "files_touched": [
         "src/tempconv/convert.py"
       ],
-      "estimated_effort": "S",
+      "id": "T1",
+      "requirement_refs": [
+        "R3"
+      ],
       "status": "done",
-      "depends_on": []
+      "title": "Add absolute-zero guard helper"
     },
     {
-      "id": "T2",
-      "title": "Implement c_to_k and k_to_c",
-      "requirement_refs": [
-        "R1",
-        "R2"
-      ],
       "component_refs": [
         "C1"
       ],
+      "depends_on": [
+        "T1"
+      ],
+      "estimated_effort": "S",
       "files_touched": [
         "src/tempconv/convert.py",
         "tests/test_convert.py"
       ],
-      "estimated_effort": "S",
+      "id": "T2",
+      "requirement_refs": [
+        "R1",
+        "R2"
+      ],
       "status": "done",
-      "depends_on": [
-        "T1"
-      ]
+      "title": "Implement c_to_k and k_to_c"
     }
   ]
 }

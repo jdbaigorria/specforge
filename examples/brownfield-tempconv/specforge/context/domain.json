@@ -1,35 +1,35 @@
 {
-  "schema_version": "1.0",
-  "glossary": [
-    {
-      "term": "Kelvin",
-      "definition": "Absolute thermodynamic temperature scale (0 K = absolute zero).",
-      "aliases": [
-        "K"
-      ]
-    }
-  ],
   "entities": [
     {
-      "id": "E1",
-      "name": "Temperature",
       "description": "A scalar in C, F or K.",
+      "id": "E1",
       "invariants": [
         "Never below absolute zero (-273.15 C)"
-      ]
+      ],
+      "name": "Temperature"
+    }
+  ],
+  "glossary": [
+    {
+      "aliases": [
+        "K"
+      ],
+      "definition": "Absolute thermodynamic temperature scale (0 K = absolute zero).",
+      "term": "Kelvin"
     }
   ],
   "rules": [
     {
-      "id": "D1",
-      "rule": "No temperature below absolute zero (-273.15 C) is ever produced or accepted.",
-      "entities": [
-        "E1"
-      ],
       "applies_to": [
         "design",
         "build"
-      ]
+      ],
+      "entities": [
+        "E1"
+      ],
+      "id": "D1",
+      "rule": "No temperature below absolute zero (-273.15 C) is ever produced or accepted."
     }
-  ]
+  ],
+  "schema_version": "2.0"
 }

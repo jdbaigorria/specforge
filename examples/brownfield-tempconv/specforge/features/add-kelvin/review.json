@@ -1,49 +1,49 @@
 {
-  "schema_version": "1.0",
+  "constitution_violations": [],
   "feature": "add-kelvin",
+  "gaps": [],
+  "schema_version": "2.0",
   "traceability": [
     {
-      "requirement": "R1",
-      "tasks": [
-        "T2"
-      ],
       "files": [
         "src/tempconv/convert.py:c_to_k"
       ],
-      "tests": [
-        "tests/test_convert.py::test_c_to_k"
-      ],
-      "status": "implemented"
-    },
-    {
-      "requirement": "R2",
+      "requirement": "R1",
+      "status": "implemented",
       "tasks": [
         "T2"
       ],
+      "tests": [
+        "tests/test_convert.py::test_c_to_k"
+      ]
+    },
+    {
       "files": [
         "src/tempconv/convert.py:k_to_c"
       ],
+      "requirement": "R2",
+      "status": "implemented",
+      "tasks": [
+        "T2"
+      ],
       "tests": [
         "tests/test_convert.py::test_k_to_c"
-      ],
-      "status": "implemented"
+      ]
     },
     {
-      "requirement": "R3",
-      "tasks": [
-        "T1"
-      ],
       "files": [
         "src/tempconv/convert.py:_guard_abs_zero"
       ],
+      "requirement": "R3",
+      "status": "implemented",
+      "tasks": [
+        "T1"
+      ],
       "tests": [
         "tests/test_convert.py::test_abs_zero"
-      ],
-      "status": "implemented"
+      ]
     }
   ],
-  "gaps": [],
-  "constitution_violations": [],
   "verdict": "approve",
   "verdict_rationale_md": "All three requirements implemented and tested; pure functions, no state (P1, P2)."
 }

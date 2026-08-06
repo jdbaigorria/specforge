@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "feature": "slugify",
   "summary": "Convert arbitrary text into a URL-safe slug: lowercase, hyphen-joined, accents folded to ASCII, punctuation removed.",
   "actors": [
@@ -13,7 +13,10 @@
       "state": "",
       "behavior": "return the words lowercased and joined by single hyphens",
       "acceptance": [
-        "slugify(\"Hello World\") == \"hello-world\""
+        {
+          "id": "R1.1",
+          "text": "slugify(\"Hello World\") == \"hello-world\""
+        }
       ],
       "source": "slugify",
       "tags": [
@@ -27,7 +30,10 @@
       "state": "",
       "behavior": "fold them to their closest ASCII equivalent",
       "acceptance": [
-        "slugify(\"Café Olé\") == \"cafe-ole\""
+        {
+          "id": "R2.1",
+          "text": "slugify(\"Café Olé\") == \"cafe-ole\""
+        }
       ],
       "source": "slugify",
       "tags": [
@@ -41,7 +47,10 @@
       "state": "",
       "behavior": "drop the punctuation and collapse runs of separators into a single hyphen, with no leading or trailing hyphen",
       "acceptance": [
-        "slugify(\"  --A, B \u0026 C!! \") == \"a-b-c\""
+        {
+          "id": "R3.1",
+          "text": "slugify(\"  --A, B & C!! \") == \"a-b-c\""
+        }
       ],
       "source": "slugify",
       "tags": [
@@ -55,8 +64,14 @@
       "state": "",
       "behavior": "return an empty string (never raise)",
       "acceptance": [
-        "slugify(\"!!!\") == \"\"",
-        "slugify(\"\") == \"\""
+        {
+          "id": "R4.1",
+          "text": "slugify(\"!!!\") == \"\""
+        },
+        {
+          "id": "R4.2",
+          "text": "slugify(\"\") == \"\""
+        }
       ],
       "source": "slugify",
       "tags": [
