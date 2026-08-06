@@ -685,6 +685,15 @@ func verdictIssues(projectDir, feature string) []verdictIssue {
 	for _, r := range staleEvidenceReasons(projectDir, feature) {
 		block("%s", r)
 	}
+
+	// 9. Preguntas abiertas que frenan a esta feature (DL-13 / CP11). Bloquea, y
+	//    el motivo PRESENTA EL FORK en vez de resolverlo: contestarla o adoptar
+	//    una práctica externa, las dos dejando rastro. La tercera salida —sacarla
+	//    del alcance en silencio— es la única que el gate no ofrece, porque es la
+	//    que sale cara meses después cuando nadie recuerda que hubo una pregunta.
+	for _, r := range openQuestionReasons(projectDir, feature) {
+		block("%s", r)
+	}
 	return issues
 }
 

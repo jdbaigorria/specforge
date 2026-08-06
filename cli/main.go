@@ -92,6 +92,8 @@ func run(args []string) int {
 		return runMutation(rest)
 	case "evidence":
 		return runEvidence(rest)
+	case "question":
+		return runQuestion(rest)
 
 	case "help", "-h", "--help":
 		usage()
@@ -152,5 +154,6 @@ commands:
   arch    architecture conformance vs the approved design graph (arch rules|check --feature=NAME)
   mutation does the suite detect injected defects? (mutation scope|run --feature=NAME)
   evidence what a human still has to verify, and re-ingesting it (evidence checklist|record --feature=NAME)
+  question open questions that block work until decided (question add|answer|adopt|list)
   help    show this message
 `

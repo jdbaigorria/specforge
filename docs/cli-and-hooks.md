@@ -102,7 +102,36 @@ $ sf arch check --feature=X       # does the built code respect that graph?
 $ sf mutation scope --feature=X   # which files would the mutator touch?
 $ sf mutation run --feature=X     # does the suite actually detect injected defects?
 $ sf evidence checklist --feature=X  # what a human still has to verify, and what expired
+$ sf question list                # unknowns still waiting on someone
 ```
+
+**Open questions block a verdict until somebody decides.** An unknown you are
+waiting on — typically a client answer that takes weeks — is a first-class
+object, not a note that dies with the session:
+
+```console
+$ sf question add --text="is VAT included?" --impact="changes Order and the total" --blocks=checkout
+$ sf question answer --id=Q1 --answer="yes, included" --source=S3
+$ sf question adopt  --id=Q1 --answer="VAT included — industry practice"
+```
+
+`--impact` is required: an unknown with no stated consequence cannot be ranked
+against the others, and a list nobody ranks is a list nobody reads. A question
+listing `--blocks` stops that feature's verdict, and there are exactly **two**
+ways out, both leaving a record — answer it, or adopt an external practice.
+
+The third way — quietly dropping the thing from scope because no answer came —
+is the one path the gate does not offer, and that is the whole point. Removing
+scope without a conscious decision costs more than leaving it in: the bill
+arrives months later, when nobody remembers there was ever a question.
+
+`adopt` is **not** a synonym for `answer`. An external practice adopted because
+the client never replied is not a fact the client confirmed, and it stays
+labelled that way forever. The day someone asks "why is it built like this?",
+that distinction is the entire answer.
+
+An unrecognised `status` in `questions.json` counts as **open** — fail-closed, so
+hand-editing a `"wontfix"` in is not a cheaper way past the gate.
 
 **Export the knowledge graph (deterministic — the opposite of RAG).**
 
