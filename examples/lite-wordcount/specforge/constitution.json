@@ -1,20 +1,20 @@
 {
-  "schema_version": "1.0",
-  "identity_md": "textstats — minimal text-statistics helpers.",
-  "principles": [
-    {
-      "id": "P1",
-      "statement": "Pure functions, no I/O.",
-      "applies_to": [
-        "build"
-      ]
-    }
+  "anti_goals": [
+    "Not an NLP library."
   ],
   "constraints": [
     "Python 3.10+"
   ],
-  "anti_goals": [
-    "Not an NLP library."
+  "identity_md": "textstats — minimal text-statistics helpers.",
+  "invariants": [],
+  "principles": [
+    {
+      "applies_to": [
+        "build"
+      ],
+      "id": "P1",
+      "statement": "Pure functions, no I/O."
+    }
   ],
-  "invariants": []
+  "schema_version": "2.0"
 }

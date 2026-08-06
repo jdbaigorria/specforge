@@ -1,52 +1,61 @@
 {
-  "schema_version": "1.0",
-  "feature": "add-kelvin",
-  "summary": "Add Kelvin conversions (c_to_k, k_to_c) to the existing tempconv library.",
   "actors": [
     "library caller"
   ],
+  "feature": "add-kelvin",
   "requirements": [
     {
-      "id": "R1",
-      "ears_type": "event",
-      "trigger": "c_to_k(celsius) is called",
-      "state": "",
+      "acceptance": [
+        {
+          "id": "R1.1",
+          "text": "c_to_k(0) == 273.15"
+        }
+      ],
       "behavior": "return the temperature in kelvin",
-      "acceptance": [
-        "c_to_k(0) == 273.15"
-      ],
-      "source": "add-kelvin",
-      "tags": [
-        "conversion"
-      ]
-    },
-    {
-      "id": "R2",
       "ears_type": "event",
-      "trigger": "k_to_c(kelvin) is called",
-      "state": "",
-      "behavior": "return the temperature in celsius",
-      "acceptance": [
-        "k_to_c(273.15) == 0"
-      ],
+      "id": "R1",
       "source": "add-kelvin",
+      "state": "",
       "tags": [
         "conversion"
-      ]
+      ],
+      "trigger": "c_to_k(celsius) is called"
     },
     {
-      "id": "R3",
-      "ears_type": "error",
-      "trigger": "a temperature below absolute zero (-273.15 C) is produced",
-      "state": "",
-      "behavior": "raise ValueError",
       "acceptance": [
-        "c_to_k(-300) raises ValueError"
+        {
+          "id": "R2.1",
+          "text": "k_to_c(273.15) == 0"
+        }
       ],
+      "behavior": "return the temperature in celsius",
+      "ears_type": "event",
+      "id": "R2",
       "source": "add-kelvin",
+      "state": "",
+      "tags": [
+        "conversion"
+      ],
+      "trigger": "k_to_c(kelvin) is called"
+    },
+    {
+      "acceptance": [
+        {
+          "id": "R3.1",
+          "text": "c_to_k(-300) raises ValueError"
+        }
+      ],
+      "behavior": "raise ValueError",
+      "ears_type": "error",
+      "id": "R3",
+      "source": "add-kelvin",
+      "state": "",
       "tags": [
         "validation"
-      ]
+      ],
+      "trigger": "a temperature below absolute zero (-273.15 C) is produced"
     }
-  ]
+  ],
+  "schema_version": "2.0",
+  "summary": "Add Kelvin conversions (c_to_k, k_to_c) to the existing tempconv library."
 }

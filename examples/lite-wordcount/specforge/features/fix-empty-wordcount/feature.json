@@ -1,0 +1,42 @@
+{
+  "schema_version": "2.0",
+  "name": "fix-empty-wordcount",
+  "status": "done",
+  "lane": "lite",
+  "depends_on": [],
+  "gates": [
+    {
+      "phase": "lane",
+      "result": "approve",
+      "by": "user",
+      "at": "2026-06-27T09:00:00Z",
+      "comment": "lite",
+      "prev": "genesis"
+    },
+    {
+      "phase": "change",
+      "result": "approve",
+      "by": "user",
+      "at": "2026-06-27T09:02:00Z",
+      "comment": "one combined artefact",
+      "prev": "9583263be02550f95531e444151c965bbb298d3f6472c06210e055581106d62d"
+    },
+    {
+      "phase": "wave-0",
+      "result": "approve",
+      "by": "user",
+      "at": "2026-06-27T09:05:00Z",
+      "comment": "",
+      "prev": "bc6ad02eaffa3b7236c7f6b4e9bccba8593b6748b2d51cd4dc641dcb308412cb"
+    },
+    {
+      "phase": "verdict",
+      "result": "approve",
+      "by": "user",
+      "at": "2026-06-27T09:07:00Z",
+      "comment": "",
+      "prev": "411bc69342dfdc424bb9ea074769415218f2764894740dec5d7916130752c904"
+    }
+  ],
+  "seq": 1
+}

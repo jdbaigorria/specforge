@@ -1,61 +1,61 @@
 {
-  "schema_version": "1.0",
-  "feature": "add-kelvin",
-  "summary_md": "Two pure functions plus a shared absolute-zero guard, added to the existing `convert` module.",
   "components": [
     {
+      "depends_on": [
+        "C2"
+      ],
       "id": "C1",
-      "name": "kelvin conversions",
       "kind": "functions",
+      "name": "kelvin conversions",
       "responsibilities": [
         "c_to_k",
         "k_to_c"
-      ],
-      "depends_on": [
-        "C2"
       ]
     },
     {
+      "depends_on": [],
       "id": "C2",
-      "name": "absolute-zero guard",
       "kind": "helper",
+      "name": "absolute-zero guard",
       "responsibilities": [
         "reject temperatures below -273.15 C"
-      ],
-      "depends_on": []
+      ]
     }
   ],
   "decisions": [
     {
+      "chosen": "Shared private helper",
       "id": "D1",
-      "question": "Where does the absolute-zero check live?",
       "options": [
         {
+          "cons": [
+            "duplicated"
+          ],
           "name": "Inside each conversion",
           "pros": [
             "simple"
-          ],
-          "cons": [
-            "duplicated"
           ]
         },
         {
+          "cons": [
+            "one extra function"
+          ],
           "name": "Shared private helper",
           "pros": [
             "single source"
-          ],
-          "cons": [
-            "one extra function"
           ]
         }
       ],
-      "chosen": "Shared private helper",
+      "question": "Where does the absolute-zero check live?",
       "rationale_md": "Keeps the rule in one place (P1: pure helper, no state)."
     }
   ],
+  "feature": "add-kelvin",
   "interfaces": [],
+  "schema_version": "2.0",
   "sections_included": [
     "components",
     "decisions"
-  ]
+  ],
+  "summary_md": "Two pure functions plus a shared absolute-zero guard, added to the existing `convert` module."
 }

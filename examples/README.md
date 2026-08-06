@@ -20,13 +20,21 @@ validators from inside any of them.
 `requirements.md`. The JSON is the source of truth; the Markdown is generated, so
 it can't drift.
 
-**The gate ledger.** `*/specforge/features.json` records every gate that passed,
-with timestamps — the source of truth for status. Compare the **standard** ledger
-(lane → requirements → design → tasks → plan → wave-N → verdict) with the **lite**
-one (lane → change → wave-0 → verdict).
+**The gate ledger.** `*/specforge/features/<name>/feature.json` records every gate
+that passed, with timestamps — the source of truth for status. State lives **per
+feature**, not in one monolithic file, so two features never contend for the same
+bytes. Compare the **standard** ledger (lane → requirements → design → tasks →
+plan → wave-N → verdict) with the **lite** one (lane → change → wave-0 → verdict).
 
-**The trace spine.** `trace.json` maps each requirement to its `path:symbol` and
-test. It's what drift detection reads.
+**Acceptance criteria carry ids.** In `requirements.json`, each criterion is an
+object with its own `id` (`R4.1`, `R4.2`), not a loose string. That id is what
+lets a test anchor to *that case*: without it the verdict can only ask "does R4
+have a test?", and a requirement with two criteria seals green on one. `slugify`'s
+`R4` is exactly that shape — two criteria, two tests.
+
+**The trace spine.** `trace.json` maps each requirement to its `path:symbol`, and
+each *criterion* to the test that verifies it (`requirements.R4.scenarios.R4.1`).
+It's what drift detection and the verification contract read.
 
 **Domain knowledge.** `brownfield-tempconv/specforge/context/domain.json` holds
 project-level domain knowledge (glossary + entities + business rules). Rules carry
@@ -45,7 +53,7 @@ cd examples/brownfield-tempconv && sf graph export --format=mermaid --stdout
 
 Each feature is a box; `R#` requirements point to the `code:symbol` that
 implements them and the test that verifies them — the spine `feature → R → code →
-test`, straight from `features.json` + `trace.json`:
+test`, straight from `feature.json` + `trace.json`:
 
 ```mermaid
 flowchart LR

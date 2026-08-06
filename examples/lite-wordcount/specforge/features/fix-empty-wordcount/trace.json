@@ -1,7 +1,15 @@
 {
-  "schema_version": "1.0",
   "feature": "fix-empty-wordcount",
   "requirements": {
-    "R1": { "code": ["src/textstats/count.py:word_count"], "test": ["tests/test_count.py::test_empty"], "status": "ok" }
-  }
+    "R1": {
+      "code": [
+        "src/textstats/count.py:word_count"
+      ],
+      "status": "ok",
+      "test": [
+        "tests/test_count.py::test_empty"
+      ]
+    }
+  },
+  "schema_version": "2.0"
 }
