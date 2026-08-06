@@ -77,10 +77,16 @@ var domainTmpl = template.Must(
 // proyecto, sin --feature (solo el project dir + --stdout en render).
 func runDomain(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: sf domain <render|validate> [project_dir]")
+		fmt.Fprintln(os.Stderr, "usage: sf domain <render|validate|terms> [project_dir]")
 		return 2
 	}
 	action, rest := args[0], args[1:]
+
+	// `terms` parsea sus propios flags (--json), así que se rutea antes del
+	// parser de abajo, que sólo conoce --stdout.
+	if action == "terms" {
+		return runDomainTerms(rest)
+	}
 
 	projectDir := "."
 	toStdout := false

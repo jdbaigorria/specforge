@@ -103,7 +103,30 @@ $ sf mutation scope --feature=X   # which files would the mutator touch?
 $ sf mutation run --feature=X     # does the suite actually detect injected defects?
 $ sf evidence checklist --feature=X  # what a human still has to verify, and what expired
 $ sf question list                # unknowns still waiting on someone
+$ sf domain terms                 # the same concept named differently across features
 ```
+
+**`sf domain terms`** catches the defect you cannot see by reading one feature,
+because each spec is internally coherent. It surfaces when two features nobody
+read side by side finally have to integrate and it turns out `Order` and `Pedido`
+were the same thing — or worse, were not, and nobody noticed until the data
+disagreed. In consulting work this is the single largest source of rework.
+
+It is fully deterministic: `domain.json` already declares the ubiquitous language
+with its aliases, and the requirements are already written, so *"which surface
+form does each feature use for this term?"* is a regex, not an inference.
+
+Matching uses **word boundaries** — `Order` does not match inside `Reordering` —
+and is **case-insensitive**, because `order` and `Order` are the same word and
+flagging that would be noise shaped like a finding.
+
+Two findings, and only one moves the exit code:
+
+- **inconsistent** — one glossary term appears under more than one of its
+  declared forms. Exit 1. Two names for one thing is never fine.
+- **unused** — a glossary term no live requirement mentions. Reported, exit
+  unchanged: it is often vocabulary that has not reached a spec yet, and a check
+  that goes red on every real project from day one is a check people stop running.
 
 **Open questions block a verdict until somebody decides.** An unknown you are
 waiting on — typically a client answer that takes weeks — is a first-class
