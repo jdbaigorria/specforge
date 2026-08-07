@@ -214,6 +214,18 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │                 │                    │                          │
   │                 └──── vuelve ────────┤                          │
   │                    a correrlos       │                          │
+  │                                      │                          │
+  │   ⚠ SI FALLA VARIAS VECES, ENTRO YO  │                          │
+  │      ┌───────────────────────────┐   │                          │
+  │      │ miro cuál es el problema  │   │                          │
+  │      └───┬───────────────────┬───┘   │                          │
+  │          ▼                   ▼       │                          │
+  │   le doy indicaciones   SUBO EL MODELO                          │
+  │                         a uno mejor  │                          │
+  │                              │       │                          │
+  │                    "la recomendación │                          │
+  │                     del ⑯ no alcanzó"│                          │
+  │                              └───────┤                          │
   └──────────────────────────────────────┼──────────────────────────┘
                                          ▼
   ┌═════════════════════════════════════════════════════════════════┐
@@ -374,11 +386,30 @@ Tres cosas registradas, sin conclusiones:
 
 - **El mismo actor escribe el código, corre los tests y reporta el resultado.** Es la
   topología del paso, no un juicio sobre ella.
-- **El bucle de corrección no tiene salida declarada** más que *"pasan todos"*. No dijiste
-  qué pasa si falla muchas veces seguidas, ni si en algún momento entrás vos. Queda como
-  pregunta.
-- **Es el único bucle del flujo donde no aparecés.** Los otros dos —el del brief ②–⑤ y el
-  del plan ⑰— los cerrás vos. Éste se cierra solo.
+- **El bucle sí tiene salida, y sos vos.** *"Si fallan varias veces verifico cuál es el
+  problema y le doy indicaciones, o si no elevo el modelo a uno mejor."* Corrige una
+  observación anterior de este documento que decía que era el único bucle donde no
+  aparecías: **aparecés, pero recién después de varios intentos fallidos.**
+
+### El fracaso repetido es información sobre la estimación, no sólo sobre el código
+
+Ésta es la salida que no esperaba:
+
+> *"elevo el modelo a uno mejor **porque significa que la recomendación no fue suficiente**"*
+
+Cuando el modelo no puede, no lo leés como "el código está mal": lo leés como **"la
+complejidad estaba mal estimada en el ⑯"**. Y actuás sobre el recurso, no sobre el trabajo.
+
+Eso convierte la cadena del ⑯ en un lazo cerrado:
+
+```
+   complejidad estimada  →  modelo elegido  →  ¿pudo?
+          ▲                                      │
+          └────── no: la estimación era baja ────┘
+```
+
+**La recomendación de modelo es una hipótesis, y la implementación es su prueba.** Es el
+único lugar del flujo donde una decisión anterior se corrige con evidencia de ejecución.
 
 ### El ⑰ revela que el flujo no es de a una feature
 
