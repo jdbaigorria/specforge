@@ -122,13 +122,48 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │        existe. Es una vista del backlog, no otro backlog        │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑪  TOMO DEL ROADMAP LO QUE HAY QUE HACER                       │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑫  BRAINSTORMING DE IMPLEMENTACIONES                           │
+  │      "posibles implementaciones, y elegí la más óptima"         │
+  │                                                                 │
+  │      ← lo pedís EXPLÍCITAMENTE ANTES DE DISEÑAR                 │
+  │      ← es el segundo momento de divergir del flujo entero       │
+  │        (el primero fue el pinponeo del ②)                       │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑬  LA PROPUESTA DE LA FEATURE  —  todo de una sola vez         │
+  │                                                                 │
+  │      · spec                                                     │
+  │      · design                                                   │
+  │      · task                                                     │
+  │      · planificación del wave                                   │
+  │      · los tests                                                │
+  │      · la complejidad                                           │
+  │      · un modelo de IA recomendado para implementarla           │
+  │                                                                 │
+  │      ← primer paso que produce MUCHAS cosas en un solo pedido   │
+  │      ← los TESTS se planifican ACÁ, antes de implementar        │
+  │      ← complejidad → recomendación de modelo (una cadena)       │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑪  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Ya hay roadmap… ¿y después qué?                             ║
-  ║     Lo único que tengo es "a veces el PRD lo paso directo a     ║
-  ║     propose o a un generador de historias de usuario".          ║
+  ║  ⑭  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Está la propuesta… ¿y después qué?                          ║
   └═════════════════════════════════════════════════════════════════┘
 ```
+
+> **⚠ Dos cosas del ⑬ que NO están relevadas y no invento:**
+>
+> 1. **El orden interno.** Lo único que dijiste explícito es *"antes de diseñar,
+>    brainstorming"*. Si `spec` va antes del brainstorming (specificás el **qué**, después
+>    barajás el **cómo**) es una lectura mía, no un dato.
+> 2. **Si hay punto de decisión.** Es el **tercer paso seguido** sin un "yo decido"
+>    declarado, y es el que más produce.
 
 ## Lo que queda en el repo
 
@@ -270,6 +305,17 @@ Dos observaciones, sin conclusiones:
   natural sería referenciar — pero no lo asumo.
 - **Segundo paso seguido sin "yo decido" declarado.** ⑨ y ⑩ los pedís y los recibís. Lo
   registro como acumulación de la misma pregunta abierta del ⑨, no como conclusión.
+
+### ⚠ Alerta de método en el paso ⑬
+
+**El ⑬ está descrito con el vocabulario de SpecForge**: *propuesta*, *spec*, *design*,
+*task*, *wave*. Son los nombres de la herramienta, no palabras neutras.
+
+Este documento se escribió justamente para **no** anclarse en lo construido. Si el ⑬ es "lo
+que hago cuando uso SpecForge", entonces en este paso estamos describiendo la herramienta y
+no el trabajo — que es el error que se venía corrigiendo.
+
+**No lo resuelvo solo.** Está preguntado; la respuesta va acá.
 
 ### Huecos pendientes, para volver después
 
