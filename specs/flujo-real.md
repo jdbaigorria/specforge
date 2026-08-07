@@ -74,9 +74,19 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
                                         │    de una sola vez       │
                                         └────────────┬─────────────┘
                                                      ▼
+                                        ┌──────────────────────────┐
+                                        │  BAJO LOS .md AL REPO    │
+                                        │                          │
+                                        │  carpeta  .docs/         │
+                                        │  adentro de un git que   │
+                                        │  siempre inicializo      │
+                                        │                          │
+                                        │  → quedan versionados    │
+                                        └────────────┬─────────────┘
+                                                     ▼
   ┌═════════════════════════════════════════════════════════════════┐
   ║  ⑧  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Llega el PRD… ¿y después qué?                               ║
+  ║     El PRD ya está en .docs/ y versionado… ¿y después qué?      ║
   ║     Lo único que tengo es "a veces el PRD lo paso directo a     ║
   ║     propose o a un generador de historias de usuario".          ║
   └═════════════════════════════════════════════════════════════════┘
@@ -139,9 +149,26 @@ Lo que queda registrado:
 
 > **Corrección.** Una versión anterior de este documento decía que *"no hay artefacto, la
 > continuidad es la conversación"*, y de ahí concluía que el sello del ⑥ no tenía sobre qué
-> caer. **La premisa era falsa: el artefacto existe.** Si el sello tiene o no dónde caer
-> depende de otra cosa —de si el `.md` queda en algún lado fuera del chat— y eso todavía no
-> está relevado.
+> caer. **La premisa era falsa: el artefacto existe.**
+
+### Y sí sobreviven al chat: van al repo, versionados
+
+> *"queda en el repositorio del proyecto, siempre se inicia un git para mantener el
+> versionado de todos los proyectos que inicio, suelo guardarlo en una carpeta llamada
+> `.docs`"*
+
+| Hecho | Detalle |
+|---|---|
+| Los `.md` se bajan | no quedan sólo en el chat |
+| Van al **repo del proyecto** | carpeta `.docs/` |
+| **Siempre hay git** | lo inicializás en todo proyecto que arrancás, para versionar |
+
+**Con esto se cae también la segunda mitad de mi lectura anterior.** Yo venía asumiendo que
+el brief y el PRD se perdían. **No se pierden: quedan como archivos versionados en git.**
+
+Lo que todavía **no** está relevado es si el **veredicto del paso ⑥** —hacelo / pivoteá / no
+lo hagas, y sus razones— queda escrito adentro de esos `.md` o se queda en el chat. No lo
+asumo.
 
 ### Hueco pendiente, para volver después
 
