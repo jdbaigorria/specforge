@@ -270,9 +270,21 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │                                      │                          │
   └──────────────────────────────────────┼──────────────────────────┘
                                          ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ㉓  SI TODO ESTÁ OK — el cierre                                │
+  │                                                                 │
+  │      · se ARCHIVA la feature                                    │
+  │      · se GENERA LA DOCUMENTACIÓN de la feature                 │
+  │      · se manda el PR, o se pushea                              │
+  │                                                                 │
+  │      ← la documentación se escribe AL FINAL, sobre lo que       │
+  │        realmente quedó — no sobre lo que se había planeado      │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ㉓  ACÁ SE CORTA LO QUE SÉ                                     ║
-  ║     Los tests aguantaron la mutación… ¿y después qué?           ║
+  ║  ㉔  ¿Y ACÁ?                                                    ║
+  ║     ¿Se vuelve al roadmap por la próxima, o hay algo más        ║
+  ║     antes — cerrar una versión, un release?                     ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -502,6 +514,21 @@ que encontró, ni se busca un tercero: el rol está fijo por función, no por co
 
 Y el pedido al implementador no es *"arreglalo"* a secas: *"verificá, **entendé qué pasó**, y
 arreglalo"*. Primero comprender, después corregir.
+
+### La documentación va al final, sobre lo que quedó
+
+*"si todo está ok, se archiva la feature, y se genera la documentación de la feature. Se
+envía el PR o se pushea."*
+
+**Se documenta después de verificar, no antes.** El documento describe lo que realmente
+quedó, no lo que se había planeado — y para ese momento el plan ya pasó por tres
+verificaciones y posiblemente por arreglos que lo cambiaron.
+
+Es coherente con el resto: **la documentación es el último artefacto y el único que se
+escribe sabiendo cómo terminó la historia.**
+
+> Queda por saber qué significa *"archivar"* concretamente: si los `.md` se mueven de lugar,
+> si se marcan, o si es sólo cerrar el `us-#`. No lo asumo.
 
 ### Después del arreglo se rehace la revisión entera, no sólo lo que falló
 
