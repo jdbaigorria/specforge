@@ -244,16 +244,27 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌─────────────────────────────────────────────────────────────────┐
-  │  ㉒  "GENERÁ TESTS MUTANTES"                                    │
+  │  ㉒  "GENERÁ TESTS MUTANTES"  — y los corre él mismo            │
   │                                                                 │
-  │      para verificar que los TESTS estén bien                    │
+  │      el modelo GRANDE los genera Y los ejecuta                  │
   │                                                                 │
-  │      ← los mutantes los GENERA EL MODELO,                       │
-  │        no una herramienta de mutación                           │
+  │      ← los mutantes los genera el modelo, no una                │
+  │        herramienta de mutación                                  │
   │      ← único paso que duda de los tests. Todo lo anterior       │
   │        les creía                                                │
-  └────────────────────────────┬────────────────────────────────────┘
-                               ▼
+  │                                                                 │
+  │            ┌──────────────────────────────┐                     │
+  │            │   ¿aguantan los tests?       │                     │
+  │            └────┬────────────────────┬────┘                     │
+  │                 │ no                 │ sí                       │
+  │                 ▼                    │                          │
+  │      vuelve al MODELO                │                          │
+  │      IMPLEMENTADOR:                  │                          │
+  │      "verificá, entendé              │                          │
+  │       qué pasó, y arreglalo"         │                          │
+  │                                      │                          │
+  └──────────────────────────────────────┼──────────────────────────┘
+                                         ▼
   ┌═════════════════════════════════════════════════════════════════┐
   ║  ㉓  ACÁ SE CORTA LO QUE SÉ                                     ║
   ║     Los tests aguantaron la mutación… ¿y después qué?           ║
@@ -469,9 +480,26 @@ pasan a ser lo medido. Y no es redundante: el ⑳ se apoya en que los tests sirv
 recién se cuestiona dos pasos después.
 
 **Los mutantes los genera el modelo**, no una herramienta de mutación. *"Le solicito que
-genere test mutantes."*
+genere test mutantes."* Y **los corre él mismo**.
 
-> Queda por saber **quién los corre** y qué pasa cuando un mutante sobrevive. No lo asumo.
+### Hay dos roles fijos, y el trabajo rebota entre ellos
+
+*"el mismo modelo los corre, y si fallan se solicita al modelo implementador que lo
+verifique para comprender lo que sucedió y lo arregle"*.
+
+| Rol | Quién | Qué hace |
+|---|---|---|
+| **El que construye** | el modelo recomendado en el ⑯ | implementa (⑲), corrige tests (⑳), **y arregla lo que el revisor encuentra** |
+| **El que revisa** | el modelo grande del ㉑ | revisa punta a punta (㉑), genera y corre mutantes (㉒) |
+
+**Los hallazgos vuelven siempre al que construyó.** No se le pide al revisor que arregle lo
+que encontró, ni se busca un tercero: el rol está fijo por función, no por conveniencia.
+
+Y el pedido al implementador no es *"arreglalo"* a secas: *"verificá, **entendé qué pasó**, y
+arreglalo"*. Primero comprender, después corregir.
+
+> Queda por saber si después del arreglo se vuelven a correr los mutantes. Lo natural sería
+> que sí, pero no lo dijiste y no lo dibujo.
 
 ### Dos momentos de elegir modelo, con lógicas opuestas
 
