@@ -87,6 +87,47 @@ como tal.
 | **BMAD `plan/`** | PRFAQ, product-brief, project-context | sin enforcement, sin ledger |
 | **OpenSpec** | — | **no tiene esta fase.** Arranca en el change |
 
+### 3.2b Cómo entra cada uno a un proyecto que ya existe
+
+Relevado el 2026-08-07 leyendo los repos, con la necesidad ya escrita (§5.2).
+
+| Enfoque | Quién | Estado |
+|---|---|---|
+| **Ingesta completa por adelantado** | DDA (4 fuentes: repo, docs, Jira, app) · BMAD `document-project` | **BMAD lo DEPRECÓ.** Su skill hoy sólo reenvía, con el motivo escrito: *"en vez de generar volumen de documentación, cura un sistema de contexto chico y verificado — un kernel siempre cargado más un bundle de conocimiento"* |
+| **Auto-detección de patrones** | **specs.md**, flow FIRE | vigente. *"First-class brownfield — auto-detects existing patterns and conventions"* |
+| **Nada: delta-first** | **OpenSpec** | vigente, y es su **titular** |
+| **Sólo greenfield** | nWave (DISCOVER/DIVERGE) | — |
+| **No lo tratan** | cavekit, Kiro, Archon, superpowers, kaddo, gentle-ai, SpecEngine | 0 menciones en el README |
+
+**Lo que dice OpenSpec, textual** (`docs/existing-projects.md`, primera línea):
+
+> *"You do not document your whole codebase to start. You write specs only for what you're
+> about to change."* · *"'Mi app tiene 80.000 líneas, ¿tengo que escribir specs de todo antes
+> de que OpenSpec sirva?' **No. Lo odiarías, y nosotros también.**"*
+
+**El mecanismo:** su unidad es un **delta** (`ADDED`/`MODIFIED`/`REMOVED`) contra el estado
+actual. Cada cambio archivado funde su delta en la base. En su propio repo eso dio
+**83 cambios archivados → 36 specs**: la base no la escribió nadie de entrada, **se armó sola**.
+
+**Lo que se paga:** la cobertura queda parcial para siempre y no hay forma de saber qué
+falta. Es correcto para ellos y hay que decirlo, no disimularlo.
+
+### 3.2c Consecuencia incómoda: la ingesta perezosa NO es diferenciación
+
+El modelo perezoso de §5.2 es **el titular de OpenSpec**, no un hueco que dejaron. Y la
+posición intermedia que adopta este brief —kernel mínimo declarado + crecimiento— es
+**exactamente donde aterrizó BMAD después de retirarse** del modelo eager.
+
+O sea: en esto no somos originales, somos los terceros en llegar. Se adopta igual, porque
+es lo correcto y ahora hay evidencia de campo —**alguien construyó el barrido completo,
+lo shipeó y lo deprecó**— pero **no se vende como aporte**.
+
+> **Nota de honestidad.** El recuerdo de *"OpenSpec vendía que analizaba tu código"* no
+> resistió la verificación: ni el README ni los docs lo dicen, y la guía dedicada dice lo
+> contrario. Lo que sí existe con esa promesa es **specs.md** (*auto-detects existing
+> patterns and conventions*). Vale anotarlo porque el error iba a entrar al brief como
+> hecho.
+
 ### 3.3 El hueco, en una línea
 
 > **Nadie enforcea Inception, y nadie une los módulos con un solo ledger.**
@@ -154,6 +195,29 @@ Lo que ya está escrito y sirve tal cual o casi:
 **El "para features chicas era overkill" se explica acá:** el flujo viejo tenía un solo
 modo, el pesado, y lo hacía correr entero para cualquier cosa.
 
+> **El eje real no es greenfield/brownfield: es "¿es la primera vez o no?".** Una vez que el
+> proyecto existe, de dónde vino deja de importar — un greenfield que ya arrancó y un
+> brownfield adoptado se comportan igual. **Modo proyecto pasa una sola vez; modo feature,
+> todas las demás.**
+>
+> Prior art: **specs.md FIRE** ya gradúa por complejidad — *"Adaptive checkpoints: Autopilot
+> (0), Confirm (1) o Validate (2)"*. La idea de que el peso se ajuste no es nuestra.
+
+### 5.1b Lo que Spark tiene que preguntar en modo feature, y nadie pregunta
+
+Además de *"¿vale la pena?"* y *"¿ya lo tengo?"*, una tercera:
+
+> **¿Esto entra en el PRD que ya está, o lo cambia?**
+
+- **Entra** → Flame sólo genera las historias. El PRD no se toca.
+- **Lo cambia** → hay que tocar el PRD **primero**, y eso es una decisión mucho más grande
+  que agregar una feature.
+
+**Este es el detector del 43%** (§2.2). Esas features entraron de a una, cada una parecía
+razonable, y **ninguna se preguntó nunca si estaba corriendo el límite del producto**. Una
+feature que obliga a reescribir el PRD no es una feature: es un cambio de alcance
+disfrazado.
+
 ### 5.2 Adoptar SpecForge sobre código que ya existe
 
 Es un tercer caso, distinto de los dos del cuadro, y no estaba cubierto: **el proyecto ya
@@ -166,18 +230,44 @@ existe y nunca usó SpecForge** (es lo que ejercita `examples/brownfield-tempcon
 | **Al adoptar** (`sf init`) | se **deriva** la constitución mínima leyendo el repo: lenguaje, comando de test, poco más. Es mecánico —`go.mod`, `package.json`, el script de test— y no requiere decidir nada |
 | **Después** | Spark y Flame normales, en modo *feature nueva*, una feature por vez |
 
-**Propuesta (mía, a discutir — ver Q7): la ingesta del código existente es perezosa y por
-feature, no un big bang.** No hace falta documentar el proyecto entero para empezar a usar
-SpecForge sobre él; hace falta entender lo que **la próxima feature toca**.
+**Decidido: la ingesta es perezosa. Eager sólo lo declarado.** No hace falta documentar el
+proyecto entero para empezar; hace falta entender lo que **la próxima feature toca**.
 
-Y ese entendimiento ya tiene dónde vivir: es la pregunta de Spark en modo feature —
-*"¿no lo resuelve algo que ya tengo?"*. En greenfield esa pregunta se contesta buscando en
-el mercado; en brownfield, buscando **también dentro del repo**. Misma pregunta, dos
-espacios de búsqueda.
+| Qué | Cuándo | Costo | De dónde sale |
+|---|---|---|---|
+| Lenguaje, comando de test, build | al adoptar, **una vez** | **1 archivo** | está **declarado** en el CI o el manifest |
+| Convenciones y patrones | **cuando vas a escribir**, por feature | los archivos vecinos | se leen donde vas a tocar |
+| Arquitectura y límites de capas | **nunca automático** | — | lo dice el humano, si le importa |
 
-> **Por qué perezosa.** Un onboarding que exige documentar todo lo existente antes de dejarte
-> hacer nada es el overkill de OpenSpec con otro nombre — y encima aplicado al peor momento,
-> que es cuando todavía no sabés si la herramienta te sirve.
+**El mejor lugar para el kernel declarado es el CI, no el código.** Medido en este repo:
+`.github/workflows/lint.yml`, **577 bytes**, dio el lenguaje (Go), el directorio de trabajo
+(`cli/`), el comando de test (`go test ./...`) y el de build. No se infirió nada: está
+declarado, y **está verificado continuamente** — si estuviera mal, el CI fallaría. Un
+resumen de 18k líneas hecho por un LLM no tiene nada que lo verifique.
+
+*(Detalle que lo confirma: el `go.mod` no está en la raíz sino en `cli/`. Buscando sólo
+manifests se perdía; el CI dio el `working-directory` gratis.)*
+
+**Por qué no eager para lo demás**, con dos evidencias y no con una opinión:
+
+1. **Ya lo intentamos y falló.** `sf arch` está congelado porque `RM-C7b` probó que el mapeo
+   componente→archivo **no funciona** en `examples/brownfield-tempconv`: *"dos componentes en
+   un archivo es normal en código chico"*.
+2. **Alguien más lo construyó y lo deprecó.** BMAD `document-project` → hoy sólo reenvía a un
+   *"kernel chico verificado"* (§3.2b).
+
+Y hay un tercer motivo, que es el de siempre: un resumen de todo el repo escrito por un LLM
+**suena bien, está a medias, y nadie lo verifica**. Es el riesgo de fabricación aplicado al
+onboarding, en el peor momento — cuando todavía no sabés si la herramienta te sirve.
+
+**Lo que se pierde, dicho de frente:** podés escribir una feature que rompa una convención
+usada en otra parte del repo y no enterarte hasta la revisión. El revisor puede marcarlo y
+cada convención descubierta queda escrita, así que el agujero se achica con el uso — pero
+**no se cierra**.
+
+Y ese entendimiento por feature ya tiene dónde vivir: es la pregunta de Spark en modo
+feature — *"¿no lo resuelve algo que ya tengo?"*. En greenfield se contesta buscando en el
+mercado; en brownfield, **también dentro del repo**. Misma pregunta, dos espacios.
 
 ### 5.3 Condición 2 — cada fase pregunta sólo lo contestable en esa fase
 
@@ -191,15 +281,56 @@ Lo que no toca, **se difiere** — no se inventa ni bloquea.
 
 Cada una con **la fase que la contesta**. Inception no las resuelve: las nombra.
 
+### 6.1 Cerradas — con medición, no con debate
+
+| # | Pregunta | Respuesta |
+|---|---|---|
+| **Q2** | ¿Cuánto de la constitución se escribe en Flame? | **Sólo lo declarado**: lenguaje, comando de test, build. Sale del CI (§5.2). El resto crece cuando Forge lo pida |
+| **Q5** | ¿El "por qué" del brief y el del proyecto son dos niveles? ¿Cuál manda? | **Sí, dos niveles.** El del proyecto vive en el PRD/constitución; el de la feature, en el brief. **El choque se detecta en Spark** (§5.1b) y manda el del proyecto — cambiarlo es una decisión aparte y más grande |
+| **Q7** | ¿La ingesta es perezosa o hace falta barrido? ¿Cuánto contexto necesita Spark? | **Perezosa.** Y el costo se midió: **2 búsquedas y 70 líneas** para contestar *"¿ya existe?"* sobre un repo de 18k líneas (§6.3) |
+
+### 6.2 Abiertas
+
 | # | Pregunta | La contesta |
 |---|---|---|
 | Q1 | ¿El pinponeo se orquesta con herramienta, o queda afuera y sólo entra su resultado? | **Spark**, al caminarlo a mano |
-| Q2 | ¿Cuánto de la constitución se escribe en Flame? Hipótesis: sólo lenguaje y comando de test; el resto crece cuando haga falta | **Forge**, cuando la pida |
 | Q3 | ¿Las historias de usuario son la unidad que Forge convierte en requisitos, o hay un paso intermedio? | **Forge** |
-| Q4 | El PRD es el mapa y las historias el entregable. Si el PRD cambia, la IA resincroniza — pero, ¿qué pasa con las historias **ya construidas**? | **Forge** |
-| Q5 | ¿El "por qué" del brief y el "por qué" del proyecto (constitución) son dos niveles? ¿Cuál manda si chocan? | **Flame** |
+| Q4 | Si el PRD cambia, la IA resincroniza las historias — ¿qué pasa con las **ya construidas**? | **Forge** |
 | Q6 | ¿Qué se registra del brief en el ledger: el documento entero, o sólo la decisión y su hash? | **capa cross**, al final |
-| Q7 | Adopción sobre código existente (§5.2): ¿la ingesta es perezosa y por feature, o hace falta un barrido inicial? Y si es perezosa, ¿cuánto contexto necesita Spark para contestar *"¿no lo resuelve algo que ya tengo?"* sin leer el repo entero? | **Spark**, al caminarlo en modo brownfield |
+| Q8 | La cobertura perezosa deja el proyecto parcialmente spec'ado **para siempre**. `F7 — cobertura de criterios` entonces habla **de la rebanada construida con la herramienta, no del proyecto**. ¿Cómo se dice eso sin que se lea como "el proyecto está cubierto"? | **capa cross**, al final |
+
+> **Q8 es la misma disciplina que `no_refuta`:** decir lo que la métrica significa de verdad
+> y no lo que suena mejor. Queda anotada ahora para que no se descubra tarde.
+
+### 6.3 Cómo se cerró Q7 — la medición
+
+Caminado el 2026-08-07 sobre el caso brownfield más real que hay: **SpecForge sobre
+SpecForge** (18k líneas, 38 comandos, 15 skills, cero estado propio).
+
+**Feature caminada:** *"`sf init` que derive la constitución mínima leyendo el repo"*.
+**Pregunta de Spark:** ¿no lo resuelve algo que ya tengo?
+
+| Paso | Qué se hizo | Resultado |
+|---|---|---|
+| 1 | grep de los **títulos** de `skills/sf-init/SKILL.md` | aparece *"Step 2: Detect project type"* y una sección *"### Brownfield"* |
+| 2 | grep de detección de stack en `cli/` (18k líneas) | **nada.** La detección no está en Go |
+| 3 | leer 70 líneas de esa skill | ya hace todo: detecta, genera `project.md` y `conventions.md`, y hasta tiene escrita la misma idea (*"the codebase tells you the how but not the why"*) |
+
+**Veredicto: `pivot`.** La feature ya existe. Lo que queda en pie no es construirla sino
+**cambiarla de ansiosa a perezosa** — una intervención mucho más chica.
+
+**La regla que sale, y es lo generalizable:**
+
+> **Spark no necesita leer el repo. Necesita leer el índice de lo que el repo ya sabe hacer.**
+
+Nunca se abrió un `.go`. La respuesta vivía en la **superficie** —los títulos de 15 skills—
+no en el interior. Para otro proyecto el índice será otro (README, lista de comandos, API
+pública, nombres de carpetas), pero el principio aguanta. Y un proyecto que no puede
+contestar barato *"¿qué sé hacer ya?"* tiene un problema de documentación, no de Spark.
+
+Corolario que refuerza §5.2: **"¿ya lo tengo?" se contesta en la superficie.** Un onboarding
+que lee todo el código por adelantado está leyendo el interior para contestar preguntas que
+viven afuera.
 
 > **Q4 tiene un riesgo ya identificado.** Regenerar historias pisa la spec de cosas que ya
 > existen, en silencio. La regla propuesta: **el resync muestra un diff y marca cuáles ya
@@ -278,3 +409,14 @@ observar de él como prueba del formato:
   que ya existe. No apareció al diseñar: apareció cuando alguien leyó y preguntó *"¿y en
   brownfield?"*. Es evidencia a favor de que el brief se lea antes de aprobarse, y de que
   la lectura la haga alguien que no lo escribió.
+- **Ir a los repos DESPUÉS de escribir la necesidad funciona, y se nota.** §3.2b se relevó
+  con `Q7` ya planteada, y en una pasada devolvió tres cosas que no se habrían encontrado
+  buscando "qué features agregar": que **BMAD construyó el barrido eager y lo deprecó**, que
+  el modelo perezoso **es el titular de OpenSpec y no un hueco**, y que nuestra posición
+  intermedia **ya la ocupa BMAD post-retirada**. Las tres achican el proyecto en vez de
+  agrandarlo. Es la diferencia entre leer para diferenciarse y leer para surtirse (§3).
+- **El brief atajó un error factual antes de que se volviera premisa.** Entró la creencia de
+  que *"OpenSpec vendía que analizaba tu código"*; verificarla contra el repo la refutó y
+  además reasignó la promesa a specs.md, que sí la hace. **Un campo de prior art que no exija
+  la cita deja pasar recuerdos como hechos** — y un brief es justo el lugar donde un recuerdo
+  falso se fosiliza en decisión.
