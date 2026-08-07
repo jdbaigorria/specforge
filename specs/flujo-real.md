@@ -228,9 +228,24 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │                              └───────┤                          │
   └──────────────────────────────────────┼──────────────────────────┘
                                          ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ㉑  REVISIÓN PUNTA A PUNTA — con un MODELO MÁS GRANDE          │
+  │                                                                 │
+  │      recorre toda la cadena:                                    │
+  │                                                                 │
+  │        us-#  →  spec  →  diseño  →  código  →  tests que pasan  │
+  │                                                                 │
+  │      la pregunta: ¿la implementación SATISFACE                  │
+  │                    la feature planteada?                        │
+  │                                                                 │
+  │      ← SEGUNDO TRASPASO, y a otro actor distinto del que        │
+  │        implementó: acá sí hay ojos frescos                      │
+  │      ← el modelo se elige GRANDE, no "el que corresponda"       │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ㉑  ACÁ SE CORTA LO QUE SÉ                                     ║
-  ║     Los tests pasan… ¿y después qué?                            ║
+  ║  ㉒  ACÁ SE CORTA LO QUE SÉ                                     ║
+  ║     Ya está revisada… ¿y después qué?                           ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -410,6 +425,39 @@ Eso convierte la cadena del ⑯ en un lazo cerrado:
 
 **La recomendación de modelo es una hipótesis, y la implementación es su prueba.** Es el
 único lugar del flujo donde una decisión anterior se corrige con evidencia de ejecución.
+
+### El ㉑ hace una pregunta distinta de la del ⑳
+
+*"cuando los tests pasan uso un modelo más grande y le pido que haga una cobertura e2e,
+desde la historia de usuario hasta los tests que pasan, para que verifique si la
+implementación satisface la feature planteada"*.
+
+| | Pregunta | Quién |
+|---|---|---|
+| ⑳ | ¿el código hace lo que los tests dicen? | **el mismo que implementó** |
+| ㉑ | ¿lo implementado **satisface la historia**? | **otro modelo, más grande** |
+
+Son preguntas distintas: que los tests pasen es un hecho sobre el código; que la
+implementación cumpla la historia es otra cosa, y ningún test verde la contesta.
+
+**Y acá sí hay ojos frescos.** En el ⑳ el que implementó se verifica a sí mismo; en el ㉑
+interviene un actor que no escribió el código.
+
+### Dos momentos de elegir modelo, con lógicas opuestas
+
+| Momento | Cómo se elige | Criterio |
+|---|---|---|
+| ⑯ para implementar | **el que corresponda** | ajustado a la complejidad estimada |
+| ㉑ para revisar | **uno grande** | sin escala: siempre el mejor |
+
+Para construir, el recurso se ajusta al trabajo. Para revisar, no se ajusta nada.
+
+> **Nota de vocabulario.** *"Cobertura e2e"* acá **no** significa tests end-to-end. Significa
+> **recorrer la cadena entera de artefactos** —de la historia de usuario hasta los tests— y
+> ver si se sostiene. Conviene no confundir los dos sentidos más adelante.
+
+**Es la primera vez que la cadena de artefactos se USA en vez de producirse.** Todo lo
+anterior los fabricaba; el ㉑ los recorre.
 
 ### El ⑰ revela que el flujo no es de a una feature
 
