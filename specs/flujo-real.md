@@ -5,6 +5,16 @@ comandos, ni módulos, ni nombres de fases. Sólo qué pasa, quién lo hace y qu
 
 Cuando esto esté bien, recién ahí se piensa la herramienta.
 
+> ## ⚠ Esto no es "cómo venía trabajando". Es el flujo NUEVO, y funcionó.
+>
+> *"Este es mi nuevo flujo, lo usé pero de forma manual, y me funcionó."*
+>
+> **No estamos describiendo un proceso roto que hay que arreglar.** Javier ya lo rediseñó
+> después de que las cosas salieran mal, lo corrió a mano, y **anduvo**. Lo que queda no es
+> un problema de diseño del flujo: es que **hay que empujarlo a mano, paso por paso**.
+>
+> *"siempre lo hice manual y me cansaba de ir corriendo cada fase"*.
+
 ---
 
 ## El flujo
@@ -719,6 +729,38 @@ Textuales:
 hechos comprobables: ¿existe el archivo de tests? ¿corrió el comando? ¿el método tiene
 cuerpo o devuelve un valor fijo? Ninguna necesita entender el código — sólo mirar.
 
+#### ⚠ Corrección importante: los incidentes tienen dueño y condición
+
+Los seis casos **no son "lo que pasa siempre"**. Preguntado por el detalle:
+
+| Caso | Cuándo / con qué |
+|---|---|
+| *"todo en verde y no había tests"* | **con Grok** |
+| *"features a medio hacer"* | **con DeepSeek** |
+| *"los métodos eran mocks"* | **cuando el contexto estaba al 50%** |
+| commits no hechos, o mal agrupados | pasa igual, hay que pedir que los **reagrupe de forma lógica** |
+| **no crea la branch por feature** | *(caso nuevo, no estaba en la lista original)* |
+
+**Y el ciclo de tests funcionó:** *"lo del tema de los tests funcionó y se daba cuenta que no
+pasaban y arreglaba el código solo"*.
+
+**Esto debilita la conclusión anterior de este documento y hay que decirlo.** Yo había
+escrito que *"los seis casos son de la misma familia: alguien afirma algo y nadie lo
+comprueba"*. Estructuralmente sigue siendo cierto — pero la **prioridad** cambia:
+
+- **Dos de los seis son de modelos puntuales.** Si esos modelos no se usan para esa tarea, el
+  problema no aparece. Eso no se arregla con un verificador: se arregla **eligiendo bien el
+  modelo**, que es algo que el flujo ya hace en el ⑯ con el yaml.
+- **Uno tiene una condición medible y predecible.** *"Los mocks pasaban cuando el contexto
+  estaba al 50%"* no es una falla moral del modelo: es **agotamiento de recurso**, y es un
+  indicador anticipado — se puede mirar **antes** de que el daño ocurra, no después.
+- **Los que quedan como constantes son los de siempre: el commit y la branch.** Los mismos
+  que ya aparecían en la lista de fiaca.
+
+> **La conclusión honesta: el problema grande no es que el modelo mienta. Es que vos tenés
+> que empujar cada fase.** Lo demás es real, tiene dueño conocido, y en dos de tres casos se
+> resuelve eligiendo con qué trabajás.
+
 #### Dónde viven los seis, estructuralmente
 
 El flujo tiene **tres verificaciones** (⑳ ㉑ ㉒) y **las tres son afirmaciones de un modelo
@@ -748,17 +790,24 @@ Por eso no se arregla acordándose más. Se arregla sacándote la vigilancia de 
 
 ---
 
-## Resumen: qué duele, en una tabla
+## Resumen: qué duele, ordenado por lo que de verdad pesa
 
-| # | Duele | Clase |
-|---|---|---|
-| 1 | tener que lanzar cada fase a mano | **fiaca** |
-| 2 | tener que vigilar que el commit haya ocurrido | **fiaca + agujero** |
-| 3 | *"los tests pasan"* sin que haya tests | agujero — afirmación falsa |
-| 4 | *"los ejecuté"* habiéndolos salteado | agujero — afirmación falsa |
-| 5 | *"terminado"* con métodos que son mocks | agujero — afirmación falsa |
-| 6 | *"terminado"* con la mitad de la historia sin cubrir | agujero — completitud |
-| 7 | librerías instaladas fuera de la constitución | agujero — regla declarada y no respetada |
+| Prioridad | Duele | Clase | Cuándo pasa |
+|---|---|---|---|
+| **1** | **tener que lanzar cada fase a mano** | fiaca | **siempre** — es la queja repetida tres veces en la sesión |
+| **2** | el commit: a veces no lo hace, y hay que **vigilar** que haya pasado | fiaca **+** agujero | seguido |
+| **3** | los commits salen **mal agrupados**; hay que pedir que los reagrupe lógicamente | fiaca | seguido |
+| **4** | **no crea la branch** por feature | fiaca + agujero | seguido |
+| **5** | métodos que son **mocks** dados por terminados | agujero | **con el contexto al 50%** ← condición medible |
+| **6** | librerías **fuera de la constitución**, sin consultar | agujero | sin dueño identificado |
+| **7** | *"terminado"* con **media historia** sin cubrir | agujero | **DeepSeek** |
+| **8** | *"todo en verde"* **sin que haya tests** | agujero | **Grok** |
 
-**Nada de esto es sobre los pasos del flujo.** El flujo está bien: es sobre **quién empuja**
-y **quién comprueba**.
+**Los cuatro primeros son de operación, no de confianza.** Y son los que pasan siempre.
+
+**Del 5 al 8, tres tienen dueño o condición conocida** — dos modelos puntuales y un umbral de
+contexto. Eso no los vuelve inofensivos, pero cambia cómo se atacan: no con un verificador
+para todo, sino sabiendo **con qué y en qué condiciones** aparecen.
+
+**El flujo no está en discusión.** Ya lo rediseñaste y funcionó a mano. El problema es
+**quién lo empuja**.
