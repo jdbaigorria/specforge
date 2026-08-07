@@ -262,6 +262,11 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │      IMPLEMENTADOR:                  │                          │
   │      "verificá, entendé              │                          │
   │       qué pasó, y arreglalo"         │                          │
+  │                 │                    │                          │
+  │                 └──► y después SE VUELVE A CORRER TODO:         │
+  │                      la verificación ㉑ Y los mutantes ㉒        │
+  │                      "para ver si el fix no rompió algo         │
+  │                       que andaba antes"                         │
   │                                      │                          │
   └──────────────────────────────────────┼──────────────────────────┘
                                          ▼
@@ -498,8 +503,17 @@ que encontró, ni se busca un tercero: el rol está fijo por función, no por co
 Y el pedido al implementador no es *"arreglalo"* a secas: *"verificá, **entendé qué pasó**, y
 arreglalo"*. Primero comprender, después corregir.
 
-> Queda por saber si después del arreglo se vuelven a correr los mutantes. Lo natural sería
-> que sí, pero no lo dijiste y no lo dibujo.
+### Después del arreglo se rehace la revisión entera, no sólo lo que falló
+
+*"si se vuelve a correr los mutantes **y la verificación** para ver si el fix no rompió algo
+que andaba antes"*.
+
+**Un arreglo se trata como un cambio nuevo, no como un retoque.** No alcanza con volver a
+correr lo que había fallado: se rehace **㉑ y ㉒ completos**, porque el motivo no es
+confirmar el fix sino **buscar regresión**.
+
+Es la única parte del flujo que existe para detectar que algo que andaba dejó de andar.
+Todo el resto verifica que lo nuevo esté bien; esto verifica que lo viejo siga estándolo.
 
 ### Dos momentos de elegir modelo, con lógicas opuestas
 
