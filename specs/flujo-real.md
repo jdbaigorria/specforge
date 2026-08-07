@@ -1,0 +1,113 @@
+# Cómo trabajo hoy — foja cero
+
+**Fecha:** 2026-08-07 · **Regla de este documento:** acá **no existe SpecForge**. Ni
+comandos, ni módulos, ni nombres de fases. Sólo qué pasa, quién lo hace y qué queda.
+
+Cuando esto esté bien, recién ahí se piensa la herramienta.
+
+---
+
+## El flujo, como lo entendí
+
+```
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ①  SE ME OCURRE ALGO                                           │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ②  LE TIRO LA IDEA A LA IA Y PINPONEO                          │
+  │     Claude, Opus, effort xhigh · "para darle forma"             │
+  │     ida y vuelta, sin formato                                   │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ③  BUSCO SI YA EXISTE                                          │
+  │     Perplexity · herramientas similares                         │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ④  LE PASO EL REPO A LA IA PARA QUE LO REVISE                  │
+  │     ¿me sirve algo? ¿qué diferencia tiene lo mío?               │
+  │     ¿se complementa? ¿por qué crearlo en vez de usarlo?         │
+  │     ¿conviene forkearlo?                                        │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+                    ┌──────────────────────┐
+                    │  ⑤  ¿HAY CONSENSO?   │──── no ──┐
+                    │  qué quiero crear    │          │
+                    │  y POR QUÉ           │◄─────────┘
+                    └──────────┬───────────┘      vuelve a ②/③/④
+                               │ sí
+                               ▼
+                    ┌──────────────────────┐
+                    │  ⑥  ¿LO HAGO?        │──── la IA dice que no ──┐
+                    └──────────┬───────────┘                         │
+                               │                          a veces lo hago igual
+                               │◄────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑦  ESCRIBO UN BRIEF / PRD                                      │
+  │     con el link a lo que me inspiró                             │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌═════════════════════════════════════════════════════════════════┐
+  ║  ⑧  DE ACÁ EN ADELANTE NO SÉ CÓMO TRABAJÁS DE VERDAD            ║
+  ║     Sólo sé que "a veces el PRD lo paso directo a propose o     ║
+  ║     a un generador de historias de usuario".                    ║
+  ║     Todo lo demás que tengo es lo que las herramientas te       ║
+  ║     OBLIGABAN a hacer, no lo que vos elegís hacer.              ║
+  └═════════════════════════════════════════════════════════════════┘
+```
+
+---
+
+## Lo que sé con certeza, porque lo dijiste vos
+
+| # | Paso | Tus palabras |
+|---|---|---|
+| ② | pinponeo con IA | *"abro claude modelo opus effort xhigh, tiro mi idea para comenzar a darle forma"* |
+| ③ | búsqueda | *"con perplexity busco si ya existe algo similar"* |
+| ④ | revisión del repo ajeno | *"le paso el repo a claude para que lo revise, ver si me sirve algo o qué diferencia tiene mi idea con lo ya creado"* |
+| ⑤ | consenso | *"hasta llegar a un consenso de lo que quiero crear y porque deseo crearlo"* |
+| ⑥ | lo hago igual | *"a veces hay ideas que me las rechaza pero lo mismo quiero hacerlas"* |
+| ⑦ | el brief | *"una vez que se define que si vamos a implementar creamos lo que seria un brief o prd"* |
+
+**Dos cosas que se ven solas mirando el dibujo:**
+
+- **Del ② al ⑤ es un bucle, no una fila.** Volvés a buscar, volvés a pinponear. No es
+  "paso 2, paso 3, paso 4" — es dar vueltas hasta que cierra.
+- **El ⑥ es el único lugar donde hay una decisión de verdad**, y es tuya, y a veces va en
+  contra de lo que la IA dice.
+
+---
+
+## Lo que NO sé, y necesito de vos
+
+Sin esto el flujo está cortado a la mitad. Son cuatro preguntas y ninguna necesita que
+pienses en herramientas — sólo contame qué hacés.
+
+**1. Después del brief, ¿qué pasa exactamente?**
+No lo que una herramienta te pedía. Lo que hacés vos cuando estás solo. ¿Abrís el editor y
+arrancás? ¿Escribís una lista de tareas? ¿Le pedís a la IA que lo parta en pedazos?
+
+**2. ¿Cómo decidís que algo está listo?**
+¿Mirás que pasen los tests? ¿Lo probás a mano? ¿Lo leés? ¿Todo junto?
+
+**3. ¿En qué momento te cagás solo?**
+O sea: ¿dónde te pasó que algo salió mal y dijiste "esto me lo tendría que haber avisado
+algo"? Ese momento es más valioso que todo el resto del flujo.
+
+**4. ¿Qué parte de esto te da fiaca hacer?**
+La que postergás, la que hacés a desgano, la que salteás cuando estás apurado.
+
+---
+
+## Por qué las preguntas 3 y 4 son las importantes
+
+Todo lo demás del flujo lo hacés bien y no necesita herramienta.
+
+**Donde una herramienta sirve es en dos lugares nada más:** donde te cagás solo (③) y donde
+te da fiaca (④). Lo primero necesita una baranda; lo segundo necesita que alguien lo haga
+por vos.
+
+Si un paso no es ninguna de las dos cosas, **no hace falta que la herramienta lo toque.**
