@@ -273,19 +273,25 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   ┌─────────────────────────────────────────────────────────────────┐
   │  ㉓  SI TODO ESTÁ OK — el cierre                                │
   │                                                                 │
-  │      · se ARCHIVA la feature                                    │
-  │      · se GENERA LA DOCUMENTACIÓN de la feature                 │
-  │      · se manda el PR, o se pushea                              │
+  │   ARCHIVAR = dar por finalizada la feature:                     │
+  │      · la carpeta de la feature se mueve a archivado            │
+  │      · se marca como finalizada en el ROADMAP y en el BACKLOG   │
+  │      · las historias de usuario también se archivan             │
+  │                                                                 │
+  │   · se GENERA LA DOCUMENTACIÓN de la feature                    │
+  │   · se manda el PR, o se pushea                                 │
   │                                                                 │
   │      ← la documentación se escribe AL FINAL, sobre lo que       │
   │        realmente quedó — no sobre lo que se había planeado      │
   └────────────────────────────┬────────────────────────────────────┘
-                               ▼
-  ┌═════════════════════════════════════════════════════════════════┐
-  ║  ㉔  ¿Y ACÁ?                                                    ║
-  ║     ¿Se vuelve al roadmap por la próxima, o hay algo más        ║
-  ║     antes — cerrar una versión, un release?                     ║
-  └═════════════════════════════════════════════════════════════════┘
+                               │
+                               └──────► VUELVE AL ⑪
+                                        agarro la próxima del roadmap
+
+  ══════════════════════════════════════════════════════════════════
+   EL BUCLE GRANDE:  ⑪ → ⑫…⑯ → ⑰ → ⑱…㉒ → ㉓ → ⑪
+   una vuelta por feature, hasta que el roadmap se termina
+  ══════════════════════════════════════════════════════════════════
 ```
 
 ## Lo que queda en el repo
@@ -657,33 +663,54 @@ anclado a algo observado"* **no lo rechace por accidente**.
 
 ---
 
-## Lo que NO sé, y necesito de vos
-
-Sin esto el flujo está cortado a la mitad. Son cuatro preguntas y ninguna necesita que
-pienses en herramientas — sólo contame qué hacés.
-
-**1. Después del brief, ¿qué pasa exactamente?**
-No lo que una herramienta te pedía. Lo que hacés vos cuando estás solo. ¿Abrís el editor y
-arrancás? ¿Escribís una lista de tareas? ¿Le pedís a la IA que lo parta en pedazos?
-
-**2. ¿Cómo decidís que algo está listo?**
-¿Mirás que pasen los tests? ¿Lo probás a mano? ¿Lo leés? ¿Todo junto?
-
-**3. ¿En qué momento te cagás solo?**
-O sea: ¿dónde te pasó que algo salió mal y dijiste "esto me lo tendría que haber avisado
-algo"? Ese momento es más valioso que todo el resto del flujo.
-
-**4. ¿Qué parte de esto te da fiaca hacer?**
-La que postergás, la que hacés a desgano, la que salteás cuando estás apurado.
-
 ---
 
-## Por qué las preguntas 3 y 4 son las importantes
+## LO QUE MOLESTA — la única pregunta que decide qué hay que construir
 
-Todo lo demás del flujo lo hacés bien y no necesita herramienta.
+El flujo de arriba lo hacés y funciona. **Lo que importa no es el flujo: es dónde duele.**
 
-**Donde una herramienta sirve es en dos lugares nada más:** donde te cagás solo (③) y donde
-te da fiaca (④). Lo primero necesita una baranda; lo segundo necesita que alguien lo haga
-por vos.
+### Contestado: qué te da fiaca
 
-Si un paso no es ninguna de las dos cosas, **no hace falta que la herramienta lo toque.**
+> *"Cuando debo estar lanzando cada fase manualmente, o cuando tengo que commitear porque a
+> veces no lo hace."*
+
+Dos cosas, y las dos son de la misma clase: **trabajo de operario, no de decisión.**
+
+| Qué molesta | Qué es en realidad |
+|---|---|
+| **lanzar cada fase a mano** | vos sos el que empuja el flujo de un paso al siguiente |
+| **tener que commitear** porque a veces no lo hace | tenés que vigilar que algo mecánico haya ocurrido |
+
+**Esto ya lo habías dicho, sin que te lo preguntaran.** Al contar por qué abandonaste
+OpenSpec: *"terminaba escribiendo repetidamente el skill para implementar, luego validar,
+luego archivar"*. Dos relatos independientes, la misma queja.
+
+Y encaja con lo que dijiste ahí mismo: *"para features chicas era overkill casi **pero a su
+vez me daba cierto nivel de control**"*.
+
+> **No sobran pasos. Sobra tener que empujarlos.** Control no es lo mismo que invocación
+> manual: los puntos donde decidís son ⑥, ⑧ y ⑰ — tres. Todo lo demás lo estás empujando
+> sin decidir nada.
+
+**El segundo caso es peor que el primero**, y conviene no mezclarlos: no es que tengas que
+hacer el commit — es que **tenés que acordarte de chequear si se hizo**. Eso es carga
+permanente, no una tarea.
+
+### Sin contestar: dónde te quema
+
+*(La pregunta anterior estaba mal formulada. De nuevo, en criollo:)*
+
+**¿Alguna vez algo se coló y te enteraste tarde?**
+
+Un test que pasaba pero no probaba nada. Una feature dada por terminada a la que le faltaba
+un caso. Algo que rompiste sin darte cuenta. Un archivo que quedó sin commitear y lo
+descubriste dos días después.
+
+**Contame un caso concreto que te haya pasado de verdad.** No hipótesis.
+
+Es la pregunta que más vale, porque una herramienta sirve en dos lugares nada más:
+
+- **Donde te da fiaca** → alguien lo hace por vos *(ya contestado)*
+- **Donde algo se cuela** → una baranda que avise *(esto)*
+
+Un paso que no es ninguna de las dos, **no hace falta que la herramienta lo toque.**
