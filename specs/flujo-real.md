@@ -166,9 +166,24 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │      ← primera decisión sobre QUÉ RECURSO gastar                │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑰  LO REVISO                                                   │
+  │      tercer punto de decisión del flujo, y cierra el bloque      │
+  │      de planificación ⑫–⑯                                       │
+  └───────┬──────────────────────┬──────────────────────┬───────────┘
+          │                      │                      │
+     PIDO CAMBIOS          OTRA FEATURE            IMPLEMENTAR
+          │                      │                      │
+          ▼                      ▼                      ▼
+   vuelve a ⑫–⑯         vuelve a ⑪ y agarro       sigue
+   se rehace lo que      otra cosa del roadmap        │
+   no me cerró           ← se pueden planificar       │
+                           VARIAS features antes      │
+                           de implementar ninguna     │
+                                                      ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑰  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Está todo planificado… ¿y después qué?                      ║
+  ║  ⑱  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Arranca la implementación… ¿y ahí qué pasa?                 ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -273,16 +288,27 @@ hagas" y sus razones sobrevivían: *"Sí quedan como leyenda"*.
 > encabezado o un párrafo suelto. No cambia el hecho de que está escrito; sí cambiaría qué
 > tan fácil es encontrarlo después. No lo asumo.
 
-### Un patrón que ya aparece dos veces
+### El patrón, ya con tres casos
 
-| Paso | Qué hace la IA | Quién decide |
-|---|---|---|
-| ⑥ la decisión | recomienda con razones | **vos** |
-| ⑧ la constitución | pregunta y sugiere | **vos** |
+| Paso | Qué hace la IA | Quién decide | Salidas |
+|---|---|---|---|
+| ⑥ la decisión | recomienda con razones | **vos** | hacelo / pivoteá / no lo hagas |
+| ⑧ la constitución | pregunta y sugiere | **vos** | — |
+| ⑰ la planificación | produce todo el plan | **vos** | cambios / otra feature / implementar |
 
-*"me pregunta qué lenguaje voy a usar y me sugiere alguno pero como siempre yo tengo la
-última decisión"*. Se registra como observación, no como conclusión: **en los dos puntos
-donde hay que elegir, la IA propone y la última palabra es tuya.**
+**En los tres puntos donde hay que elegir, la IA propone y la última palabra es tuya.**
+
+Y se aclara algo que venía anotado como duda: **⑨, ⑩ y ⑫–⑯ no tienen decisión propia
+porque la decisión está al final del bloque, no en cada paso.** No es que falte — está
+agrupada. Revisás una vez, sobre todo junto.
+
+### El ⑰ revela que el flujo no es de a una feature
+
+*"puedo solicitar cambios, continuar definiendo otras features, o comenzar la fase de
+implementación"*.
+
+Esa segunda salida cambia la forma del flujo: **se pueden planificar varias features antes
+de implementar ninguna.** No es una tubería de a una — la planificación se puede acumular.
 
 ### El ⑨ cambia de naturaleza, y no tiene punto de decisión declarado
 
