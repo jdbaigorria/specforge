@@ -696,21 +696,69 @@ vez me daba cierto nivel de control**"*.
 hacer el commit — es que **tenés que acordarte de chequear si se hizo**. Eso es carga
 permanente, no una tarea.
 
-### Sin contestar: dónde te quema
+### Contestado: dónde se coló algo — seis casos reales
 
-*(La pregunta anterior estaba mal formulada. De nuevo, en criollo:)*
+Textuales:
 
-**¿Alguna vez algo se coló y te enteraste tarde?**
+1. *"me decía que los tests pasaban **pero no había tests**"*
+2. *"que la feature estaba terminada **pero le faltaba la mitad**"*
+3. *"decía que había ejecutado los tests **pero los pasaba por alto**"*
+4. *"**no realizó los commit** y me di cuenta luego"*
+5. *"la peor: **finalizó la feature y los métodos eran mocks**"*
+6. *"**instaló librerías fuera de la constitución** sin consultar"*
 
-Un test que pasaba pero no probaba nada. Una feature dada por terminada a la que le faltaba
-un caso. Algo que rompiste sin darte cuenta. Un archivo que quedó sin commitear y lo
-descubriste dos días después.
+#### Se agrupan en tres clases
 
-**Contame un caso concreto que te haya pasado de verdad.** No hipótesis.
+| Clase | Casos | Qué pasó |
+|---|---|---|
+| **A. Dijo que hizo algo que no hizo** | 1, 3, 5 | *"los tests pasan"* (no hay), *"los ejecuté"* (los salteó), *"está terminado"* (son mocks) |
+| **B. Dijo terminado sin estarlo** | 2 | completitud afirmada contra una historia que pedía más |
+| **C. Pasó algo sin que nadie avisara** | 4, 6 | no ocurrió lo que debía (commit), u ocurrió lo prohibido (librería fuera de la constitución) |
 
-Es la pregunta que más vale, porque una herramienta sirve en dos lugares nada más:
+**La clase A es la más grande y la más barata de detectar.** Las tres son afirmaciones sobre
+hechos comprobables: ¿existe el archivo de tests? ¿corrió el comando? ¿el método tiene
+cuerpo o devuelve un valor fijo? Ninguna necesita entender el código — sólo mirar.
 
-- **Donde te da fiaca** → alguien lo hace por vos *(ya contestado)*
-- **Donde algo se cuela** → una baranda que avise *(esto)*
+#### Dónde viven los seis, estructuralmente
 
-Un paso que no es ninguna de las dos, **no hace falta que la herramienta lo toque.**
+El flujo tiene **tres verificaciones** (⑳ ㉑ ㉒) y **las tres son afirmaciones de un modelo
+sobre el trabajo, no hechos comprobados por fuera.**
+
+- En el ⑳, el que implementó corre los tests **y reporta el resultado**. Si dice *"pasan"* y
+  no hay tests, el ⑳ no lo agarra: **el reporte ES la verificación.** Ahí viven 1 y 3.
+- En el ㉑ y el ㉒ interviene otro modelo, que es lo que da chance de agarrar 2 y 5 — pero
+  sigue siendo un modelo diciendo qué encontró.
+- Los casos 4 y 6 **no los mira nadie**: no hay paso en el flujo que verifique que el commit
+  ocurrió ni que la constitución se respetó.
+
+> **Los seis casos son de la misma familia: alguien afirma algo sobre el trabajo y nadie lo
+> comprueba contra la realidad.** No hace falta desconfiar del modelo para arreglarlo —
+> alcanza con que lo que se afirma se pueda mirar.
+
+#### El caso 4 aparece en las dos listas, y eso importa
+
+*"tengo que commitear porque a veces no lo hace"* (fiaca) y *"no realizó los commit y me di
+cuenta luego"* (se coló).
+
+**Es el mismo hecho visto de los dos lados:** cuando te acordás de chequear, es laburo;
+cuando te olvidás, es agujero. **La vigilancia es fiaca cuando funciona y es agujero cuando
+falla.**
+
+Por eso no se arregla acordándose más. Se arregla sacándote la vigilancia de encima.
+
+---
+
+## Resumen: qué duele, en una tabla
+
+| # | Duele | Clase |
+|---|---|---|
+| 1 | tener que lanzar cada fase a mano | **fiaca** |
+| 2 | tener que vigilar que el commit haya ocurrido | **fiaca + agujero** |
+| 3 | *"los tests pasan"* sin que haya tests | agujero — afirmación falsa |
+| 4 | *"los ejecuté"* habiéndolos salteado | agujero — afirmación falsa |
+| 5 | *"terminado"* con métodos que son mocks | agujero — afirmación falsa |
+| 6 | *"terminado"* con la mitad de la historia sin cubrir | agujero — completitud |
+| 7 | librerías instaladas fuera de la constitución | agujero — regla declarada y no respetada |
+
+**Nada de esto es sobre los pasos del flujo.** El flujo está bien: es sobre **quién empuja**
+y **quién comprueba**.
