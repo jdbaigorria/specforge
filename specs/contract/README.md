@@ -1,5 +1,36 @@
 # Contratos de SpecForge v2
 
+> ## ⏸ CONGELADO 2026-08-07 — leer esto antes de implementar nada
+>
+> **Estos documentos bajaron de "contrato" a "hipótesis sin consumidor validado".** No se
+> implementan todavía.
+>
+> **Por qué.** Especifican la **capa cross**: el verificador. Pero *qué* se verifica —la
+> forma del requisito, los criterios de aceptación, el trace— lo define **Inception**, que
+> no existe. Estuvimos escribiendo el contrato del verificador de un artefacto cuya forma
+> nadie decidió. La validación contra `examples/slugify` encontró un bug real (y eso vale),
+> pero funcionó **sobre requisitos del modelo v1** — o sea, se validó contra justo lo que
+> estamos refundando.
+>
+> **Síntoma que lo destapó:** F6 se reescribió tres veces en un día sin poder probarse
+> contra ningún flujo real.
+>
+> **Nuevo orden:** Inception → Forge → Ship → **capa cross al final**. La capa cross no se
+> diseña, se **deriva**: es la respuesta a *"¿cómo valido estos artefactos?"*, y no puede
+> existir antes que los artefactos.
+>
+> **Qué de acá sobrevive seguro**, porque no salió de leer otro framework sino de una falla
+> observada o de una corrección del usuario:
+> - el bucle **pedir → trabajar → entregar → validar → sellar**
+> - **la IA trabaja, el CLI no la deja mentir** — cerebro y brazo (`judge.md` §0.1)
+> - los **dos canales** del informe: un número que el cerebro parafrasea deja de ser un hecho
+> - **ejecutar es siempre del brazo** — el incidente que originó SpecForge
+> - el cerebro **no tiene el verbo "aprueba"**, y toda afirmación lleva cita verificable
+>
+> Todo lo demás —los siete hechos, los seis estados, el toolchain, los exit codes— espera a
+> que el flujo lo pida. Se revisan cuando Inception y Forge estén definidos y caminados a
+> mano.
+
 Esta carpeta define **contratos**: qué garantiza cada pieza, qué no garantiza, y qué
 tiene que ser verdad para que la garantía valga. Es la fuente de verdad del diseño de v2 —
 si el código y el contrato no coinciden, el que está mal es el código.

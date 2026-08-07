@@ -1,6 +1,6 @@
 # Contrato: `sf-audit` — el cerebro
 
-**Estado:** borrador · **Fecha:** 2026-08-07 · **El brazo:** [`audit.md`](audit.md)
+**Estado:** ⏸ CONGELADO — hipótesis sin consumidor validado (ver [`README.md`](README.md)) · **Fecha:** 2026-08-07 · **El brazo:** [`audit.md`](audit.md)
 
 Este documento es **el contrato de salida de `sf-audit`**: qué revisa, qué puede afirmar,
 con qué forma, y cómo el CLI verifica cada afirmación antes de sellarla.

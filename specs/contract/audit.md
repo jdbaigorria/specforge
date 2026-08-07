@@ -1,6 +1,6 @@
 # Contrato: `sf audit` — el brazo
 
-**Estado:** borrador · **Fecha:** 2026-08-07 · **Contrato de salida:** [`judge.md`](judge.md)
+**Estado:** ⏸ CONGELADO — hipótesis sin consumidor validado (ver [`README.md`](README.md)) · **Fecha:** 2026-08-07 · **Contrato de salida:** [`judge.md`](judge.md)
 
 ---
 
