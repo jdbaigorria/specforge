@@ -196,12 +196,74 @@ Cada hecho **DEBE** cumplir tres propiedades:
 - **Sellado** — se registra junto al `tree_hash` sobre el que se computó.
 - **Invalidable** — existe una condición explícita que lo vuelve falso.
 
+### 3.0 El brazo ejecuta, nunca reimplementa
+
+> **El brazo NO DEBE reimplementar ningún análisis que ya exista como herramienta madura.**
+> Para cada hecho que requiere analizar código —resolver símbolos, medir complejidad,
+> generar mutantes, correr tests— el brazo **DEBE** hacer shell-out a la mejor herramienta
+> disponible y quedarse con lo que sí es suyo: **invocar, normalizar y sellar**.
+
+Escribir complejidad ciclomática en Go es exactamente el error que este contrato quiere
+evitar: código propio, peor probado, para un problema resuelto hace veinte años.
+
+**Lo que sí es del brazo** —y por lo tanto se implementa— es la parte que ninguna
+herramienta externa hace:
+
+| El brazo hace | Por qué no lo hace la herramienta |
+|---|---|
+| **Acotar** el análisis a los archivos anclados a un `R#` | `mutmut` no sabe qué es un `R#` |
+| **Normalizar** la salida al schema de §5.2 | cada herramienta tiene su formato |
+| **Sellar** contra el `tree_hash` | ninguna herramienta ata su resultado a un árbol |
+| **Clasificar** y aplicar el trinquete (§4) | es la tabla de verdad del contrato |
+
+#### Contrato del adaptador
+
+Cada lenguaje soportado **DEBE** declarar sus herramientas en configuración, no en código:
+
+```yaml
+# specforge/toolchain.yaml
+python:
+  symbols:    { cmd: "sg", args: ["scan", "--json"] }
+  complexity: { cmd: "lizard", args: ["--csv"] }
+  coverage:   { cmd: "coverage", args: ["json"] }
+  mutation:   { cmd: "mutmut", args: ["run", "--paths-to-mutate"] }
+  test:       { cmd: "pytest", args: ["-q"] }
+```
+
+**Reglas del adaptador:**
+
+1. El adaptador **DEBE** limitarse a *invocar → parsear → normalizar*. **NO DEBE** contener
+   lógica de decisión: clasificar es de §4.
+2. **DEBERÍA** preferir el modo de salida estructurada de la herramienta (`--json`, `--csv`)
+   antes que parsear texto para humanos. Un formato para humanos cambia entre versiones
+   menores sin avisar.
+3. Si la herramienta **no está instalada o no está declarada**, el hecho es
+   **`NO_EVALUADO`** (§4), nunca verde y nunca `ROTO`. Una herramienta ausente **NO DEBE**
+   poder parecerse a un análisis limpio.
+4. Si la herramienta corre pero su salida no parsea, el hecho es **`NO_EVALUADO`** y el
+   error crudo **DEBE** quedar en el ledger. Un parser roto **DEBE** fallar ruidosamente.
+5. Agregar un lenguaje **DEBERÍA** ser agregar un bloque a `toolchain.yaml` más su parser.
+   Si exige tocar la lógica del audit, el adaptador está mal cortado.
+
+> **El costo declarado.** Este diseño paga un parser por herramienta, y es la desventaja
+> real frente a dejar que el cerebro lea cualquier formato. Se acepta a propósito: un
+> parser roto falla ruidosamente y se testea, mientras que **un cerebro que malinterpreta
+> una salida no falla nunca** — reporta un número plausible y equivocado, que es
+> exactamente la clase de mentira que este contrato existe para impedir (§0.4). La regla
+> de §0.3 no admite excepción por comodidad.
+
+**Preferencia de herramienta**, en orden: (1) una herramienta **multi-lenguaje** que cubra
+varios de una —menos adaptadores que mantener—; (2) la herramienta de referencia del
+lenguaje. Entre equivalentes, **DEBERÍA** preferirse la que tenga salida JSON estable.
+
 ### F1 — ANCLAJE
 
 Cada `R#` de la feature resuelve a al menos un `path:symbol` que **existe** en el árbol.
 
 - **Fuente:** `trace.json`
-- **Cómo se computa:** resolución del símbolo en el archivo (AST, no grep).
+- **Cómo se computa:** resolución del símbolo en el archivo por **AST, no grep** — shell-out
+  al motor de símbolos del `toolchain` (§3.0). Un grep da falsos positivos en comentarios,
+  strings y nombres parciales, y F1 es la base de todo lo demás.
 - **Invalidación:** el archivo no existe, o el símbolo no está en él → `ROTO`.
 - **Lo que NO dice:** que ese símbolo *implemente* el requisito.
 
@@ -249,6 +311,10 @@ El suite corrió **adentro del CLI**, dio verde, y el resultado quedó atado al 
   ningún `R#` que lo reclame.
 - **Riesgo de cambio:** por componente, la métrica **CRAP** — combinación de complejidad
   ciclomática y cobertura de tests.
+- **Cómo se computa:** dos shell-outs y una multiplicación (§3.0). La **complejidad** sale
+  del analizador del `toolchain`; la **cobertura por función** sale de la herramienta de
+  cobertura nativa del lenguaje. El brazo las cruza y aplica la fórmula de CRAP. **NO DEBE**
+  implementar ninguna de las dos mediciones.
 
 > **Por qué CRAP y no % de líneas cubiertas.** CRAP tiene **dos salidas**: se baja
 > testeando más *o* simplificando el código. Un % de cobertura tiene una sola, y empuja a
@@ -265,8 +331,12 @@ El suite corrió **adentro del CLI**, dio verde, y el resultado quedó atado al 
 Por cada `R#`: se generan mutantes sobre el código anclado y se mide cuántos mata el suite.
 
 - **Cuándo corre:** sólo en perfil de rigor `strict` (§7). Es caro en tiempo real.
-- **Cómo se computa:** herramienta de mutación del lenguaje, invocada por el CLI, acotada
-  a los archivos anclados a ese `R#` — **no al repo entero**.
+- **Cómo se computa:** shell-out a la herramienta de mutación del `toolchain` (§3.0),
+  **acotada por el brazo a los archivos anclados a ese `R#`** — no al repo entero. Ese
+  acotado es la parte que ninguna herramienta de mutación puede hacer sola: no sabe qué es
+  un `R#`, y es lo que vuelve el resultado **atribuible a un requisito**.
+- **Quién la corre:** el brazo, **nunca el cerebro**. Un LLM diciendo *"la mutación dio
+  85%"* es la misma fabricación que *"corrí los tests y pasaron"* (§0.4).
 - **Umbral:** configurable, por defecto **80% de mutantes muertos**.
 - **Invalidación:** por debajo del umbral → el requisito pasa a `DÉBIL`.
 - **Por qué existe:** es el **único proxy mecánico** de *"¿el test prueba el requisito?"*.
@@ -515,22 +585,57 @@ Declarado acá para que no haya que deducirlo:
 
 ---
 
-## 9. Mapa de reúso — qué de lo construido sirve
+## 9. Mapa de reúso
+
+### 9.1 Qué de lo construido sirve
 
 | Hecho / pieza | Hoy | Acción |
 |---|---|---|
-| F1 anclaje | `sf trace verify` | **reusar** tal cual |
+| F1 anclaje | `sf trace verify` | **reusar el mecanismo, cambiar el motor** — la resolución de símbolos pasa a shell-out AST (§3.0) |
 | F2 prueba existe | `sf trace verify --contract` + `acceptance` con id (`RM-C1`) | **reusar.** `RM-C1` es correcto y necesario: sin id por criterio, F2 no se puede computar |
-| F3 verde sellado | `sf check run` | **extender** — agregar el binding a `tree_hash`. Es el único cambio de mecánica nuevo |
+| F3 verde sellado | `sf check run` | **reusar** — `code_hash` y `tests` por test ya existen (H5). Falta rutear su resultado al veredicto |
 | F4 frescura | ya existe (`stale`/`missing` separados) | **reusar** |
-| F5 drift | `sf doctor --drift` + `sf coverage` + trinquete | **reusar el mecanismo, cambiar la unidad** — CRAP en vez de % de líneas |
+| F5 drift | `sf doctor --drift` + `sf coverage` + trinquete | **reusar el mecanismo, cambiar la unidad y el motor** — CRAP en vez de % de líneas, vía shell-out |
 | F6 mutación | `sf mutation` (`RM-C6`) | **reusar, mover de lugar** — de flag `require_mutation` a etapa del perfil `strict` |
 | F7 criterios | `sf coverage` | **reusar** |
+| Material del cerebro | `sf context for-judge` (en `sf-check`) | **absorber en `sf audit --json`** (§2.1) |
 | Conformidad de arquitectura | `sf arch` (`RM-C7`) | **congelado.** No entra a F1–F7: `RM-C7b` probó que no funciona en `examples/brownfield-tempconv` (dos componentes en un archivo es normal en código chico). Vuelve como etapa de `strict` cuando el mapeo componente→archivo funcione en los tres ejemplos |
 | Evidencia externa | `sf evidence` (`DL-15`) | **reusar** — es el canal de `SIN_PRUEBA_MECANICA`. La auditoría lo marcó sin consumidor; ahora lo tiene |
 | Fuentes del requisito | `sf sources` (`RM-C3`) | **mover a Inception.** No fracasó por diseño: le faltaba el módulo que produce el material |
 | Prioridad | `priority` + `blocking_priorities` (`RM-C2`) | **colapsar en el perfil de rigor** |
-| Grafo, métricas, eventos | `sf graph`, `sf metrics`, `sf events` | **fuera.** Sin consumidor antes y sin consumidor en este contrato |
+| Grafo, métricas, eventos | `sf graph`, `sf metrics`, `sf events` | **fuera.** Sin consumidor antes y sin consumidor en este contrato — y bajo el corolario de poda de §2.1, ningún skill los invoca en un punto de decisión |
+
+### 9.2 El `toolchain` de arranque
+
+**Esto es configuración, no contrato.** Las herramientas se cambian editando
+`toolchain.yaml`; que una quede obsoleta **NO DEBE** requerir tocar este documento. Va acá
+sólo para que la primera implementación no tenga que investigar de cero.
+
+| Hecho | Multi-lenguaje *(preferido)* | Go | Python | JS/TS | Rust |
+|---|---|---|---|---|---|
+| **F1** símbolos (AST) | `ast-grep` | — | — | — | — |
+| **F5** complejidad | `rust-code-analysis` · `lizard` | `gocyclo` | `radon` | — | — |
+| **F5** cobertura por función | — | `go test -coverprofile` | `coverage.py` | `c8` | `cargo-llvm-cov` |
+| **F6** mutación | — | `gremlins` · `go-mutesting` | `mutmut` · `cosmic-ray` | `Stryker` | `cargo-mutants` |
+| **F3** tests | el comando del proyecto | — | — | — | — |
+
+**Notas de selección:**
+
+- **F1 con `ast-grep`** cubre Go, Python, JS/TS, Rust, Java y varios más **con un solo
+  binario** — o sea, un adaptador en vez de seis. Es el caso más claro de la preferencia
+  multi-lenguaje de §3.0.
+- **F5 no tiene una sola herramienta que dé las dos mitades.** La complejidad sí es
+  multi-lenguaje; la **cobertura no lo es** y siempre va a ser nativa del lenguaje. Es el
+  adaptador más caro de los tres, y hay que contarlo como tal.
+- **F6 es irreduciblemente per-lenguaje.** No existe un mutador multi-lenguaje serio: mutar
+  exige entender la semántica, no sólo la sintaxis. Cada lenguaje nuevo cuesta un adaptador
+  entero — razón de más para que F6 viva sólo en `strict` (§7).
+
+> **Primer lenguaje: Python.** Es el de `examples/slugify`, que es donde el contrato ya se
+> validó a mano (`validation/slugify.md`) y donde está el único resultado de F6 medido.
+> Segundo: **Go**, porque es SpecForge mismo y es lo que habilita usar SpecForge sobre
+> SpecForge. **NO DEBERÍA** declararse soporte de un lenguaje sin un ejemplo que lo ejercite
+> punta a punta.
 
 ---
 
