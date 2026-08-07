@@ -243,9 +243,20 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │      ← el modelo se elige GRANDE, no "el que corresponda"       │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ㉒  "GENERÁ TESTS MUTANTES"                                    │
+  │                                                                 │
+  │      para verificar que los TESTS estén bien                    │
+  │                                                                 │
+  │      ← los mutantes los GENERA EL MODELO,                       │
+  │        no una herramienta de mutación                           │
+  │      ← único paso que duda de los tests. Todo lo anterior       │
+  │        les creía                                                │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ㉒  ACÁ SE CORTA LO QUE SÉ                                     ║
-  ║     Ya está revisada… ¿y después qué?                           ║
+  ║  ㉓  ACÁ SE CORTA LO QUE SÉ                                     ║
+  ║     Los tests aguantaron la mutación… ¿y después qué?           ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -442,6 +453,25 @@ implementación cumpla la historia es otra cosa, y ningún test verde la contest
 
 **Y acá sí hay ojos frescos.** En el ⑳ el que implementó se verifica a sí mismo; en el ㉑
 interviene un actor que no escribió el código.
+
+### Tres verificaciones, tres preguntas distintas
+
+No es "revisar" tres veces. Cada paso pregunta otra cosa, y ninguna contesta la del otro:
+
+| | La pregunta | Contra qué se compara |
+|---|---|---|
+| ⑳ | ¿el código hace lo que los tests dicen? | el código, contra **los tests** |
+| ㉑ | ¿lo hecho satisface la feature? | la cadena entera, contra **la historia** |
+| ㉒ | **¿los tests prueban algo?** | los tests, contra **la mutación** |
+
+**El ㉒ es el único paso que duda de los tests.** Del ⑲ al ㉑ los tests son la vara; acá
+pasan a ser lo medido. Y no es redundante: el ⑳ se apoya en que los tests sirvan, y eso
+recién se cuestiona dos pasos después.
+
+**Los mutantes los genera el modelo**, no una herramienta de mutación. *"Le solicito que
+genere test mutantes."*
+
+> Queda por saber **quién los corre** y qué pasa cuando un mutante sobrevive. No lo asumo.
 
 ### Dos momentos de elegir modelo, con lógicas opuestas
 
