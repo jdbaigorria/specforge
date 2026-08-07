@@ -59,18 +59,26 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
    diciendo POR QUÉ       el brief se reescribe        │
    NO lo hice                                          ▼
                                         ┌──────────────────────────┐
-                                        │  ⑦  RECIÉN ACÁ, EL PRD   │
-                                        │  la decisión ya está     │
-                                        │  tomada: esto define     │
-                                        │  QUÉ se construye        │
+                                        │  ⑦  LE PIDO EL PRD       │
+                                        │                          │
+                                        │  misma conversación —    │
+                                        │  la IA ya tiene el brief │
+                                        │  en el contexto          │
+                                        │                          │
+                                        │  "generame un prd        │
+                                        │   completo sobre el      │
+                                        │   producto que estuvimos │
+                                        │   conversando"           │
+                                        │                          │
+                                        │  → sale un PRD completo, │
+                                        │    de una sola vez       │
                                         └────────────┬─────────────┘
                                                      ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑧  DE ACÁ EN ADELANTE NO SÉ CÓMO TRABAJÁS DE VERDAD            ║
-  ║     Sólo sé que "a veces el PRD lo paso directo a propose o     ║
-  ║     a un generador de historias de usuario".                    ║
-  ║     Todo lo demás que tengo es lo que las herramientas te       ║
-  ║     OBLIGABAN a hacer, no lo que vos elegís hacer.              ║
+  ║  ⑧  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Llega el PRD… ¿y después qué?                               ║
+  ║     Lo único que tengo es "a veces el PRD lo paso directo a     ║
+  ║     propose o a un generador de historias de usuario".          ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -111,6 +119,25 @@ Mover el documento antes de la decisión es lo que le da a ⑥ algo que sellar.
   "paso 2, paso 3, paso 4" — es dar vueltas hasta que cierra.
 - **El ⑥ es el único lugar donde hay una decisión de verdad**, y es tuya, y a veces va en
   contra de lo que la IA dice.
+
+### El brief no es un archivo: vive en la conversación
+
+Tus palabras sobre el ⑦: *"le digo a la ia **quien ya tiene el brief (lo tiene entre las
+conversaciones)** que arme un prd"*.
+
+Dos observaciones, sin sacar conclusiones todavía:
+
+- **El brief y el PRD se generan en el mismo hilo.** No hay entrega de un artefacto: la
+  continuidad **es la conversación**.
+- **Por eso el sello del paso ⑥ hoy no tiene sobre qué caer.** No se puede sellar un chat. Es
+  la misma causa de lo que ya habías dicho: que el porqué, lo descartado y lo objetado se
+  pierden.
+
+### Hueco pendiente, para volver después
+
+Dijiste *"un prd completo sobre el **producto**"*. Eso describe el caso de **un producto
+nuevo**. Falta saber qué pasa cuando lo que arranca no es un producto sino **una feature**
+sobre algo que ya existe. No lo asumo — queda anotado para preguntarlo cuando toque.
 
 ### Un tipo de "por qué" que hay que dejar entrar
 
