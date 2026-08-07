@@ -201,9 +201,24 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │      ← "siempre". No es condicional                             │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑳  "CORRÉ LOS TESTS Y VERIFICÁ QUE PASAN TODOS"                │
+  │                                                                 │
+  │            ┌──────────────────────────────┐                     │
+  │            │   ¿pasan todos?              │                     │
+  │            └────┬────────────────────┬────┘                     │
+  │                 │ no                 │ sí                       │
+  │                 ▼                    │                          │
+  │      "revisá el fallo                │                          │
+  │       y corregilo"                   │                          │
+  │                 │                    │                          │
+  │                 └──── vuelve ────────┤                          │
+  │                    a correrlos       │                          │
+  └──────────────────────────────────────┼──────────────────────────┘
+                                         ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑳  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     El modelo implementó… ¿y después qué?                       ║
+  ║  ㉑  ACÁ SE CORTA LO QUE SÉ                                     ║
+  ║     Los tests pasan… ¿y después qué?                            ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -347,6 +362,23 @@ Lo habitual sería "escribí los tests, después implementá". Vos pedís algo m
 
 **El 2 y el 3 son un paso propio.** No alcanza con que los tests existan: hay que verlos
 fallar. Y lo pedís con *"siempre"*, no como recomendación.
+
+### El ciclo de tests aparece dos veces, con signo opuesto
+
+| Momento | Qué se busca | Quién lo hace |
+|---|---|---|
+| ⑲ antes de implementar | que los tests **fallen** | el modelo que va a implementar |
+| ⑳ después de implementar | que los tests **pasen** | el mismo modelo |
+
+Tres cosas registradas, sin conclusiones:
+
+- **El mismo actor escribe el código, corre los tests y reporta el resultado.** Es la
+  topología del paso, no un juicio sobre ella.
+- **El bucle de corrección no tiene salida declarada** más que *"pasan todos"*. No dijiste
+  qué pasa si falla muchas veces seguidas, ni si en algún momento entrás vos. Queda como
+  pregunta.
+- **Es el único bucle del flujo donde no aparecés.** Los otros dos —el del brief ②–⑤ y el
+  del plan ⑰— los cerrás vos. Éste se cierra solo.
 
 ### El ⑰ revela que el flujo no es de a una feature
 
