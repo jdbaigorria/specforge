@@ -98,23 +98,50 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌─────────────────────────────────────────────────────────────────┐
-  │  ⑨  LAS HISTORIAS DE USUARIO                                    │
+  │  ⑨  LAS HISTORIAS DE USUARIO → EL BACKLOG                       │
   │                                                                 │
   │      con la constitución ya armada, se las pido                 │
-  │                        │                                        │
-  │                        ▼                                        │
-  │      LAS CONVIERTO EN MI BACKLOG                                │
-  │      ← primera vez que la salida no es un documento             │
-  │        para leer, sino una COLA DE TRABAJO                      │
+  │                                                                 │
+  │      .docs/backlog/                                             │
+  │        ├── backlog.md   ← el índice                             │
+  │        ├── us-1.md                                              │
+  │        ├── us-2.md                                              │
+  │        └── us-#.md                                              │
+  │                                                                 │
+  │      ← primera salida que no es para leer sino para TRABAJAR    │
+  │      ← primera vez que aparecen IDs estables                    │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑩  EL ROADMAP DE TRABAJO                                       │
+  │      entra: el backlog                                          │
+  │      se lo pido a la IA                                         │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑩  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Ya hay backlog… ¿y después qué?                             ║
+  ║  ⑪  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Ya hay roadmap… ¿y después qué?                             ║
   ║     Lo único que tengo es "a veces el PRD lo paso directo a     ║
   ║     propose o a un generador de historias de usuario".          ║
   └═════════════════════════════════════════════════════════════════┘
 ```
+
+## Lo que queda en el repo
+
+```
+proyecto/                 ← siempre con git, desde el arranque
+  .docs/
+    brief.md              ⑤+⑥  con el veredicto "como leyenda"
+    prd.md                ⑦
+    constitucion.md       ⑧    arquitectura + stack
+    backlog/
+      backlog.md          ⑨    índice
+      us-1.md  us-2.md …  ⑨    una por historia, con ID
+    roadmap.md            ⑩
+```
+
+*(los nombres de archivo son mi suposición de formato; lo relevado es la **estructura**:
+`.docs/`, la carpeta `backlog/` con índice y `us-#`)*
 
 ### Las tres reglas del paso ⑥
 
@@ -220,6 +247,11 @@ Dos observaciones, sin conclusiones:
 - **Es el primer paso donde no mencionaste un "yo decido".** En ⑥ y ⑧ lo dijiste explícito.
   Acá pedís y recibís. **No concluyo que no exista** — puede que sea tan obvio que no valga
   mencionarlo, o que revises las historias antes de aceptarlas. Queda como pregunta.
+- **Es la primera vez que aparecen identificadores.** *"una carpeta backlog con un
+  backlog.md como índice y los `us-#`"*. Todo lo anterior eran documentos de prosa; acá hay
+  **unidades direccionables**, cada una con su archivo y su número.
+- **El patrón índice + ítems aparece por primera vez:** un archivo que lista, N archivos con
+  el contenido.
 
 ### Huecos pendientes, para volver después
 
