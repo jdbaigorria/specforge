@@ -84,9 +84,22 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
                                         │  → quedan versionados    │
                                         └────────────┬─────────────┘
                                                      ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑧  LA CONSTITUCIÓN DEL PROYECTO                                │
+  │      arquitectura + stack tecnológico                           │
+  │                                                                 │
+  │      entra: el PRD                                              │
+  │                                                                 │
+  │      la IA me PREGUNTA y me SUGIERE                             │
+  │        "¿qué lenguaje vas a usar?" + una sugerencia             │
+  │                        │                                        │
+  │                        ▼                                        │
+  │      YO DECIDO.  ← la última palabra es mía, otra vez           │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑧  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     El PRD ya está en .docs/ y versionado… ¿y después qué?      ║
+  ║  ⑨  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Ya está la constitución… ¿y después qué?                    ║
   ║     Lo único que tengo es "a veces el PRD lo paso directo a     ║
   ║     propose o a un generador de historias de usuario".          ║
   └═════════════════════════════════════════════════════════════════┘
@@ -166,9 +179,23 @@ Lo que queda registrado:
 **Con esto se cae también la segunda mitad de mi lectura anterior.** Yo venía asumiendo que
 el brief y el PRD se perdían. **No se pierden: quedan como archivos versionados en git.**
 
-Lo que todavía **no** está relevado es si el **veredicto del paso ⑥** —hacelo / pivoteá / no
-lo hagas, y sus razones— queda escrito adentro de esos `.md` o se queda en el chat. No lo
-asumo.
+**Y el veredicto del ⑥ también queda escrito.** Preguntado si el "hacelo / pivoteá / no lo
+hagas" y sus razones sobrevivían: *"Sí quedan como leyenda"*.
+
+> Queda pendiente saber **con qué forma** — "leyenda" puede ser una nota al pie, un
+> encabezado o un párrafo suelto. No cambia el hecho de que está escrito; sí cambiaría qué
+> tan fácil es encontrarlo después. No lo asumo.
+
+### Un patrón que ya aparece dos veces
+
+| Paso | Qué hace la IA | Quién decide |
+|---|---|---|
+| ⑥ la decisión | recomienda con razones | **vos** |
+| ⑧ la constitución | pregunta y sugiere | **vos** |
+
+*"me pregunta qué lenguaje voy a usar y me sugiere alguno pero como siempre yo tengo la
+última decisión"*. Se registra como observación, no como conclusión: **en los dos puntos
+donde hay que elegir, la IA propone y la última palabra es tuya.**
 
 ### Hueco pendiente, para volver después
 
