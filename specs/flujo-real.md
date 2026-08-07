@@ -7,49 +7,64 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
 
 ---
 
-## El flujo, como lo entendí
+## El flujo
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
   │  ①  SE ME OCURRE ALGO                                           │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
+  ╔═════════════════════════════════════════════════════════════════╗
+  ║        ACÁ SE ARMA EL BRIEF  —  y es un BUCLE, no una fila      ║
+  ╠═════════════════════════════════════════════════════════════════╣
+  ║                                                                 ║
+  ║   ②  LE TIRO LA IDEA A LA IA Y PINPONEO                         ║
+  ║      Claude, Opus, effort xhigh · "para darle forma"            ║
+  ║                          │                                      ║
+  ║                          ▼                                      ║
+  ║   ③  BUSCO SI YA EXISTE                                         ║
+  ║      Perplexity · herramientas similares                        ║
+  ║                          │                                      ║
+  ║                          ▼                                      ║
+  ║   ④  LE PASO EL REPO A LA IA PARA QUE LO REVISE                 ║
+  ║      ¿me sirve algo? ¿qué diferencia tiene lo mío?              ║
+  ║      ¿se complementa? ¿por qué crearlo en vez de usarlo?        ║
+  ║      ¿conviene forkearlo?                                       ║
+  ║                          │                                      ║
+  ║                          ▼                                      ║
+  ║             ┌────────────────────────┐                          ║
+  ║             │  ⑤  ¿HAY CONSENSO?     │──── no ──┐               ║
+  ║             │  qué quiero crear      │          │               ║
+  ║             │  y POR QUÉ             │◄─────────┘               ║
+  ║             └───────────┬────────────┘   vuelve a ②/③/④         ║
+  ║                         │ sí                                    ║
+  ╚═════════════════════════╪═══════════════════════════════════════╝
+                            │
+                            ▼   ✔ el BRIEF está terminado
   ┌─────────────────────────────────────────────────────────────────┐
-  │  ②  LE TIRO LA IDEA A LA IA Y PINPONEO                          │
-  │     Claude, Opus, effort xhigh · "para darle forma"             │
-  │     ida y vuelta, sin formato                                   │
-  └────────────────────────────┬────────────────────────────────────┘
-                               ▼
-  ┌─────────────────────────────────────────────────────────────────┐
-  │  ③  BUSCO SI YA EXISTE                                          │
-  │     Perplexity · herramientas similares                         │
-  └────────────────────────────┬────────────────────────────────────┘
-                               ▼
-  ┌─────────────────────────────────────────────────────────────────┐
-  │  ④  LE PASO EL REPO A LA IA PARA QUE LO REVISE                  │
-  │     ¿me sirve algo? ¿qué diferencia tiene lo mío?               │
-  │     ¿se complementa? ¿por qué crearlo en vez de usarlo?         │
-  │     ¿conviene forkearlo?                                        │
-  └────────────────────────────┬────────────────────────────────────┘
-                               ▼
-                    ┌──────────────────────┐
-                    │  ⑤  ¿HAY CONSENSO?   │──── no ──┐
-                    │  qué quiero crear    │          │
-                    │  y POR QUÉ           │◄─────────┘
-                    └──────────┬───────────┘      vuelve a ②/③/④
-                               │ sí
-                               ▼
-                    ┌──────────────────────┐
-                    │  ⑥  ¿LO HAGO?        │──── la IA dice que no ──┐
-                    └──────────┬───────────┘                         │
-                               │                          a veces lo hago igual
-                               │◄────────────────────────────────────┘
-                               ▼
-  ┌─────────────────────────────────────────────────────────────────┐
-  │  ⑦  ESCRIBO UN BRIEF / PRD                                      │
-  │     con el link a lo que me inspiró                             │
-  └────────────────────────────┬────────────────────────────────────┘
-                               ▼
+  │  ⑥  LA DECISIÓN  —  acá se sella el brief                       │
+  │                                                                 │
+  │     la IA RECOMIENDA:  hacelo / pivoteá / no lo hagas           │
+  │                        …con sus razones                         │
+  │                                                                 │
+  │     YO SELLO.  ← la última palabra es mía, SIEMPRE              │
+  │                  la IA nunca sella sola, ni frena nada sola     │
+  └───────┬──────────────────────┬──────────────────────┬───────────┘
+          │                      │                      │
+      NO LO HAGAS            PIVOTEÁ                  HACELO
+          │                      │                      │
+          ▼                      ▼                      ▼
+   se archiva.            vuelve al ②.              sigue
+   Queda el brief         La idea cambia y             │
+   diciendo POR QUÉ       el brief se reescribe        │
+   NO lo hice                                          ▼
+                                        ┌──────────────────────────┐
+                                        │  ⑦  RECIÉN ACÁ, EL PRD   │
+                                        │  la decisión ya está     │
+                                        │  tomada: esto define     │
+                                        │  QUÉ se construye        │
+                                        └────────────┬─────────────┘
+                                                     ▼
   ┌═════════════════════════════════════════════════════════════════┐
   ║  ⑧  DE ACÁ EN ADELANTE NO SÉ CÓMO TRABAJÁS DE VERDAD            ║
   ║     Sólo sé que "a veces el PRD lo paso directo a propose o     ║
@@ -58,6 +73,24 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   ║     OBLIGABAN a hacer, no lo que vos elegís hacer.              ║
   └═════════════════════════════════════════════════════════════════┘
 ```
+
+### Las tres reglas del paso ⑥
+
+1. **El brief se sella acá, no antes.** Los pasos ② a ⑤ lo arman; ⑥ lo cierra.
+2. **La IA recomienda, vos sellás.** Nunca al revés. La IA **no tiene poder de veto**: un
+   "no lo hagas" es una objeción, no un freno.
+3. **"No lo hagas" no tira el trabajo.** El brief queda igual, y ahora dice por qué NO lo
+   hiciste — que es justo lo que hoy se pierde.
+
+### Esto es un CAMBIO a tu flujo, no una relectura
+
+Hoy el documento se escribe **después** de decidir: *"una vez que se define que sí vamos a
+implementar creamos lo que sería un brief o prd"*.
+
+O sea que hoy, en rigor, **no hay brief**: hay un PRD, y la decisión pasa en tu cabeza y en
+un chat que después se pierde. **El paso ⑥ hoy no deja nada.**
+
+Mover el documento antes de la decisión es lo que le da a ⑥ algo que sellar.
 
 ---
 
@@ -69,8 +102,8 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
 | ③ | búsqueda | *"con perplexity busco si ya existe algo similar"* |
 | ④ | revisión del repo ajeno | *"le paso el repo a claude para que lo revise, ver si me sirve algo o qué diferencia tiene mi idea con lo ya creado"* |
 | ⑤ | consenso | *"hasta llegar a un consenso de lo que quiero crear y porque deseo crearlo"* |
-| ⑥ | lo hago igual | *"a veces hay ideas que me las rechaza pero lo mismo quiero hacerlas"* |
-| ⑦ | el brief | *"una vez que se define que si vamos a implementar creamos lo que seria un brief o prd"* |
+| ⑥ | sello yo | *"la ia recomienda pero sello yo"* · *"a veces hay ideas que me las rechaza pero lo mismo quiero hacerlas"* |
+| ⑦ | el documento | *"una vez que se define que si vamos a implementar creamos lo que seria un brief o prd"* — hoy va después de decidir; se mueve antes (ver arriba) |
 
 **Dos cosas que se ven solas mirando el dibujo:**
 
@@ -78,6 +111,19 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   "paso 2, paso 3, paso 4" — es dar vueltas hasta que cierra.
 - **El ⑥ es el único lugar donde hay una decisión de verdad**, y es tuya, y a veces va en
   contra de lo que la IA dice.
+
+### Un tipo de "por qué" que hay que dejar entrar
+
+Cuando sellaste en contra de la recomendación, la razón fue esta, textual:
+
+> *"lo mismo lo hice porque quería aprender x cosa y venía al pelo el proyecto"*
+
+**Aprender algo es un motivo válido para construir**, y ningún marco de producto lo aceptaría
+— no hay usuario, no hay dolor medido, no hay mercado. Pero es real, lo usaste varias veces,
+y las decisiones salieron bien.
+
+Queda anotado acá para que cualquier regla futura del estilo *"el porqué tiene que estar
+anclado a algo observado"* **no lo rechace por accidente**.
 
 ---
 
