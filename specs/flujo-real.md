@@ -127,43 +127,50 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌─────────────────────────────────────────────────────────────────┐
-  │  ⑫  BRAINSTORMING DE IMPLEMENTACIONES                           │
-  │      "posibles implementaciones, y elegí la más óptima"         │
+  │  ⑫  "BUSCÁ 3 IMPLEMENTACIONES POSIBLES Y QUEDATE CON            │
+  │       LA MÁS ÓPTIMA"                                            │
   │                                                                 │
-  │      ← lo pedís EXPLÍCITAMENTE ANTES DE DISEÑAR                 │
-  │      ← es el segundo momento de divergir del flujo entero       │
+  │      ← TRES. Un número, no "varias"                             │
+  │      ← segundo momento de divergir del flujo entero             │
   │        (el primero fue el pinponeo del ②)                       │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼ ya hay una solución elegida
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑬  "ESCRIBÍ LA ESPECIFICACIÓN JUNTO CON EL DISEÑO"             │
+  │                                                                 │
+  │      ← de LA SOLUCIÓN ELEGIDA, no del requisito                 │
+  │        (el requisito ya venía del us-#)                         │
+  │      ← van JUNTOS, en un solo pedido                            │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌─────────────────────────────────────────────────────────────────┐
-  │  ⑬  LA PROPUESTA DE LA FEATURE  —  todo de una sola vez         │
+  │  ⑭  "DIVIDÍ LA IMPLEMENTACIÓN EN TAREAS,                        │
+  │       AGRUPADAS PARA QUE CORRAN EN PARALELO"                    │
   │                                                                 │
-  │      · spec                                                     │
-  │      · design                                                   │
-  │      · task                                                     │
-  │      · planificación del wave                                   │
-  │      · los tests                                                │
-  │      · la complejidad                                           │
-  │      · un modelo de IA recomendado para implementarla           │
+  │      ← el agrupamiento tiene un motivo declarado:               │
+  │        PARALELIZAR. No son etapas, son lotes                    │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑮  "DECIME QUÉ TESTS HAY QUE CREAR                             │
+  │       ANTES DE CUALQUIER IMPLEMENTACIÓN"                        │
   │                                                                 │
-  │      ← primer paso que produce MUCHAS cosas en un solo pedido   │
-  │      ← los TESTS se planifican ACÁ, antes de implementar        │
-  │      ← complejidad → recomendación de modelo (una cadena)       │
+  │      ← los tests van PRIMERO. Dicho explícito                   │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑯  "SEGÚN LA COMPLEJIDAD, RECOMENDAME QUÉ MODELO USAR"         │
+  │                                                                 │
+  │      lee:  .docs/<modelos>.yaml   ← catálogo propio             │
+  │      ← complejidad → modelo, es una cadena                      │
+  │      ← primera decisión sobre QUÉ RECURSO gastar                │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑭  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Está la propuesta… ¿y después qué?                          ║
+  ║  ⑰  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Está todo planificado… ¿y después qué?                      ║
   └═════════════════════════════════════════════════════════════════┘
 ```
-
-> **⚠ Dos cosas del ⑬ que NO están relevadas y no invento:**
->
-> 1. **El orden interno.** Lo único que dijiste explícito es *"antes de diseñar,
->    brainstorming"*. Si `spec` va antes del brainstorming (specificás el **qué**, después
->    barajás el **cómo**) es una lectura mía, no un dato.
-> 2. **Si hay punto de decisión.** Es el **tercer paso seguido** sin un "yo decido"
->    declarado, y es el que más produce.
 
 ## Lo que queda en el repo
 
@@ -177,6 +184,9 @@ proyecto/                 ← siempre con git, desde el arranque
       backlog.md          ⑨    índice
       us-1.md  us-2.md …  ⑨    una por historia, con ID
     roadmap.md            ⑩
+    <modelos>.yaml        ⑯    catálogo de modelos de IA · NO lo genera la IA:
+                               es tuyo, y es el insumo de la única decisión
+                               de recursos del flujo
 ```
 
 *(los nombres de archivo son mi suposición de formato; lo relevado es la **estructura**:
@@ -306,16 +316,43 @@ Dos observaciones, sin conclusiones:
 - **Segundo paso seguido sin "yo decido" declarado.** ⑨ y ⑩ los pedís y los recibís. Lo
   registro como acumulación de la misma pregunta abierta del ⑨, no como conclusión.
 
-### ⚠ Alerta de método en el paso ⑬
+### Alerta de método del tramo ⑫–⑯ — resuelta
 
-**El ⑬ está descrito con el vocabulario de SpecForge**: *propuesta*, *spec*, *design*,
-*task*, *wave*. Son los nombres de la herramienta, no palabras neutras.
+Este tramo estaba descrito con vocabulario de SpecForge (*propuesta*, *spec*, *design*,
+*task*, *wave*), y eso amenazaba con describir la herramienta en vez del trabajo.
 
-Este documento se escribió justamente para **no** anclarse en lo construido. Si el ⑬ es "lo
-que hago cuando uso SpecForge", entonces en este paso estamos describiendo la herramienta y
-no el trabajo — que es el error que se venía corrigiendo.
+**Resuelto: lo haría igual sin la herramienta.** *"Lo haría igual porque uso la IA para que
+realice el trabajo."* El tramo se reescribió con las palabras del pedido real, y ahí quedó a
+la vista lo que el vocabulario tapaba:
 
-**No lo resuelvo solo.** Está preguntado; la respuesta va acá.
+| El nombre de la herramienta decía | Lo que en realidad pedís |
+|---|---|
+| "planificá el wave" | **agrupá las tareas para que corran en paralelo** |
+| "creá el spec y el design" | **escribí la especificación de la solución que elegiste, con su diseño** |
+| "los tests" | **decime qué tests hay que crear ANTES de cualquier implementación** |
+
+**El caso de "wave" es el más claro:** el nombre no dice nada, y el pedido real tiene un
+motivo — paralelizar. Son lotes, no etapas.
+
+### Corrección: el brainstorming va antes de la especificación
+
+Yo había leído que primero se especifica el **qué** y después se baraja el **cómo**. **Es al
+revés.**
+
+*"Le digo que haga un brainstorming para que vea 3 posibles implementaciones y se quede con
+la más óptima. Una vez que encontró la solución le digo que cree una especificación junto
+con el diseño **de la misma**."*
+
+**Y es coherente, no un desorden:** el *qué* ya estaba resuelto — viene del `us-#`. Lo que se
+especifica acá es **la solución elegida**, no el requisito. Por eso especificación y diseño
+van juntos: son dos vistas de la misma decisión técnica.
+
+### Tres cosas más de este tramo
+
+- **"3 implementaciones", con número.** No *"varias"*, no *"las que se te ocurran"*. Tres.
+- **Los tests van primero, dicho explícito.** *"antes de cualquier implementación"*.
+- **Aparece un artefacto nuevo que no estaba en el mapa: un `.yaml` de modelos en `.docs/`.**
+  Es un catálogo propio, y es el insumo de la única decisión de recursos del flujo.
 
 ### Huecos pendientes, para volver después
 
