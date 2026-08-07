@@ -13,10 +13,14 @@ SpecForge arranca en `sf propose`. O sea: **asume que ya sabés qué construir.*
 Falta todo lo de antes — de "se me ocurrió algo" a "esto es lo que hay que construir y por
 qué". Eso es Inception, y son dos fases:
 
-- **Spark** — *la chispa*. Decide **si lo hago y por qué**.
-- **Flame** — *preparar el fuego*. Decide **qué es exactamente**.
+- **Spark** — *la chispa*. Decide **si lo hago y por qué**. → el **brief**
+- **Flame** — *preparar el fuego*. Decide **qué es exactamente**. → **PRD, historias, constitución**
 
 Después recién entra Forge, que es construir.
+
+> **Las dos corren siempre, y en ese orden.** No son alternativas ni dependen del tipo de
+> proyecto. Lo que cambia según el caso es **cuánto pesa cada una** (§5.1), nunca cuál se
+> usa. Un Spark de cinco líneas sigue siendo un Spark; un Spark salteado es un agujero.
 
 ---
 
@@ -126,15 +130,60 @@ Lo que ya está escrito y sirve tal cual o casi:
 
 ## 5. La decisión
 
-**Proceder.** Con dos condiciones que salen de las quejas medidas:
+**Proceder.** Con dos condiciones que salen de las quejas medidas.
 
-1. **Inception tiene dos modos.** Proyecto nuevo (PRD del MVP + constitución + historias) y
-   feature nueva sobre algo existente (sólo la rebanada; la constitución ya está). El
-   *"para features chicas era overkill"* pasaba porque había un solo modo y era el pesado.
-2. **Cada fase pregunta sólo lo contestable en esa fase.** Lo que hizo abandonar OpenSpec no
-   fue el número de pasos: fue que preguntaba **cómo implementar** algo durante la fase de
-   spec. Eso es una pregunta de Forge hecha en Inception. Lo que no toca, se difiere — no se
-   inventa ni bloquea.
+### 5.1 Condición 1 — dos ejes cruzados, no uno
+
+**Fase** y **modo** son ejes distintos, y confundirlos es el error más fácil de cometer acá.
+
+- **Fase:** Spark → Flame. **Siempre las dos, siempre en ese orden.**
+- **Modo:** qué tan pesada es cada fase, según de dónde venís.
+
+|  | **Spark** — ¿lo hago y por qué? | **Flame** — ¿qué es exactamente? |
+|---|---|---|
+| **Proyecto nuevo** | ¿vale la pena? ¿ya existe en el mercado? ¿por qué yo y no forkear? | PRD del MVP + **constitución** + historias |
+| **Feature nueva** | ¿vale la pena? **¿no lo resuelve algo que ya tengo?** | sólo las historias de la rebanada. La constitución **ya está** |
+
+> **Spark importa MÁS en el modo feature, no menos.** El 43% de superficie sin usuario que
+> la pidiera (§2.2) **no entró como proyectos: entró de a una feature por vez**, y cada una
+> parecía razonable en el momento. Si Spark corriera sólo para proyectos nuevos, SpecForge
+> no tendría ninguna defensa contra justo la enfermedad que se le midió.
+>
+> Para una feature chica Spark son cinco líneas. Cinco líneas escritas, no cero.
+
+**El "para features chicas era overkill" se explica acá:** el flujo viejo tenía un solo
+modo, el pesado, y lo hacía correr entero para cualquier cosa.
+
+### 5.2 Adoptar SpecForge sobre código que ya existe
+
+Es un tercer caso, distinto de los dos del cuadro, y no estaba cubierto: **el proyecto ya
+existe y nunca usó SpecForge** (es lo que ejercita `examples/brownfield-tempconv`).
+
+**No es una fase nueva.** Es una entrada, y ocurre **una sola vez**:
+
+| Momento | Qué pasa |
+|---|---|
+| **Al adoptar** (`sf init`) | se **deriva** la constitución mínima leyendo el repo: lenguaje, comando de test, poco más. Es mecánico —`go.mod`, `package.json`, el script de test— y no requiere decidir nada |
+| **Después** | Spark y Flame normales, en modo *feature nueva*, una feature por vez |
+
+**Propuesta (mía, a discutir — ver Q7): la ingesta del código existente es perezosa y por
+feature, no un big bang.** No hace falta documentar el proyecto entero para empezar a usar
+SpecForge sobre él; hace falta entender lo que **la próxima feature toca**.
+
+Y ese entendimiento ya tiene dónde vivir: es la pregunta de Spark en modo feature —
+*"¿no lo resuelve algo que ya tengo?"*. En greenfield esa pregunta se contesta buscando en
+el mercado; en brownfield, buscando **también dentro del repo**. Misma pregunta, dos
+espacios de búsqueda.
+
+> **Por qué perezosa.** Un onboarding que exige documentar todo lo existente antes de dejarte
+> hacer nada es el overkill de OpenSpec con otro nombre — y encima aplicado al peor momento,
+> que es cuando todavía no sabés si la herramienta te sirve.
+
+### 5.3 Condición 2 — cada fase pregunta sólo lo contestable en esa fase
+
+Lo que hizo abandonar OpenSpec no fue el número de pasos: fue que preguntaba **cómo
+implementar** algo durante la fase de spec. Eso es una pregunta de Forge hecha en Inception.
+Lo que no toca, **se difiere** — no se inventa ni bloquea.
 
 ---
 
@@ -150,6 +199,7 @@ Cada una con **la fase que la contesta**. Inception no las resuelve: las nombra.
 | Q4 | El PRD es el mapa y las historias el entregable. Si el PRD cambia, la IA resincroniza — pero, ¿qué pasa con las historias **ya construidas**? | **Forge** |
 | Q5 | ¿El "por qué" del brief y el "por qué" del proyecto (constitución) son dos niveles? ¿Cuál manda si chocan? | **Flame** |
 | Q6 | ¿Qué se registra del brief en el ledger: el documento entero, o sólo la decisión y su hash? | **capa cross**, al final |
+| Q7 | Adopción sobre código existente (§5.2): ¿la ingesta es perezosa y por feature, o hace falta un barrido inicial? Y si es perezosa, ¿cuánto contexto necesita Spark para contestar *"¿no lo resuelve algo que ya tengo?"* sin leer el repo entero? | **Spark**, al caminarlo en modo brownfield |
 
 > **Q4 tiene un riesgo ya identificado.** Regenerar historias pisa la spec de cosas que ya
 > existen, en silencio. La regla propuesta: **el resync muestra un diff y marca cuáles ya
@@ -218,3 +268,13 @@ observar de él como prueba del formato:
   consumidor. Sospechamos que ese es el campo con mejor relación valor/esfuerzo.
 - **§7 (objeciones) tuvo contenido real desde el primer día**, incluida una objeción que
   resultó equivocada. Si sólo registrara las anuladas *por el humano*, se perdería ese caso.
+  El campo no es *"objeciones anuladas"* sino **"objeciones y qué pasó con ellas"**.
+- **La primera versión mezcló dos ejes y se leyó mal.** Decía "Inception tiene dos modos"
+  al lado de "Inception tiene dos fases", y el primer lector entendió que **Spark era para
+  greenfield y Flame para brownfield**. Eran cuatro combinaciones presentadas como dos.
+  **Un brief que introduce más de un eje DEBE cruzarlos en un cuadro**, no describirlos en
+  prosa uno detrás del otro. Corregido en §5.1.
+- **Escribir §5.2 destapó un caso entero que no estaba** — adoptar SpecForge sobre código
+  que ya existe. No apareció al diseñar: apareció cuando alguien leyó y preguntó *"¿y en
+  brownfield?"*. Es evidencia a favor de que el brief se lea antes de aprobarse, y de que
+  la lectura la haga alguien que no lo escribió.
