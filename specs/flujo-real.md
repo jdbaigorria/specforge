@@ -115,7 +115,11 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   ┌─────────────────────────────────────────────────────────────────┐
   │  ⑩  EL ROADMAP DE TRABAJO                                       │
   │      entra: el backlog                                          │
-  │      se lo pido a la IA                                         │
+  │                                                                 │
+  │      ORDENA  +  AGRUPA   →   prioridad: qué va antes            │
+  │                                                                 │
+  │      ← no agrega contenido nuevo: pone ORDEN sobre lo que ya    │
+  │        existe. Es una vista del backlog, no otro backlog        │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
   ┌═════════════════════════════════════════════════════════════════┐
@@ -252,6 +256,20 @@ Dos observaciones, sin conclusiones:
   **unidades direccionables**, cada una con su archivo y su número.
 - **El patrón índice + ítems aparece por primera vez:** un archivo que lista, N archivos con
   el contenido.
+
+### El ⑩ no agrega material, agrega orden
+
+*"el roadmap las ordena y agrupa para darle la prioridad de qué debería hacerse antes"*.
+
+- **Es el único artefacto derivado del anterior sin contenido propio.** Todos los demás
+  agregan algo: el PRD agrega detalle al brief, la constitución agrega el cómo técnico, las
+  historias parten el PRD. El roadmap **no agrega nada** — reordena lo que ya está.
+- **Es prioridad, no calendario.** Dijiste *"qué debería hacerse antes"*, no *"para cuándo"*.
+  Es secuencia.
+- **Queda por saber si el roadmap referencia los `us-#` o los copia.** Existiendo los IDs, lo
+  natural sería referenciar — pero no lo asumo.
+- **Segundo paso seguido sin "yo decido" declarado.** ⑨ y ⑩ los pedís y los recibís. Lo
+  registro como acumulación de la misma pregunta abierta del ⑨, no como conclusión.
 
 ### Huecos pendientes, para volver después
 
