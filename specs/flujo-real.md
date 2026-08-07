@@ -97,9 +97,20 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
   │      YO DECIDO.  ← la última palabra es mía, otra vez           │
   └────────────────────────────┬────────────────────────────────────┘
                                ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑨  LAS HISTORIAS DE USUARIO                                    │
+  │                                                                 │
+  │      con la constitución ya armada, se las pido                 │
+  │                        │                                        │
+  │                        ▼                                        │
+  │      LAS CONVIERTO EN MI BACKLOG                                │
+  │      ← primera vez que la salida no es un documento             │
+  │        para leer, sino una COLA DE TRABAJO                      │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑨  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Ya está la constitución… ¿y después qué?                    ║
+  ║  ⑩  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     Ya hay backlog… ¿y después qué?                             ║
   ║     Lo único que tengo es "a veces el PRD lo paso directo a     ║
   ║     propose o a un generador de historias de usuario".          ║
   └═════════════════════════════════════════════════════════════════┘
@@ -197,7 +208,20 @@ hagas" y sus razones sobrevivían: *"Sí quedan como leyenda"*.
 última decisión"*. Se registra como observación, no como conclusión: **en los dos puntos
 donde hay que elegir, la IA propone y la última palabra es tuya.**
 
-### Hueco pendiente, para volver después
+### El ⑨ cambia de naturaleza, y no tiene punto de decisión declarado
+
+*"luego con la constitución armada le pido las historias de usuario para convertirlas en mi
+backlog"*.
+
+Dos observaciones, sin conclusiones:
+
+- **Es la primera salida que no es para leer, es para trabajar.** Brief, PRD y constitución
+  son documentos que se consultan. El backlog es una **cola**: se consume.
+- **Es el primer paso donde no mencionaste un "yo decido".** En ⑥ y ⑧ lo dijiste explícito.
+  Acá pedís y recibís. **No concluyo que no exista** — puede que sea tan obvio que no valga
+  mencionarlo, o que revises las historias antes de aceptarlas. Queda como pregunta.
+
+### Huecos pendientes, para volver después
 
 Dijiste *"un prd completo sobre el **producto**"*. Eso describe el caso de **un producto
 nuevo**. Falta saber qué pasa cuando lo que arranca no es un producto sino **una feature**
