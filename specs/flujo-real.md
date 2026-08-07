@@ -120,18 +120,28 @@ Mover el documento antes de la decisión es lo que le da a ⑥ algo que sellar.
 - **El ⑥ es el único lugar donde hay una decisión de verdad**, y es tuya, y a veces va en
   contra de lo que la IA dice.
 
-### El brief no es un archivo: vive en la conversación
+### El brief y el PRD sí son archivos, y viven en el chat
 
 Tus palabras sobre el ⑦: *"le digo a la ia **quien ya tiene el brief (lo tiene entre las
 conversaciones)** que arme un prd"*.
 
-Dos observaciones, sin sacar conclusiones todavía:
+Aclarado después, y corrige una lectura equivocada:
 
-- **El brief y el PRD se generan en el mismo hilo.** No hay entrega de un artefacto: la
-  continuidad **es la conversación**.
-- **Por eso el sello del paso ⑥ hoy no tiene sobre qué caer.** No se puede sellar un chat. Es
-  la misma causa de lo que ya habías dicho: que el porqué, lo descartado y lo objetado se
-  pierden.
+> *"si hay un artefacto pero vive en el chat, el llm genera un md que está disponible dentro
+> de su contexto y también para bajarlo, lo mismo ocurre con el prd"*
+
+Lo que queda registrado:
+
+- **El brief es un `.md` generado**, no texto de conversación suelto. Lo mismo el PRD.
+- **Vive en dos lados a la vez:** dentro del contexto del LLM (por eso el PRD puede
+  construirse encima sin volver a explicar nada) **y** disponible para bajar.
+- **El brief y el PRD se generan en el mismo hilo**, uno encima del otro.
+
+> **Corrección.** Una versión anterior de este documento decía que *"no hay artefacto, la
+> continuidad es la conversación"*, y de ahí concluía que el sello del ⑥ no tenía sobre qué
+> caer. **La premisa era falsa: el artefacto existe.** Si el sello tiene o no dónde caer
+> depende de otra cosa —de si el `.md` queda en algún lado fuera del chat— y eso todavía no
+> está relevado.
 
 ### Hueco pendiente, para volver después
 
