@@ -181,9 +181,29 @@ Cuando esto esté bien, recién ahí se piensa la herramienta.
                            VARIAS features antes      │
                            de implementar ninguna     │
                                                       ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑱  LE PASO LA PROPUESTA AL MODELO RECOMENDADO                  │
+  │                                                                 │
+  │      ← PRIMER TRASPASO del flujo. Hasta acá era una sola        │
+  │        conversación; ahora el plan va a OTRO ejecutor           │
+  │      ← acá se consume la recomendación del ⑯: el yaml           │
+  │        de modelos deja de ser un catálogo y decide algo         │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  ⑲  IMPLEMENTA — y SIEMPRE en este orden                        │
+  │                                                                 │
+  │      1. crea los tests                                          │
+  │      2. LOS EJECUTA                                             │
+  │      3. COMPRUEBA QUE FALLAN        ← paso propio, no adorno    │
+  │      4. recién ahí implementa la solución                       │
+  │                                                                 │
+  │      ← "siempre". No es condicional                             │
+  └────────────────────────────┬────────────────────────────────────┘
+                               ▼
   ┌═════════════════════════════════════════════════════════════════┐
-  ║  ⑱  ACÁ SE CORTA LO QUE SÉ                                      ║
-  ║     Arranca la implementación… ¿y ahí qué pasa?                 ║
+  ║  ⑳  ACÁ SE CORTA LO QUE SÉ                                      ║
+  ║     El modelo implementó… ¿y después qué?                       ║
   └═════════════════════════════════════════════════════════════════┘
 ```
 
@@ -301,6 +321,32 @@ hagas" y sus razones sobrevivían: *"Sí quedan como leyenda"*.
 Y se aclara algo que venía anotado como duda: **⑨, ⑩ y ⑫–⑯ no tienen decisión propia
 porque la decisión está al final del bloque, no en cada paso.** No es que falte — está
 agrupada. Revisás una vez, sobre todo junto.
+
+### El ⑱ es el primer traspaso, y cambia lo que los artefactos tienen que aguantar
+
+Del ① al ⑰ **es una sola conversación**: cada paso se apoya en el contexto del anterior sin
+volver a explicar nada. El ⑱ rompe eso — el plan se le pasa a **otro modelo**.
+
+Consecuencia directa, y es la primera vez que aparece en el flujo: **la propuesta tiene que
+bastarse sola.** Mientras todo pasaba en un hilo, un documento incompleto se salvaba con el
+contexto de la charla. Acá no hay charla previa que lo salve.
+
+### El ⑲ tiene tres tiempos, no dos
+
+*"siempre creando primero los test **y los ejecute, para comprobar que fallan**, y luego
+comience a implementar"*.
+
+Lo habitual sería "escribí los tests, después implementá". Vos pedís algo más:
+
+| | |
+|---|---|
+| 1 | crear los tests |
+| 2 | **ejecutarlos** |
+| 3 | **ver que fallan** |
+| 4 | implementar |
+
+**El 2 y el 3 son un paso propio.** No alcanza con que los tests existan: hay que verlos
+fallar. Y lo pedís con *"siempre"*, no como recomendación.
 
 ### El ⑰ revela que el flujo no es de a una feature
 
