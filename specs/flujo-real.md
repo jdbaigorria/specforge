@@ -311,7 +311,7 @@ proyecto/                 ← siempre con git, desde el arranque
   .docs/
     brief.md              ⑤+⑥  con el veredicto "como leyenda"
     prd.md                ⑦
-    constitucion.md       ⑧    arquitectura + stack
+    constitucion.md       ⑧    arquitectura + stack + convenciones
     backlog/
       backlog.md          ⑨    índice
       us-1.md  us-2.md …  ⑨    una por historia, con ID
@@ -328,9 +328,9 @@ proyecto/                 ← siempre con git, desde el arranque
 
 1. **El brief se sella acá, no antes.** Los pasos ② a ⑤ lo arman; ⑥ lo cierra.
 2. **La IA recomienda, vos sellás.** Nunca al revés. La IA **no tiene poder de veto**: un
-   "no lo hagas" es una objeción, no un freno.
+  "no lo hagas" es una objeción, no un freno.
 3. **"No lo hagas" no tira el trabajo.** El brief queda igual, y ahora dice por qué NO lo
-   hiciste — que es justo lo que hoy se pierde.
+  hiciste — que es justo lo que hoy se pierde.
 
 ### Esto es un CAMBIO a tu flujo, no una relectura
 
@@ -346,21 +346,23 @@ Mover el documento antes de la decisión es lo que le da a ⑥ algo que sellar.
 
 ## Lo que sé con certeza, porque lo dijiste vos
 
-| # | Paso | Tus palabras |
-|---|---|---|
-| ② | pinponeo con IA | *"abro claude modelo opus effort xhigh, tiro mi idea para comenzar a darle forma"* |
-| ③ | búsqueda | *"con perplexity busco si ya existe algo similar"* |
-| ④ | revisión del repo ajeno | *"le paso el repo a claude para que lo revise, ver si me sirve algo o qué diferencia tiene mi idea con lo ya creado"* |
-| ⑤ | consenso | *"hasta llegar a un consenso de lo que quiero crear y porque deseo crearlo"* |
-| ⑥ | sello yo | *"la ia recomienda pero sello yo"* · *"a veces hay ideas que me las rechaza pero lo mismo quiero hacerlas"* |
-| ⑦ | el documento | *"una vez que se define que si vamos a implementar creamos lo que seria un brief o prd"* — hoy va después de decidir; se mueve antes (ver arriba) |
+
+| #   | Paso                    | Tus palabras                                                                                                                                      |
+| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ②   | pinponeo con IA         | *"abro claude modelo opus effort xhigh, tiro mi idea para comenzar a darle forma"*                                                                |
+| ③   | búsqueda                | *"con perplexity busco si ya existe algo similar"*                                                                                                |
+| ④   | revisión del repo ajeno | *"le paso el repo a claude para que lo revise, ver si me sirve algo o qué diferencia tiene mi idea con lo ya creado"*                             |
+| ⑤   | consenso                | *"hasta llegar a un consenso de lo que quiero crear y porque deseo crearlo"*                                                                      |
+| ⑥   | sello yo                | *"la ia recomienda pero sello yo"* · *"a veces hay ideas que me las rechaza pero lo mismo quiero hacerlas"*                                       |
+| ⑦   | el documento            | *"una vez que se define que si vamos a implementar creamos lo que seria un brief o prd"* — hoy va después de decidir; se mueve antes (ver arriba) |
+
 
 **Dos cosas que se ven solas mirando el dibujo:**
 
 - **Del ② al ⑤ es un bucle, no una fila.** Volvés a buscar, volvés a pinponear. No es
-  "paso 2, paso 3, paso 4" — es dar vueltas hasta que cierra.
+"paso 2, paso 3, paso 4" — es dar vueltas hasta que cierra.
 - **El ⑥ es el único lugar donde hay una decisión de verdad**, y es tuya, y a veces va en
-  contra de lo que la IA dice.
+contra de lo que la IA dice.
 
 ### El brief y el PRD sí son archivos, y viven en el chat
 
@@ -376,7 +378,7 @@ Lo que queda registrado:
 
 - **El brief es un `.md` generado**, no texto de conversación suelto. Lo mismo el PRD.
 - **Vive en dos lados a la vez:** dentro del contexto del LLM (por eso el PRD puede
-  construirse encima sin volver a explicar nada) **y** disponible para bajar.
+construirse encima sin volver a explicar nada) **y** disponible para bajar.
 - **El brief y el PRD se generan en el mismo hilo**, uno encima del otro.
 
 > **Corrección.** Una versión anterior de este documento decía que *"no hay artefacto, la
@@ -389,11 +391,13 @@ Lo que queda registrado:
 > versionado de todos los proyectos que inicio, suelo guardarlo en una carpeta llamada
 > `.docs`"*
 
-| Hecho | Detalle |
-|---|---|
-| Los `.md` se bajan | no quedan sólo en el chat |
-| Van al **repo del proyecto** | carpeta `.docs/` |
-| **Siempre hay git** | lo inicializás en todo proyecto que arrancás, para versionar |
+
+| Hecho                        | Detalle                                                      |
+| ---------------------------- | ------------------------------------------------------------ |
+| Los `.md` se bajan           | no quedan sólo en el chat                                    |
+| Van al **repo del proyecto** | carpeta `.docs/`                                             |
+| **Siempre hay git**          | lo inicializás en todo proyecto que arrancás, para versionar |
+
 
 **Con esto se cae también la segunda mitad de mi lectura anterior.** Yo venía asumiendo que
 el brief y el PRD se perdían. **No se pierden: quedan como archivos versionados en git.**
@@ -407,11 +411,13 @@ hagas" y sus razones sobrevivían: *"Sí quedan como leyenda"*.
 
 ### El patrón, ya con tres casos
 
-| Paso | Qué hace la IA | Quién decide | Salidas |
-|---|---|---|---|
-| ⑥ la decisión | recomienda con razones | **vos** | hacelo / pivoteá / no lo hagas |
-| ⑧ la constitución | pregunta y sugiere | **vos** | — |
-| ⑰ la planificación | produce todo el plan | **vos** | cambios / otra feature / implementar |
+
+| Paso               | Qué hace la IA         | Quién decide | Salidas                              |
+| ------------------ | ---------------------- | ------------ | ------------------------------------ |
+| ⑥ la decisión      | recomienda con razones | **vos**      | hacelo / pivoteá / no lo hagas       |
+| ⑧ la constitución  | pregunta y sugiere     | **vos**      | —                                    |
+| ⑰ la planificación | produce todo el plan   | **vos**      | cambios / otra feature / implementar |
+
 
 **En los tres puntos donde hay que elegir, la IA propone y la última palabra es tuya.**
 
@@ -435,31 +441,35 @@ comience a implementar"*.
 
 Lo habitual sería "escribí los tests, después implementá". Vos pedís algo más:
 
-| | |
-|---|---|
-| 1 | crear los tests |
-| 2 | **ejecutarlos** |
-| 3 | **ver que fallan** |
-| 4 | implementar |
+
+|     |                    |
+| --- | ------------------ |
+| 1   | crear los tests    |
+| 2   | **ejecutarlos**    |
+| 3   | **ver que fallan** |
+| 4   | implementar        |
+
 
 **El 2 y el 3 son un paso propio.** No alcanza con que los tests existan: hay que verlos
 fallar. Y lo pedís con *"siempre"*, no como recomendación.
 
 ### El ciclo de tests aparece dos veces, con signo opuesto
 
-| Momento | Qué se busca | Quién lo hace |
-|---|---|---|
-| ⑲ antes de implementar | que los tests **fallen** | el modelo que va a implementar |
-| ⑳ después de implementar | que los tests **pasen** | el mismo modelo |
+
+| Momento                  | Qué se busca             | Quién lo hace                  |
+| ------------------------ | ------------------------ | ------------------------------ |
+| ⑲ antes de implementar   | que los tests **fallen** | el modelo que va a implementar |
+| ⑳ después de implementar | que los tests **pasen**  | el mismo modelo                |
+
 
 Tres cosas registradas, sin conclusiones:
 
 - **El mismo actor escribe el código, corre los tests y reporta el resultado.** Es la
-  topología del paso, no un juicio sobre ella.
+topología del paso, no un juicio sobre ella.
 - **El bucle sí tiene salida, y sos vos.** *"Si fallan varias veces verifico cuál es el
-  problema y le doy indicaciones, o si no elevo el modelo a uno mejor."* Corrige una
-  observación anterior de este documento que decía que era el único bucle donde no
-  aparecías: **aparecés, pero recién después de varios intentos fallidos.**
+problema y le doy indicaciones, o si no elevo el modelo a uno mejor."* Corrige una
+observación anterior de este documento que decía que era el único bucle donde no
+aparecías: **aparecés, pero recién después de varios intentos fallidos.**
 
 ### El fracaso repetido es información sobre la estimación, no sólo sobre el código
 
@@ -487,10 +497,12 @@ Eso convierte la cadena del ⑯ en un lazo cerrado:
 desde la historia de usuario hasta los tests que pasan, para que verifique si la
 implementación satisface la feature planteada"*.
 
-| | Pregunta | Quién |
-|---|---|---|
-| ⑳ | ¿el código hace lo que los tests dicen? | **el mismo que implementó** |
-| ㉑ | ¿lo implementado **satisface la historia**? | **otro modelo, más grande** |
+
+|     | Pregunta                                    | Quién                       |
+| --- | ------------------------------------------- | --------------------------- |
+| ⑳   | ¿el código hace lo que los tests dicen?     | **el mismo que implementó** |
+| ㉑   | ¿lo implementado **satisface la historia**? | **otro modelo, más grande** |
+
 
 Son preguntas distintas: que los tests pasen es un hecho sobre el código; que la
 implementación cumpla la historia es otra cosa, y ningún test verde la contesta.
@@ -502,11 +514,13 @@ interviene un actor que no escribió el código.
 
 No es "revisar" tres veces. Cada paso pregunta otra cosa, y ninguna contesta la del otro:
 
-| | La pregunta | Contra qué se compara |
-|---|---|---|
-| ⑳ | ¿el código hace lo que los tests dicen? | el código, contra **los tests** |
-| ㉑ | ¿lo hecho satisface la feature? | la cadena entera, contra **la historia** |
-| ㉒ | **¿los tests prueban algo?** | los tests, contra **la mutación** |
+
+|     | La pregunta                             | Contra qué se compara                    |
+| --- | --------------------------------------- | ---------------------------------------- |
+| ⑳   | ¿el código hace lo que los tests dicen? | el código, contra **los tests**          |
+| ㉑   | ¿lo hecho satisface la feature?         | la cadena entera, contra **la historia** |
+| ㉒   | **¿los tests prueban algo?**            | los tests, contra **la mutación**        |
+
 
 **El ㉒ es el único paso que duda de los tests.** Del ⑲ al ㉑ los tests son la vara; acá
 pasan a ser lo medido. Y no es redundante: el ⑳ se apoya en que los tests sirvan, y eso
@@ -520,10 +534,12 @@ genere test mutantes."* Y **los corre él mismo**.
 *"el mismo modelo los corre, y si fallan se solicita al modelo implementador que lo
 verifique para comprender lo que sucedió y lo arregle"*.
 
-| Rol | Quién | Qué hace |
-|---|---|---|
+
+| Rol                  | Quién                         | Qué hace                                                                     |
+| -------------------- | ----------------------------- | ---------------------------------------------------------------------------- |
 | **El que construye** | el modelo recomendado en el ⑯ | implementa (⑲), corrige tests (⑳), **y arregla lo que el revisor encuentra** |
-| **El que revisa** | el modelo grande del ㉑ | revisa punta a punta (㉑), genera y corre mutantes (㉒) |
+| **El que revisa**    | el modelo grande del ㉑        | revisa punta a punta (㉑), genera y corre mutantes (㉒)                        |
+
 
 **Los hallazgos vuelven siempre al que construyó.** No se le pide al revisor que arregle lo
 que encontró, ni se busca un tercero: el rol está fijo por función, no por conveniencia.
@@ -560,10 +576,12 @@ Todo el resto verifica que lo nuevo esté bien; esto verifica que lo viejo siga 
 
 ### Dos momentos de elegir modelo, con lógicas opuestas
 
-| Momento | Cómo se elige | Criterio |
-|---|---|---|
+
+| Momento            | Cómo se elige          | Criterio                           |
+| ------------------ | ---------------------- | ---------------------------------- |
 | ⑯ para implementar | **el que corresponda** | ajustado a la complejidad estimada |
-| ㉑ para revisar | **uno grande** | sin escala: siempre el mejor |
+| ㉑ para revisar     | **uno grande**         | sin escala: siempre el mejor       |
+
 
 Para construir, el recurso se ajusta al trabajo. Para revisar, no se ajusta nada.
 
@@ -590,29 +608,29 @@ backlog"*.
 Dos observaciones, sin conclusiones:
 
 - **Es la primera salida que no es para leer, es para trabajar.** Brief, PRD y constitución
-  son documentos que se consultan. El backlog es una **cola**: se consume.
+son documentos que se consultan. El backlog es una **cola**: se consume.
 - **Es el primer paso donde no mencionaste un "yo decido".** En ⑥ y ⑧ lo dijiste explícito.
-  Acá pedís y recibís. **No concluyo que no exista** — puede que sea tan obvio que no valga
-  mencionarlo, o que revises las historias antes de aceptarlas. Queda como pregunta.
+Acá pedís y recibís. **No concluyo que no exista** — puede que sea tan obvio que no valga
+mencionarlo, o que revises las historias antes de aceptarlas. Queda como pregunta.
 - **Es la primera vez que aparecen identificadores.** *"una carpeta backlog con un
-  backlog.md como índice y los `us-#`"*. Todo lo anterior eran documentos de prosa; acá hay
-  **unidades direccionables**, cada una con su archivo y su número.
+backlog.md como índice y los `us-#`"*. Todo lo anterior eran documentos de prosa; acá hay
+**unidades direccionables**, cada una con su archivo y su número.
 - **El patrón índice + ítems aparece por primera vez:** un archivo que lista, N archivos con
-  el contenido.
+el contenido.
 
 ### El ⑩ no agrega material, agrega orden
 
 *"el roadmap las ordena y agrupa para darle la prioridad de qué debería hacerse antes"*.
 
 - **Es el único artefacto derivado del anterior sin contenido propio.** Todos los demás
-  agregan algo: el PRD agrega detalle al brief, la constitución agrega el cómo técnico, las
-  historias parten el PRD. El roadmap **no agrega nada** — reordena lo que ya está.
+agregan algo: el PRD agrega detalle al brief, la constitución agrega el cómo técnico, las
+historias parten el PRD. El roadmap **no agrega nada** — reordena lo que ya está.
 - **Es prioridad, no calendario.** Dijiste *"qué debería hacerse antes"*, no *"para cuándo"*.
-  Es secuencia.
+Es secuencia.
 - **Queda por saber si el roadmap referencia los `us-#` o los copia.** Existiendo los IDs, lo
-  natural sería referenciar — pero no lo asumo.
+natural sería referenciar — pero no lo asumo.
 - **Segundo paso seguido sin "yo decido" declarado.** ⑨ y ⑩ los pedís y los recibís. Lo
-  registro como acumulación de la misma pregunta abierta del ⑨, no como conclusión.
+registro como acumulación de la misma pregunta abierta del ⑨, no como conclusión.
 
 ### Alerta de método del tramo ⑫–⑯ — resuelta
 
@@ -623,11 +641,13 @@ Este tramo estaba descrito con vocabulario de SpecForge (*propuesta*, *spec*, *d
 realice el trabajo."* El tramo se reescribió con las palabras del pedido real, y ahí quedó a
 la vista lo que el vocabulario tapaba:
 
-| El nombre de la herramienta decía | Lo que en realidad pedís |
-|---|---|
-| "planificá el wave" | **agrupá las tareas para que corran en paralelo** |
-| "creá el spec y el design" | **escribí la especificación de la solución que elegiste, con su diseño** |
-| "los tests" | **decime qué tests hay que crear ANTES de cualquier implementación** |
+
+| El nombre de la herramienta decía | Lo que en realidad pedís                                                 |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| "planificá el wave"               | **agrupá las tareas para que corran en paralelo**                        |
+| "creá el spec y el design"        | **escribí la especificación de la solución que elegiste, con su diseño** |
+| "los tests"                       | **decime qué tests hay que crear ANTES de cualquier implementación**     |
+
 
 **El caso de "wave" es el más claro:** el nombre no dice nada, y el pedido real tiene un
 motivo — paralelizar. Son lotes, no etapas.
@@ -650,13 +670,74 @@ van juntos: son dos vistas de la misma decisión técnica.
 - **"3 implementaciones", con número.** No *"varias"*, no *"las que se te ocurran"*. Tres.
 - **Los tests van primero, dicho explícito.** *"antes de cualquier implementación"*.
 - **Aparece un artefacto nuevo que no estaba en el mapa: un `.yaml` de modelos en `.docs/`.**
-  Es un catálogo propio, y es el insumo de la única decisión de recursos del flujo.
+Es un catálogo propio, y es el insumo de la única decisión de recursos del flujo.
 
-### Huecos pendientes, para volver después
+## Las tres entradas al flujo
 
-Dijiste *"un prd completo sobre el **producto**"*. Eso describe el caso de **un producto
-nuevo**. Falta saber qué pasa cuando lo que arranca no es un producto sino **una feature**
-sobre algo que ya existe. No lo asumo — queda anotado para preguntarlo cuando toque.
+El dibujo de arriba muestra **una** entrada: la idea de producto nuevo. Hay tres, y las
+otras dos **no pasan por brief, PRD ni constitución** — entran directo al backlog.
+
+```
+   ENTRADA A                ENTRADA B                  ENTRADA C
+   se me ocurre un          "me gustaría que           me reportan un
+   producto                 tuviese tal cosa"          error o un cambio
+       │                          │                          │
+       ▼                          ▼                          ▼
+   ①…⑧                      pinponeo:                  le comunico DÓNDE
+   brief · PRD ·            "¿cómo se podría            está el error
+   constitución              implementar?"                    │
+       │                          │                           ▼
+       ▼                          ▼                    se agrega al backlog
+   ⑨ historias            genera la historia           COMO BUG, RELACIONADO
+       │                   de usuario                  a una historia
+       │                          │                           │
+       └──────────────────────────┴───────────────────────────┘
+                                  │
+                                  ▼
+                   se coloca en el BACKLOG y el ROADMAP
+                                  │
+                                  ▼
+                        el ciclo ⑪ → ㉓, igual para las tres
+```
+
+**Lo que las tres comparten:** todo termina siendo una entrada del backlog con su historia,
+y de ahí el ciclo es el mismo. **El backlog es el embudo.**
+
+### Cuatro observaciones
+
+- **El pinponeo del ② reaparece en la entrada B**, pero produce otra cosa. En A termina en
+  un brief; en B termina en **una historia de usuario**. Misma actividad, salida distinta
+  según por dónde entrás.
+- **En B y C no hay brief ni decisión sellada.** El *"¿lo hago?"* del ⑥ no aparece. Sobre un
+  producto que ya existe, la decisión de hacer una feature no pasa por el mismo filtro que
+  la decisión de arrancar un producto.
+- **Un bug se registra RELACIONADO a una historia.** Es la primera relación explícita entre
+  dos artefactos del flujo. Todo lo demás era una cadena lineal; acá hay un enlace.
+- **La entrada C tiene una variante que hay que respetar** (abajo).
+
+### El camino corto, y no es una falla
+
+> *"a veces ni siquiera uso una propuesta, le digo a mi modelo del día a día: hay que
+> arreglar tal problema, y que ejecute los tests y verifique que esté solucionado"*
+
+Para un arreglo chico, el ciclo completo no se paga. Y **ya existe una salida**: se lo pedís
+al modelo del día a día, con dos condiciones que igual mantenés —**correr los tests** y
+**verificar que quedó resuelto**.
+
+**Esto es un dato duro sobre cualquier herramienta futura:** el camino corto ya lo usás. Una
+herramienta que obligue a la ceremonia completa para arreglar algo chico **va a ser evitada
+igual que ahora**, y ahí sí se pierde el rastro.
+
+Es la misma tensión de *"para features chicas era overkill casi, pero me daba control"*,
+pero vista al revés: **cuando el peso no se justifica, ya te salís del carril.**
+
+### ~~Hueco pendiente~~ — cerrado
+
+Estaba anotado que *"un prd completo sobre el **producto**"* describía sólo el caso de
+producto nuevo, y faltaba saber qué pasaba con una feature sobre algo existente.
+
+**Cerrado:** son las entradas B y C — ver *"Las tres entradas al flujo"* arriba. No pasan por
+PRD ni constitución; entran directo como historia de usuario al backlog.
 
 ### Un tipo de "por qué" que hay que dejar entrar
 
@@ -686,10 +767,12 @@ El flujo de arriba lo hacés y funciona. **Lo que importa no es el flujo: es dó
 
 Dos cosas, y las dos son de la misma clase: **trabajo de operario, no de decisión.**
 
-| Qué molesta | Qué es en realidad |
-|---|---|
-| **lanzar cada fase a mano** | vos sos el que empuja el flujo de un paso al siguiente |
-| **tener que commitear** porque a veces no lo hace | tenés que vigilar que algo mecánico haya ocurrido |
+
+| Qué molesta                                       | Qué es en realidad                                     |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| **lanzar cada fase a mano**                       | vos sos el que empuja el flujo de un paso al siguiente |
+| **tener que commitear** porque a veces no lo hace | tenés que vigilar que algo mecánico haya ocurrido      |
+
 
 **Esto ya lo habías dicho, sin que te lo preguntaran.** Al contar por qué abandonaste
 OpenSpec: *"terminaba escribiendo repetidamente el skill para implementar, luego validar,
@@ -719,11 +802,13 @@ Textuales:
 
 #### Se agrupan en tres clases
 
-| Clase | Casos | Qué pasó |
-|---|---|---|
-| **A. Dijo que hizo algo que no hizo** | 1, 3, 5 | *"los tests pasan"* (no hay), *"los ejecuté"* (los salteó), *"está terminado"* (son mocks) |
-| **B. Dijo terminado sin estarlo** | 2 | completitud afirmada contra una historia que pedía más |
-| **C. Pasó algo sin que nadie avisara** | 4, 6 | no ocurrió lo que debía (commit), u ocurrió lo prohibido (librería fuera de la constitución) |
+
+| Clase                                  | Casos   | Qué pasó                                                                                     |
+| -------------------------------------- | ------- | -------------------------------------------------------------------------------------------- |
+| **A. Dijo que hizo algo que no hizo**  | 1, 3, 5 | *"los tests pasan"* (no hay), *"los ejecuté"* (los salteó), *"está terminado"* (son mocks)   |
+| **B. Dijo terminado sin estarlo**      | 2       | completitud afirmada contra una historia que pedía más                                       |
+| **C. Pasó algo sin que nadie avisara** | 4, 6    | no ocurrió lo que debía (commit), u ocurrió lo prohibido (librería fuera de la constitución) |
+
 
 **La clase A es la más grande y la más barata de detectar.** Las tres son afirmaciones sobre
 hechos comprobables: ¿existe el archivo de tests? ¿corrió el comando? ¿el método tiene
@@ -733,13 +818,15 @@ cuerpo o devuelve un valor fijo? Ninguna necesita entender el código — sólo 
 
 Los seis casos **no son "lo que pasa siempre"**. Preguntado por el detalle:
 
-| Caso | Cuándo / con qué |
-|---|---|
-| *"todo en verde y no había tests"* | **con Grok** |
-| *"features a medio hacer"* | **con DeepSeek** |
-| *"los métodos eran mocks"* | **cuando el contexto estaba al 50%** |
+
+| Caso                               | Cuándo / con qué                                               |
+| ---------------------------------- | -------------------------------------------------------------- |
+| *"todo en verde y no había tests"* | **con Grok**                                                   |
+| *"features a medio hacer"*         | **con DeepSeek**                                               |
+| *"los métodos eran mocks"*         | **cuando el contexto estaba al 50%**                           |
 | commits no hechos, o mal agrupados | pasa igual, hay que pedir que los **reagrupe de forma lógica** |
-| **no crea la branch por feature** | *(caso nuevo, no estaba en la lista original)* |
+| **no crea la branch por feature**  | *(caso nuevo, no estaba en la lista original)*                 |
+
 
 **Y el ciclo de tests funcionó:** *"lo del tema de los tests funcionó y se daba cuenta que no
 pasaban y arreglaba el código solo"*.
@@ -749,13 +836,13 @@ escrito que *"los seis casos son de la misma familia: alguien afirma algo y nadi
 comprueba"*. Estructuralmente sigue siendo cierto — pero la **prioridad** cambia:
 
 - **Dos de los seis son de modelos puntuales.** Si esos modelos no se usan para esa tarea, el
-  problema no aparece. Eso no se arregla con un verificador: se arregla **eligiendo bien el
-  modelo**, que es algo que el flujo ya hace en el ⑯ con el yaml.
+problema no aparece. Eso no se arregla con un verificador: se arregla **eligiendo bien el
+modelo**, que es algo que el flujo ya hace en el ⑯ con el yaml.
 - **Uno tiene una condición medible y predecible.** *"Los mocks pasaban cuando el contexto
-  estaba al 50%"* no es una falla moral del modelo: es **agotamiento de recurso**, y es un
-  indicador anticipado — se puede mirar **antes** de que el daño ocurra, no después.
+estaba al 50%"* no es una falla moral del modelo: es **agotamiento de recurso**, y es un
+indicador anticipado — se puede mirar **antes** de que el daño ocurra, no después.
 - **Los que quedan como constantes son los de siempre: el commit y la branch.** Los mismos
-  que ya aparecían en la lista de fiaca.
+que ya aparecían en la lista de fiaca.
 
 > **La conclusión honesta: el problema grande no es que el modelo mienta. Es que vos tenés
 > que empujar cada fase.** Lo demás es real, tiene dueño conocido, y en dos de tres casos se
@@ -767,11 +854,11 @@ El flujo tiene **tres verificaciones** (⑳ ㉑ ㉒) y **las tres son afirmacion
 sobre el trabajo, no hechos comprobados por fuera.**
 
 - En el ⑳, el que implementó corre los tests **y reporta el resultado**. Si dice *"pasan"* y
-  no hay tests, el ⑳ no lo agarra: **el reporte ES la verificación.** Ahí viven 1 y 3.
+no hay tests, el ⑳ no lo agarra: **el reporte ES la verificación.** Ahí viven 1 y 3.
 - En el ㉑ y el ㉒ interviene otro modelo, que es lo que da chance de agarrar 2 y 5 — pero
-  sigue siendo un modelo diciendo qué encontró.
+sigue siendo un modelo diciendo qué encontró.
 - Los casos 4 y 6 **no los mira nadie**: no hay paso en el flujo que verifique que el commit
-  ocurrió ni que la constitución se respetó.
+ocurrió ni que la constitución se respetó.
 
 > **Los seis casos son de la misma familia: alguien afirma algo sobre el trabajo y nadie lo
 > comprueba contra la realidad.** No hace falta desconfiar del modelo para arreglarlo —
@@ -790,24 +877,19 @@ Por eso no se arregla acordándose más. Se arregla sacándote la vigilancia de 
 
 ---
 
-## Resumen: qué duele, ordenado por lo que de verdad pesa
+## Resumen: qué duele, en una tabla
 
-| Prioridad | Duele | Clase | Cuándo pasa |
-|---|---|---|---|
-| **1** | **tener que lanzar cada fase a mano** | fiaca | **siempre** — es la queja repetida tres veces en la sesión |
-| **2** | el commit: a veces no lo hace, y hay que **vigilar** que haya pasado | fiaca **+** agujero | seguido |
-| **3** | los commits salen **mal agrupados**; hay que pedir que los reagrupe lógicamente | fiaca | seguido |
-| **4** | **no crea la branch** por feature | fiaca + agujero | seguido |
-| **5** | métodos que son **mocks** dados por terminados | agujero | **con el contexto al 50%** ← condición medible |
-| **6** | librerías **fuera de la constitución**, sin consultar | agujero | sin dueño identificado |
-| **7** | *"terminado"* con **media historia** sin cubrir | agujero | **DeepSeek** |
-| **8** | *"todo en verde"* **sin que haya tests** | agujero | **Grok** |
 
-**Los cuatro primeros son de operación, no de confianza.** Y son los que pasan siempre.
+| #   | Duele                                                | Clase                                    |
+| --- | ---------------------------------------------------- | ---------------------------------------- |
+| 1   | tener que lanzar cada fase a mano                    | **fiaca**                                |
+| 2   | tener que vigilar que el commit haya ocurrido        | **fiaca + agujero**                      |
+| 3   | *"los tests pasan"* sin que haya tests               | agujero — afirmación falsa               |
+| 4   | *"los ejecuté"* habiéndolos salteado                 | agujero — afirmación falsa               |
+| 5   | *"terminado"* con métodos que son mocks              | agujero — afirmación falsa               |
+| 6   | *"terminado"* con la mitad de la historia sin cubrir | agujero — completitud                    |
+| 7   | librerías instaladas fuera de la constitución        | agujero — regla declarada y no respetada |
 
-**Del 5 al 8, tres tienen dueño o condición conocida** — dos modelos puntuales y un umbral de
-contexto. Eso no los vuelve inofensivos, pero cambia cómo se atacan: no con un verificador
-para todo, sino sabiendo **con qué y en qué condiciones** aparecen.
 
-**El flujo no está en discusión.** Ya lo rediseñaste y funcionó a mano. El problema es
-**quién lo empuja**.
+**Nada de esto es sobre los pasos del flujo.** El flujo está bien: es sobre **quién empuja**
+y **quién comprueba**.
