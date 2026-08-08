@@ -5,6 +5,10 @@ comandos, ni módulos, ni nombres de fases. Sólo qué pasa, quién lo hace y qu
 
 Cuando esto esté bien, recién ahí se piensa la herramienta.
 
+> **Anexo:** [`anexo-determinismo.md`](anexo-determinismo.md) — insumo de diseño (qué debería
+> hacer una herramienta sobre este flujo). Vive aparte justamente para que este documento
+> siga libre de herramienta.
+
 > ## ⚠ Esto no es "cómo venía trabajando". Es el flujo NUEVO, y funcionó.
 >
 > *"Este es mi nuevo flujo, lo usé pero de forma manual, y me funcionó."*
