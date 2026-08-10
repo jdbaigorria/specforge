@@ -1,7 +1,9 @@
 # Sesión — refundación de SpecForge
 
-**Fecha:** 2026-08-07 / 08 · **Branch:** `refundation` (sin pushear)
-**Estado:** el relevamiento está **cerrado**. Quedó abierta **una sola pregunta**, en §5.
+**Fecha:** 2026-08-07 / 08 / 10 · **Branch:** `refundation` (sin pushear)
+**Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
+(*ejecuta*, §5) y **la arquitectura está decidida** (§6). Sigue abierto el strawman de los
+ocho dolores, en §5.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -71,7 +73,7 @@ condición conocida — eso cambia cómo se atacan.
 
 ---
 
-## 5. ⬅ ACÁ QUEDAMOS — la pregunta abierta
+## 5. El marco de los ocho dolores — sigue abierto
 
 Se estaba debatiendo **qué tiene que hacer la herramienta** sobre cada dolor. El marco: cada
 uno admite **cuatro** respuestas, y elegir mal es lo que infla las herramientas.
@@ -104,30 +106,112 @@ uno admite **cuatro** respuestas, y elegir mal es lo que infla las herramientas.
 son ejecutar, comparar, o disparar a alguien que piense. El único que necesita juicio (el 7)
 se resuelve **garantizando que el juicio ocurra**, no reemplazándolo.
 
-### La pregunta de fondo, también abierta
+### La pregunta de fondo — ✅ CONTESTADA: **ejecuta**
 
 > **¿La herramienta EJECUTA tu flujo, o lo REEMPLAZA?**
 
-El flujo ya funciona. Si eso es cierto, la herramienta no propone una metodología: **corre la
-tuya**. Deja de ser *"SpecForge te dice cómo trabajar"* y pasa a ser *"SpecForge ejecuta cómo
-trabajás vos"*. Más chico, más honesto, y explicaría por qué todo lo anterior se infló.
+**Ejecuta.** El flujo ya funciona; no hace falta que nadie proponga un método, hace falta que
+alguien corra el tuyo. SpecForge deja de ser *"te dice cómo trabajar"* y pasa a ser
+*"ejecuta cómo trabajás vos"*.
+
+**Dos argumentos, y el segundo no es de gusto sino de física:**
+
+1. *"Reemplazar"* obliga a la herramienta a tener razón sobre cómo se desarrolla software, y
+   cada caso nuevo pide un concepto nuevo. Eso explica por qué todo lo anterior se infló.
+2. **Multi-harness casi lo decide solo.** Un método vive en prompts, y los prompts son
+   distintos en cada harness. Una máquina de estados vive en un programa, y un programa corre
+   igual en todos lados. *(Y tu flujo ya cruza harnesses por su cuenta: ⑱ y ㉑ son traspasos
+   a otro modelo.)*
+
+**Consecuencia inmediata:** SpecForge tiene que ser **un binario**, no un skill ni un prompt.
+Lo único que todos los harness saben hacer igual es correr un comando.
 
 ---
 
-## 6. Qué sigue, después de cerrar §5
+## 6. La arquitectura — decidida
 
-1. **La máquina de estados.** Los 23 pasos **no son 23 estados**. Hay que decidir dónde están
+Salió de acá, y el diseño es de Javier: **el orquestador es el agente, no el CLI.**
+
+Razón dura: **`sf` arranca, contesta y se muere.** Dura milisegundos. Un programa muerto no
+puede invocar un skill — no tiene manos. El único vivo durante toda la sesión es el agente.
+
+### Las cuatro piezas
+
+| Pieza | Qué sabe | Qué **no** hace |
+|---|---|---|
+| **`CLAUDE.md` / `AGENTS.md`** — el orquestador | qué skill invocar, cuándo lanzar un subagente | **no se sabe el flujo de memoria** — lo pregunta cada vez |
+| **`sf`** (el binario) | **dónde estás** (`estado.json`) y **qué sigue**; y comprueba | no piensa · no lanza a nadie · no sabe *cómo* se hace un paso |
+| **los skills** (`.md`) | **cómo** se hace cada paso: leé la constitución, el `us-#`, generá esto | no sabe en qué paso está parado |
+| **el agente y sus subagentes** | hacen el trabajo | — |
+
+**Los skills son agnósticos** (son un `.md`, cualquiera lo lee) y **conservan todo el método
+que ya tienen**. Sólo se les agrega el principio y el final: preguntá dónde estás, avisá que
+terminaste.
+
+### El bucle
+
+```
+ORQUESTADOR
+   ├─ sf: ¿qué sigue?              → "implementar"
+   ├─ lanza subagente implementador
+   │     └─ trabaja · termina · sf done · muere
+   ├─ vuelve el control
+   ├─ sf: ¿qué sigue?              → "check"
+   ├─ lanza subagente check … vuelve
+   ├─ sf: ¿qué sigue?              → "audit"
+   └─ … hasta que sf diga "PARÁ, esto lo decide Javier"
+```
+
+### Las tres reglas duras
+
+1. **`sf` nunca lanza a nadie.** El que lanza es el orquestador. Si `sf` spawneara, manejaría
+   contexto y tool-calling, y **sería un harness** — reinventando lo que Claude Code y Codex
+   ya hacen bien.
+2. **El estado avanza con hechos comprobados, nunca con la palabra del que trabajó.** El
+   subagente dice *"terminé"*; `sf` **no le cree**: corre los tests él, mira si existe el
+   archivo, mira si hay branch. Si falta algo, el estado **no se mueve** y el orquestador
+   recibe qué falta. *(Esto solo tacha los dolores 2, 3, 4 y 8.)*
+3. **El estado vive en el repo, no en el chat.** Un `estado.json` versionado. Porque en ⑱
+   cambiás de modelo y el que implementa no estuvo en la conversación.
+
+### Por qué los subagentes, y no es un detalle técnico
+
+**El subagente muere y se lleva su contexto.** Eso arregla dos cosas:
+
+- **El orquestador nunca se llena.** No ve código ni tests: sólo *"terminó"* y *"ahora X"*.
+  Aguanta los 23 pasos.
+- **Mata el dolor #5.** Los mocks salían *"con el contexto al 50%"*; cada subagente **arranca
+  de cero** y hace un lote. Era el único dolor atacable *antes* del daño, y el diseño lo
+  ataca sin agregarle nada.
+
+### Limitaciones registradas
+
+- **Los subagentes son de Claude Code.** Sin ellos el diseño funciona igual, pero el contexto
+  se llena. → **mejora, no requisito.**
+- **Elegir modelo en runtime sí se puede, pero sólo entre modelos de Claude.** La herramienta
+  de subagentes acepta un `model` que pisa el `model:` del frontmatter — alcanza para el ㉑
+  (*"revisá con uno grande"*). **DeepSeek, Grok o Codex no pueden ser subagentes**: para esos
+  el orquestador tiene que salir por consola (`deepseek exec "…"`). Sigue lanzando el
+  orquestador, no `sf`.
+
+---
+
+## 7. Qué sigue
+
+1. **Cerrar el strawman de §5** — las 8 filas, esperando corrección.
+2. **La máquina de estados.** Los 23 pasos **no son 23 estados**. Hay que decidir dónde están
    los cortes, qué transiciones son automáticas, y **dónde para y te espera**.
    - Hipótesis: para en ⑥, ⑧ y ⑰ y en ningún otro lado → de empujar 23 pasos a decidir 3.
    - **El camino corto tiene que ser un estado, no una excepción**, o va a ser esquivado
      igual que ahora y ahí sí se pierde el rastro.
    - **Pregunta sin contestar:** cuando ㉑ o ㉒ encuentran algo y el implementador lo arregla
      solo, ¿te enterás? ¿O la máquina corrige en silencio si terminó bien?
-2. Recién después: qué de lo construido sobrevive. **En ese orden, no al revés.**
+3. **La forma del `estado.json`.** Qué guarda exactamente, y qué se registra de cada paso.
+4. Recién después: qué de lo construido sobrevive. **En ese orden, no al revés.**
 
 ---
 
-## 7. Pendiente de infraestructura
+## 8. Pendiente de infraestructura
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).
