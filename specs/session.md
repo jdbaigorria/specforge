@@ -162,6 +162,29 @@ ORQUESTADOR
    └─ … hasta que sf diga "PARÁ, esto lo decide Javier"
 ```
 
+### En una línea
+
+> **`sf` es una tool que expone la máquina de estados que guía al harness — y es el árbitro
+> que decide si se puede avanzar.**
+
+Son **dos** verbos, y el segundo es el que importa:
+
+| | Qué hace | Sin esto sería… |
+|---|---|---|
+| **expone** | *"estás en el ⑬, ahora toca el ⑭"* | una lista de tareas |
+| **comprueba** | *"no terminaste: falta la branch"* | una sugerencia que el agente puede ignorar |
+
+`sf` **no maneja el auto** —no agarra el volante ni elige la ruta—, pero **da verde o rojo, y
+en rojo no se pasa**. Su poder es uno solo: **es el único que puede mover el estado, y sólo
+lo mueve cuando lo comprobó él mismo.**
+
+```
+sf       →  DÓNDE estás · QUÉ sigue · ¿PODÉS avanzar?
+skills   →  CÓMO se hace
+harness  →  lo HACE
+vos      →  DECIDÍS  (⑥, ⑧, ⑰)
+```
+
 ### Las tres reglas duras
 
 1. **`sf` nunca lanza a nadie.** El que lanza es el orquestador. Si `sf` spawneara, manejaría
@@ -196,9 +219,35 @@ ORQUESTADOR
 
 ---
 
+### 📌 Idea guardada para más adelante — `sf` como proveedor de contexto
+
+De Javier, explícitamente **no ahora**:
+
+> *"el cli no sólo indicaría dónde estás, qué sigue, podés avanzar, sino que tendría la
+> capacidad de inyectar el contexto adecuado a los subagentes. Porque cuando un subagente
+> arranque le pide al cli: dame la constitución del proyecto y el spec."*
+
+```
+subagente:  sf context implement
+sf:         → .docs/constitucion.md
+            → .docs/features/us-3/spec.md
+            → .docs/features/us-3/tareas.md (lote 2)
+```
+
+**Por qué encaja bien:** `flujo-real.md` ya dice que el ⑱ es el primer traspaso y que a
+partir de ahí *"la propuesta tiene que bastarse sola"*. Esto sería **el mecanismo** de eso —
+y de paso el subagente no gasta contexto buscando qué leer.
+
+**Sigue sin romper ninguna regla:** servir archivos no es pensar ni lanzar a nadie.
+
+---
+
 ## 7. Qué sigue
 
-1. **Cerrar el strawman de §5** — las 8 filas, esperando corrección.
+1. **⬅ ACÁ SEGUIMOS — revisar el flujo para formalizar los artefactos.** En qué puntos exactos
+   se crea cada uno. La mayoría ya está en `flujo-real.md`; falta el ciclo por feature
+   (⑪–㉓), que hoy no tiene artefactos declarados.
+2. **Cerrar el strawman de §5** — las 8 filas, esperando corrección.
 2. **La máquina de estados.** Los 23 pasos **no son 23 estados**. Hay que decidir dónde están
    los cortes, qué transiciones son automáticas, y **dónde para y te espera**.
    - Hipótesis: para en ⑥, ⑧ y ⑰ y en ningún otro lado → de empujar 23 pasos a decidir 3.
