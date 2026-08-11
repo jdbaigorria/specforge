@@ -7,7 +7,7 @@ uno: **qué artefacto sale · quién lo consume · qué formato · qué estructu
 > se decidió el formato antes de saber quién iba a leer cada cosa. Acá el orden es al revés:
 > **primero el consumidor, después el formato.**
 
-**Estado:** rondas 1 a 5 cerradas (①–⑩). Falta el ciclo por feature, ⑪–㉓.
+**Estado:** rondas 1 a 6 cerradas (①–⑯). Falta el cierre del ciclo por feature, ⑰–㉓.
 
 ---
 
@@ -379,41 +379,184 @@ Si se mezclan, el `roadmap.json` empieza a saber de tareas y se vuelve un monstr
 
 ---
 
-## 9. Adelanto de la ronda 6 — ya decidido
+## 9. Ronda 6 — el bloque de planificación (⑫–⑯)
 
-**Cada tarea declara qué criterios de aceptación satisface:**
+Los cinco pasos pasan en **una sola conversación** y se revisan **una sola vez** en el ⑰.
+Después se le pasan a un modelo frío. La pregunta de la ronda: **cuántos archivos salen, y
+para quién es cada uno.** Respuesta: **tres**.
 
-```json
-{ "id": "t-4", "lote": 2, "satisface": ["us-3/CA-2", "us-3/CA-3"] }
+### ⑫ — las 3 implementaciones: `decision.md`
+
+| Consumidor | Necesita esto |
+|---|---|
+| **Javier, en el ⑰** | ver las 3 para juzgar si la elegida es la buena |
+| **Javier, meses después** | *"¿por qué no hicimos la otra?"* |
+| **el implementador (⑱)** | **NO. Le sobra.** |
+
+→ **archivo propio, separado del spec.** Si las 3 opciones van dentro del `spec-design.md`,
+el modelo frío del ⑱ se come dos soluciones que no tiene que hacer: gasta contexto y puede
+mezclarlas — o "corregir" hacia la que le parece más linda.
+
+```markdown
+---
+tipo: decision
+feature: f-1
+elegida: B
+---
+
+## A — <nombre>      qué es · a favor · en contra
+## B — <nombre>  ✅  qué es · a favor · en contra
+## C — <nombre>      qué es · a favor · en contra
+
+## Por qué B
 ```
 
-Con eso `sf` comprueba, **antes de implementar** y sin pensar:
+Es el mismo valor que el *"no lo hagas"* del brief: **guardar lo descartado y su porqué**.
+
+#### El veredicto baja al spec, el debate se queda acá
+
+Duda de Javier, y era buena: *"¿no le sirve al implementador saber por qué se descartaron las
+otras, o le ocasionaría confusión?"* **Las dos cosas son ciertas a la vez**, así que se
+separan:
+
+> **Al implementador le sirve la restricción, no la alternativa.**
+
+Sin saber que A se descartó, se le puede ocurrir A solo y hacerla. Pero con las tres opciones
+adentro, el que mezcla es él — y justo el ⑱ es donde entra el modelo del dolor #7.
+
+**La conclusión de cada descarte baja al `spec-design.md`, a la sección "Qué NO entra", en una
+línea y con puntero:**
+
+```markdown
+## Qué NO entra
+- Un pool de workers → descartado: sf muere en milisegundos, no hay a quién poolear.
+  (el análisis completo: decision.md)
+```
+
+Le alcanza para no reincidir y no le alcanza para confundirse. **Lo descartado viaja como
+límite, no como opción viva.**
+
+*(Y si algún día conviene que el `decision.md` completo le llegue igual, es agregarlo a la
+lista que devuelva `sf context implement` — ver la idea guardada en `session.md`.)*
+
+### ⑬ — `spec-design.md`
+
+Un solo archivo (ya decidido). **Es lo único que el implementador necesita leer.**
+
+```markdown
+---
+tipo: spec-design
+feature: f-1
+historias: [us-1, us-3, us-7]
+estado: borrador        # borrador | aprobado  ← lo sella el ⑰
+deriva_de: decision
+---
+
+## Qué hay que construir
+## El diseño            (módulos, tipos, quién llama a quién)
+## Interfaces / contratos
+## Qué NO entra         ← acá bajan los veredictos del ⑫, una línea cada uno
+```
+
+### ⑭ + ⑮ — las tareas y los tests, **en el mismo archivo**
+
+El ⑲ trabaja **por lote**: crea los tests de ese lote, los corre, los ve fallar, implementa.
+Necesita tareas y tests **juntos**, en la misma lectura. En dos archivos habría que
+sincronizarlos a mano y `sf` tendría que cruzarlos para chequear.
+
+Y **plano, no anidado** — el lote es un campo, no un nivel. Pedir *"las tareas del lote 2"* es
+un filtro, y mover una tarea de lote es cambiar un número:
+
+```json
+{
+  "feature": "f-1",
+  "tareas": [
+    {
+      "id": "t-1",
+      "lote": 1,
+      "descripcion": "parsear el frontmatter del brief",
+      "satisface": ["us-1/CA-1", "us-1/CA-2"],
+      "tests": [
+        "internal/docs/brief_test.go::TestParseFrontmatter",
+        "internal/docs/brief_test.go::TestFrontmatterInvalido"
+      ]
+    }
+  ]
+}
+```
+
+Este archivo tacha tres dolores, y ninguno necesita que `sf` piense.
+
+**#8 — *"todo verde" sin que haya tests*.** `sf` tiene la **lista exacta** de tests que deben
+existir. Buscarlos es un `rg`; ver si corrieron es leer la salida del runner:
+
+```
+sf:  ✗ No avanzo.
+     Planificados 6 tests para el lote 1. Existen 4.
+     Faltan: TestFrontmatterInvalido · TestBriefSinSello
+```
+
+**#2 y #3 — el commit y su agrupamiento.** El lote es la unidad de commit: **un lote terminado
+= un commit.** No hay que agrupar bien — el agrupamiento **ya se decidió en la planificación**.
+
+**Y la feature a medias, atacada antes de empezar.** Cada tarea declara qué criterios de
+aceptación satisface, así que `sf` cuenta:
 
 ```
 ⚠ La feature tiene 9 criterios. Las tareas cubren 7.
   Sin cubrir: us-7/CA-1, us-7/CA-4.
 ```
 
-Es el dolor de *"la feature quedó a medias"* atacado **en la planificación**, no en la
-revisión. Y no se pisa con el ㉑:
+No se pisa con el ㉑, porque son preguntas distintas en momentos distintos:
 
-| ⑭ | ¿hay tarea para cada criterio? | **antes** de implementar · lo **cuenta** `sf` |
-| ㉑ | ¿el código satisface cada criterio? | **después** · lo **juzga** un modelo |
+| | La pregunta | Cuándo · quién |
+|---|---|---|
+| **⑭** | ¿hay tarea para cada criterio? | **antes** de implementar · lo **cuenta** `sf` |
+| **㉑** | ¿el código satisface cada criterio? | **después** · lo **juzga** un modelo |
+
+### ⑯ — el modelo: **estado, no archivo**
+
+Es un dato de una línea (regla 1.1), pero el estado guarda más, porque el ⑯ es un lazo
+cerrado:
+
+> *"elevo el modelo a uno mejor **porque significa que la recomendación no fue suficiente**"*
+
+```json
+"f-1": { "modelo_recomendado": "deepseek", "modelo_actual": "deepseek", "intentos_fallidos": 2 }
+```
+
+**Así "varias veces" deja de ser una sensación y pasa a ser un número**, y el lazo lo cierra
+la máquina en vez de depender de que Javier note que ese lote viene fallando:
+
+```
+sf:  El lote 2 falló 3 veces con deepseek.
+     La estimación de complejidad del ⑯ se quedó corta.
+     ¿Subo el modelo, o entrás vos?
+```
+
+### La carpeta de la feature queda así
+
+```
+.docs/features/f-1-nucleo-cli/
+  decision.md        ⑫   las 3 opciones y por qué B
+  spec-design.md     ⑬   lo único que lee el implementador
+  tareas.json        ⑭⑮  lotes, tareas, CA que satisfacen, tests planificados
+```
+
+El ⑯ y el ⑰ no crean archivos: van al estado.
 
 ---
 
 ## 10. Lo que falta
 
-> **La ronda 6 (⑫–⑯) ya está propuesta y esperando respuesta** — vive en
-> [`session.md` §8](session.md), con sus cuatro preguntas. Cuando se confirme, se muda acá.
+**Ronda 7 — el traspaso, la implementación y el cierre: ⑱–㉓.**
 
-El ciclo por feature: **⑪–㉓**. En particular:
-
-- ⑫ las 3 implementaciones — ¿se guardan las 2 descartadas?
-- ⑬ `spec-design.md` — uno solo, ya decidido; falta la estructura
-- ⑭ `tareas.json` — los lotes, y el enlace a los CA
-- ⑮ los tests a crear — ¿archivo propio o parte de las tareas?
-- ⑯ el modelo recomendado — estado, no archivo
+- ⑱ el traspaso al modelo frío — qué se le entrega exactamente, y con qué mecanismo
+- ⑲–⑳ la implementación por lote — qué queda registrado de cada lote
 - ㉑ el informe de la revisión — hoy vive en el chat y se pierde
 - ㉒ los mutantes — ¿se guardan los parches o sólo el resultado?
 - ㉓ el cierre: documentación y archivado
+
+Y una pregunta de `session.md` §7 que la ronda 7 tiene que contestar: **cuando ㉑ o ㉒
+encuentran algo y el implementador lo arregla solo, ¿te enterás, o la máquina corrige en
+silencio si terminó bien?**
