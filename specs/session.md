@@ -2,8 +2,10 @@
 
 **Fecha:** 2026-08-07 / 08 / 10 · **Branch:** `refundation` (sin pushear)
 **Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
-(*ejecuta*, §5) y **la arquitectura está decidida** (§6). Sigue abierto el strawman de los
-ocho dolores, en §5.
+(*ejecuta*, §5) y **la arquitectura está decidida** (§6). En curso: la **prueba de escritorio
+de los artefactos** en [`artefactos.md`](artefactos.md) — rondas 1–5 cerradas, **la 6 quedó
+propuesta y sin responder** (§8, ahí se retoma). Sigue abierto el strawman de los ocho
+dolores, en §5.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -260,7 +262,156 @@ y de paso el subagente no gasta contexto buscando qué leer.
 
 ---
 
-## 8. Pendiente de infraestructura
+## 8. ⬅ ACÁ QUEDAMOS — ronda 6 de la prueba de escritorio, esperando respuesta
+
+Estamos haciendo la **prueba de escritorio de los artefactos** en
+[`artefactos.md`](artefactos.md) — paso a paso por el flujo, preguntando en cada uno *qué
+artefacto sale · quién lo consume · qué formato · qué estructura*.
+
+**Rondas 1 a 5 cerradas** (①–⑩) y escritas en `artefactos.md`. Ésta es la 6 y quedó
+propuesta, **sin confirmar**. Al final hay cuatro preguntas para retomar.
+
+---
+
+### Ronda 6 — el bloque de planificación (⑫–⑯)
+
+Los cinco pasos pasan en **una sola conversación** y se revisan **una sola vez** en el ⑰.
+Después se le pasan a un modelo frío. La pregunta de la ronda: **¿cuántos archivos salen, y
+para quién es cada uno?**
+
+#### ⑫ — las 3 implementaciones
+
+| Consumidor | Necesita esto |
+|---|---|
+| **Javier, en el ⑰** | ver las 3 para juzgar si la elegida es la buena |
+| **Javier, meses después** | *"¿por qué no hicimos la otra?"* |
+| **el implementador (⑱)** | **NO. Le sobra.** |
+
+→ **archivo propio, separado del spec.** Si las 3 opciones van dentro del `spec-design.md`,
+el modelo frío del ⑱ se come dos soluciones que no tiene que hacer: gasta contexto y puede
+mezclarlas.
+
+```markdown
+---
+tipo: decision
+feature: f-1
+elegida: B
+---
+
+## A — <nombre>      qué es · a favor · en contra
+## B — <nombre>  ✅  qué es · a favor · en contra
+## C — <nombre>      qué es · a favor · en contra
+
+## Por qué B
+```
+
+Es el mismo valor que el *"no lo hagas"* del brief: **guardar lo descartado y su porqué**.
+
+#### ⑬ — `spec-design.md`
+
+Un solo archivo (ya decidido). **Es lo único que el implementador necesita leer.**
+
+```markdown
+---
+tipo: spec-design
+feature: f-1
+historias: [us-1, us-3, us-7]
+estado: borrador        # borrador | aprobado  ← lo sella el ⑰
+deriva_de: decision
+---
+
+## Qué hay que construir
+## El diseño            (módulos, tipos, quién llama a quién)
+## Interfaces / contratos
+## Qué NO entra
+```
+
+#### ⑭ + ⑮ — las tareas y los tests, **en el mismo archivo**
+
+El ⑲ trabaja **por lote**: crea los tests de ese lote, los corre, los ve fallar, implementa.
+Necesita tareas y tests **juntos**. En dos archivos habría que sincronizarlos a mano.
+
+Y **plano, no anidado** — el lote es un campo, no un nivel:
+
+```json
+{
+  "feature": "f-1",
+  "tareas": [
+    {
+      "id": "t-1",
+      "lote": 1,
+      "descripcion": "parsear el frontmatter del brief",
+      "satisface": ["us-1/CA-1", "us-1/CA-2"],
+      "tests": [
+        "internal/docs/brief_test.go::TestParseFrontmatter",
+        "internal/docs/brief_test.go::TestFrontmatterInvalido"
+      ]
+    }
+  ]
+}
+```
+
+**Con esto se muere el dolor #8.** *"Los tests pasaban pero no había tests"*: `sf` tiene la
+**lista exacta** de tests que deben existir. Buscarlos es un `rg`; ver si corrieron es leer
+la salida del runner. Cero juicio.
+
+```
+sf:  ✗ No avanzo.
+     Planificados 6 tests para el lote 1. Existen 4.
+     Faltan: TestFrontmatterInvalido · TestBriefSinSello
+```
+
+**Y los #2 y #3 también:** el lote es la unidad de commit. **Un lote terminado = un commit.**
+No hay que agrupar bien — el agrupamiento ya se decidió en la planificación.
+
+#### ⑯ — el modelo: **estado, no archivo**
+
+Es un dato de una línea, pero el estado guarda más, porque el ⑯ es un lazo cerrado:
+
+> *"elevo el modelo a uno mejor **porque significa que la recomendación no fue suficiente**"*
+
+```json
+"f-1": { "modelo_recomendado": "deepseek", "modelo_actual": "deepseek", "intentos_fallidos": 2 }
+```
+
+**Así "varias veces" deja de ser una sensación y pasa a ser un número:**
+
+```
+sf:  El lote 2 falló 3 veces con deepseek.
+     La estimación de complejidad del ⑯ se quedó corta.
+     ¿Subo el modelo, o entrás vos?
+```
+
+#### La carpeta de la feature queda así
+
+```
+.docs/features/f-1-nucleo-cli/
+  decision.md        ⑫   las 3 opciones y por qué B
+  spec-design.md     ⑬   lo que lee el implementador
+  tareas.json        ⑭⑮  lotes, tareas, CA que satisfacen, tests planificados
+```
+
+El ⑯ y el ⑰ no crean archivos: van al estado.
+
+### Las cuatro preguntas para retomar
+
+1. **¿`decision.md` aparte del spec?** → propuesto **sí**, porque el implementador no tiene
+   que leerlo.
+2. **¿Tests dentro de `tareas.json`, sin archivo propio?** → **sí**, el ⑲ los consume juntos.
+3. **¿Tareas planas con campo `lote`, en vez de anidar lotes?** → **sí**, más fácil de
+   consultar y de escribir.
+4. **¿El contador de intentos fallidos?** → **sí**. Convierte *"si falla varias veces entro
+   yo"* en algo que la máquina dispara sola.
+
+### Y después de la 6
+
+Queda la ronda 7: **⑱–㉓** — el traspaso, la implementación, las tres verificaciones y el
+cierre. En particular el informe del ㉑ (hoy vive en el chat y se pierde), qué se guarda de
+los mutantes del ㉒, y la documentación del ㉓.
+
+---
+
+## 9. Pendiente de infraestructura
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).

@@ -404,6 +404,9 @@ revisión. Y no se pisa con el ㉑:
 
 ## 10. Lo que falta
 
+> **La ronda 6 (⑫–⑯) ya está propuesta y esperando respuesta** — vive en
+> [`session.md` §8](session.md), con sus cuatro preguntas. Cuando se confirme, se muda acá.
+
 El ciclo por feature: **⑪–㉓**. En particular:
 
 - ⑫ las 3 implementaciones — ¿se guardan las 2 descartadas?
