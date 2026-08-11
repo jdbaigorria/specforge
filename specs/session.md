@@ -36,6 +36,7 @@ no para surtirse.
 | Archivo | Qué es | Estado |
 |---|---|---|
 | **`flujo-real.md`** | el flujo real, 23 pasos, 3 entradas, sin herramienta adentro | **completo** |
+| **`artefactos.md`** | qué produce cada paso, quién lo consume y en qué formato — 7 rondas, ①–㉓ | ✅ **completo** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ⏸ **congelados** — hipótesis sin consumidor |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -264,8 +265,21 @@ y de paso el subagente no gasta contexto buscando qué leer.
 
 ## 8. ⬅ ACÁ QUEDAMOS — la prueba de escritorio cerró, sigue la máquina de estados
 
-**Las siete rondas están cerradas** y viven en [`artefactos.md`](artefactos.md). El inventario
-completo —cada artefacto, su formato y quién lo lee— está en su **§11**.
+**Las siete rondas están cerradas** y viven en [`artefactos.md`](artefactos.md).
+
+### Dónde quedó cada cosa
+
+| Dónde | Qué hay |
+|---|---|
+| `artefactos.md` **§1** | las **reglas transversales** — archivo o estado · prosa o datos · frontmatter · referenciar por id |
+| `artefactos.md` **§2–§3** | los tres tipos de parada · la jerarquía historia ↔ feature |
+| `artefactos.md` **§4–§10** | las siete rondas, paso por paso |
+| `artefactos.md` **§11** | **el inventario completo** — los 10 archivos, el `estado.json`, y dónde muere cada dolor |
+| **acá, §8** | el resumen de la ronda 7 y qué sigue |
+
+Los ejemplos concretos —el `revision.json`, el `sf context implement`, el `mutacion:` de la
+constitución— están todos en `artefactos.md`. **Acá no se copian: se apuntan.** Es la regla 1.4
+aplicada a esta misma sesión.
 
 ### Lo que cerró la ronda 7 (⑱–㉓)
 
@@ -322,6 +336,10 @@ Las tres preguntas abiertas, sin cambios:
    hoy y ahí sí se pierde el rastro.
 3. **La forma final del `estado.json`** — hay un borrador en `artefactos.md` §11, sacado de lo
    que las rondas fueron pidiendo. Falta validarlo contra la máquina.
+
+**Y sigue pendiente el strawman de §5**, sin corregir desde hace tres sesiones. Es corto: ocho
+filas esperando un sí o un no. Conviene cerrarlo **antes** de la máquina de estados, porque es
+el que define qué hace `sf` en cada dolor — y eso es justo lo que la máquina tiene que ejecutar.
 
 ---
 
