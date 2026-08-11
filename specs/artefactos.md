@@ -7,7 +7,8 @@ uno: **qué artefacto sale · quién lo consume · qué formato · qué estructu
 > se decidió el formato antes de saber quién iba a leer cada cosa. Acá el orden es al revés:
 > **primero el consumidor, después el formato.**
 
-**Estado:** rondas 1 a 6 cerradas (①–⑯). Falta el cierre del ciclo por feature, ⑰–㉓.
+**Estado:** ✅ **cerrada.** Las siete rondas cubren el flujo entero, ①–㉓. El inventario
+completo de artefactos está en §11.
 
 ---
 
@@ -238,6 +239,7 @@ actualizado: 2026-08-11
 
 lenguaje: go
 manifiesto: go.mod              # dónde mira sf
+mutacion: gremlins              # herramienta del ㉒; vacío = sólo el modelo
 
 dependencias_aprobadas:
   - github.com/spf13/cobra
@@ -547,16 +549,246 @@ El ⑯ y el ⑰ no crean archivos: van al estado.
 
 ---
 
-## 10. Lo que falta
+## 10. Ronda 7 — el traspaso, la implementación y el cierre (⑱–㉓)
 
-**Ronda 7 — el traspaso, la implementación y el cierre: ⑱–㉓.**
+La última. Y la que menos archivos agrega: **uno solo**, más la documentación del ㉓.
 
-- ⑱ el traspaso al modelo frío — qué se le entrega exactamente, y con qué mecanismo
-- ⑲–⑳ la implementación por lote — qué queda registrado de cada lote
-- ㉑ el informe de la revisión — hoy vive en el chat y se pierde
-- ㉒ los mutantes — ¿se guardan los parches o sólo el resultado?
-- ㉓ el cierre: documentación y archivado
+### ⑱ — no sale archivo, sale un comando
 
-Y una pregunta de `session.md` §7 que la ronda 7 tiene que contestar: **cuando ㉑ o ㉒
-encuentran algo y el implementador lo arregla solo, ¿te enterás, o la máquina corrige en
-silencio si terminó bien?**
+Acá no se crea nada: se **entrega** lo que ya existe. Lo único a decidir era **qué entra en el
+sobre**.
+
+```
+sf context implement f-1 --lote 2
+  → .docs/constitucion.md                  el manual
+  → .docs/features/f-1/spec-design.md      el qué y el cómo
+  → .docs/features/f-1/tareas.json         sólo el lote 2
+  → us-1.md · us-3.md                      por los criterios de aceptación
+```
+
+**Sin `decision.md`** — regla del ⑫: la restricción sí, la alternativa no.
+
+Esto asciende la idea que estaba guardada *"para más adelante"* en `session.md` §6 y la
+convierte en **el mecanismo del ⑱**. El motivo es la frase de `flujo-real.md`: acá *"la
+propuesta tiene que bastarse sola"*. Si la lista de qué leer la arma el orquestador a mano,
+cada vez se olvida algo distinto.
+
+### ⑲ — el rojo es comprobable, y es lo más barato del diseño
+
+El ⑲ tiene tres tiempos y el tercero es *"comprobá que fallan"*. Hoy eso es **una promesa del
+modelo**: contesta *"sí, fallan"* y nadie mira.
+
+Pero es un **hecho**, y la lista exacta de tests del lote ya está en `tareas.json` (ronda 6).
+Así que `sf` lo mira con sus propios ojos, antes de dejar implementar:
+
+```
+sf lote start 2
+  ✓ los 6 tests planificados fallan. Rojo confirmado. Podés implementar.
+```
+
+```
+sf: ✗ TestParseFrontmatter YA PASA, y todavía no se escribió el código.
+    Ese test no prueba nada. No avanzo.
+```
+
+> **Un test que pasa antes de que exista el código es un test de mentira.**
+
+Es el **#5** (los mocks) y el **#8** (verde sin sustancia) atacados por un *exit code*, sin
+juicio y sin agregar un solo artefacto.
+
+### ⑲–⑳ — semáforo, no registro
+
+Del par no sale archivo. El registro del trabajo **es el commit del lote**, que ya existe. Al
+estado va una línea:
+
+```json
+"f-1": { "lote": 2, "rojo_confirmado": true, "verde": true, "commit": "a3f9c1e" }
+```
+
+**Su único consumidor es `sf`, en ese instante.** Es un semáforo: su trabajo es no dejar
+pasar. Una vez que el lote está verde y commiteado, que el rojo se haya visto no le cambia
+nada a nadie.
+
+Queda en el estado igual por una sola razón: cuando algo explota, poder preguntar *"¿este lote
+llegó a estar en rojo alguna vez?"*. Cuesta una línea. **Lo que no se hace es darle archivo ni
+bitácora — no tiene lector** (regla 1.6).
+
+### ㉑ + ㉒ — un solo artefacto, y en JSON
+
+**Son un archivo, no dos.** Sale de leer el flujo: los hace **el mismo actor** (el modelo
+grande), en **la misma pasada**, y cuando hay un arreglo **se rehacen los dos juntos**
+(*"se vuelve a correr los mutantes y la verificación"*).
+
+**Y va en JSON, no en markdown** — por la regla 1.2, y el argumento es duro: el hallazgo nace
+`abierto` y después pasa a `arreglado`. **Ese cambio ocurre después de que el revisor escribió
+el archivo, y no lo hace él: lo hace el flujo.** En markdown, marcar un hallazgo como arreglado
+exige un modelo que reescriba prosa — y ahí se corrompe. En JSON es un campo.
+
+```json
+{
+  "feature": "f-1",
+  "vuelta": 2,
+  "veredicto": "con-hallazgos",
+  "criterios": {
+    "us-1/CA-1": "cumple",
+    "us-3/CA-2": "no-cumple"
+  },
+  "mutantes": { "herramienta": "gremlins", "score": 0.88, "sobrevivieron": 1 },
+  "hallazgos": [
+    { "id": "h-1", "origen": 21, "criterio": "us-3/CA-2", "estado": "arreglado",
+      "detalle": "el parser acepta frontmatter sin cerrar; CA-2 pide que falle" }
+  ]
+}
+```
+
+La prosa no se pierde: **es un campo**. Y para que lo lea un humano, `sf` genera la vista
+(regla 1.5).
+
+**Acá muere el dolor #7.** `sf` no juzga la revisión — **cuenta que haya ocurrido sobre
+todos**, que es el mecanismo de la ronda 4:
+
+```
+sf:  La feature tiene 9 criterios. El informe opina sobre 7. No avanzo.
+     Sin veredicto: us-7/CA-1, us-7/CA-4.
+```
+
+**Y `vuelta:` es el mismo truco que `intentos_fallidos`:** si el ㉑ va por la cuarta, eso no es
+ruido — es que la planificación se quedó corta.
+
+### ㉒ — herramienta **y** modelo, en ese orden
+
+No compiten: **miran cosas distintas.**
+
+| | Qué muta | Qué aporta |
+|---|---|---|
+| **la herramienta** | la **sintaxis** — un `>` por `>=`, borrar una línea, invertir un booleano | exhaustiva, determinista, barata, y da un **número reproducible** |
+| **el modelo** | el **sentido** — *"¿y si el frontmatter trae el campo pero vacío?"* | el agujero conceptual, que no es un cambio de operador |
+
+```
+1. corre la herramienta                    → barata, exhaustiva, da el score
+2. el modelo mira los que SOBREVIVIERON    → decide cuáles importan de verdad
+3. y agrega los suyos, los semánticos
+```
+
+El modelo deja de inventar a ciegas y trabaja sobre evidencia: gasta menos y apunta mejor. Y
+`sf` gana algo que con el modelo solo no tenía — **un número comparable entre vueltas**:
+
+```
+sf: mutation score 71% (vuelta 1) → 88% (vuelta 2)
+```
+
+**Se declara en la constitución**, al lado del manifiesto (§6): `mutacion: gremlins`. Si el
+stack no tiene una herramienta buena, el campo va vacío y queda sólo el modelo — **la
+herramienta es una mejora, no un requisito**, igual que los subagentes.
+
+**De los mutantes se guarda el resultado, no los parches.** Los genera un modelo distinto cada
+vez: no son reproducibles ni estables, y una vez arreglado el test el parche no se vuelve a
+aplicar nunca. Lo que importa entra en la línea `mutantes` de arriba.
+
+### ㉓ — el cierre
+
+**La documentación es archivo**, y tiene un consumidor que no es obvio: **el ⑫ de una feature
+futura**, cuando la pregunta sea *"¿esto ya está resuelto en algún lado?"*. Se escribe al
+final, sobre lo que realmente quedó.
+
+**Marcar como terminada: en un solo lugar.** El ㉓ pide marcarla *"en el roadmap y en el
+backlog"*, pero por la regla de la ronda 4 eso **ya se resolvió solo**: el estado vive en el
+frontmatter del `us-#` y en ningún otro lado; el roadmap tiene sólo ids. Se marca una vez y
+`sf` genera las dos vistas. Un punto de desincronización menos.
+
+**Y "archivar" — la pregunta que `flujo-real.md` había dejado abierta:**
+
+```
+.docs/features/f-1-nucleo-cli/   →   .docs/archivado/f-1-nucleo-cli/
+```
+
+Se mueve **la carpeta entera con todo adentro** (`decision`, `spec-design`, `tareas`,
+`revision`, la doc), y los `us-#` pasan a `estado: archivada`. Las referencias por id siguen
+funcionando porque `sf` es el que resuelve dónde vive cada cosa (regla 1.4).
+
+### La pregunta grande: ¿Javier se entera si lo arregla solo?
+
+> *Cuando ㉑ o ㉒ encuentran algo y el implementador lo arregla, ¿te enterás, o la máquina
+> corrige en silencio si terminó bien?*
+
+**Sí, pero al final, y sin frenar.** Si `sf` para en cada hallazgo, vuelve a ser Javier el que
+empuja — justo el dolor #1. Si no avisa nunca, el ㉑ se vuelve un trámite. El punto medio ya
+existía en el diseño: **la parada barata** de §2.
+
+```
+sf:  f-1 lista para archivar.
+     El ㉑ fue 2 vueltas. 2 hallazgos, los dos arreglados:
+       h-1  us-3/CA-2 no se cumplía
+       h-2  un mutante sobrevivió en brief_test.go
+     [enter] archivo    [v] ver el detalle
+```
+
+Y el rastro queda en `revision.json` esté o no ese enter.
+
+---
+
+## 11. El inventario completo
+
+Todo lo que el flujo produce, y nada más que eso.
+
+### Los archivos
+
+| Paso | Artefacto | Formato | Lo lee |
+|---|---|---|---|
+| ①–⑥ | `brief.md` | md + frontmatter | el ⑦ · Javier meses después · `sf` (el sello) |
+| ⑦ | `prd.md` | md + frontmatter | el ⑧ y el **⑨** · `sf` (el hash) |
+| ⑧ | `constitucion.md` | md + frontmatter | el ⑨ · **el implementador** · el ㉑ · `sf` (deps, git, mutación) |
+| ⑨ | `us-#.md` | md + frontmatter | el ⑩ · el planificador · **el ㉑** · `sf` (estado y CA) |
+| ⑩ | `roadmap.json` | **json** | `sf` · el modelo del ⑩ |
+| ⑫ | `decision.md` | md + frontmatter | **sólo Javier** — el implementador no |
+| ⑬ | `spec-design.md` | md + frontmatter | **el implementador**, y es lo único que necesita |
+| ⑭⑮ | `tareas.json` | **json** | el ⑲ · `sf` (tests, CA, lotes) |
+| ㉑㉒ | `revision.json` | **json** | el implementador (a arreglar) · `sf` (cuenta) · Javier (vista) |
+| ㉓ | la doc de la feature | md | Javier · **el ⑫ de una feature futura** |
+
+Los tres JSON son exactamente los tres lugares donde `sf` **escribe o consulta datos**. El
+resto es prosa con una cabecera.
+
+### El estado — lo único que no es de nadie más que de `sf`
+
+```json
+{
+  "paso": 19,
+  "feature_actual": "f-1",
+  "prd_hash": "a3f9c1",
+  "f-1": {
+    "modelo_recomendado": "deepseek", "modelo_actual": "deepseek",
+    "intentos_fallidos": 2,
+    "lotes": [
+      { "lote": 1, "rojo_confirmado": true, "verde": true,  "commit": "9c2e1a" },
+      { "lote": 2, "rojo_confirmado": true, "verde": false, "commit": null }
+    ]
+  }
+}
+```
+
+### Los ocho dolores, y dónde muere cada uno
+
+| # | Dolor | Muere en |
+|---|---|---|
+| 1 | lanzar cada fase a mano | **la máquina de estados** — `sf` dice qué sigue, el orquestador lanza |
+| 2 | el commit no se hace | **el lote** (⑭) — un lote terminado, un commit |
+| 3 | commits mal agrupados | **el lote** (⑭) — el agrupamiento ya se decidió en la planificación |
+| 4 | no crea la branch | **`git:` en la constitución** (⑧) — `sf` compara y no avanza |
+| 5 | métodos que son mocks | **el subagente por lote** + **el rojo del ⑲** |
+| 6 | librerías fuera de la constitución | **el manifiesto** (⑧) — compara contra el estado anterior, y **avisa** |
+| 7 | *"terminado"* con media historia | **`revision.json`** — `sf` cuenta los criterios sin veredicto |
+| 8 | *"todo verde"* sin tests | **`tareas.json`** — la lista exacta de tests; buscarlos es un `rg` |
+
+**Ninguno necesita que `sf` piense.** Todos son comparar, contar o correr algo.
+
+---
+
+## 12. Lo que sigue
+
+La prueba de escritorio está cerrada. Sigue, en `session.md` §7:
+
+1. **cerrar el strawman de los ocho dolores** — §5 de `session.md`
+2. **la máquina de estados** — los 23 pasos no son 23 estados
+3. **la forma final del `estado.json`**
+4. y recién ahí: **qué de lo construido sobrevive**

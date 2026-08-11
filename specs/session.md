@@ -2,9 +2,10 @@
 
 **Fecha:** 2026-08-07 / 08 / 10 / 11 · **Branch:** `refundation` (sin pushear)
 **Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
-(*ejecuta*, §5) y **la arquitectura está decidida** (§6). En curso: la **prueba de escritorio
-de los artefactos** en [`artefactos.md`](artefactos.md) — **rondas 1–6 cerradas** (①–⑯),
-**sigue la 7** (§8, ahí se retoma). Sigue abierto el strawman de los ocho dolores, en §5.
+(*ejecuta*, §5), **la arquitectura está decidida** (§6) y la **prueba de escritorio de los
+artefactos** quedó **✅ completa** — las siete rondas, ①–㉓, en
+[`artefactos.md`](artefactos.md). Lo que sigue es **la máquina de estados** (§8). Sigue
+abierto el strawman de los ocho dolores, en §5.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -220,9 +221,10 @@ vos      →  DECIDÍS  (⑥, ⑧, ⑰)
 
 ---
 
-### 📌 Idea guardada para más adelante — `sf` como proveedor de contexto
+### 📌 ~~Idea guardada para más adelante~~ → ✅ **adoptada en la ronda 7** — `sf` como proveedor de contexto
 
-De Javier, explícitamente **no ahora**:
+Era de Javier y estaba marcada *"no ahora"*. **La ronda 7 la ascendió a mecanismo del ⑱** (ver
+[`artefactos.md`](artefactos.md) §10). Queda acá el origen:
 
 > *"el cli no sólo indicaría dónde estás, qué sigue, podés avanzar, sino que tendría la
 > capacidad de inyectar el contexto adecuado a los subagentes. Porque cuando un subagente
@@ -245,10 +247,10 @@ y de paso el subagente no gasta contexto buscando qué leer.
 
 ## 7. Qué sigue
 
-1. **⬅ ACÁ SEGUIMOS — terminar la prueba de escritorio de los artefactos.** Queda la **ronda
-   7** (⑱–㉓), ver §8. Las rondas 1–6 ya están en `artefactos.md`.
+1. ~~La prueba de escritorio de los artefactos~~ — ✅ **cerrada**, las 7 rondas en
+   [`artefactos.md`](artefactos.md). El inventario completo está en su §11.
 2. **Cerrar el strawman de §5** — las 8 filas, esperando corrección.
-3. **La máquina de estados.** Los 23 pasos **no son 23 estados**. Hay que decidir dónde están
+3. **⬅ ACÁ SEGUIMOS — la máquina de estados.** Los 23 pasos **no son 23 estados**. Hay que decidir dónde están
    los cortes, qué transiciones son automáticas, y **dónde para y te espera**.
    - Hipótesis: para en ⑥, ⑧ y ⑰ y en ningún otro lado → de empujar 23 pasos a decidir 3.
    - **El camino corto tiene que ser un estado, no una excepción**, o va a ser esquivado
@@ -260,63 +262,66 @@ y de paso el subagente no gasta contexto buscando qué leer.
 
 ---
 
-## 8. ⬅ ACÁ QUEDAMOS — ronda 7 de la prueba de escritorio
+## 8. ⬅ ACÁ QUEDAMOS — la prueba de escritorio cerró, sigue la máquina de estados
 
-La **ronda 6 está cerrada** y escrita en [`artefactos.md` §9](artefactos.md). Lo que decidió,
-en corto:
+**Las siete rondas están cerradas** y viven en [`artefactos.md`](artefactos.md). El inventario
+completo —cada artefacto, su formato y quién lo lee— está en su **§11**.
 
-**La carpeta de cada feature son tres archivos, y cada uno tiene un consumidor distinto:**
+### Lo que cerró la ronda 7 (⑱–㉓)
 
-```
-.docs/features/f-1-nucleo-cli/
-  decision.md        ⑫   las 3 opciones y por qué B      → Javier (⑰ y meses después)
-  spec-design.md     ⑬   lo único que lee el implementador
-  tareas.json        ⑭⑮  lotes + tareas + CA + tests planificados
-```
-
-El ⑯ y el ⑰ no crean archivos: van al estado.
-
-**Las cuatro respuestas de Javier:**
+Es la ronda que **menos** artefactos agregó: uno solo, más la documentación del ㉓.
 
 | | Decidido |
 |---|---|
-| `decision.md` aparte del spec | **sí** — el implementador no tiene que leerlo |
-| tests dentro de `tareas.json` | **sí** — el ⑲ los consume junto con la tarea |
-| tareas planas con campo `lote` | **sí** — el lote es un dato, no un nivel |
-| contador de `intentos_fallidos` | **sí** — el lazo del ⑯ lo cierra la máquina |
+| ⑱ el sobre lo arma `sf` | **sí** — `sf context implement f-1 --lote 2`. Sube de "idea guardada" a mecanismo |
+| ⑲ el rojo lo comprueba `sf` | **sí** — corre los tests planificados **antes** de implementar |
+| ⑲–⑳ | **sin archivo**: semáforo + una línea de estado por lote |
+| ㉑ y ㉒ | **un solo `revision.json`** — mismo actor, misma pasada, se rehacen juntos |
+| ㉒ mutantes | **herramienta primero, modelo después**; se guarda el resultado, no los parches |
+| ㉓ archivar | mover la carpeta entera a `.docs/archivado/`; marcar en **un** solo lugar |
+| ¿te enterás de los arreglos? | **sí, al final y sin frenar** — parada barata en el ㉓ |
 
-**Y una quinta cosa, que salió de una duda suya y mejoró el diseño:** *"¿no le sirve al
-implementador saber por qué se descartaron las otras?"*. Las dos cosas eran ciertas, así que
-se separan —
+**Dos cosas salieron de correcciones de Javier, y las dos mejoraron el diseño:**
 
-> **Al implementador le sirve la restricción, no la alternativa.**
+- **`revision` va en JSON, no en markdown.** El argumento es duro: el hallazgo nace `abierto` y
+  pasa a `arreglado` **después** de que el revisor escribió el archivo, y el que lo cambia es el
+  flujo, no él. En markdown eso exige un modelo que reescriba prosa — y ahí se corrompe.
+- **En el ㉒ conviene herramienta + modelo.** No compiten: la herramienta muta **sintaxis** (y da
+  un score reproducible), el modelo muta **sentido**. El modelo mira los supervivientes de la
+  herramienta en vez de inventar a ciegas. Se declara en la constitución: `mutacion: gremlins`.
 
-El **veredicto** de cada descarte baja al `spec-design.md`, a *"Qué NO entra"*, en una línea y
-con puntero al `decision.md`. El **debate** se queda en `decision.md`. Lo descartado viaja
-como **límite**, no como opción viva.
+**Y el hallazgo propio de la ronda:** el *"comprobá que los tests fallan"* del ⑲ **es
+verificable por máquina**. Hoy es una promesa del modelo. Con la lista de tests que ya está en
+`tareas.json`, `sf` lo confirma con un exit code —
 
-**Lo que se tachó en esta ronda:** el **#8** (`sf` tiene la lista exacta de tests, buscarlos
-es un `rg`), y el **#2 + #3** (un lote terminado = un commit; el agrupamiento ya se decidió en
-la planificación). Ninguno necesita que `sf` piense.
+> **Un test que pasa antes de que exista el código es un test de mentira.**
+
+— y eso ataca el **#5** y el **#8** sin agregar un solo artefacto.
+
+### El saldo de las siete rondas
+
+**Diez archivos en todo el flujo, y sólo tres son JSON** — exactamente los tres lugares donde
+`sf` escribe o consulta datos: `roadmap.json`, `tareas.json`, `revision.json`. Todo lo demás es
+prosa con una cabecera.
+
+**Y los ocho dolores tienen dónde morir** (tabla completa en `artefactos.md` §11). Ninguno
+necesita que `sf` piense: todos son comparar, contar o correr algo.
 
 ---
 
-### Ronda 7 — el traspaso, la implementación y el cierre (⑱–㉓)
+### Lo que sigue: la máquina de estados
 
-Es la última ronda. Los pasos, y lo que hay que contestar de cada uno:
+Es el punto 3 de §7, y ahora tiene todo lo que le faltaba: **ya sabemos qué produce cada paso y
+quién lo consume**, así que se puede decidir dónde están los cortes.
 
-- **⑱ el traspaso al modelo frío** — qué se le entrega exactamente y con qué mecanismo. Es el
-  punto donde `flujo-real.md` dice que *"la propuesta tiene que bastarse sola"*, y donde
-  aparecería el `sf context implement` de §6.
-- **⑲–⑳ la implementación por lote** — qué queda registrado de cada lote, más allá del commit.
-- **㉑ el informe de la revisión** — hoy vive en el chat y **se pierde**. ¿Archivo? ¿Estado?
-- **㉒ los mutantes** — ¿se guardan los parches, o sólo el resultado?
-- **㉓ el cierre** — la documentación y el archivado de la feature y sus historias.
+Las tres preguntas abiertas, sin cambios:
 
-**La pregunta grande de la ronda**, que viene de §7 y hay que contestar acá:
-
-> cuando ㉑ o ㉒ encuentran algo y el implementador **lo arregla solo**, ¿te enterás? ¿O la
-> máquina corrige en silencio si terminó bien?
+1. **¿Dónde están los cortes?** Los 23 pasos no son 23 estados. Hipótesis: para en ⑥, ⑧ y ⑰ y
+   en ningún otro lado → de empujar 23 pasos a decidir 3.
+2. **El camino corto tiene que ser un estado, no una excepción**, o va a ser esquivado igual que
+   hoy y ahí sí se pierde el rastro.
+3. **La forma final del `estado.json`** — hay un borrador en `artefactos.md` §11, sacado de lo
+   que las rondas fueron pidiendo. Falta validarlo contra la máquina.
 
 ---
 
