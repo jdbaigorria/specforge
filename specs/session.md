@@ -7,7 +7,8 @@ artefactos** quedó **✅ completa** (①–㉓, en [`artefactos.md`](artefactos
 de los ocho dolores está ✅ firmado** (§5) y **la máquina de estados está ✅ cerrada** — los 9
 estados, las compuertas y el `estado.json`, en
 [`maquina-estados.md`](maquina-estados.md). Lo que sigue es **qué de lo construido
-sobrevive** (§8).
+sobrevive** — el punto de retomada está al final de §8, en *"por dónde arrancar la próxima
+sesión"*.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -306,17 +307,65 @@ un campo o comparar dos strings.
 - **`verde` era redundante con `commit`.** Si `sf` no deja commitear en rojo, *hay commit* ya
   significa *estaba verde*. Un campo deducible de otro es un campo que se desincroniza.
 
-### Lo que sigue: qué de lo construido sobrevive
+---
 
-Es el punto 5 de §7, y **ahora sí se puede**: la necesidad está escrita entera —el flujo, los
-artefactos y la máquina—, así que lo ya construido se puede mirar sin que moldee el diseño.
-Era la regla del corte de método (§1).
+## ⏭ POR DÓNDE ARRANCAR LA PRÓXIMA SESIÓN
 
-Después de eso quedan dos temas chicos, los dos ya con forma:
+**Tema: qué de lo construido sobrevive.** Es el punto 5 de §7, y **ahora sí se puede** — la
+necesidad está escrita entera y lo ya construido se puede mirar sin que moldee el diseño. Era
+la regla del corte de método (§1).
+
+### Lo que hay que leer para retomar (y nada más)
+
+| Archivo | Para qué |
+|---|---|
+| **este `session.md`, §5 y §6** | el strawman firmado y la arquitectura |
+| **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas — **es la vara** |
+| `artefactos.md` **§11** | el inventario de los 10 archivos, si hace falta el detalle |
+
+`flujo-real.md` no hace falta releerlo entero: lo que importaba ya está destilado en los
+otros dos.
+
+### El método, para no repetir el error del corte
+
+**La vara es la máquina, no el repo.** Se recorren los 9 estados y por cada uno se pregunta:
+
+> **¿hay algo ya construido que haga esto? ¿sirve tal cual, sirve cambiado, o estorba?**
+
+**Nunca al revés.** Abrir `skills/` y preguntar *"¿esto dónde encaja?"* es exactamente lo que
+hundió las versiones anteriores: **eso moldea el diseño según lo que hay.**
+
+### Los tres montones, y el sesgo declarado de antemano
+
+```
+SOBREVIVE     hace algo que la máquina necesita, tal como lo necesita
+SE ADAPTA     el método adentro sirve, la cáscara no
+SE TIRA       no tiene lugar en ninguno de los 9 estados
+```
+
+**El sesgo es hacia `se tira`.** Todo lo que sobreviva hay que mantenerlo, y el diagnóstico de
+esta refundación fue que la herramienta se había inflado.
+
+### Los tres candidatos que ya se sabe que hay que mirar
+
+1. **Los skills (`skills/`).** §6 ya decidió que **conservan su método** y sólo se les agrega
+   el principio y el final (*preguntá dónde estás* · *avisá que terminaste*). Falta ver **cuál
+   corresponde a cuál de los 9 estados** — y cuáles quedan sin estado, que son los que sobran.
+2. **El CLI en Go (`cli/`).** Nació con otra cabeza. La pregunta no es si el código sirve,
+   sino **si los comandos que expone son los que la máquina necesita**.
+3. **La capa cross (`contract/audit.md` · `judge.md`).** Está congelada por ser *"hipótesis sin
+   consumidor"* (§2). **Ahora hay con qué chequearlo:** o algún estado la consume, o queda
+   descartada de verdad.
+
+### Después de eso quedan dos temas chicos, los dos ya con forma
 
 1. **La superficie de `sf`.** Aparecieron `sf next`, `sf done`, `sf context <estado>`. Falta el
    inventario completo y quién llama a cada uno.
 2. **El reparto orquestador ↔ skills**, con los 9 estados ya fijos.
+
+> **Y la advertencia que sigue vigente** (`decisions-specforge`, 2026-08-07): no sobre-indexar
+> en determinismo. `sf` nació para producir artefactos útiles que hagan alucinar menos al
+> modelo, no para garantizar lo que no se puede garantizar.
 
 ---
 
