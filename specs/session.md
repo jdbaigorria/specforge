@@ -4,11 +4,12 @@
 **Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
 (*ejecuta*, §5), **la arquitectura está decidida** (§6), la **prueba de escritorio de los
 artefactos** quedó **✅ completa** (①–㉓, en [`artefactos.md`](artefactos.md)), el **strawman
-de los ocho dolores está ✅ firmado** (§5) y **la máquina de estados está ✅ cerrada** — los 9
-estados, las compuertas y el `estado.json`, en
-[`maquina-estados.md`](maquina-estados.md). Lo que sigue es **qué de lo construido
-sobrevive** — el punto de retomada está al final de §8, en *"por dónde arrancar la próxima
-sesión"*.
+de los ocho dolores está ✅ firmado** (§5), **la máquina de estados está ✅ cerrada** — los 9
+estados, las compuertas y el `estado.json`, en [`maquina-estados.md`](maquina-estados.md) — y
+**el recorrido de lo construido está ✅ cerrado**, con veredicto por pieza en
+[`que-sobrevive.md`](que-sobrevive.md). Lo que sigue es **la superficie de `sf` y el reparto
+orquestador ↔ skills** — el punto de retomada está al final, en *"por dónde arrancar la
+próxima sesión"*.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -41,8 +42,9 @@ no para surtirse.
 | **`flujo-real.md`** | el flujo real, 23 pasos, 3 entradas, sin herramienta adentro | **completo** |
 | **`artefactos.md`** | qué produce cada paso, quién lo consume y en qué formato — 7 rondas, ①–㉓ | ✅ **completo** |
 | **`maquina-estados.md`** | los 9 estados, las compuertas, las 4 paradas y el `estado.json` | ✅ **completo** |
+| **`que-sobrevive.md`** | el recorrido de los 9 estados contra lo construido — veredicto por pieza | ✅ **completo** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
-| `contract/audit.md` · `judge.md` | la capa cross | ⏸ **congelados** — hipótesis sin consumidor |
+| `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
 
 ---
@@ -258,13 +260,13 @@ y de paso el subagente no gasta contexto buscando qué leer.
 3. ~~La máquina de estados~~ — ✅ **cerrada**, en
    [`maquina-estados.md`](maquina-estados.md).
 4. ~~La forma del `estado.json`~~ — ✅ **cerrada**, en `maquina-estados.md` §9.
-5. **⬅ ACÁ SEGUIMOS — qué de lo construido sobrevive.** Y recién ahora, que es el orden que
-   se acordó en el corte de método (§1): los 16 repos y lo ya hecho se miran **con la
-   necesidad ya escrita**, para diferenciarse y no para surtirse.
+5. ~~Qué de lo construido sobrevive~~ — ✅ **cerrado**, en
+   [`que-sobrevive.md`](que-sobrevive.md).
+6. **⬅ ACÁ SEGUIMOS — la superficie de `sf` y el reparto orquestador ↔ skills.**
 
 ---
 
-## 8. ⬅ ACÁ QUEDAMOS — la máquina de estados cerró
+## 8. La máquina de estados — cerrada
 
 Vive en [`maquina-estados.md`](maquina-estados.md). **Acá no se copia: se apunta.**
 
@@ -309,59 +311,70 @@ un campo o comparar dos strings.
 
 ---
 
+## 9. ⬅ ACÁ QUEDAMOS — el recorrido de lo construido cerró
+
+Vive en [`que-sobrevive.md`](que-sobrevive.md). **Acá no se copia: se apunta.**
+
+### El saldo
+
+```
+skills   15  →  sobreviven 12 (adaptados o tal cual) · sf-audit sale a utilitario ·
+                se suma sfp-po · sf-propose se parte en tres estados
+CLI      47  →  ~10 de máquina + 3 de andamio.  ~34 se tiran, incluidos los tres
+                más grandes: gate (35K) · hook (35K) · doctor --drift (23K)
+capa cross   →  DESCARTADA — es el contrato de sf-audit, y ningún estado lo consume
+huecos        →  5, y cuatro son chicos. El grande: roadmap.json no existe en el CLI
+```
+
+**El diagnóstico de la refundación queda confirmado por los números.** Dos tercios del CLI
+sostenían conceptos —ledger de gates, enforcement por hook, cadena de cuatro fases, MoSCoW,
+carril lite, traza `PR#`— que **la máquina vuelve innecesarios**. Y lo que sobrevive tiene una
+forma clara: **corre algo, cuenta algo o sirve un archivo. Nada de lo que sobrevive piensa.**
+
+### Los rescates que valieron la ronda
+
+- **`redwitness` ya estaba construido**, con el mejor texto del repo sobre el dolor #5. Y la
+  compuerta **activa** de la máquina resultó **más simple** que su registro pasivo: `sf` ve el
+  rojo y el verde con sus propios ojos, así que el `CodeHash` sobra.
+- **`sf context for-wave` es el mecanismo del ⑱**, ya escrito.
+- **El reparto del juez de fase** (`sf` junta material → LLM juzga en subagente fresco → `sf`
+  persiste el veredicto) **es la arquitectura de §6, escrita antes de decidirla.**
+- **`sf mutation` ya era un contador, no un generador** — hacía shell-out a la herramienta del
+  lenguaje y consumía sólo el exit code.
+
+### Las siete reglas nuevas
+
+Están en `que-sobrevive.md` §2. La más productiva es de Javier:
+
+> **`sf` hace todo lo que tiene una sola respuesta correcta; el LLM hace lo que tiene varias.**
+
+Le agrega el cuarto verbo a `sf` — *expone · comprueba · sirve · **hace*** — y no rompe ninguna
+regla dura: crear directorios no es pensar ni lanzar a nadie.
+
+---
+
 ## ⏭ POR DÓNDE ARRANCAR LA PRÓXIMA SESIÓN
 
-**Tema: qué de lo construido sobrevive.** Es el punto 5 de §7, y **ahora sí se puede** — la
-necesidad está escrita entera y lo ya construido se puede mirar sin que moldee el diseño. Era
-la regla del corte de método (§1).
+**Tema: la superficie de `sf` y el reparto orquestador ↔ skills.** Es lo que queda: los 9
+estados están fijos y cada pieza ya tiene veredicto.
 
 ### Lo que hay que leer para retomar (y nada más)
 
 | Archivo | Para qué |
 |---|---|
-| **este `session.md`, §5 y §6** | el strawman firmado y la arquitectura |
-| **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas — **es la vara** |
-| `artefactos.md` **§11** | el inventario de los 10 archivos, si hace falta el detalle |
+| **este `session.md`, §6** | la arquitectura y las tres reglas duras |
+| **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas |
+| **[`que-sobrevive.md`](que-sobrevive.md)** §2, §13 y §14 | las reglas nuevas, los huecos y el saldo |
 
-`flujo-real.md` no hace falta releerlo entero: lo que importaba ya está destilado en los
-otros dos.
+### Lo concreto que falta
 
-### El método, para no repetir el error del corte
-
-**La vara es la máquina, no el repo.** Se recorren los 9 estados y por cada uno se pregunta:
-
-> **¿hay algo ya construido que haga esto? ¿sirve tal cual, sirve cambiado, o estorba?**
-
-**Nunca al revés.** Abrir `skills/` y preguntar *"¿esto dónde encaja?"* es exactamente lo que
-hundió las versiones anteriores: **eso moldea el diseño según lo que hay.**
-
-### Los tres montones, y el sesgo declarado de antemano
-
-```
-SOBREVIVE     hace algo que la máquina necesita, tal como lo necesita
-SE ADAPTA     el método adentro sirve, la cáscara no
-SE TIRA       no tiene lugar en ninguno de los 9 estados
-```
-
-**El sesgo es hacia `se tira`.** Todo lo que sobreviva hay que mantenerlo, y el diagnóstico de
-esta refundación fue que la herramienta se había inflado.
-
-### Los tres candidatos que ya se sabe que hay que mirar
-
-1. **Los skills (`skills/`).** §6 ya decidió que **conservan su método** y sólo se les agrega
-   el principio y el final (*preguntá dónde estás* · *avisá que terminaste*). Falta ver **cuál
-   corresponde a cuál de los 9 estados** — y cuáles quedan sin estado, que son los que sobran.
-2. **El CLI en Go (`cli/`).** Nació con otra cabeza. La pregunta no es si el código sirve,
-   sino **si los comandos que expone son los que la máquina necesita**.
-3. **La capa cross (`contract/audit.md` · `judge.md`).** Está congelada por ser *"hipótesis sin
-   consumidor"* (§2). **Ahora hay con qué chequearlo:** o algún estado la consume, o queda
-   descartada de verdad.
-
-### Después de eso quedan dos temas chicos, los dos ya con forma
-
-1. **La superficie de `sf`.** Aparecieron `sf next`, `sf done`, `sf context <estado>`. Falta el
-   inventario completo y quién llama a cada uno.
-2. **El reparto orquestador ↔ skills**, con los 9 estados ya fijos.
+1. **El inventario de comandos de `sf`.** Aparecieron `next`, `done`, `context <estado>`,
+   `lote start`, `lote done`, `status`, `save`, `check run`, `mutation`, `feature archive`,
+   `install`. Falta cerrarlo y decir **quién llama a cada uno**.
+2. **El reparto orquestador ↔ skills.** Qué va en `CLAUDE.md` / `AGENTS.md` y qué en cada
+   skill, con los veredictos de `que-sobrevive.md` en la mano.
+3. **Los cinco huecos** (`que-sobrevive.md` §13), empezando por `roadmap.json`.
+4. **Brownfield** — el debate aparcado. Decide el destino de `sf onboard scan`.
 
 > **Y la advertencia que sigue vigente** (`decisions-specforge`, 2026-08-07): no sobre-indexar
 > en determinismo. `sf` nació para producir artefactos útiles que hagan alucinar menos al
@@ -369,7 +382,7 @@ esta refundación fue que la herramienta se había inflado.
 
 ---
 
-## 9. Pendiente de infraestructura
+## 10. Pendiente de infraestructura
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).
