@@ -1,11 +1,13 @@
 # Sesión — refundación de SpecForge
 
-**Fecha:** 2026-08-07 / 08 / 10 / 11 · **Branch:** `refundation` (sin pushear)
+**Fecha:** 2026-08-07 / 08 / 10 / 11 / 12 · **Branch:** `refundation` (sin pushear)
 **Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
-(*ejecuta*, §5), **la arquitectura está decidida** (§6) y la **prueba de escritorio de los
-artefactos** quedó **✅ completa** — las siete rondas, ①–㉓, en
-[`artefactos.md`](artefactos.md). Lo que sigue es **la máquina de estados** (§8). Sigue
-abierto el strawman de los ocho dolores, en §5.
+(*ejecuta*, §5), **la arquitectura está decidida** (§6), la **prueba de escritorio de los
+artefactos** quedó **✅ completa** (①–㉓, en [`artefactos.md`](artefactos.md)), el **strawman
+de los ocho dolores está ✅ firmado** (§5) y **la máquina de estados está ✅ cerrada** — los 9
+estados, las compuertas y el `estado.json`, en
+[`maquina-estados.md`](maquina-estados.md). Lo que sigue es **qué de lo construido
+sobrevive** (§8).
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -37,6 +39,7 @@ no para surtirse.
 |---|---|---|
 | **`flujo-real.md`** | el flujo real, 23 pasos, 3 entradas, sin herramienta adentro | **completo** |
 | **`artefactos.md`** | qué produce cada paso, quién lo consume y en qué formato — 7 rondas, ①–㉓ | ✅ **completo** |
+| **`maquina-estados.md`** | los 9 estados, las compuertas, las 4 paradas y el `estado.json` | ✅ **completo** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ⏸ **congelados** — hipótesis sin consumidor |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -76,16 +79,16 @@ condición conocida — eso cambia cómo se atacan.
 
 ---
 
-## 5. El marco de los ocho dolores — sigue abierto
+## 5. El marco de los ocho dolores — ✅ FIRMADO (2026-08-12)
 
-Se estaba debatiendo **qué tiene que hacer la herramienta** sobre cada dolor. El marco: cada
-uno admite **cuatro** respuestas, y elegir mal es lo que infla las herramientas.
+Se debatía **qué tiene que hacer la herramienta** sobre cada dolor. El marco: cada uno admite
+**cuatro** respuestas, y elegir mal es lo que infla las herramientas.
 
 > **hacerlo** · **avisar** · **impedir** · **nada** (se resuelve de otra forma)
 
-**El strawman sobre la mesa, esperando que Javier lo corrija:**
+**Javier lo firmó tal cual, sin cambiar ninguna fila:**
 
-| Dolor | Respuesta propuesta | Por qué |
+| Dolor | Respuesta | Por qué |
 |---|---|---|
 | 1 lanzar cada fase | **hacerlo** | no hay nada que avisar ni impedir |
 | 2 el commit | **hacerlo** | en un momento definido, no "cada tanto" |
@@ -250,96 +253,70 @@ y de paso el subagente no gasta contexto buscando qué leer.
 
 1. ~~La prueba de escritorio de los artefactos~~ — ✅ **cerrada**, las 7 rondas en
    [`artefactos.md`](artefactos.md). El inventario completo está en su §11.
-2. **Cerrar el strawman de §5** — las 8 filas, esperando corrección.
-3. **⬅ ACÁ SEGUIMOS — la máquina de estados.** Los 23 pasos **no son 23 estados**. Hay que decidir dónde están
-   los cortes, qué transiciones son automáticas, y **dónde para y te espera**.
-   - Hipótesis: para en ⑥, ⑧ y ⑰ y en ningún otro lado → de empujar 23 pasos a decidir 3.
-   - **El camino corto tiene que ser un estado, no una excepción**, o va a ser esquivado
-     igual que ahora y ahí sí se pierde el rastro.
-   - **Pregunta sin contestar:** cuando ㉑ o ㉒ encuentran algo y el implementador lo arregla
-     solo, ¿te enterás? ¿O la máquina corrige en silencio si terminó bien?
-4. **La forma del `estado.json`.** Qué guarda exactamente, y qué se registra de cada paso.
-5. Recién después: qué de lo construido sobrevive. **En ese orden, no al revés.**
+2. ~~Cerrar el strawman de §5~~ — ✅ **firmado el 2026-08-12**, sin cambios.
+3. ~~La máquina de estados~~ — ✅ **cerrada**, en
+   [`maquina-estados.md`](maquina-estados.md).
+4. ~~La forma del `estado.json`~~ — ✅ **cerrada**, en `maquina-estados.md` §9.
+5. **⬅ ACÁ SEGUIMOS — qué de lo construido sobrevive.** Y recién ahora, que es el orden que
+   se acordó en el corte de método (§1): los 16 repos y lo ya hecho se miran **con la
+   necesidad ya escrita**, para diferenciarse y no para surtirse.
 
 ---
 
-## 8. ⬅ ACÁ QUEDAMOS — la prueba de escritorio cerró, sigue la máquina de estados
+## 8. ⬅ ACÁ QUEDAMOS — la máquina de estados cerró
 
-**Las siete rondas están cerradas** y viven en [`artefactos.md`](artefactos.md).
+Vive en [`maquina-estados.md`](maquina-estados.md). **Acá no se copia: se apunta.**
 
-### Dónde quedó cada cosa
+### El saldo
 
-| Dónde | Qué hay |
+| | |
 |---|---|
-| `artefactos.md` **§1** | las **reglas transversales** — archivo o estado · prosa o datos · frontmatter · referenciar por id |
-| `artefactos.md` **§2–§3** | los tres tipos de parada · la jerarquía historia ↔ feature |
-| `artefactos.md` **§4–§10** | las siete rondas, paso por paso |
-| `artefactos.md` **§11** | **el inventario completo** — los 10 archivos, el `estado.json`, y dónde muere cada dolor |
-| **acá, §8** | el resumen de la ronda 7 y qué sigue |
+| **23 pasos** | → **9 estados** — 5 de producto, 4 de feature |
+| **3 decisiones** | ⑥ · ⑧ · ⑰ — el resto avanza solo |
+| **4 tipos de parada** | apareció **ME TRABÉ**, y es la única no configurable |
+| **1 config que no hizo falta** | el modo de orden sale de las tres puertas del ⑰ |
+| **0 máquinas en paralelo** | es una cola: `feature_actual` alcanza |
 
-Los ejemplos concretos —el `revision.json`, el `sf context implement`, el `mutacion:` de la
-constitución— están todos en `artefactos.md`. **Acá no se copian: se apuntan.** Es la regla 1.4
-aplicada a esta misma sesión.
+Y **`sf` sigue sin pensar en ningún lado**: todas las compuertas son correr un comando, contar
+un campo o comparar dos strings.
 
-### Lo que cerró la ronda 7 (⑱–㉓)
+### Las tres correcciones de Javier, y las tres mejoraron el diseño
 
-Es la ronda que **menos** artefactos agregó: uno solo, más la documentación del ㉓.
+- **No partir el bloque de planificación (⑫–⑯).** El strawman lo cortaba en tres para que
+  ningún subagente se llene. El argumento no se sostiene: **el dolor #5 es daño de código, no
+  de planificación**, y ahí el contexto grande es un **activo** — el ⑬ aprovecha acordarse de
+  las dos opciones que descartó. Además el ⑰ revisa el bloque entero y *"pido cambios"* vuelve
+  al bloque entero: **nadie entra ni sale por el medio.**
+- **De ahí salió la separación que destrabó todo: `un estado ≠ un subagente`.** Un estado
+  puede tener checkpoints internos, y `sf` los deduce de **qué archivos existen** — sin un
+  campo extra en el `estado.json`.
+- **"Varias features" era el ORDEN, no concurrencia.** Javier elige si implementa apenas
+  planifica una o si planifica todas primero. Eso ya vive en las tres puertas del ⑰ → **la
+  config `modo` se cayó sola.**
 
-| | Decidido |
-|---|---|
-| ⑱ el sobre lo arma `sf` | **sí** — `sf context implement f-1 --lote 2`. Sube de "idea guardada" a mecanismo |
-| ⑲ el rojo lo comprueba `sf` | **sí** — corre los tests planificados **antes** de implementar |
-| ⑲–⑳ | **sin archivo**: semáforo + una línea de estado por lote |
-| ㉑ y ㉒ | **un solo `revision.json`** — mismo actor, misma pasada, se rehacen juntos |
-| ㉒ mutantes | **herramienta primero, modelo después**; se guarda el resultado, no los parches |
-| ㉓ archivar | mover la carpeta entera a `.docs/archivado/`; marcar en **un** solo lugar |
-| ¿te enterás de los arreglos? | **sí, al final y sin frenar** — parada barata en el ㉓ |
+### Los tres hallazgos propios de la ronda
 
-**Dos cosas salieron de correcciones de Javier, y las dos mejoraron el diseño:**
+- **El cuarto tipo de parada.** Si `sf` da rojo, el orquestador relanza — y un bucle sin freno
+  se cuelga. El freno ya estaba en el ⑳ (*"si falla varias veces, entro yo"*) y el contador ya
+  estaba en el borrador; sólo faltaba nombrarlo. **No es configurable: es de seguridad.**
+- **El plan que envejece.** Planificar varias features por adelantado deja specs mirando un
+  repo que ya cambió — y el implementador que no encuentra lo que la spec dice **improvisa**,
+  que es donde nacen los mocks. `sf` guarda un `base_commit` y compara: dos strings y un `if`.
+  **Avisa, no frena.**
+- **`verde` era redundante con `commit`.** Si `sf` no deja commitear en rojo, *hay commit* ya
+  significa *estaba verde*. Un campo deducible de otro es un campo que se desincroniza.
 
-- **`revision` va en JSON, no en markdown.** El argumento es duro: el hallazgo nace `abierto` y
-  pasa a `arreglado` **después** de que el revisor escribió el archivo, y el que lo cambia es el
-  flujo, no él. En markdown eso exige un modelo que reescriba prosa — y ahí se corrompe.
-- **En el ㉒ conviene herramienta + modelo.** No compiten: la herramienta muta **sintaxis** (y da
-  un score reproducible), el modelo muta **sentido**. El modelo mira los supervivientes de la
-  herramienta en vez de inventar a ciegas. Se declara en la constitución: `mutacion: gremlins`.
+### Lo que sigue: qué de lo construido sobrevive
 
-**Y el hallazgo propio de la ronda:** el *"comprobá que los tests fallan"* del ⑲ **es
-verificable por máquina**. Hoy es una promesa del modelo. Con la lista de tests que ya está en
-`tareas.json`, `sf` lo confirma con un exit code —
+Es el punto 5 de §7, y **ahora sí se puede**: la necesidad está escrita entera —el flujo, los
+artefactos y la máquina—, así que lo ya construido se puede mirar sin que moldee el diseño.
+Era la regla del corte de método (§1).
 
-> **Un test que pasa antes de que exista el código es un test de mentira.**
+Después de eso quedan dos temas chicos, los dos ya con forma:
 
-— y eso ataca el **#5** y el **#8** sin agregar un solo artefacto.
-
-### El saldo de las siete rondas
-
-**Diez archivos en todo el flujo, y sólo tres son JSON** — exactamente los tres lugares donde
-`sf` escribe o consulta datos: `roadmap.json`, `tareas.json`, `revision.json`. Todo lo demás es
-prosa con una cabecera.
-
-**Y los ocho dolores tienen dónde morir** (tabla completa en `artefactos.md` §11). Ninguno
-necesita que `sf` piense: todos son comparar, contar o correr algo.
-
----
-
-### Lo que sigue: la máquina de estados
-
-Es el punto 3 de §7, y ahora tiene todo lo que le faltaba: **ya sabemos qué produce cada paso y
-quién lo consume**, así que se puede decidir dónde están los cortes.
-
-Las tres preguntas abiertas, sin cambios:
-
-1. **¿Dónde están los cortes?** Los 23 pasos no son 23 estados. Hipótesis: para en ⑥, ⑧ y ⑰ y
-   en ningún otro lado → de empujar 23 pasos a decidir 3.
-2. **El camino corto tiene que ser un estado, no una excepción**, o va a ser esquivado igual que
-   hoy y ahí sí se pierde el rastro.
-3. **La forma final del `estado.json`** — hay un borrador en `artefactos.md` §11, sacado de lo
-   que las rondas fueron pidiendo. Falta validarlo contra la máquina.
-
-**Y sigue pendiente el strawman de §5**, sin corregir desde hace tres sesiones. Es corto: ocho
-filas esperando un sí o un no. Conviene cerrarlo **antes** de la máquina de estados, porque es
-el que define qué hace `sf` en cada dolor — y eso es justo lo que la máquina tiene que ejecutar.
+1. **La superficie de `sf`.** Aparecieron `sf next`, `sf done`, `sf context <estado>`. Falta el
+   inventario completo y quién llama a cada uno.
+2. **El reparto orquestador ↔ skills**, con los 9 estados ya fijos.
 
 ---
 
