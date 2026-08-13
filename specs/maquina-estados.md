@@ -315,8 +315,8 @@ escrito en ningún lado, porque salió de una cabeza.
       "modelo": "deepseek",
       "intentos_fallidos": 0,
       "lotes": [
-        { "lote": 1, "rojo": true, "commit": "4a8f21" },
-        { "lote": 2, "rojo": true, "commit": null }
+        { "lote": 1, "rojo": true, "hash_tests": "b70c33", "commit": "4a8f21" },
+        { "lote": 2, "rojo": true, "hash_tests": "4e91b7", "commit": null }
       ]
     }
   }
@@ -337,12 +337,15 @@ escrito en ningún lado, porque salió de una cabeza.
 - **`producto`** → los sellos del ⑥ y del ⑧. Son decisiones de Javier: ningún archivo las
   contiene.
 - **`estado`** por feature → la cola del §6.
+- **`hash_tests`** por lote → el agujero astuto: `sf` ve rojo, el subagente trabaja, `sf` ve
+  verde… **y lo que cambió entre medio fue el test.** Se toma en el rojo y se compara en el
+  verde. Comparar dos strings.
 
 ### Los dos campos que no se pueden deducir de nada
 
 - **`rojo`** — el momento en que los tests fallaban ya pasó y **no dejó huella**. Si `sf` no lo
   anota cuando lo vio, se pierde para siempre. Es, literalmente, la memoria de que el test era
-  de verdad.
+  de verdad. *(Lo mismo vale para `hash_tests`: es esa memoria, con detalle.)*
 - **`modelo`** — es el que se está usando **ahora**, no el recomendado. Cuando Javier sube el
   modelo en el ⑳, esa decisión no queda registrada en ningún archivo.
 

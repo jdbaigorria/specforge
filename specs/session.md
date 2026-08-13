@@ -365,13 +365,23 @@ regla dura: crear directorios no es pensar ni lanzar a nadie.
 | **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas |
 | **[`que-sobrevive.md`](que-sobrevive.md)** §2, §13 y §14 | las reglas nuevas, los huecos y el saldo |
 
-### Paso 0 — las tres correcciones a `artefactos.md`
+### ~~Paso 0 — las tres correcciones a `artefactos.md`~~ → ✅ **hechas el 2026-08-13**
 
-Están listadas en [`que-sobrevive.md`](que-sobrevive.md) §15. Son mecánicas y van primero
-porque **sin ellas los documentos se contradicen**: `artefactos.md` todavía dice que el
-`estado:` del `us-#` es la fuente de verdad, y en el ④ se decidió sacarlo.
+Estaban listadas en [`que-sobrevive.md`](que-sobrevive.md) §15 y ya están aplicadas; el resumen
+quedó en [`artefactos.md`](artefactos.md) **§13**. El saldo:
 
-### Paso 1 — la ronda: la superficie de `sf` **y** el reparto, juntos
+- el **`estado:` del `us-#` salió** — el avance vive en `estado.json`, por feature, y el
+  roadmap, el backlog y el índice son **vistas que genera `sf`**. Ningún `.md` se reescribe.
+- el **㉓ agrega dos archivos**: la doc (con su mitad funcional, que no sale del código) **y el
+  journal**. El `us-#` gana ahí un consumidor.
+- los dos campos nuevos: **`test_cmd:`** en la constitución y **`hash_tests`** por lote.
+
+**Y aparecieron dos incoherencias más, del mismo tipo, al tocar esos párrafos:** el
+`estado.json` de `artefactos.md` §11 era el **borrador viejo** (`paso`, `verde`,
+`modelo_recomendado`) — ahora **apunta** a `maquina-estados.md` §9 en vez de copiarlo —, y
+`hash_tests` se agregó también ahí, que es donde el `estado.json` está cerrado.
+
+### ⬅ Paso 1 — la ronda: la superficie de `sf` **y** el reparto, juntos
 
 `que-sobrevive.md` §16 los lista como dos temas. **Son uno solo**, y conviene tratarlos así:
 

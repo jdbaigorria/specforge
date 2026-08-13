@@ -1,6 +1,6 @@
 # Los artefactos del flujo — prueba de escritorio
 
-**Fecha:** 2026-08-10 / 11 · **Método:** paso a paso por `flujo-real.md`, preguntando en cada
+**Fecha:** 2026-08-10 / 11 · **corregido el 13** · **Método:** paso a paso por `flujo-real.md`, preguntando en cada
 uno: **qué artefacto sale · quién lo consume · qué formato · qué estructura**.
 
 > **Por qué así.** Este tema hundió la versión anterior de SpecForge. Se estructuró de más y
@@ -8,7 +8,7 @@ uno: **qué artefacto sale · quién lo consume · qué formato · qué estructu
 > **primero el consumidor, después el formato.**
 
 **Estado:** ✅ **cerrada.** Las siete rondas cubren el flujo entero, ①–㉓. El inventario
-completo de artefactos está en §11.
+completo de artefactos está en §11, y **las correcciones posteriores están en §13**.
 
 ---
 
@@ -239,6 +239,7 @@ actualizado: 2026-08-11
 
 lenguaje: go
 manifiesto: go.mod              # dónde mira sf
+test_cmd: go test ./...         # cómo corre los tests sf
 mutacion: gremlins              # herramienta del ㉒; vacío = sólo el modelo
 
 dependencias_aprobadas:
@@ -264,6 +265,15 @@ git:
 **El bloque `git:` mata el dolor #4** (*"no crea la branch por feature"*): `sf` compara la
 branch actual contra el patrón y, si no coincide, **el estado no avanza**.
 
+### `test_cmd:` — el campo que faltaba
+
+Se descubrió mirando el CLI construido (`que-sobrevive.md` §5). Sin él **`sf` no puede correr
+los tests**, y correr los tests es lo que sostiene tres compuertas: el rojo del ⑲, el verde del
+⑳ y el conteo del #8. Era el agujero más barato de todo el recorrido: **una línea**.
+
+Y no hay que escribirla a mano — el `detectStack()` que ya existe llena `lenguaje`,
+`manifiesto` y `test_cmd` solo.
+
 ### Constitución global
 
 Las reglas de git de Javier son las mismas en todos sus proyectos. Van en
@@ -278,7 +288,8 @@ Las reglas de git de Javier son las mismas en todos sus proyectos. Van en
 | el modelo del ⑩ | ordenarlas y agruparlas en features |
 | el planificador (⑫–⑯) | es su entrada: el *qué* ya viene resuelto |
 | **el revisor (㉑)** | **¿la implementación satisface esta historia?** |
-| `sf` | estado, relaciones, y el conteo de criterios |
+| **el documentador (㉓)** | **la mitad funcional de la doc** — qué se pedía y para quién |
+| `sf` | relaciones y el conteo de criterios |
 
 ### Los criterios de aceptación con ID — el mecanismo del ㉑
 
@@ -296,7 +307,6 @@ criterios, el informe habla de 2"*.
 tipo: us                    # us | bug
 id: us-3
 titulo: "estado en formato json"
-estado: pendiente           # pendiente | planificada | en-curso | hecha | archivada
 deriva_de: prd
 prd_version: a3f9c1
 relacionado_a: null         # us-# cuando es un bug (entrada C)
@@ -314,14 +324,28 @@ Como **<quién>** quiero **<qué>** para **<por qué>**.
 ## Contexto
 ```
 
+### El `us-#` no lleva estado — corregido en el recorrido de lo construido
+
+La versión anterior de esta ronda ponía `estado: pendiente | planificada | … | archivada` en el
+frontmatter y lo declaraba *la* fuente de verdad. **Se cayó**, y por dos razones que sólo se
+vieron después:
+
+1. **El ciclo corre por feature, no por historia** (§3). Una historia no está *"en curso"* por
+   su cuenta: lo está la feature que la contiene.
+2. **Marcarlo exige reescribir un `.md`, y `sf` no tiene un LLM adentro** (regla 1.2). Cerrar
+   una feature sería reescribir tres archivos de prosa; en `estado.json` es un campo.
+
+> **El avance vive en `estado.json` y en ningún otro lado. El `us-#` guarda el requisito, que
+> no cambia porque el trabajo avance.**
+
 ### Dónde vive cada dato — para que nada se contradiga
 
 | Dato | Vive en | Y en ningún otro lado |
 |---|---|---|
 | la historia y sus criterios | `us-#.md` | — |
-| el **estado** de la historia | frontmatter del `us-#.md` | **no** se copia al roadmap |
+| el **avance** | `estado.json` — por **feature** | **ni** en el `us-#` **ni** en el roadmap |
 | el **orden** y el agrupamiento | `roadmap.json` | **sólo ids** |
-| el índice | **lo genera `sf`** | no existe como archivo a mano |
+| el índice y el backlog | **los genera `sf`** | no existen como archivo a mano |
 
 ---
 
@@ -524,8 +548,12 @@ cerrado:
 > *"elevo el modelo a uno mejor **porque significa que la recomendación no fue suficiente**"*
 
 ```json
-"f-1": { "modelo_recomendado": "deepseek", "modelo_actual": "deepseek", "intentos_fallidos": 2 }
+"f-1": { "modelo": "deepseek", "intentos_fallidos": 2 }
 ```
+
+**Un solo campo, no dos.** El recomendado ya está escrito por el ⑯ en `tareas.json`; guardarlo
+también en el estado sería guardarlo dos veces. Al estado va **el que se está usando ahora** —
+que es lo único que ningún archivo contiene, porque cambia cuando Javier lo sube en el ⑳.
 
 **Así "varias veces" deja de ser una sensación y pasa a ser un número**, y el lazo lo cierra
 la máquina en vez de depender de que Javier note que ese lote viene fallando:
@@ -551,7 +579,9 @@ El ⑯ y el ⑰ no crean archivos: van al estado.
 
 ## 10. Ronda 7 — el traspaso, la implementación y el cierre (⑱–㉓)
 
-La última. Y la que menos archivos agrega: **uno solo**, más la documentación del ㉓.
+La última. Y la que menos archivos agrega: **tres** — `revision.json` en el ㉑㉒, y en el ㉓ **la
+doc y el journal**. *(El journal entró después, en el recorrido de lo construido: ya estaba
+escrito y ningún estado lo había reclamado.)*
 
 ### ⑱ — no sale archivo, sale un comando
 
@@ -596,14 +626,35 @@ sf: ✗ TestParseFrontmatter YA PASA, y todavía no se escribió el código.
 Es el **#5** (los mocks) y el **#8** (verde sin sustancia) atacados por un *exit code*, sin
 juicio y sin agregar un solo artefacto.
 
+#### El agujero astuto: aflojar el test entre el rojo y el verde
+
+`sf` ve rojo → el subagente trabaja → `sf` ve verde. **¿Y si lo que cambió entre medio fue el
+test?** Un subagente que no logra implementar puede ablandar el assert y llegar a verde. Es el
+#8 en su forma más difícil de ver, y ninguna de las dos compuertas lo tapaba.
+
+**Se tapa con un hash de los archivos de test**, tomado en el rojo y comparado en el verde:
+
+```
+sf lote start 2   ✓ los 6 tests fallan. Rojo confirmado.   → rojo: true + hash de los tests
+   ...el subagente implementa...
+sf lote done 2    ✗ TestFrontmatterInvalido cambió entre el rojo y el verde. No avanzo.
+```
+
+Cuesta un campo por lote en el `estado.json`, y no necesita que `sf` piense: es comparar dos
+strings.
+
 ### ⑲–⑳ — semáforo, no registro
 
 Del par no sale archivo. El registro del trabajo **es el commit del lote**, que ya existe. Al
 estado va una línea:
 
 ```json
-"f-1": { "lote": 2, "rojo_confirmado": true, "verde": true, "commit": "a3f9c1e" }
+{ "lote": 2, "rojo": true, "hash_tests": "4e91b7", "commit": "a3f9c1e" }
 ```
+
+**Sin campo `verde`.** Se cayó en la máquina de estados: si `sf` no deja commitear en rojo,
+*hay commit* ya significa *estaba verde*. Un campo deducible de otro es un campo que se
+desincroniza.
 
 **Su único consumidor es `sf`, en ese instante.** Es un semáforo: su trabajo es no dejar
 pasar. Una vez que el lote está verde y commiteado, que el rojo se haya visto no le cambia
@@ -687,14 +738,51 @@ aplicar nunca. Lo que importa entra en la línea `mutantes` de arriba.
 
 ### ㉓ — el cierre
 
+Salen **dos** archivos, y por poco se ve uno solo.
+
+#### La doc — y tiene dos mitades
+
 **La documentación es archivo**, y tiene un consumidor que no es obvio: **el ⑫ de una feature
 futura**, cuando la pregunta sea *"¿esto ya está resuelto en algún lado?"*. Se escribe al
 final, sobre lo que realmente quedó.
 
-**Marcar como terminada: en un solo lugar.** El ㉓ pide marcarla *"en el roadmap y en el
-backlog"*, pero por la regla de la ronda 4 eso **ya se resolvió solo**: el estado vive en el
-frontmatter del `us-#` y en ningún otro lado; el roadmap tiene sólo ids. Se marca una vez y
-`sf` genera las dos vistas. Un punto de desincronización menos.
+Pero *"documentación desde el código"* alcanza para la mitad:
+
+```
+TÉCNICA     cómo está hecho        ← del CÓDIGO        el que mantiene · el ⑫ futuro
+FUNCIONAL   qué hace y para quién  ← del us-# y la spec  Javier · el usuario
+```
+
+**La mitad funcional no está en el código.** Por eso el sobre del ㉓ trae las dos fuentes —
+y **el `us-#` gana ahí un consumidor que el inventario no tenía**:
+
+```
+sf context documentar f-1
+  → git diff base_commit..HEAD    el código que quedó   → la mitad técnica
+  → us-1.md · us-3.md             qué se pedía          → la mitad funcional
+  → spec-design.md                cómo se resolvió
+```
+
+#### El journal — memoria sí, progreso no
+
+El segundo archivo. Cuando la feature se archiva, un modelo extrae **las lecciones durables**
+de la vuelta. Su lector es el mismo que el de la doc: **el ⑫ de una feature futura**.
+
+```
+sf context planificar f-3
+  → constitucion.md · us-#
+  → aprendizajes de features anteriores      ← el journal, servido
+```
+
+**Se archiva con la feature**, y quien lo encuentra es `sf` (regla 1.4). Lo que **no** hace es
+llevar progreso: eso vive en `estado.json` y en ningún otro lado.
+
+#### Marcar como terminada: no se marca en ningún archivo
+
+El ㉓ pide marcarla *"en el roadmap y en el backlog"*. **No se hace ni una vez**: `sf` cierra la
+feature en `estado.json` —un campo— y **el roadmap, el backlog y el índice son vistas que
+genera él** (regla 1.5). El `roadmap.json` tiene sólo ids; ningún `.md` se reescribe. Cero
+puntos de desincronización, y ningún LLM tocando prosa.
 
 **Y "archivar" — la pregunta que `flujo-real.md` había dejado abierta:**
 
@@ -703,8 +791,9 @@ frontmatter del `us-#` y en ningún otro lado; el roadmap tiene sólo ids. Se ma
 ```
 
 Se mueve **la carpeta entera con todo adentro** (`decision`, `spec-design`, `tareas`,
-`revision`, la doc), y los `us-#` pasan a `estado: archivada`. Las referencias por id siguen
-funcionando porque `sf` es el que resuelve dónde vive cada cosa (regla 1.4).
+`revision`, la doc, el journal), y la feature queda `"estado": "cerrada"` en el `estado.json`.
+Los `us-#` **no se tocan**: el requisito no cambia porque el trabajo terminó. Las referencias
+por id siguen funcionando porque `sf` es el que resuelve dónde vive cada cosa (regla 1.4).
 
 ### La pregunta grande: ¿Javier se entera si lo arregla solo?
 
@@ -720,10 +809,17 @@ sf:  f-1 lista para archivar.
      El ㉑ fue 2 vueltas. 2 hallazgos, los dos arreglados:
        h-1  us-3/CA-2 no se cumplía
        h-2  un mutante sobrevivió en brief_test.go
-     [enter] archivo    [v] ver el detalle
+     2 aprendizajes nuevos.
+     ⚠ Uno se repite por tercera vez:
+       "los tests de tabla en Go tienen que nombrar el caso"
+       ¿lo subo a la constitución?
+     [enter] archivo   [c] subir a la constitución   [v] ver el detalle
 ```
 
-Y el rastro queda en `revision.json` esté o no ese enter.
+Y el rastro queda en `revision.json` y en el journal, esté o no ese enter.
+
+**El *backprop* no necesita una parada nueva.** Que una lección repetida ascienda a la
+constitución es una decisión de Javier — y cabe entera en la ⏸ que el ㉓ ya tenía.
 
 ---
 
@@ -737,35 +833,32 @@ Todo lo que el flujo produce, y nada más que eso.
 |---|---|---|---|
 | ①–⑥ | `brief.md` | md + frontmatter | el ⑦ · Javier meses después · `sf` (el sello) |
 | ⑦ | `prd.md` | md + frontmatter | el ⑧ y el **⑨** · `sf` (el hash) |
-| ⑧ | `constitucion.md` | md + frontmatter | el ⑨ · **el implementador** · el ㉑ · `sf` (deps, git, mutación) |
-| ⑨ | `us-#.md` | md + frontmatter | el ⑩ · el planificador · **el ㉑** · `sf` (estado y CA) |
+| ⑧ | `constitucion.md` | md + frontmatter | el ⑨ · **el implementador** · el ㉑ · `sf` (deps, git, `test_cmd`, mutación) |
+| ⑨ | `us-#.md` | md + frontmatter | el ⑩ · el planificador · el ㉑ · **el ㉓** · `sf` (los CA) |
 | ⑩ | `roadmap.json` | **json** | `sf` · el modelo del ⑩ |
 | ⑫ | `decision.md` | md + frontmatter | **sólo Javier** — el implementador no |
 | ⑬ | `spec-design.md` | md + frontmatter | **el implementador**, y es lo único que necesita |
 | ⑭⑮ | `tareas.json` | **json** | el ⑲ · `sf` (tests, CA, lotes) |
 | ㉑㉒ | `revision.json` | **json** | el implementador (a arreglar) · `sf` (cuenta) · Javier (vista) |
 | ㉓ | la doc de la feature | md | Javier · **el ⑫ de una feature futura** |
+| ㉓ | `journal.md` | md | **el ⑫ de una feature futura**, vía `sf context planificar` |
 
 Los tres JSON son exactamente los tres lugares donde `sf` **escribe o consulta datos**. El
 resto es prosa con una cabecera.
 
 ### El estado — lo único que no es de nadie más que de `sf`
 
-```json
-{
-  "paso": 19,
-  "feature_actual": "f-1",
-  "prd_hash": "a3f9c1",
-  "f-1": {
-    "modelo_recomendado": "deepseek", "modelo_actual": "deepseek",
-    "intentos_fallidos": 2,
-    "lotes": [
-      { "lote": 1, "rojo_confirmado": true, "verde": true,  "commit": "9c2e1a" },
-      { "lote": 2, "rojo_confirmado": true, "verde": false, "commit": null }
-    ]
-  }
-}
-```
+**El borrador que estaba acá quedó viejo.** La forma cerrada vive en
+[`maquina-estados.md`](maquina-estados.md) §9 — **acá no se copia: se apunta.** Lo que cambió,
+en tres líneas:
+
+| | |
+|---|---|
+| se fue `"paso"` | no hay un paso global: cada feature tiene el suyo |
+| se fue `modelo_recomendado` | lo escribe el ⑯ en `tareas.json`. No se guarda dos veces |
+| se fue `verde` | deducible de `commit` (§10) |
+| se sumó `base_commit` · `producto` · `estado` por feature | el envejecimiento, los sellos del ⑥ y el ⑧, y la cola |
+| se sumó `hash_tests` por lote | el agujero astuto del ⑲ (§10) |
 
 ### Los ocho dolores, y dónde muere cada uno
 
@@ -786,9 +879,30 @@ resto es prosa con una cabecera.
 
 ## 12. Lo que sigue
 
-La prueba de escritorio está cerrada. Sigue, en `session.md` §7:
+La prueba de escritorio está cerrada, y las cuatro cosas que seguían **ya se hicieron**: el
+strawman de los ocho dolores (`session.md` §5), la máquina de estados y el `estado.json`
+([`maquina-estados.md`](maquina-estados.md)) y el recorrido de lo construido
+([`que-sobrevive.md`](que-sobrevive.md)).
 
-1. **cerrar el strawman de los ocho dolores** — §5 de `session.md`
-2. **la máquina de estados** — los 23 pasos no son 23 estados
-3. **la forma final del `estado.json`**
-4. y recién ahí: **qué de lo construido sobrevive**
+**Queda una sola ronda de diseño:** la superficie de `sf` y el reparto orquestador ↔ skills.
+El punto de retomada está al final de [`session.md`](session.md).
+
+---
+
+## 13. Las correcciones del 2026-08-13
+
+Vinieron del recorrido de lo construido (`que-sobrevive.md` §15) y son **de coherencia**: sin
+ellas, dos documentos decían cosas distintas.
+
+| Qué decía antes | Qué dice ahora | Por qué |
+|---|---|---|
+| el `estado:` del `us-#` es la fuente de verdad del avance (§7, §10) | **el `us-#` no lleva estado**; el avance vive en `estado.json`, por feature | el ciclo corre por feature (§3), y marcar un `.md` exige un LLM (regla 1.2) |
+| el ㉓ agrega un archivo | **agrega dos: la doc y el journal** | el journal ya estaba construido y ningún estado lo había reclamado |
+| el `us-#` lo leen el ⑩, el planificador y el ㉑ | **+ el ㉓** | la mitad funcional de la doc no sale del código |
+
+Y **dos campos nuevos** que la ronda 7 no tenía:
+
+- **`test_cmd:`** en la constitución (§6) — sin él `sf` no puede correr los tests, y tres
+  compuertas dependen de eso.
+- **`hash_tests`** por lote en el `estado.json` (§10) — tapa el aflojado del test entre el
+  rojo y el verde.
