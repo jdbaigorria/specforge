@@ -47,6 +47,7 @@ no para surtirse.
 | **`maquina-estados.md`** | los 9 estados, las compuertas, las 4 paradas y el `estado.json` | ✅ **completo** |
 | **`que-sobrevive.md`** | el recorrido de los 9 estados contra lo construido — veredicto por pieza | ✅ **completo** |
 | **`superficie-sf.md`** | la prueba de escritorio del bucle — los 10 comandos y el reparto | ✅ **completo** |
+| **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio | ✅ **completo** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -415,17 +416,23 @@ otro tipo: **la construcción.**
 | **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas |
 | **[`que-sobrevive.md`](que-sobrevive.md)** §13 | los huecos |
 
-### La decisión que abre la construcción
+### La construcción — ✅ decidida, en [`construccion.md`](construccion.md)
 
-Son dos preguntas, y la primera ya tiene respuesta:
+**Híbrido, y es de Javier:** *"comenzar de cero migrando lo que realmente nos sirve"*. Disuelve
+el dilema en vez de elegir un lado — no se poda (se arranca vacío) y no se tira nada bueno (se
+trae).
 
-1. **Por dónde arrancar** — `roadmap.json` + `estado.json` + `sf next` son **la columna**. Nada
-   funciona sin eso. *(Y el `roadmap.json`, que figuraba como el hueco más grande, se desinfló
-   en la ronda: no es un comando, es un parser — `superficie-sf.md` H19.)*
-2. **Podar el CLI actual, o partir de cero con lo que sobrevive.** ⬅ **es la que hay que
-   decidir.** Sobreviven ~10 de 47, así que la respuesta no es obvia: podar deja 63 archivos de
-   test que cubren código que se va; partir de cero tira `redwitness` y `context for-wave`, que
-   están bien.
+**La regla que lo hace funcionar, y sin ella degenera en podar con otro nombre:**
+
+> **Nada se migra por existir. Se migra cuando un comando del inventario lo necesita para andar.**
+
+**El orden** ya estaba: `estado.json` + `roadmap.json` → **`sf next`**, que es el primer hito
+usable. *(Y el `roadmap.json`, que figuraba como el hueco más grande, se desinfló: no es un
+comando, es un parser — `superficie-sf.md` H19.)*
+
+**Y un candidato que no lo era:** `state.go` tiene la premisa invertida —*"NO guarda estado
+nuevo: todo se deriva de `features.json`"*— y el `estado.json` existe exactamente por lo
+contrario. Se escribe de cero.
 
 ### Y sigue aparcado
 
