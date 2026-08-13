@@ -35,8 +35,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
+	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
 
 // Tipo es cuál de las cuatro paradas —o ninguna— corresponde ahora.
@@ -177,7 +179,7 @@ func siguienteDeProducto(raiz string, e *estado.Estado) (Instruccion, bool) {
 		// Acá está el patrón que se repite en los tres primeros estados, y es
 		// la diferencia entre "falta hacerlo" y "está hecho, falta que lo
 		// mires": lo separa la EXISTENCIA DEL ARCHIVO, no un campo.
-		if !existe(raiz, ".docs/brief.md") {
+		if !existe(raiz, docs.Brief) {
 			return trabajar("brief", "", "el ⑥ lo sellás vos cuando esté"), true
 		}
 		return Instruccion{
@@ -206,7 +208,7 @@ func siguienteDeProducto(raiz string, e *estado.Estado) (Instruccion, bool) {
 
 	// ⑧ constitución.
 	if !e.Producto.ConstitucionSellada {
-		if !existe(raiz, ".docs/constitucion.md") {
+		if !existe(raiz, docs.Constitucion) {
 			return trabajar("constitucion", "", "el ⑧ lo sellás vos cuando esté"), true
 		}
 		return Instruccion{
@@ -369,11 +371,11 @@ func planificando(raiz, id string, fr roadmap.Feature) Instruccion {
 	carpeta := fr.Carpeta()
 
 	switch {
-	case !existe(raiz, filepath.Join(carpeta, "decision.md")):
+	case !existe(raiz, filepath.Join(carpeta, docs.Decision)):
 		i.Mensaje = "arrancá de cero: las 3 opciones del ⑫"
-	case !existe(raiz, filepath.Join(carpeta, "spec-design.md")):
+	case !existe(raiz, filepath.Join(carpeta, docs.Spec)):
 		i.Mensaje = "retomá desde la spec: decision.md ya está"
-	case !existe(raiz, filepath.Join(carpeta, "tareas.json")):
+	case !existe(raiz, filepath.Join(carpeta, tareas.Archivo)):
 		i.Mensaje = "retomá desde las tareas: la spec ya está"
 	default:
 		// Los tres archivos existen pero el estado sigue en `planificacion`:
@@ -490,6 +492,6 @@ func existe(raiz, rel string) bool {
 // Un glob y no un contador: no importa cuántas hay, importa si hay. El conteo
 // de criterios lo hace `sf done`, que es quien tiene que frenar.
 func hayHistorias(raiz string) bool {
-	m, err := filepath.Glob(filepath.Join(raiz, ".docs", "backlog", "us-*.md"))
+	m, err := filepath.Glob(filepath.Join(raiz, docs.Backlog, "us-*.md"))
 	return err == nil && len(m) > 0
 }
