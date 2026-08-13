@@ -46,9 +46,9 @@ la necesidad ya escrita, para diferenciarse, no para surtirse*. Acá se aplica a
 
 ---
 
-## 3. Dónde vive lo nuevo
+## 3. Dónde vive lo nuevo — ✅ `sf/` en la raíz
 
-**Recomendación: carpeta nueva en el mismo repo, y el viejo se apaga cuando sobra.**
+**Carpeta nueva en el mismo repo, y el viejo se apaga cuando sobra.**
 
 ```
 sf/                      ← lo nuevo
@@ -152,10 +152,25 @@ Se rehace cuando exista una vuelta que correr, o sea después del paso 5.
 
 ---
 
-## 7. Lo que queda por decidir
+## 7. Las dos decisiones de forma — ✅ tomadas
 
-1. **El nombre y el lugar de la carpeta nueva** — la recomendación es `sf/` en la raíz (§3).
-2. **Modo de trabajo.** Javier está aprendiendo Go, y en este repo alternó entre *"escribo yo y
-   vos revisás"* y *"implementá con comentarios didácticos y yo lo leo"*. Hay que confirmarlo
-   antes del paso 1, porque cambia cómo se escribe cada archivo.
-3. **Brownfield** sigue aparcado (`que-sobrevive.md` §5) y sigue sin bloquear nada.
+1. **`sf/` en la raíz** (§3). Cero colisión de símbolos, el viejo sigue corriendo para comparar,
+   y `skills/` · `examples/` · `docs/` · `specs/` se comparten. El switch final es borrar `cli/`.
+2. **Modo de trabajo: implemento yo, con comentarios didácticos**, y Javier los lee para
+   aprender Go. Es el mismo modo que venía usando desde 2026-06-18.
+
+   **Y acá cambia algo respecto de junio:** entonces se explicaba *Go*. Ahora la mitad de lo que
+   hay que explicar es **por qué el diseño quedó así** —por qué `estado.json` no deriva nada, por
+   qué `sf context` no lleva argumentos— y eso vive en `specs/`. El comentario apunta al
+   documento en vez de repetirlo:
+
+   ```go
+   // El estado.json es el ÚNICO archivo que sf escribe.
+   // No deriva nada de otros archivos, al revés que el state.go viejo:
+   // guarda lo que decidió Javier y lo que sf vio pasar, porque eso no
+   // está escrito en ningún lado.   (maquina-estados.md §9)
+   ```
+
+### Y sigue aparcado
+
+**Brownfield** (`que-sobrevive.md` §5). Sigue sin bloquear nada.
