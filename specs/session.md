@@ -7,9 +7,12 @@ artefactos** quedó **✅ completa** (①–㉓, en [`artefactos.md`](artefactos
 de los ocho dolores está ✅ firmado** (§5), **la máquina de estados está ✅ cerrada** — los 9
 estados, las compuertas y el `estado.json`, en [`maquina-estados.md`](maquina-estados.md) — y
 **el recorrido de lo construido está ✅ cerrado**, con veredicto por pieza en
-[`que-sobrevive.md`](que-sobrevive.md). Lo que sigue es **la superficie de `sf` y el reparto
-orquestador ↔ skills** — el punto de retomada está al final, en *"por dónde arrancar la
-próxima sesión"*.
+[`que-sobrevive.md`](que-sobrevive.md), y **la superficie de `sf` y el reparto están ✅
+cerrados** — 10 comandos y el bucle de 4 líneas, en
+[`superficie-sf.md`](superficie-sf.md).
+
+> **El diseño está completo.** Lo que sigue ya no es diseñar: es la construcción. El punto de
+> retomada está al final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -43,6 +46,7 @@ no para surtirse.
 | **`artefactos.md`** | qué produce cada paso, quién lo consume y en qué formato — 7 rondas, ①–㉓ | ✅ **completo** |
 | **`maquina-estados.md`** | los 9 estados, las compuertas, las 4 paradas y el `estado.json` | ✅ **completo** |
 | **`que-sobrevive.md`** | el recorrido de los 9 estados contra lo construido — veredicto por pieza | ✅ **completo** |
+| **`superficie-sf.md`** | la prueba de escritorio del bucle — los 10 comandos y el reparto | ✅ **completo** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -262,7 +266,8 @@ y de paso el subagente no gasta contexto buscando qué leer.
 4. ~~La forma del `estado.json`~~ — ✅ **cerrada**, en `maquina-estados.md` §9.
 5. ~~Qué de lo construido sobrevive~~ — ✅ **cerrado**, en
    [`que-sobrevive.md`](que-sobrevive.md).
-6. **⬅ ACÁ SEGUIMOS — la superficie de `sf` y el reparto orquestador ↔ skills.**
+6. ~~La superficie de `sf` y el reparto~~ — ✅ **cerrada**, en
+   [`superficie-sf.md`](superficie-sf.md). **Con esto el diseño está completo.**
 
 ---
 
@@ -311,7 +316,7 @@ un campo o comparar dos strings.
 
 ---
 
-## 9. ⬅ ACÁ QUEDAMOS — el recorrido de lo construido cerró
+## 9. El recorrido de lo construido cerró
 
 Vive en [`que-sobrevive.md`](que-sobrevive.md). **Acá no se copia: se apunta.**
 
@@ -353,80 +358,79 @@ regla dura: crear directorios no es pensar ni lanzar a nadie.
 
 ---
 
+## 10. ⬅ ACÁ QUEDAMOS — la superficie de `sf` y el reparto cerraron
+
+Vive en [`superficie-sf.md`](superficie-sf.md). **Acá no se copia: se apunta.**
+
+### El saldo
+
+```
+comandos   10 de máquina  +  sf status (el único para humanos)  +  el andamio
+reparto     7 los llama el orquestador · 3 el que trabaja · cero solapamiento
+CLAUDE.md   4 líneas — y AGENTS.md es el MISMO texto, no una traducción
+```
+
+**El método fue la prueba de escritorio del bucle**, la quinta vez que se usa acá: cuatro
+trazados —`planificacion`, `implementar`, `revision`+`cierre`, y los cinco de producto—
+anotando cada llamada. **El inventario es lo que apareció**, sin inventar nada por las dudas.
+
+### Los cuatro hallazgos que valieron la ronda
+
+- **`sf next` devuelve el skill, el modelo y el `via`.** Es lo que deja `CLAUDE.md` en cuatro
+  líneas — si no, la tabla estado→skill→modelo vive en el orquestador y hay que mantener una
+  copia por harness.
+- **Y el argumento que lo cerró es de Javier:** *"si corre en Claude Code sabe que no puede
+  usar un modelo fuera de Anthropic; si corre en otro harness, sabe que puede cambiar entre
+  proveedores"*. `sf` es el único que ve las dos mitades —lo que el paso pide y lo que el
+  harness puede—, y con eso **el ⑱ deja de ser un caso especial: es la misma llamada con otro
+  `via:`**. Era el último cabo suelto.
+- **El commit lo hace `sf`, el mensaje lo trae el que trabajó.** Sin `--msg` no hay `done`, así
+  que **cerrar el lote *es* commitear**. Los dolores #2 y #3 dejan de ser detectables para ser
+  imposibles.
+- **Los hallazgos de la revisión no tienen ciclo de vida.** Como la revisión se rehace entera,
+  `arreglado` es *no reaparecer*. Nadie marca nada, y queda un solo estado real:
+  `descartado`, que es de Javier.
+
+### Los cinco comandos que se cayeron, y ninguno se perdió
+
+`lote done` era `done` · `save` no hacía falta · `check run` es trabajo del que trabaja ·
+`mutation` es una línea del sobre · `feature archive` es `approve`.
+
+> **Cuando dos cosas parecen distintas y caen en el mismo lugar del trazado, es que eran una.**
+> Mismo hallazgo que `un estado ≠ un subagente` en la ronda de la máquina.
+
+---
+
 ## ⏭ POR DÓNDE ARRANCAR LA PRÓXIMA SESIÓN
 
-**Queda UNA ronda de diseño.** Después de ella el diseño está completo y empieza otra cosa.
+**El diseño está completo.** Las seis cosas de §7 están cerradas. Lo que empieza ahora es de
+otro tipo: **la construcción.**
 
 ### Lo que hay que leer para retomar (y nada más)
 
 | Archivo | Para qué |
 |---|---|
 | **este `session.md`, §6** | la arquitectura y las tres reglas duras |
+| **[`superficie-sf.md`](superficie-sf.md)** §5 y §6 | los 10 comandos y el reparto |
 | **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas |
-| **[`que-sobrevive.md`](que-sobrevive.md)** §2, §13 y §14 | las reglas nuevas, los huecos y el saldo |
+| **[`que-sobrevive.md`](que-sobrevive.md)** §13 | los huecos |
 
-### ~~Paso 0 — las tres correcciones a `artefactos.md`~~ → ✅ **hechas el 2026-08-13**
+### La decisión que abre la construcción
 
-Estaban listadas en [`que-sobrevive.md`](que-sobrevive.md) §15 y ya están aplicadas; el resumen
-quedó en [`artefactos.md`](artefactos.md) **§13**. El saldo:
+Son dos preguntas, y la primera ya tiene respuesta:
 
-- el **`estado:` del `us-#` salió** — el avance vive en `estado.json`, por feature, y el
-  roadmap, el backlog y el índice son **vistas que genera `sf`**. Ningún `.md` se reescribe.
-- el **㉓ agrega dos archivos**: la doc (con su mitad funcional, que no sale del código) **y el
-  journal**. El `us-#` gana ahí un consumidor.
-- los dos campos nuevos: **`test_cmd:`** en la constitución y **`hash_tests`** por lote.
-
-**Y aparecieron dos incoherencias más, del mismo tipo, al tocar esos párrafos:** el
-`estado.json` de `artefactos.md` §11 era el **borrador viejo** (`paso`, `verde`,
-`modelo_recomendado`) — ahora **apunta** a `maquina-estados.md` §9 en vez de copiarlo —, y
-`hash_tests` se agregó también ahí, que es donde el `estado.json` está cerrado.
-
-### ⬅ Paso 1 — la ronda: la superficie de `sf` **y** el reparto, juntos
-
-`que-sobrevive.md` §16 los lista como dos temas. **Son uno solo**, y conviene tratarlos así:
-
-> Saber **qué comandos existen** y saber **quién los llama** se contesta con el mismo dato.
-
-**El método es el que ya funcionó cuatro veces acá: la prueba de escritorio.** Así salieron los
-artefactos (7 rondas) y así salió la máquina. Ahora se aplica **al bucle**: recorrer una vuelta
-completa de feature, del ⑪ al ㉓, anotando **cada llamada**.
-
-```
-ORQUESTADOR  sf next                      → "planificar f-2"
-             lanza subagente Opus
-   SUBAGENTE   sf context planificar f-2  → constitución · us-# · aprendizajes
-               ...trabaja...
-               sf save tareas --feature=f-2
-               sf done                    → ✓ / ✗ y qué falta
-             vuelve el control
-ORQUESTADOR  sf next                      → "🛑 PARÁ: el ⑰ lo decide Javier"
-```
-
-**De ese trazado caen las dos cosas solas:** el inventario **es lo que aparezca**, y el reparto
-**es quién lo llamó**. Sin inventar comandos por las dudas — que es exactamente como se infló la
-versión anterior.
-
-**Dos cabos sueltos que la prueba va a levantar igual:**
-
-- `sf lote start` y `sf lote done` aparecieron en el ⑦ y no están en ningún inventario.
-- El ⑱ es traspaso a otro modelo: hay que ver **qué pasa cuando el que corre `sf` no es un
-  subagente de Claude** sino `deepseek exec "…"` — el orquestador sigue lanzando, pero el sobre
-  del `sf context` es lo único que viaja.
-
-### Después de esa ronda: la construcción, y es una decisión de otro tipo
-
-**No tratarla ahora.** Cuando llegue, hay dos preguntas y la primera ya tiene respuesta:
-
-1. **Por dónde arrancar** — `roadmap.json` + `estado.json` + `sf next` son **la columna**.
-   Nada funciona sin eso, y el `roadmap.json` es el hueco grande (`que-sobrevive.md` §13).
-2. **Podar el CLI actual, o partir de cero con lo que sobrevive.** Sobreviven ~10 comandos de
-   47, así que la respuesta no es obvia: podar deja 63 archivos de test que cubren código que
-   se va, y partir de cero tira `redwitness`, `check run` y `context for-wave`, que están bien.
+1. **Por dónde arrancar** — `roadmap.json` + `estado.json` + `sf next` son **la columna**. Nada
+   funciona sin eso. *(Y el `roadmap.json`, que figuraba como el hueco más grande, se desinfló
+   en la ronda: no es un comando, es un parser — `superficie-sf.md` H19.)*
+2. **Podar el CLI actual, o partir de cero con lo que sobrevive.** ⬅ **es la que hay que
+   decidir.** Sobreviven ~10 de 47, así que la respuesta no es obvia: podar deja 63 archivos de
+   test que cubren código que se va; partir de cero tira `redwitness` y `context for-wave`, que
+   están bien.
 
 ### Y sigue aparcado
 
 **Brownfield** — el debate de `que-sobrevive.md` §5. Decide el destino de `sf onboard scan` y
-de la detección de `sf-init` Step 2. **No bloquea nada de lo de arriba.**
+de la detección de `sf-init` Step 2. **No bloquea nada.**
 
 > **Y la advertencia que sigue vigente** (`decisions-specforge`, 2026-08-07): no sobre-indexar
 > en determinismo. `sf` nació para producir artefactos útiles que hagan alucinar menos al
@@ -434,7 +438,7 @@ de la detección de `sf-init` Step 2. **No bloquea nada de lo de arriba.**
 
 ---
 
-## 10. Pendiente de infraestructura
+## 11. Pendiente de infraestructura
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).
