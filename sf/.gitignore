@@ -1,0 +1,4 @@
+# El binario compilado. En este repo ya pasó una vez que un `cli/cli` de 7 MB
+# se coló al índice con un `git add -A`; esto lo evita de raíz.
+/sf
+/cmd/sf/sf

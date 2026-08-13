@@ -128,6 +128,27 @@ type Producto struct {
 
 	// ConstitucionSellada es el sello del ⑧.
 	ConstitucionSellada bool `json:"constitucion_sellada"`
+
+	// BacklogVisto es el enter de la parada barata del ⑨.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// ESTE CAMPO NO ESTABA EN EL DISEÑO. Apareció al construir `sf next`.
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Las paradas 🛑 dejan rastro solas: el sello del ⑥ es un veredicto, el
+	// del ⑧ es un bool, el del ⑰ mueve la feature a `planificada`. Pero la
+	// PARADA BARATA del ⑨ no sella nada — es un enter, "mirá y seguí".
+	//
+	// Y sin rastro se cuelga: `sf next` diría ⏸, Javier haría enter, y el
+	// próximo `sf next` volvería a decir ⏸ para siempre.
+	//
+	// Su hermana, la ⏸ del ㉓, NO necesita campo: ahí `sf approve` archiva la
+	// carpeta y mergea, y eso sí deja huella. Por eso hay uno solo y no dos.
+	//
+	// No rompe R6 (no es deducible de nada) y encaja exacto en la regla del
+	// estado: "guardá lo que decidió Javier". Que haya mirado el backlog es,
+	// literalmente, una decisión suya que ningún archivo registra.
+	BacklogVisto bool `json:"backlog_visto"`
 }
 
 // Feature es una vuelta del ciclo ⑪–㉓.
