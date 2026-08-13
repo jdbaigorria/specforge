@@ -1,6 +1,6 @@
 # Sesión — refundación de SpecForge
 
-**Fecha:** 2026-08-07 / 08 / 10 / 11 / 12 · **Branch:** `refundation` (sin pushear)
+**Fecha:** 2026-08-07 / 08 / 10 / 11 / 12 / 13 · **Branch:** `refundation` (sin pushear)
 **Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
 (*ejecuta*, §5), **la arquitectura está decidida** (§6), la **prueba de escritorio de los
 artefactos** quedó **✅ completa** (①–㉓, en [`artefactos.md`](artefactos.md)), el **strawman
@@ -355,8 +355,7 @@ regla dura: crear directorios no es pensar ni lanzar a nadie.
 
 ## ⏭ POR DÓNDE ARRANCAR LA PRÓXIMA SESIÓN
 
-**Tema: la superficie de `sf` y el reparto orquestador ↔ skills.** Es lo que queda: los 9
-estados están fijos y cada pieza ya tiene veredicto.
+**Queda UNA ronda de diseño.** Después de ella el diseño está completo y empieza otra cosa.
 
 ### Lo que hay que leer para retomar (y nada más)
 
@@ -366,15 +365,58 @@ estados están fijos y cada pieza ya tiene veredicto.
 | **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas |
 | **[`que-sobrevive.md`](que-sobrevive.md)** §2, §13 y §14 | las reglas nuevas, los huecos y el saldo |
 
-### Lo concreto que falta
+### Paso 0 — las tres correcciones a `artefactos.md`
 
-1. **El inventario de comandos de `sf`.** Aparecieron `next`, `done`, `context <estado>`,
-   `lote start`, `lote done`, `status`, `save`, `check run`, `mutation`, `feature archive`,
-   `install`. Falta cerrarlo y decir **quién llama a cada uno**.
-2. **El reparto orquestador ↔ skills.** Qué va en `CLAUDE.md` / `AGENTS.md` y qué en cada
-   skill, con los veredictos de `que-sobrevive.md` en la mano.
-3. **Los cinco huecos** (`que-sobrevive.md` §13), empezando por `roadmap.json`.
-4. **Brownfield** — el debate aparcado. Decide el destino de `sf onboard scan`.
+Están listadas en [`que-sobrevive.md`](que-sobrevive.md) §15. Son mecánicas y van primero
+porque **sin ellas los documentos se contradicen**: `artefactos.md` todavía dice que el
+`estado:` del `us-#` es la fuente de verdad, y en el ④ se decidió sacarlo.
+
+### Paso 1 — la ronda: la superficie de `sf` **y** el reparto, juntos
+
+`que-sobrevive.md` §16 los lista como dos temas. **Son uno solo**, y conviene tratarlos así:
+
+> Saber **qué comandos existen** y saber **quién los llama** se contesta con el mismo dato.
+
+**El método es el que ya funcionó cuatro veces acá: la prueba de escritorio.** Así salieron los
+artefactos (7 rondas) y así salió la máquina. Ahora se aplica **al bucle**: recorrer una vuelta
+completa de feature, del ⑪ al ㉓, anotando **cada llamada**.
+
+```
+ORQUESTADOR  sf next                      → "planificar f-2"
+             lanza subagente Opus
+   SUBAGENTE   sf context planificar f-2  → constitución · us-# · aprendizajes
+               ...trabaja...
+               sf save tareas --feature=f-2
+               sf done                    → ✓ / ✗ y qué falta
+             vuelve el control
+ORQUESTADOR  sf next                      → "🛑 PARÁ: el ⑰ lo decide Javier"
+```
+
+**De ese trazado caen las dos cosas solas:** el inventario **es lo que aparezca**, y el reparto
+**es quién lo llamó**. Sin inventar comandos por las dudas — que es exactamente como se infló la
+versión anterior.
+
+**Dos cabos sueltos que la prueba va a levantar igual:**
+
+- `sf lote start` y `sf lote done` aparecieron en el ⑦ y no están en ningún inventario.
+- El ⑱ es traspaso a otro modelo: hay que ver **qué pasa cuando el que corre `sf` no es un
+  subagente de Claude** sino `deepseek exec "…"` — el orquestador sigue lanzando, pero el sobre
+  del `sf context` es lo único que viaja.
+
+### Después de esa ronda: la construcción, y es una decisión de otro tipo
+
+**No tratarla ahora.** Cuando llegue, hay dos preguntas y la primera ya tiene respuesta:
+
+1. **Por dónde arrancar** — `roadmap.json` + `estado.json` + `sf next` son **la columna**.
+   Nada funciona sin eso, y el `roadmap.json` es el hueco grande (`que-sobrevive.md` §13).
+2. **Podar el CLI actual, o partir de cero con lo que sobrevive.** Sobreviven ~10 comandos de
+   47, así que la respuesta no es obvia: podar deja 63 archivos de test que cubren código que
+   se va, y partir de cero tira `redwitness`, `check run` y `context for-wave`, que están bien.
+
+### Y sigue aparcado
+
+**Brownfield** — el debate de `que-sobrevive.md` §5. Decide el destino de `sf onboard scan` y
+de la detección de `sf-init` Step 2. **No bloquea nada de lo de arriba.**
 
 > **Y la advertencia que sigue vigente** (`decisions-specforge`, 2026-08-07): no sobre-indexar
 > en determinismo. `sf` nació para producir artefactos útiles que hagan alucinar menos al
