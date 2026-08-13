@@ -29,6 +29,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
+	"github.com/jdbaigorria/specforge/sf/internal/sobre"
 )
 
 // Los códigos de salida son parte de la interfaz, no un detalle.
@@ -52,15 +53,17 @@ func main() {
 	switch os.Args[1] {
 	case "next":
 		os.Exit(next())
+	case "context":
+		os.Exit(contexto(os.Args[2:]))
 	case "-h", "--help", "help":
 		uso()
 		os.Exit(salidaTrabajo)
 	default:
-		// Los otros nueve comandos del inventario todavía no existen. Decirlo
+		// Los otros ocho comandos del inventario todavía no existen. Decirlo
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Por ahora sólo: sf next")
+		fmt.Fprintln(os.Stderr, "    Por ahora: sf next · sf context")
 		os.Exit(salidaError)
 	}
 }
@@ -72,7 +75,7 @@ func next() int {
 		return salidaError
 	}
 
-	e, err := estado.Leer(raiz)
+	e, r, err := cargar(raiz)
 	if err != nil {
 		// "No hay estado" no es un error: es un proyecto sin arrancar, y la
 		// respuesta útil es decir cómo se arranca. Cualquier otro error sí es
@@ -87,18 +90,6 @@ func next() int {
 		return salidaError
 	}
 
-	// El roadmap puede no existir todavía —los cinco estados de producto corren
-	// antes que él— y eso no es un error: se le pasa nil a la máquina, que sabe
-	// que hasta el ⑩ no hay cola.
-	var r *roadmap.Roadmap
-	if r, err = roadmap.Leer(raiz); err != nil {
-		if !errors.Is(err, roadmap.ErrNoHay) {
-			fmt.Fprintln(os.Stderr, "sf:", err)
-			return salidaError
-		}
-		r = nil
-	}
-
 	i := maquina.Siguiente(raiz, e, r)
 	fmt.Print(mostrar(i))
 
@@ -110,6 +101,72 @@ func next() int {
 	default:
 		return salidaParada
 	}
+}
+
+// contexto es `sf context`: el sobre del estado actual.
+//
+// El único flag es `--completo`, y no es una comodidad: es el caso de H1b.
+// Cuando el que trabaja es un modelo por consola sin shell propia, no puede
+// abrir archivos — así que el orquestador corre esto y le pega la salida en el
+// prompt. Mismo comando, mismo sobre; lo único que cambia es quién lo tipea.
+//
+// No hay ningún otro argumento a propósito: el estado, la feature y el lote son
+// todos deducibles del estado.json, y un argumento deducible es un argumento
+// que se pasa mal (H2).
+func contexto(args []string) int {
+	completo := false
+	for _, a := range args {
+		switch a {
+		case "--completo", "--full":
+			completo = true
+		default:
+			fmt.Fprintf(os.Stderr, "sf context: no conozco %q.\n", a)
+			fmt.Fprintln(os.Stderr, "    El estado, la feature y el lote salen del estado.json.")
+			return salidaError
+		}
+	}
+
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	e, r, err := cargar(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	s, err := sobre.Armar(raiz, e, r)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	fmt.Print(s.Texto(raiz, completo))
+	return salidaTrabajo
+}
+
+// cargar lee el estado y el roadmap, que es lo que necesitan los dos comandos.
+//
+// El roadmap puede no existir todavía —los cinco estados de producto corren
+// antes que él— y eso NO es un error: se devuelve nil y quien lo use sabe que
+// hasta el ⑩ no hay cola. El estado, en cambio, sí hace falta siempre.
+func cargar(raiz string) (*estado.Estado, *roadmap.Roadmap, error) {
+	e, err := estado.Leer(raiz)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	r, err := roadmap.Leer(raiz)
+	if err != nil {
+		if !errors.Is(err, roadmap.ErrNoHay) {
+			return nil, nil, err
+		}
+		r = nil
+	}
+	return e, r, nil
 }
 
 // mostrar arma el texto que ve el orquestador.
@@ -163,7 +220,8 @@ func mostrar(i maquina.Instruccion) string {
 func uso() {
 	fmt.Fprintln(os.Stderr, `sf — la máquina de estados de SpecForge
 
-  sf next     dónde estás · qué sigue · con qué skill y modelo
+  sf next       dónde estás · qué sigue · con qué skill y modelo
+  sf context    el sobre del estado actual  (--completo lo embebe)
 
 salidas:
   0  hay trabajo     2  parada (🛑 ⏸ ⚠)
