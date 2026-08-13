@@ -935,6 +935,17 @@ Y dos campos nuevos que no estaban en la ronda 7:
 - **`constitucion.md`** → `test_cmd:` en el frontmatter (§5).
 - **`estado.json`** → el hash de los archivos de test por lote (§9).
 
+> ### ✅ APLICADAS — 2026-08-13
+>
+> Las tres y los dos campos están en `artefactos.md`, con el resumen en su **§13**. Salieron dos
+> arreglos de coherencia que no estaban en la lista y que se veían al tocar los mismos párrafos:
+>
+> - el `estado.json` de `artefactos.md` §11 era **el borrador viejo** (`paso`, `verde`,
+>   `modelo_recomendado`) → se reemplazó por un puntero a `maquina-estados.md` §9 y la lista de
+>   qué cambió. **El estado.json vive en un solo documento.**
+> - `hash_tests` se agregó también a `maquina-estados.md` §9, que es donde el `estado.json`
+>   está cerrado — si no, `artefactos.md` apuntaba a un campo que la fuente no tenía.
+
 ---
 
 ## 16. Lo que sigue
