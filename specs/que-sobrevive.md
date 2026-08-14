@@ -877,9 +877,9 @@ la parada barata del ⑨          🕳 falta     el resumen de vueltas, hallazgo
 
 ---
 
-## 13. Los cinco huecos
+## 13. Los seis huecos
 
-Lo único que hay que construir desde cero. **Cuatro de los cinco son chicos.**
+Lo único que hay que construir desde cero. **Cinco de los seis son chicos.**
 
 | # | Hueco | Tamaño |
 |---|---|---|
@@ -888,6 +888,14 @@ Lo único que hay que construir desde cero. **Cuatro de los cinco son chicos.**
 | 3 | **`decision.md`** (⑫) | ninguno: es `sfx-think` con "tres" |
 | 4 | **el ⑯** — recomendar modelo | un campo en `tareas.json` (regla 1.1) |
 | 5 | **la parada barata del ⑨** | una vista |
+| 6 | **el sobre y `relacionado_a`** | un `if` y una ruta más |
+
+> **El hueco 6 apareció en la ronda de skills** ([`skills.md`](skills.md) §7), tirando
+> `sf-amend`, y salió de leer el código y no los documentos: `relacionado_a` está declarado en
+> `historia.go:61` y **no lo lee nadie**, y `sf context` **no toca `.docs/archivado/` en ningún
+> lado**. Las dos caras del mismo agujero: el subagente que arregla un bug **no ve la spec de la
+> feature que rompió**, y ahí es donde nacen los mocks. **Arreglo:** si la historia del lote
+> tiene `relacionado_a`, el sobre agrega la spec archivada de esa feature.
 
 ---
 
@@ -896,10 +904,13 @@ Lo único que hay que construir desde cero. **Cuatro de los cinco son chicos.**
 ```
 skills      15  →   SOBREVIVEN  scout(adaptado) · think · grill-me · tdd · github ·
                                 documenter · journal · triage · propose(partido) ·
-                                init(adaptado) · build(preflight) · check(partido)
-                    SE VA       audit → sfx-audit, fuera de la máquina
-                    SE SUMA     sfp-po
-                    SE PARTE    propose → el ⑨, el ⑩ y el ⑥ son tres estados distintos
+                                init(partido) · build(preflight) · check(partido) ·
+                                explain (utilitario, tal cual)
+                    SE VAN      audit → sfx-audit, fuera de la máquina
+                                amend → SE TIRA (skills.md §6)
+                    SE SUMAN    sfp-po · sf-cierre
+                    SE PARTE    propose → el ⑨, el ⑩ y el ⑫-⑯ son tres estados distintos
+                                init   → sfp-constitucion (Step 3) + el COMANDO sf init
 
 CLI         47  →   ~10 de máquina + 3 de andamio
                     ~34 se tiran, incluidos los tres más grandes:
@@ -908,6 +919,15 @@ CLI         47  →   ~10 de máquina + 3 de andamio
 capa cross      →   DESCARTADA. audit.md + judge.md son el contrato de sf-audit,
                     y ningún estado lo consume
 ```
+
+> ### ✏️ CORREGIDO — 2026-08-14, en la ronda de [`skills.md`](skills.md)
+>
+> **Este saldo no cerraba: listaba 12 que sobreviven + 1 que se va = 13, y los skills son 15.**
+> Faltaban `sfx-explain` (utilitario, queda tal cual) y `sf-amend` (**se tira** — su punto de
+> entrada ya existe y se llama `sf new`; ver `skills.md` §6).
+>
+> Y los nombres de arriba son **el método**, no el skill que lo ejecuta. **El mapa
+> `estado → skill` firme vive en [`skills.md`](skills.md) §4** y en `sf/internal/maquina/maquina.go`.
 
 **El diagnóstico de la refundación queda confirmado por los números:** dos tercios del CLI
 existían para sostener conceptos —el ledger de gates, el enforcement por hook, la cadena de
