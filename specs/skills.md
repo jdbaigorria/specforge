@@ -184,7 +184,7 @@ eso: el backlog es el embudo, y un bug sobre algo archivado entra por el embudo 
 
 ---
 
-## 7. El hueco que quedó al descubierto — el sobre y lo archivado
+## 7. El hueco que quedó al descubierto — el sobre y lo archivado ✅ **cerrado**
 
 Tirar `sf-amend` dejó ver algo que **no está en ningún documento** y salió de leer el código:
 
@@ -212,7 +212,27 @@ consumidor.
 No rompe ninguna regla: **servir un archivo no es pensar ni lanzar a nadie.** Y es el mismo
 mecanismo que ya usa el sobre para los journals de las features cerradas (`docs.Journals()`).
 
-**Queda como hueco 6** de `que-sobrevive.md` §13.
+### ✅ Construido — 2026-08-14, `sobre.loQueRompio`
+
+La cadena son dos saltos y **los dos usan datos que ya existían**:
+
+```
+us-7.relacionado_a = "us-3"          →  qué historia rompió
+roadmap: ¿qué feature tenía us-3?    →  f-1
+.docs/archivado/f-1-nucleo/spec-design.md
+```
+
+**El segundo salto funciona porque archivar mueve la carpeta y NO toca el roadmap**, así que las
+features cerradas siguen ahí con sus historias. Es una búsqueda en memoria, sin leer nada nuevo.
+
+Cuatro tests, y los dos que más valen son los que dicen **cuándo NO servir**:
+
+- la feature original **todavía no está archivada** — ofrecer una ruta que no existe sería mentir
+  al revés;
+- el bug cayó en **la misma feature** que la historia original — la spec ya está en el sobre, y
+  repetirla es gastarle contexto al que trabaja.
+
+Verificado que los tests fallan sin el arreglo.
 
 ---
 
@@ -284,9 +304,13 @@ sf-audit  →  sfx-audit RENOMBRADO. Ningún estado lo consume
 
 ## 10. Qué sigue
 
-1. **El `CLAUDE.md` de cuatro líneas.** Ya no hay nada que espere: los nombres son firmes y los
-   nueve existen. Y `AGENTS.md` es **el mismo archivo**, no una traducción.
-2. **`sf init`** — el scaffold y `detectStack()`. Hoy `sfp-constitucion` dice *"la cabecera ya
-   está llena"* y **eso todavía no es cierto**: es lo único que impide arrancar de cero.
-3. **El hueco 6** — el sobre y `relacionado_a` (§7).
-4. **El mapa de modelos** (`~/.specforge/`), que cierra H1b y el `via: consola`.
+1. ~~El `CLAUDE.md` de cuatro líneas~~ — ✅ **en [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md)**.
+   Un archivo, dos destinos: `sf install` lo copia como `CLAUDE.md` **y** como `AGENTS.md`.
+2. ~~`sf init`~~ — ✅ **construido**, en `sf/internal/arranque/`. Probado a mano contra un
+   proyecto Go real y contra uno sin manifiesto.
+3. ~~El hueco 6~~ — ✅ **cerrado** (§7).
+4. **El mapa de modelos** (`~/.specforge/`), que cierra H1b y el `via: consola`. Es lo único que
+   queda del diseño.
+5. **`sf install`** — el andamio. Hoy `plantillas/CLAUDE.md` existe y **nadie lo copia**.
+6. **Apagar el producto viejo**: `cli/`, `AGENT.md`, `README*.md`, `INSTALL.md`, `docs/`,
+   `examples/`. **Se referencian entre sí**, así que van juntos o no van.

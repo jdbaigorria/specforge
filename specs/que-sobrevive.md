@@ -888,14 +888,19 @@ Lo único que hay que construir desde cero. **Cinco de los seis son chicos.**
 | 3 | **`decision.md`** (⑫) | ninguno: es `sfx-think` con "tres" |
 | 4 | **el ⑯** — recomendar modelo | un campo en `tareas.json` (regla 1.1) |
 | 5 | **la parada barata del ⑨** | una vista |
-| 6 | **el sobre y `relacionado_a`** | un `if` y una ruta más |
+| 6 | ~~**el sobre y `relacionado_a`**~~ | ✅ **cerrado** — `sobre.loQueRompio` |
 
 > **El hueco 6 apareció en la ronda de skills** ([`skills.md`](skills.md) §7), tirando
-> `sf-amend`, y salió de leer el código y no los documentos: `relacionado_a` está declarado en
-> `historia.go:61` y **no lo lee nadie**, y `sf context` **no toca `.docs/archivado/` en ningún
-> lado**. Las dos caras del mismo agujero: el subagente que arregla un bug **no ve la spec de la
-> feature que rompió**, y ahí es donde nacen los mocks. **Arreglo:** si la historia del lote
-> tiene `relacionado_a`, el sobre agrega la spec archivada de esa feature.
+> `sf-amend`, y salió de leer el código y no los documentos: `relacionado_a` estaba declarado en
+> `historia.go:61` y **no lo leía nadie**, y `sf context` **no tocaba `.docs/archivado/` en ningún
+> lado**. Las dos caras del mismo agujero: el subagente que arregla un bug **no veía la spec de la
+> feature que rompió**, y ahí es donde nacen los mocks.
+>
+> **✅ Cerrado el 2026-08-14** en `internal/sobre/sobre.go`. La cadena son dos saltos y los dos
+> usan datos que ya existían: `us-7.relacionado_a` → qué feature tenía ese `us-#` (el roadmap
+> conserva las cerradas, porque archivar mueve la carpeta y no toca el roadmap) → la spec
+> archivada. **Cuatro tests**, incluidos los dos casos que no hay que servir: la feature original
+> todavía sin archivar, y el bug que cayó en la misma feature que la historia.
 
 ---
 
