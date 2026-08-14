@@ -1,0 +1,32 @@
+{
+  "feature": "f-1",
+  "vuelta": 1,
+  "veredicto": "con-hallazgos",
+  "criterios": {
+    "us-3/CA-1": "cumple",
+    "us-3/CA-2": "no-cumple",
+    "us-3/CA-3": "cumple",
+    "us-5/CA-1": "cumple"
+  },
+  "mutantes": {
+    "herramienta": "gremlins",
+    "score": 71.0,
+    "sobrevivieron": 4
+  },
+  "hallazgos": [
+    {
+      "id": "h-1",
+      "origen": 21,
+      "criterio": "us-3/CA-2",
+      "estado": "abierto",
+      "detalle": "el camino de error no tiene ningún test que lo ejerza: brief.go:42 devuelve el error y ningún test lo comprueba"
+    },
+    {
+      "id": "h-2",
+      "origen": 22,
+      "criterio": "",
+      "estado": "abierto",
+      "detalle": "sobrevive el mutante que invierte la condición de suite.go:118 — ningún test distingue archivo-inexistente de archivo-vacío"
+    }
+  ]
+}

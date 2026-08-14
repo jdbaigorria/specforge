@@ -1,0 +1,19 @@
+{
+  "actualizado": "2026-08-14",
+  "features": [
+    {
+      "id": "f-1",
+      "slug": "nucleo-cli",
+      "nombre": "núcleo del CLI",
+      "orden": 1,
+      "historias": ["us-1", "us-3"]
+    },
+    {
+      "id": "f-2",
+      "slug": "reporte-json",
+      "nombre": "reporte en JSON",
+      "orden": 2,
+      "historias": ["us-2"]
+    }
+  ]
+}

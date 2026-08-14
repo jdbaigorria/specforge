@@ -1,0 +1,29 @@
+{
+  "feature": "f-1",
+  "tareas": [
+    {
+      "id": "t-1",
+      "lote": 1,
+      "descripcion": "parsear el frontmatter del brief y devolver el veredicto",
+      "satisface": ["us-3/CA-1", "us-3/CA-2"],
+      "tests": [
+        "internal/docs/brief_test.go::TestParseFrontmatter",
+        "internal/docs/brief_test.go::TestVeredictoInvalido"
+      ]
+    },
+    {
+      "id": "t-2",
+      "lote": 1,
+      "descripcion": "propagar el error cuando el archivo no existe",
+      "satisface": ["us-3/CA-3"],
+      "tests": ["internal/docs/brief_test.go::TestSinArchivo"]
+    },
+    {
+      "id": "t-3",
+      "lote": 2,
+      "descripcion": "exponer el veredicto por la CLI con --json",
+      "satisface": ["us-4/CA-1"],
+      "tests": ["cmd/sf/main_test.go::TestBriefJSON"]
+    }
+  ]
+}

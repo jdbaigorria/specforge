@@ -1,8 +1,8 @@
 # Provenance — how scout stays honest
 
 The single thing that separates real discovery from a confident hallucination is
-**where each claim came from**. Every line of evidence in `research.md` and every
-load-bearing statement in the brief carries a provenance tag.
+**where each claim came from**. Every line of evidence and every load-bearing
+statement in the brief carries a provenance tag.
 
 ## Two tags, never blurred
 

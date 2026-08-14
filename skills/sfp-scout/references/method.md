@@ -29,7 +29,7 @@ Don't describe the product; describe the **job the user is hiring it to do**.
 
 This keeps scout honest about *who has the problem and when*, and stops a
 solution-in-search-of-a-problem. The main JTBD becomes the spine of the
-differentiator and the `PR#` requirements.
+differentiator and the shape of the brief.
 
 ## 3. Gap analysis & positioning — where you could win
 
@@ -46,10 +46,10 @@ defensible gap → `kill`. A gap that's elsewhere than you thought → `pivot`.
 
 ## 4. From method to artefacts
 
-- Demand evidence + landscape → `research.md` (tagged).
+- Demand evidence + landscape → the `## Panorama` section of the brief (tagged).
 - JTBD + gap + positioning → the differentiator and MVP boundary in the brief.
-- The prioritized jobs → product requirements `PR1…PRn`.
+- The prioritized jobs → the MVP boundary. The stable IDs start later, at the ⑨ (`us-#`).
 
 Optional rigor (don't force it — "no ceremony without purpose"): if there are
 many candidate problems, a quick RICE-style sort (reach × impact × confidence ÷
-effort) can order them — but a one-line rationale per `PR#` is usually enough.
+effort) can order them — but a one-line rationale per job is usually enough.
