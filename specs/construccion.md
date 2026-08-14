@@ -84,23 +84,45 @@ cmd/sf/               el ruteo de los 10 comandos                  expone
 
 ---
 
-## 4. El orden de construcción
+## 4. El orden de construcción — ✅ los siete, hechos
 
 **La columna primero**, que ya estaba decidida: `estado.json` + `roadmap.json` + `sf next`.
 
 | # | Qué | Por qué acá |
 |---|---|---|
-| **1** | `internal/estado` + `internal/roadmap` | nada funciona sin esto. Son dos parsers y un writer |
-| **2** | **`sf next`** | ⬅ **el primer hito real.** Con esto el bucle se puede *mirar* andar aunque todo lo demás sea a mano |
-| 3 | `sf context` | el sobre. Es lo que hace útil al subagente |
-| 4 | `sf done` + las compuertas de conteo | acá `sf` empieza a **frenar**, que es su segundo verbo |
-| 5 | `sf approve` · `reject` · `take` | las paradas: la máquina ya da la vuelta entera |
-| 6 | `sf lote start` | el rojo y el hash. Es la joya, y necesita todo lo anterior |
-| 7 | `new` · `model` · `dismiss` · `status` | los que contestan a una parada, y la vista |
+| ✅ **1** | `internal/estado` + `internal/roadmap` | dos parsers y un writer |
+| ✅ **2** | **`sf next`** | el primer hito usable |
+| ✅ 3 | `sf context` | el sobre, con el material derivado embebido |
+| ✅ 4 | `sf done` + las compuertas | acá `sf` empezó a **frenar** |
+| ✅ 5 | `approve` · `reject` · `take` · `model` · `dismiss` | las paradas — la vuelta entera |
+| ✅ 6 | `sf lote start` | el rojo, la branch y el hash |
+| ✅ 7 | `sf new` · `sf status` | las entradas B y C, y la vista |
 
 **El hito del paso 2 es el que importa**: `sf next` diciendo *"planificar f-1, con Opus"* ya se
 puede usar en un proyecto real con el resto manual. **Dogfooding desde el segundo paso**, no al
 final.
+
+---
+
+### El saldo de los siete
+
+```
+sf/                 12 paquetes · 161 tests verdes · go vet limpio
+comandos            los 10 del inventario + status + el andamio pendiente
+dependencias        UNA: gopkg.in/yaml.v3
+migrado del viejo   NADA todavía — cada pieza se escribió al llegar el comando
+                    que la pedía, y ninguna pidió el código anterior
+```
+
+**Y ése es el hallazgo de la construcción**, porque contradice lo que se esperaba: la
+regla de §2 —*se migra cuando un comando lo necesita*— resultó **más filosa de lo previsto**.
+Al llegar cada comando, escribir la pieza contra el diseño nuevo salió más corto que adaptar
+la vieja. `redwitness.go` (8.4K) se volvió `EmpezarLote` + `internal/suite` (300 líneas con
+comentarios), porque la máquina ya aportaba la mitad: el estado, los lotes y la lista de tests
+planificados.
+
+> **No es que el código viejo fuera malo: es que sostenía conceptos que la máquina volvió
+> innecesarios.** La regla funcionó — sólo que su respuesta, casi siempre, fue "no".
 
 ---
 
@@ -152,7 +174,23 @@ Se rehace cuando exista una vuelta que correr, o sea después del paso 5.
 
 ---
 
-## 7. Las dos decisiones de forma — ✅ tomadas
+## 7. Lo que apareció construyendo, y no estaba en el diseño
+
+Nada de esto sale de los documentos: salió de escribir el código y toparse con el caso.
+
+| Qué | Por qué | Dónde |
+|---|---|---|
+| **`backlog_visto`** | las 🛑 dejan rastro solas; la ⏸ del ⑨ es un enter y no sella nada. Sin campo, `sf next` la repite para siempre | `estado.go` |
+| **`rechazo`** en producto y feature | el motivo del `reject` no se imprime y ya: el que rehace es un subagente NUEVO. Viaja en el sobre | `estado.go` · `sobre.go` |
+| **`branch_base`** | adivinar la branch base necesita un remoto, y el flujo funciona sin pushear | `constitucion.go` |
+| **`Movio` vs `Cambio`** | un `sf done` que FALLA igual incrementa `intentos_fallidos`. Sin la distinción, el contador de ME TRABÉ nunca subía | `done.go` |
+| **la quinta compuerta del ⑰** | una tarea que dice satisfacer `us-1/CA-9` cuando hay dos criterios está mintiendo — el conteo de "sin cubrir" no lo veía | `compuerta.go` |
+| **la ⏸ del ㉓ en `sf next`** | mandaba a escribir una doc que ya estaba escrita | `maquina.go` |
+| **sin lotes ≠ todos commiteados** | mandaba a cerrar una feature sin una línea escrita, y en el camino corto pasaba **siempre** | `maquina.go` |
+
+---
+
+## 8. Las dos decisiones de forma — ✅ tomadas
 
 1. **`sf/` en la raíz** (§3). Cero colisión de símbolos, el viejo sigue corriendo para comparar,
    y `skills/` · `examples/` · `docs/` · `specs/` se comparten. El switch final es borrar `cli/`.
@@ -174,3 +212,20 @@ Se rehace cuando exista una vuelta que correr, o sea después del paso 5.
 ### Y sigue aparcado
 
 **Brownfield** (`que-sobrevive.md` §5). Sigue sin bloquear nada.
+
+---
+
+## 9. Lo que falta
+
+**El binario está completo; lo que falta es lo que lo rodea.**
+
+1. **Los skills.** Tres nombres del mapa `estado → skill` son provisionales y están marcados
+   con ⚠ en `maquina.go`: `sfp-po` **no existe**, `sf-propose` hay que **partirlo en tres**, y
+   falta ver si `sfx-think` cubre `planificacion` entero. Y a los doce que sobreviven hay que
+   agregarles el principio y el final (`sf context` · `sf done`) y sacarles las convenciones
+   propias (R4).
+2. **El `CLAUDE.md` de cuatro líneas**, que es la otra mitad del reparto.
+3. **`sf init`** — el scaffold y `detectStack()`, que es lo único del andamio que la máquina
+   necesita para arrancar un proyecto de cero.
+4. **El mapa de modelos** (`~/.specforge/`), que es lo que le falta al `via:` para resolver
+   `consola` y cerrar H1b del todo.
