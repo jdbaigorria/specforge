@@ -1,8 +1,10 @@
 package maquina
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -256,5 +258,68 @@ func TestDoneCierraElLoteConVerdeYTestsIntactos(t *testing.T) {
 	}
 	if p.e.Features["f-1"].IntentosFallidos != 0 {
 		t.Error("no reseteó el contador al cerrar el lote")
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El camino corto: sin plan, la compuerta afloja pero no se cae
+// ────────────────────────────────────────────────────────────────────────────
+
+// Un bug no pasa por planificación, así que no hay tareas.json y no hay lista
+// de tests contra la cual exigir el rojo. La compuerta pasa de "¿fallan LOS 6
+// planificados?" a "¿falla AL MENOS UNO?" — sigue siendo un hecho y un exit
+// code, y sigue impidiendo lo que importa: dar por arreglado algo que nunca se
+// vio romper.
+func TestLoteStartSinPlanAflojaPeroSigueExigiendoRojo(t *testing.T) {
+	p := nuevo(t).listoParaImplementar("exit 1")
+	// Se saca el plan: es el caso del bug.
+	if err := os.Remove(filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo", "tareas.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	ef := EmpezarLote(p.raiz, p.e, p.r)
+	if !ef.Pasa() {
+		t.Fatalf("sin plan no dejó empezar: %v", ef.Fallas)
+	}
+	if !strings.Contains(ef.Mensaje, "camino corto") {
+		t.Errorf("no dijo que iba sin plan: %q", ef.Mensaje)
+	}
+	// Siembra un lote único: no hay plan que diga cuántos son.
+	if n := len(p.e.Features["f-1"].Lotes); n != 1 {
+		t.Errorf("sembró %d lotes, quería 1", n)
+	}
+}
+
+// Si la suite pasa entera, el bug no está reproducido. Es la misma regla que el
+// "test de mentira", dicha para el caso del arreglo chico.
+func TestLoteStartSinPlanExigeQueElBugEsteReproducido(t *testing.T) {
+	p := nuevo(t).listoParaImplementar("exit 0")
+	if err := os.Remove(filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo", "tareas.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	ef := EmpezarLote(p.raiz, p.e, p.r)
+	if ef.Pasa() {
+		t.Fatal("dejó empezar con la suite entera en verde")
+	}
+	if !strings.Contains(strings.Join(ef.Fallas, " "), "no está reproducido") {
+		t.Errorf("no explicó por qué: %v", ef.Fallas)
+	}
+}
+
+// Sin lotes todavía no arrancó nada. Confundirlo con "todos commiteados"
+// mandaba a cerrar una feature en la que no se escribió una línea — y en el
+// camino corto pasaba siempre, porque ahí no hay planificación que los siembre.
+func TestSinLotesMandaALoteStartYNoACerrar(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Implementar}
+
+	i := p.next()
+	if !slices.Contains(i.Sugerido, "sf lote start") {
+		t.Errorf("sugirió %v, quería sf lote start", i.Sugerido)
+	}
+	if strings.Contains(i.Mensaje, "commiteados") {
+		t.Errorf("dijo que estaban todos commiteados sin ningún lote: %q", i.Mensaje)
 	}
 }

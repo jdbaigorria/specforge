@@ -165,7 +165,7 @@ func Siguiente(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instruccion {
 	// El orden importa y es el del flujo: los cinco de producto primero, y
 	// recién cuando están los cinco empieza el ciclo de feature. No hay forma
 	// de planificar sin constitución.
-	if i, hay := siguienteDeProducto(raiz, e); hay {
+	if i, hay := siguienteDeProducto(raiz, e, r); hay {
 		return i
 	}
 	return siguienteDeFeature(raiz, e, r)
@@ -175,7 +175,7 @@ func Siguiente(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instruccion {
 // Producto — los cinco que corren una vez
 // ────────────────────────────────────────────────────────────────────────────
 
-func siguienteDeProducto(raiz string, e *estado.Estado) (Instruccion, bool) {
+func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Instruccion, bool) {
 	// ① brief. El sello es un veredicto, no un bool: vacío = no sellado.
 	if e.Producto.BriefSellado == "" {
 		// Acá está el patrón que se repite en los tres primeros estados, y es
@@ -240,6 +240,15 @@ func siguienteDeProducto(raiz string, e *estado.Estado) (Instruccion, bool) {
 		return trabajar("roadmap", "", "el ⑩ agrupa las historias en features"), true
 	}
 
+	// Y el ⑩ vuelve a hacer falta cada vez que entra algo nuevo por `sf new`:
+	// una historia que no está en ninguna feature no la implementa nadie, y sin
+	// esto el ciclo seguiría como si nada.
+	if sueltas := huerfanas(raiz, r); len(sueltas) > 0 {
+		i := trabajar("roadmap", "", fmt.Sprintf(
+			"hay %d historia(s) sin feature: %s", len(sueltas), strings.Join(sueltas, " · ")))
+		return i, true
+	}
+
 	return Instruccion{}, false
 }
 
@@ -277,7 +286,19 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 
 	fr, _ := r.Buscar(e.FeatureActual)
 
-	switch f.Estado {
+	// El camino corto (maquina-estados.md §8): un bug no pasa por planificación
+	// ni por revisión. No es un carril paralelo —eso sería una segunda máquina
+	// que mantener— sino la MISMA máquina con estados salteados.
+	//
+	// Se calcula en una variable local y NO se escribe en f: `sf next` es
+	// consulta pura y correrlo dos veces tiene que dar lo mismo. El que mueve el
+	// estado es `sf done`, y allá el mismo salteo se aplica de nuevo.
+	actual := f.Estado
+	if actual == estado.Planificacion && esDeBugs(raiz, fr) {
+		actual = estado.Implementar
+	}
+
+	switch actual {
 	case estado.Planificacion:
 		return planificando(raiz, e.FeatureActual, fr)
 
@@ -424,6 +445,24 @@ func planificando(raiz, id string, fr roadmap.Feature) Instruccion {
 // dentro del lote, lo que separa las dos mitades es `rojo`: sin él no se puede
 // implementar, porque sf todavía no vio fallar los tests con sus propios ojos.
 func implementando(id string, f *estado.Feature) Instruccion {
+	// Sin lotes todavía no arrancó nada: los lotes se siembran en el primer
+	// `sf lote start`, que es también donde se exige el rojo. Confundir esto con
+	// "todos commiteados" mandaba a cerrar una feature en la que no se escribió
+	// una línea — y en el camino corto de un bug pasaba siempre, porque ahí no
+	// hay planificación que los siembre antes.
+	if len(f.Lotes) == 0 {
+		return Instruccion{
+			Tipo:     Trabajar,
+			Estado:   estado.Implementar,
+			Feature:  id,
+			Skill:    skills[estado.Implementar],
+			Modelo:   modeloDeFeature(f, estado.Implementar),
+			Via:      "subagente",
+			Mensaje:  "escribí los tests y confirmá el rojo antes de implementar",
+			Sugerido: []string{"sf context", "sf lote start"},
+		}
+	}
+
 	l, hay := f.LoteActual()
 	if !hay {
 		// Todos los lotes tienen commit y el estado no se movió: falta cerrar.
