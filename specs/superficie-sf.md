@@ -28,7 +28,7 @@ Punto de partida: `f-1` cerrada, el roadmap tiene `f-2` en el orden 2.
 ORQUESTADOR   sf next
               → estado:  planificacion
                 feature: f-2
-                skill:   sfx-propose-plan
+                skill:   sf-plan
                 modelo:  opus
                 lanzá:   subagente fresco
 
@@ -81,7 +81,7 @@ el que SpecForge terminó siendo un binario (`session.md` §5).
 
 Devolviéndolo:
 
-- **no rompe la regla dura 1.** Decir *"lanzá `sfx-propose-plan` con Opus"* **no es lanzar**:
+- **no rompe la regla dura 1.** Decir *"lanzá `sf-plan` con Opus"* **no es lanzar**:
   es servir un dato, como `sf context` sirve un archivo. El que spawnea sigue siendo el
   orquestador.
 - **cumple R1.** *"¿Qué skill corresponde al estado `planificacion`?"* tiene **una sola
@@ -308,7 +308,7 @@ aparecido en el ⑦ y no estaban en ningún inventario.
 ORQUESTADOR   sf next
               → estado:  implementar
                 feature: f-2 · lote 1 de 4
-                skill:   sfx-tdd
+                skill:   sf-build
                 modelo:  deepseek
                 via:     consola · deepseek exec
 
@@ -485,7 +485,7 @@ anotados, y ninguno se perdió: los cuatro eran otra cosa con otro nombre.
 ```
 ORQUESTADOR   sf next
               → estado:  revision · f-2 · vuelta 1
-                skill:   sfx-check
+                skill:   sf-check
                 modelo:  opus            ← el ㉑ es "revisá con uno grande"
                 via:     subagente
 

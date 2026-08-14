@@ -12,9 +12,10 @@ cerrados** — 10 comandos y el bucle de 4 líneas, en
 [`superficie-sf.md`](superficie-sf.md).
 
 > **El diseño está completo Y la columna del binario está construida.** `sf/` tiene los 10
-> comandos del inventario andando, 161 tests verdes y una sola dependencia. Lo que falta ya
-> no es el binario: son los skills, el `CLAUDE.md` y el andamio. El punto de retomada está al
-> final.
+> comandos del inventario andando, 162 tests verdes y una sola dependencia. **Y el mapa
+> `estado → skill` está ✅ cerrado y renombrado** — los nueve nombres firmes, en
+> [`skills.md`](skills.md). Lo que falta ya no es el binario ni el mapeo: es **escribir los
+> nueve skills**, el `CLAUDE.md` y el andamio. El punto de retomada está al final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -50,7 +51,8 @@ no para surtirse.
 | **`que-sobrevive.md`** | el recorrido de los 9 estados contra lo construido — veredicto por pieza | ✅ **completo** |
 | **`superficie-sf.md`** | la prueba de escritorio del bucle — los 10 comandos y el reparto | ✅ **completo** |
 | **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio · **+ los 7 pasos y lo que apareció construyendo** | ✅ **completo** |
-| **`sf/`** | el binario: 12 paquetes, 161 tests, los 10 comandos | ✅ **anda** |
+| **`skills.md`** | el mapa `estado → skill` firme, los 15 veredictos y la cirugía común | ✅ **completo** |
+| **`sf/`** | el binario: 12 paquetes, 162 tests, los 10 comandos | ✅ **anda** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -273,6 +275,8 @@ y de paso el subagente no gasta contexto buscando qué leer.
 6. ~~La superficie de `sf` y el reparto~~ — ✅ **cerrada**, en
    [`superficie-sf.md`](superficie-sf.md). **Con esto el diseño está completo.**
 7. ~~La construcción del binario~~ — ✅ **los 7 pasos hechos**, en `sf/`. Ver §11.
+8. ~~El mapeo `estado → skill`~~ — ✅ **cerrado el 2026-08-14**, en [`skills.md`](skills.md).
+   Los nueve nombres firmes, ya renombrados en `maquina.go` y con test.
 
 ---
 
@@ -498,19 +502,32 @@ y borra la branch**.
 cd sf && go build -o /tmp/sf ./cmd/sf && cd <un proyecto> && /tmp/sf next
 ```
 
-### Paso 1 — los skills, y es el hueco más grande
+### Paso 1 — los skills · el **mapeo ✅ cerrado**, falta **escribirlos**
 
-**Es la otra mitad del reparto**, y hoy es lo único que impide usar SpecForge de punta a punta.
-El mapa `estado → skill` ya existe en `maquina.go` y **tres nombres son provisionales, marcados
-con ⚠ en el código**:
+Vive en [`skills.md`](skills.md). **Acá no se copia: se apunta.**
+
+**El mapeo cerró el 2026-08-14** y lo que encontró no eran los tres ⚠: la **regla de prefijos**
+—`sfp-` producto · `sf-` feature · `sfx-` utilitario, y **`sf` no conoce a los `sfx-`**— dejaba
+**seis de nueve entradas mal**. Tres apuntaban a un utilitario desde la máquina, y eso rompe en
+producción sin hacer ruido: **un `sfx-` no llama a `sf done`, y el estado no se mueve nunca.**
 
 ```
-sfp-po        NO EXISTE           el skill del PRD (⑦) — hueco 2 de que-sobrevive §13
-sf-propose    hay que PARTIRLO    cubre tres estados distintos: el ⑥, el ⑨ y el ⑩
-sfx-think     hay que decidir     es el ⑫; falta ver si cubre `planificacion` entero
+PRODUCTO   brief sfp-scout · prd sfp-po · constitucion sfp-constitucion ·
+           backlog sfp-backlog · roadmap sfp-roadmap
+FEATURE    planificacion sf-plan · implementar sf-build · revision sf-check ·
+           cierre sf-cierre
 ```
 
-Y a los **doce que sobreviven** (`que-sobrevive.md` §14) hay que hacerles lo mismo a todos:
+**El mapa ya está renombrado en `maquina.go`, con un test que fija la regla** (se verificó que
+falla si se vuelve a poner un `sfx-`). **Falta escribir los nueve:** dos desde cero —`sfp-po` y
+`sf-cierre`, los dos delgados— y siete adaptando.
+
+**El patrón que lo destrabó ya estaba inventado:** el skill de estado es **delgado y compone
+utilitarios**, igual que `sfp-scout` componía `sfx-think` y `sfx-grill-me`. Así `sf next` sigue
+devolviendo **un** skill y **los `sfx-` no se tocan** — si aprendieran a llamar a `sf done`
+dejarían de servir fuera de un proyecto SpecForge, que es la mitad de su valor.
+
+La cirugía, la misma para los nueve:
 
 ```
 +  arranca con   sf context      pedí tu sobre, no busques qué leer
@@ -521,6 +538,16 @@ Y a los **doce que sobreviven** (`que-sobrevive.md` §14) hay que hacerles lo mi
 
 > **Y los skills no saben en qué estado están** — por eso `sf context` no lleva argumentos. El
 > skill dice *"dame mi sobre"*; cuál es el sobre lo decide `sf`.
+
+**Dos cosas más que cerró la ronda:**
+
+- **`sf-amend` se tira.** Su punto de entrada ya existe y se llama `sf new` — un bug sobre una
+  feature archivada **no la desarchiva**: entra al backlog como `us-#` con `tipo: bug`. Y su
+  premisa era la equivocada: **una spec archivada no es la doc del sistema, es el registro de
+  una decisión con fecha.**
+- **Apareció el hueco 6** (`que-sobrevive.md` §13): `relacionado_a` está declarado y **no lo lee
+  nadie**, y el sobre **no toca `.docs/archivado/`**. El que arregla el bug no ve la spec de lo
+  que rompió — el dolor #5 esperando. Es un `if` y una ruta más.
 
 ### Paso 2 — el `CLAUDE.md` de cuatro líneas
 
