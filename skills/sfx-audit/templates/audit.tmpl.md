@@ -1,136 +1,71 @@
-# Project Audit: {{scope}}
+# Auditoría — <qué se auditó: f-1 · f-2 · f-3, o "todo">
 
-**Date**: {{date}}
-**Verdict**: {{HEALTHY | NEEDS_ATTENTION | AT_RISK}}
-**Features audited**: {{count}} ({{completed}} completed, {{active}} active)
+**Fecha:** <YYYY-MM-DD> · **Alcance:** <N features · M criterios>
 
-## Summary
+> Si la suite NO pasa, decilo acá arriba y en negrita: todo lo que sigue se
+> juzgó sobre un árbol roto y hay que leerlo como provisorio.
 
-{{2_3_sentence_verdict_summary}}
+## Lo que sf comprobó
 
-## Project Health
+<Pegá tal cual los hechos que imprimió `sf audit`. Son hechos, no opiniones: no
+hay que re-verificarlos, hay que explicar qué significan.>
 
-### Computed — transcribed from the CLI, not estimated
+```
+✓ alcance: 3 features · 14 criterios
+✗ us-3/CA-2 se dio por cumplido en f-1 y su test ya no existe
+✓ la suite pasa
+```
 
-<!-- sf status --json · sf doctor --drift --run-tests --json · sf coverage --json · sf verify --json
-     Two runs over an unchanged repo must produce this table identically. -->
+### Qué significa cada ✗
 
-| Metric | Value | Source | Assessment |
-|--------|-------|--------|------------|
-| Features completed | {{n}} | `sf status --json` | |
-| Features active | {{n}} | `sf status --json` | |
-| Not implemented | {{n}} requirements | `sf doctor --json` | |
-| Implemented differently | {{n | undetermined}} | `sf doctor --json` | |
-| Unverified | {{n}} requirements | `sf doctor --json` | |
-| Out of spec | {{n}} files | `sf coverage --json` | |
-| Spec coverage | {{pct}}% ({{anchored}}/{{total}}) | `sf coverage --json` | |
-| Integrity checks | {{n_ok}}/{{n_total}} passing | `sf verify --json` | |
-| Constitution principles | {{n}} | `constitution.json` | |
-| Invariants (backprop) | {{n}} | `constitution.json` | |
+| Hecho | Qué implica | Gravedad |
+|---|---|---|
+| `us-3/CA-2` sin su test | <la afirmación de f-1 perdió su respaldo: hoy nadie prueba que…> | <alta/media/baja> |
 
-<!-- "Implemented differently" is `undetermined` unless --run-tests was passed.
-     Write `undetermined`, never 0 — 0 asserts a check that didn't happen. -->
+## Hallazgos
 
-### Judgment — an adversarial reading, not a measurement
+<Uno por bloque. Cada uno con su evidencia: archivo y línea, o no va.>
 
-<!-- These two can legitimately differ between runs. That's why they're separate:
-     collapsing them into the table above lends them authority they don't have. -->
+### H1 — <el hallazgo en una línea>
 
-| Finding | Count | Assessment |
-|---------|-------|------------|
-| Principle violations | {{n}} | {{good / concerning / critical}} |
-| Cross-feature conflicts | {{n}} | |
-| Convention violations | {{n}} files | |
+**Dónde:** `ruta/al/archivo.go:42`
+**Historia:** us-3/CA-2 · **Feature:** f-1
+**Tipo:** <la historia no se satisface | dos features no se integran | una feature
+rompió a otra | la afirmación perdió su respaldo>
 
-## Constitution Compliance
+<Qué encontraste, concreto. Qué dice el código, qué pedía la historia, dónde está
+la diferencia.>
 
-| Principle | Status | Violations | Location |
-|-----------|--------|------------|----------|
-| {{principle}} | {{PASS / DRIFT / FAIL}} | {{count}} | {{files_or_features}} |
-| {{invariant}} | {{PASS / DRIFT / FAIL}} | {{count}} | {{files_or_features}} |
+**Cómo se ve desde afuera:** <qué le pasa a alguien que usa esto>
 
-### Critical Violations
+## Entre features — las costuras
 
-{{critical_violations_detail}}
-<!-- Each violation: what principle, where exactly, what the code does vs what it should do -->
+<La sección que ninguna revisión por feature puede escribir. Qué pasa cuando f-1
+y f-3 se tocan. Qué supuso una que la otra no cumple.
 
-### Drift (not violations yet, but trending)
+Si no encontraste nada acá, decilo: es información.>
 
-{{drift_observations}}
+## Lo que verifiqué y está bien
 
-## Cross-Feature Consistency
+<Y esta sección NO es relleno. Sin ella, nadie sabe cuánto del sistema se miró de
+verdad — un informe que sólo lista problemas puede ser exhaustivo o puede haber
+mirado tres archivos, y se leen igual.>
 
-### Conflicts Found
+- **us-1** — seguida punta a punta desde `cmd/x.go:12`. Hace lo que la historia
+  pedía.
+- **us-4** — <…>
 
-| Conflict | Features | Impact | Recommendation |
-|----------|----------|--------|----------------|
-| {{conflict}} | {{feature_a}} vs {{feature_b}} | {{impact}} | {{fix}} |
+## Lo que NO miré
 
-### Data Model Consistency
+<Explícito. Qué quedó afuera del alcance y por qué.>
 
-{{data_model_findings}}
+## Qué hacer
 
-### Interface Consistency
+<Nada de esto lo hace la auditoría. Lo que valga la pena entra por el embudo:>
 
-{{interface_findings}}
+```bash
+sf new "<el hallazgo, como entrada al backlog>"
+```
 
-## Spec-to-Code Drift
-
-<!-- One row per finding from `sf doctor --drift --run-tests --json`, by category. -->
-
-| Feature | Requirement | Category | Detail |
-|---------|-------------|----------|--------|
-| {{feature}} | {{R#}} | {{not implemented / implemented differently / unverified}} | {{reason}} |
-
-### Which side was wrong
-
-<!-- Only for "implemented differently". BOTH routes, no default, one row each —
-     never a batch recommendation. -->
-
-| Feature / Req | (a) spec went stale | (b) spec was right, code has a defect | Recommendation |
-|---|---|---|---|
-| {{feature}} / {{R#}} | {{what amending would say}} | {{expected vs observed}} | {{a or b + why}} |
-
-## Out of Spec — code no requirement governs
-
-<!-- From `sf coverage --json` → unanchored. Two outcomes per file, nothing else.
-     Excluding raises the percentage, so every exclusion carries a reason. -->
-
-| File | Disposition | Reason |
-|------|-------------|--------|
-| {{path}} | {{adopt / exclude}} | {{why}} |
-
-## Convention Adherence
-
-| Convention | Status | Violations | Files |
-|------------|--------|------------|-------|
-| {{convention}} | {{consistent / inconsistent}} | {{count}} | {{locations}} |
-
-## Findings by Priority
-
-### Fix Now
-<!-- Violations that compound if ignored -->
-- [ ] {{finding}} — {{location}} — {{why_urgent}}
-
-### Fix Next Sprint
-<!-- Real issues, not urgent -->
-- [ ] {{finding}} — {{location}}
-
-### Track
-<!-- Patterns trending toward problems -->
-- [ ] {{pattern}} — {{current_count}}/3 threshold
-
-### Accept (document decision)
-<!-- Deliberate deviations -->
-- [ ] {{deviation}} — {{rationale_for_accepting}}
-
-## Recommendations
-
-{{overall_recommendations}}
-<!-- Actions to take. Specific, actionable.
-     "Consider amending principle X — it's violated in 8/10 features,
-      suggesting the principle doesn't match how the project evolved."
-     "Run sf new \"error handling on the X boundary\" to address INV1." -->
-
----
-*Audited on {{date}}*
+<Y si algo se repite en tres features, no es un hallazgo: es una regla que le
+falta a la constitución. Proponela, no la escribas.>

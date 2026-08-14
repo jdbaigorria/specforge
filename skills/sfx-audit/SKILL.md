@@ -1,261 +1,127 @@
 ---
 name: sfx-audit
 description: >
-  Run a project-wide adversarial audit. Cross-reference all features against the constitution,
-  detect contradictions between features, find accumulated drift, verify invariants across the
-  entire codebase. Use when the user says "sfx-audit", "audit the project", "full review",
-  "check everything against the constitution", "is the project consistent", "cross-check all
-  features", "adversarial review", "project health check", or after a milestone when multiple
-  features have been completed and it's time to verify the whole system holds together.
-  Unlike sf-check (validates one feature), sfx-audit validates the entire project.
+  Verify end to end that what was actually built satisfies the user stories it was supposed to
+  serve — across several features at once, or the whole project. The auditor: it re-checks work
+  that already passed its own review, looking for what a per-feature review structurally cannot
+  see, and for places the implementer's claims no longer hold. Use when the user says
+  "sfx-audit", "audit the project", "audit this module", "does the whole thing hold together",
+  "verify end to end", "check everything against the stories", or after several features have
+  closed. Runs on a big model. Unlike sf-check, which validates ONE feature at the moment it
+  ends, this looks at many, long after.
 ---
 
 # sfx-audit
 
-Adversarial audit of the entire project. Cross-reference everything. Find what nobody checked.
-
-sf-check validates a feature against its own specs. sfx-audit validates the project against
-itself — constitution vs reality, feature vs feature, invariants vs codebase, specs vs code
-across every completed feature.
-
-**Always produces** `specforge/audits/{date}-{scope}.md`.
-
-## When to Run
-
-- After a milestone (3-5 features completed)
-- Before a major release
-- When the user feels "something is off" but can't pinpoint it
-- Periodically as hygiene (every N features)
-- After a major refactor to verify nothing drifted
-
-## Step 1: Gather Everything
-
-Read all of these (don't skip any that exist):
-
-```
-specforge/constitution.md          ← the law
-sf status --json                   ← all features and statuses, already counted
-specforge/features/*/               ← active features (requirements, design, tasks)
-specforge/archive/*/                ← completed features
-specforge/history.md               ← project log + recurring issues
-specforge/context/project.md                     ← stack and architecture
-specforge/context/conventions.md                 ← coding standards
-```
-
-Scan the actual codebase for the audit checks below.
-
-## Step 2: Constitution Compliance (project-wide)
-
-For each principle in `constitution.md`:
-
-1. Scan the codebase for violations — not just the latest feature, ALL code
-2. Check if any archived feature's design contradicts a principle
-3. Check if any principle has become stale (the project evolved past it)
-4. Check if invariants (promoted via backprop) are respected everywhere
-
-Produce a compliance table:
-
-```markdown
-| Principle | Status | Violations | Notes |
-|-----------|--------|------------|-------|
-| "Offline-first" | ✅ PASS | 0 | |
-| "No raw print()" | ⚠️ DRIFT | 3 files | Introduced in add-export feature |
-| INV1: "Error handling on interfaces" | ❌ FAIL | 5 endpoints | 2 features predate this invariant |
-```
-
-## Step 3: Cross-Feature Consistency
-
-Check for contradictions and conflicts across features:
-
-### Data model consistency
-- Do different features define the same entity differently?
-- Are there conflicting schemas or type definitions?
-- Do naming conventions stay consistent across features?
-
-### Interface conflicts
-- Do any features expose contradictory API contracts?
-- Are there duplicate endpoints or CLI commands with different behavior?
-- Do error codes/messages stay consistent?
-
-### Dependency conflicts
-- Do features depend on incompatible versions of the same library?
-- Are there circular dependencies between feature modules?
-
-### Scope overlap
-- Do any features implement the same requirement differently?
-- Are there redundant implementations nobody noticed?
-
-## Step 4: Spec-to-Code Drift
-
-Start from `sf doctor --drift --run-tests --json`, not from reading. The engine
-classifies every finding into four categories, and they are not interchangeable:
-
-| Category | What it means | What it asks of the reader |
-|---|---|---|
-| **not implemented** | the anchor doesn't resolve — the code is gone or was never written | is the requirement still wanted? |
-| **implemented differently** | the anchor resolves and its test is red — the code does something else | **which side was wrong?** (see below) |
-| **unverified** | the requirement names no test, or the test couldn't be run | it's a gap, not a contradiction |
-| **out of spec** | code that no trace anchors | adopt it or exclude it (Step 6) |
-
-Then read, for what the engine cannot see: does the *design* still match the
-architecture? Did a post-approval edit change behavior the tests don't pin down?
-
-### The two routes — never assume the spec is the one that's wrong
-
-For every **implemented differently** finding, both readings are live:
-
-> **(a)** the spec went out of date → accept the implementation, amend the spec.
-> **(b)** the spec was right → this is a defect; the code has to change.
-
-Present both, with no default. The pull toward (a) is structural — it makes the
-finding disappear with one edit — and a project that always picks (a) has a spec
-that records what happened instead of governing what should. Route (b) is
-`sf delta new --feature=<name> --kind=code-wrong` with `expected` and `observed`.
-
-**One at a time.** An audit that ends with "approve all 12" is 12 decisions
-nobody made.
-
-## Step 5: Convention Adherence
-
-Read `specforge/context/conventions.md` and scan the codebase:
-
-- Naming conventions consistent?
-- Error handling patterns followed everywhere?
-- Test structure consistent across all features?
-- Import organization consistent?
-- Documentation standards followed?
-
-Flag areas where conventions drifted — often the earliest features don't
-follow conventions that were established later.
-
-## Step 6: Health Metrics — read them, don't estimate them
-
-**The dividing line: if two runs over an unchanged repo can produce different
-numbers, it isn't a metric — it's an opinion.**
-
-Most of this table is already computed. Run the commands and transcribe. Counting
-by reading is how an audit reports 7 drifted features on Monday and 9 on Friday
-with nothing having changed in between — and once the numbers move on their own,
-nobody trusts any of them.
+The auditor. **Does the built solution actually satisfy the stories it involves — and did the
+implementer tell the truth?**
 
 ```bash
-sf status --json                            # features by status
-sf doctor --drift --run-tests --json        # drift in 4 categories
-sf coverage --json --by-priority            # anchored ratio + unanchored files + contract by priority
-sf verify --json                            # invariants and integrity checks
+sf audit                  # everything that has been built
+sf audit f-1 f-2 f-3      # these three — a "module" is a set of features
+sf audit --completo       # embeds the material, for a model with no shell
 ```
 
-Without `--run-tests`, `implemented_differently` comes back
-`{"status":"undetermined"}`. Report it as undetermined. Do **not** write 0 —
-that would state a fact nobody checked.
+**You run on a big model, in a fresh subagent, and you did not build any of this.**
 
-| Row | Where it comes from |
-|---|---|
-| Features completed / active | `sf status --json` → `statuses` |
-| Spec-to-code drift | `sf doctor --drift --json`, broken out by the 4 categories |
-| Not implemented / Implemented differently | same, `not_implemented` / `implemented_differently` |
-| Unverified requirements | same, `unverified` |
-| Out of spec (code with no requirement) | same, `out_of_spec` — and `sf coverage --json` → `unanchored` |
-| Test coverage gaps | `sf coverage --json` → `percent`, `anchored`, `total` |
-| Verification contract by priority | `sf coverage --json --by-priority` → `requirement_coverage.by_priority`. **Different unit** from the row above: that one counts *files*, this one counts *requirements*. Don't merge them — an audit that adds the two totals is adding apples to oranges. The row that matters is `must`: anything short of `total` there is release-blocking work the project declared and never verified |
-| Constitution principles / Invariants | `constitution.json` (count them) |
-| Integrity / invariant checks | `sf verify --json` → `checks` |
-| **Cross-feature conflicts** | **Judgment** — two specs have to be read and found to contradict |
-| **Convention violations** | **Judgment** — `conventions.md` is prose |
+## What you can see that `sf-check` cannot
 
-Mark the last two as judgment in the artifact. They're the rows where an
-adversarial reader is the only instrument that works — which is precisely why
-they shouldn't be competing for attention with nine numbers the CLI already
-knows.
-
-### Category 4: turn the list into decisions
-
-`out_of_spec` / `unanchored` is code that no requirement governs. A count there
-is useless; the list is actionable. For each file, exactly two outcomes — and
-say which one you're recommending and why:
-
-- **Adopt** — it's real product code and should be specified. Feeds a retroactive
-  requirement (`sf new` on the existing code).
-- **Exclude** — it isn't product (generated, tooling, scripts). Record it, with a
-  reason, under `coverage.exclude` in `constitution.json`. Excluding *raises* the
-  percentage, so an exclusion without a reason is how the metric gets quietly
-  dressed up.
-
-Never propose excluding a file just to move the number.
-
-## Step 7: Produce Verdict
-
-### HEALTHY
-No critical violations. Minor drift noted. Project is consistent.
-
-### NEEDS ATTENTION
-Some principle violations or cross-feature inconsistencies.
-Specific remediation steps listed.
-
-### AT RISK
-Significant drift from constitution. Multiple feature conflicts.
-Accumulated debt threatens future development. Major remediation needed.
-
-## Step 8: Write Artifact
-
-Generate `specforge/audits/{date}-{scope}.md` using `templates/audit.tmpl.md`.
-
-Alongside it, write `specforge/audits/{date}-{scope}.json` with the computed
-rows verbatim — the raw output of the four commands from Step 6, plus the
-verdict. Two audits of a markdown file can't be compared; two JSON files can.
-That's what makes "drift went from 3 to 7 since May" a sentence anyone can
-check.
-
-```json
-{
-  "date": "…", "scope": "…", "verdict": "HEALTHY|NEEDS_ATTENTION|AT_RISK",
-  "computed": {"status": {…}, "drift": {…}, "coverage": {…}, "verify": {…}},
-  "judgment": {"cross_feature_conflicts": 0, "convention_violations": 0}
-}
+```
+sf-check (㉑)   ONE feature · against ITS criteria · the moment it ends
+you             MANY features · end to end · long after
 ```
 
-`computed` and `judgment` stay separated in the artifact for the same reason
-they're separated in Step 6: one is reproducible and the other is a reading.
-Collapsing them lends the numbers' authority to the opinions.
+The difference is not rigour, it is **where each one stands**. The ㉑ reviews `f-2` the day `f-2`
+finishes, and after that nobody looks at it again. So there are three things it structurally
+cannot catch, and they are your job:
 
-For the trend, `sf coverage --history` already keeps every measurement — read it
-instead of reporting a lone point.
+- **`f-4` broke a criterion of `f-1`.** No one re-reviews a closed feature.
+- **`f-2` and `f-3` each passed alone and do not integrate.** Each review saw half the picture.
+- **A criterion marked `cumple` that is no longer true.** It was true when it was marked.
 
-→ 🔴 **GATE**: Present audit results. User reviews findings.
+If you find yourself re-doing the ㉑'s job — reading one feature against its own criteria — stop.
+That already happened, and its verdict is in your envelope. **Your question is what happens
+between features and over time.**
 
-For each finding, recommend:
-- **Fix now:** violations that will compound if ignored
-- **Fix next sprint:** issues that are real but not urgent
-- **Track:** patterns that aren't violations yet but are trending that way
-- **Accept:** deliberate deviations the user is aware of (document the decision)
+## Start from the facts, not from reading
 
-## Step 9: Update History
+`sf audit` already ran the four checks that have exactly one correct answer, and they are printed
+**above** the material on purpose — knowing what to look for changes what you open:
 
-Append to `specforge/history.md`:
-```markdown
-## [date] — Project audit
-- Scope: {full | partial — what was checked}
-- Verdict: {HEALTHY | NEEDS ATTENTION | AT RISK}
-- Findings: {N critical}, {N major}, {N minor}
-- Actions: {summary of recommended actions}
 ```
+✓ alcance: 3 features · 14 criterios
+✗ us-3/CA-2 se dio por cumplido en f-1 y su test ya no existe: core_test.go::TestSinEstado
+✗ us-5/CA-4 no tiene veredicto en la revisión de f-2
+⚠ f-2/h-1 se descartó: el mutante no representa un caso real
+✓ la suite pasa (go test ./...)
+```
+
+**A `✗` is a fact, not an opinion.** It is a contradiction between what was declared and what is
+on disk, and it needs no defending — go straight to explaining what it means.
+
+**`us-#/CA-# se dio por cumplido y su test ya no existe` is the one that matters most.** That is
+the implementer's claim losing its evidence, and it is the single thing this whole command exists
+to catch. Nobody else in the flow can: the ㉑ of that feature already passed, and the ㉑ of the
+next one is looking at other criteria.
+
+### And the suite line is a precondition, not a finding
+
+If `sf` says the suite does not pass, **say so first and frame everything else as provisional**.
+An audit of a broken tree is a description of a broken tree.
+
+## Then judge, and this is the part only you can do
+
+The facts tell you what is inconsistent. They do not tell you whether **the thing works**. For
+each story in scope:
+
+1. **Read the story, then find where it lives in the code.** Not the spec — the code. The spec is
+   in your envelope to tell you what was intended, so you can spot the gap between intent and
+   result.
+2. **Ask what the story actually promised**, in the user's terms. A criterion can be technically
+   satisfied by code that does not deliver the story. That gap is invisible to every count.
+3. **Follow it end to end.** Entry point → the work → the result. This is the whole reason you
+   read many features at once: the seams between them are where nobody was looking.
+
+### Where to look for the implementer's lies
+
+Not by suspicion — by knowing where they hide:
+
+- **A method that returns a plausible value without doing the work.** The mock that passes.
+- **A test that asserts almost nothing** — it runs the code and checks it did not panic.
+- **A criterion satisfied for the happy path only**, when the criterion said `IF … THEN`.
+- **Error paths with no caller.** Written, never reachable.
+- **Code that is not called by anything**, and the story that needed it is marked done.
+
+## What you are NOT
+
+- **You are not a gate.** You produce a report; you do not move any state and you do not block
+  anything. `sf` will not act on what you write.
+- **You do not fix.** Something worth fixing enters the flow the normal way: `sf new "…"`, which
+  puts it in the backlog. **The backlog is the funnel** and the audit is no exception.
+- **You do not re-litigate what Javier dismissed.** A `⚠ se descartó` is a decision he made.
+  Mention it **only** if you see the same dismissal three times or more — then it is a pattern,
+  which is a different observation than the one he overruled.
+- **You do not judge style.** Naming, formatting, elegance. If the constitution has a rule about
+  it, cite the rule; otherwise leave it.
+
+## The report
+
+Write it to wherever the user asks — there is no fixed location, because the audit is outside the
+machine and does not own a path inside `.docs/`.
+
+Use `templates/audit.tmpl.md`. Lead with the facts `sf` gave you, then your findings, then what
+you verified and found sound. **Say what you checked and found fine** — an audit that only lists
+problems does not tell anyone how much of the system was actually looked at.
+
+**Every finding cites its evidence:** the file and line, the criterion id, the feature. A finding
+you cannot point at is an opinion.
 
 ## Rules
 
-- **Never estimate a number the CLI computes.** Every row in Step 6 marked as
-  computed comes from a command. Two runs over an unchanged repo must produce
-  identical computed rows — if they don't, the audit is fiction and its judgment
-  rows inherit that.
-- **Undetermined is not zero.** If `--run-tests` wasn't run, say the category
-  wasn't evaluated. Writing 0 asserts something nobody checked.
-- Be adversarial. Your job is to find problems, not confirm everything is fine.
-- Be specific. "Code quality could improve" is useless. "3 API endpoints in
-  add-export feature lack error handling, violating principle 4 and INV1" is useful.
-- Check EVERYTHING against the constitution — including features that were approved
-  before a principle or invariant existed.
-- Don't audit what doesn't exist. If there's no constitution, say so and recommend
-  running `sf init` instead of inventing violations.
-- Distinguish between violations (clear breach) and drift (gradual divergence).
-  Violations need fixes. Drift needs decisions — maybe the constitution should update.
-- If a principle is consistently violated, maybe it's the principle that's wrong.
-  Flag it both ways: "either fix the code or amend the constitution."
+- Start from the facts `sf` printed. Never from reading everything.
+- A `✗` is a fact. Explain what it means; do not re-verify it.
+- Your question is between features and over time. The ㉑ already did each one alone.
+- Follow stories end to end in the code, not in the spec.
+- Cite file and line, or it does not go in the report.
+- Never fix, never gate, never move state. Findings enter through `sf new`.
+- Say what you checked and found sound, not only what is broken.
