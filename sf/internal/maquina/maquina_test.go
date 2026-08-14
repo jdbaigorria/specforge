@@ -9,6 +9,7 @@ import (
 
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
+	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -573,5 +574,58 @@ func TestElMapaRespetaLaReglaDePrefijos(t *testing.T) {
 
 	if len(skills) != len(producto)+len(feature) {
 		t.Errorf("el mapa tiene %d entradas, hay %d estados", len(skills), len(producto)+len(feature))
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El ⑯: qué modelo pide esta feature
+// ────────────────────────────────────────────────────────────────────────────
+
+// enImplementar deja f-1 lista para implementar, con el tareas.json que se pida.
+func (p *proyecto) enImplementar(tareasJSON string) *proyecto {
+	p.t.Helper()
+	p.productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Implementar}
+	if tareasJSON != "" {
+		p.conArchivoConTexto(filepath.Join(".docs/features/f-1-nucleo", tareas.Archivo), tareasJSON)
+	}
+	return p
+}
+
+// La cadena de precedencia es de tres niveles y cada uno sabe MENOS que el de
+// arriba. Este test la recorre entera, y es el que se rompe si alguien invierte
+// dos.
+func TestLaPrecedenciaDelModelo(t *testing.T) {
+	const conModelo = `{"feature":"f-1","modelo":"opus","tareas":[
+		{"id":"t-1","lote":1,"descripcion":"x","satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`
+	const sinModelo = `{"feature":"f-1","tareas":[
+		{"id":"t-1","lote":1,"descripcion":"x","satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`
+
+	casos := []struct {
+		nombre string
+		tareas string
+		deSf   string // lo que puso `sf model`
+		quiero string
+	}{
+		{"sin nada: el default del estado", sinModelo, "", modeloPorDefecto},
+		{"el ⑯ le gana al default", conModelo, "", "opus"},
+		{"sf model le gana al ⑯", conModelo, "haiku", "haiku"},
+		{"sf model manda aunque no haya ⑯", sinModelo, "haiku", "haiku"},
+		// El plan roto no puede impedir que sf conteste qué sigue: de eso se
+		// queja la compuerta del ⑰, que corre antes.
+		{"un tareas.json ilegible cae al default", `{roto`, "", modeloPorDefecto},
+		{"sin tareas.json cae al default", "", "", modeloPorDefecto},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			p := nuevo(t).enImplementar(c.tareas)
+			p.e.Features["f-1"].Modelo = c.deSf
+
+			if m := p.next().Modelo; m != c.quiero {
+				t.Errorf("modelo %q, quería %q", m, c.quiero)
+			}
+		})
 	}
 }
