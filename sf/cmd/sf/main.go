@@ -57,15 +57,17 @@ func main() {
 		os.Exit(contexto(os.Args[2:]))
 	case "done":
 		os.Exit(terminar(os.Args[2:]))
+	case "approve", "reject", "take", "model", "dismiss":
+		os.Exit(parada(os.Args[1], os.Args[2:]))
 	case "-h", "--help", "help":
 		uso()
 		os.Exit(salidaTrabajo)
 	default:
-		// Los otros ocho comandos del inventario todavía no existen. Decirlo
+		// Falta `sf lote start` (paso 6) y `sf new` / `sf status`. Decirlo
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Por ahora: sf next · sf context · sf done")
+		fmt.Fprintln(os.Stderr, "    Por ahora: next · context · done · approve · reject · take · model · dismiss")
 		os.Exit(salidaError)
 	}
 }
@@ -209,6 +211,64 @@ func terminar(args []string) int {
 	return salidaParada
 }
 
+// parada corre los cinco comandos con los que Javier le contesta a una parada.
+//
+// Van juntos en una función porque comparten el esqueleto entero —cargar,
+// ejecutar, guardar el estado, imprimir— y lo único que cambia es qué llaman.
+// Separarlos sería copiar cinco veces las mismas veinte líneas.
+//
+// Y comparten algo más importante: LOS CINCO LOS CORRE EL ORQUESTADOR, nunca el
+// subagente. Son la mitad del reparto que la ronda de la superficie descubrió.
+func parada(cmd string, args []string) int {
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	e, r, err := cargar(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	arg := func(i int) string {
+		if i < len(args) {
+			return args[i]
+		}
+		return ""
+	}
+
+	var ef maquina.Efecto
+	switch cmd {
+	case "approve":
+		ef = maquina.Aprobar(raiz, e, r)
+	case "reject":
+		ef = maquina.Rechazar(e, arg(0))
+	case "take":
+		ef = maquina.Tomar(e, r, arg(0))
+	case "model":
+		ef = maquina.Modelo(e, arg(0))
+	case "dismiss":
+		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
+	}
+
+	// El estado se guarda sólo si el comando funcionó. Un `sf take f-99` que
+	// falla no tiene que dejar rastro.
+	if ef.Pasa() {
+		if err := e.Guardar(raiz); err != nil {
+			fmt.Fprintln(os.Stderr, "sf: no pude guardar el estado:", err)
+			return salidaError
+		}
+	}
+
+	fmt.Print(ef.Texto())
+	if ef.Pasa() {
+		return salidaTrabajo
+	}
+	return salidaError
+}
+
 // cargar lee el estado y el roadmap, que es lo que necesitan los dos comandos.
 //
 // El roadmap puede no existir todavía —los cinco estados de producto corren
@@ -284,6 +344,13 @@ func uso() {
   sf next       dónde estás · qué sigue · con qué skill y modelo
   sf context    el sobre del estado actual  (--completo lo embebe)
   sf done       corre las compuertas y mueve  (--msg "…" en implementar)
+
+las cinco respuestas a una parada:
+  sf approve              sella lo que estés mirando
+  sf reject "motivo"      no sella, y el motivo viaja en el sobre
+  sf take <feature>       el ⑪: elige de la cola
+  sf model <nombre>       sube el modelo        \
+  sf dismiss <h-#> "…"    descarta un hallazgo  /  las salidas de ME TRABÉ
 
 salidas:
   0  hay trabajo     2  parada (🛑 ⏸ ⚠)

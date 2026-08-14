@@ -129,6 +129,15 @@ type Producto struct {
 	// ConstitucionSellada es el sello del ⑧.
 	ConstitucionSellada bool `json:"constitucion_sellada"`
 
+	// Rechazo es el motivo del último `sf reject` sobre un artefacto de producto.
+	//
+	// Se guarda y no se imprime y ya, porque el que va a rehacer el trabajo es
+	// un subagente NUEVO que arranca de cero: sin el motivo vuelve a proponer lo
+	// mismo. `sf context` lo mete en el sobre, que es donde lo va a leer.
+	//
+	// Se limpia solo cuando el artefacto se aprueba.
+	Rechazo string `json:"rechazo,omitempty"`
+
 	// BacklogVisto es el enter de la parada barata del ⑨.
 	//
 	// ────────────────────────────────────────────────────────────────────
@@ -183,6 +192,12 @@ type Feature struct {
 	// El freno ya estaba en el ⑳ ("si falla varias veces, entro yo"); esto lo
 	// convierte de sensación en número. Se resetea a 0 cuando el lote cierra.
 	IntentosFallidos int `json:"intentos_fallidos"`
+
+	// Rechazo es el motivo del "pido cambios" del ⑰.
+	//
+	// Igual que el de producto: viaja en el sobre para que el que rehaga el
+	// bloque ⑫–⑯ sepa qué estuvo mal.
+	Rechazo string `json:"rechazo,omitempty"`
 
 	// Lotes son las unidades de trabajo y de commit.
 	//

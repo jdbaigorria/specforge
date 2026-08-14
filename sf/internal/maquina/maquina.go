@@ -301,6 +301,18 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 			"el ㉑ juzga los criterios y el ㉒ mira los mutantes, en la misma pasada")
 
 	case estado.Cierre:
+		// Igual que en `planificacion`: la compuerta es barata —mirar dos
+		// archivos— así que sf next la corre para distinguir "falta escribir la
+		// doc" de "está lista, mirá y archivá".
+		if res := compuerta.Cierre(raiz, fr); res.Pasa() {
+			return Instruccion{
+				Tipo:     Barata,
+				Estado:   estado.Cierre,
+				Feature:  e.FeatureActual,
+				Mensaje:  fmt.Sprintf("⏸ %s lista para archivar. La doc y el journal están.", e.FeatureActual),
+				Sugerido: []string{"sf approve"},
+			}
+		}
 		return trabajar(estado.Cierre, e.FeatureActual,
 			"el ㉓ escribe la doc y el journal")
 

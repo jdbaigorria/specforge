@@ -80,7 +80,22 @@ type Git struct {
 	BranchPorFeature bool   `yaml:"branch_por_feature"`
 	PatronBranch     string `yaml:"patron_branch"` // "feat/{feature-id}-{slug}"
 	Commit           string `yaml:"commit"`        // "conventional"
-	Merge            string `yaml:"merge"`         // "no-ff"
+	Merge            string `yaml:"merge"`         // "no-ff" | "squash" | "ff"
+
+	// BranchBase es a dónde vuelve la feature al archivarse.
+	//
+	// Es un campo y no una detección automática porque adivinarlo es frágil:
+	// `git symbolic-ref refs/remotes/origin/HEAD` necesita un remoto, y este
+	// flujo funciona sin pushear. Un campo con default explícito no falla nunca.
+	BranchBase string `yaml:"branch_base"` // "main"
+}
+
+// Base devuelve la branch a la que se mergea, con default.
+func (g Git) Base() string {
+	if g.BranchBase == "" {
+		return "main"
+	}
+	return g.BranchBase
 }
 
 // ErrNoHay es que todavía no se corrió el ⑧.
