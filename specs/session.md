@@ -12,10 +12,10 @@ cerrados** — 10 comandos y el bucle de 4 líneas, en
 [`superficie-sf.md`](superficie-sf.md).
 
 > **El diseño está completo Y la columna del binario está construida.** `sf/` tiene los 10
-> comandos del inventario andando, 162 tests verdes y una sola dependencia. **Y el mapa
-> `estado → skill` está ✅ cerrado y renombrado** — los nueve nombres firmes, en
-> [`skills.md`](skills.md). Lo que falta ya no es el binario ni el mapeo: es **escribir los
-> nueve skills**, el `CLAUDE.md` y el andamio. El punto de retomada está al final.
+> comandos del inventario andando, 162 tests verdes y una sola dependencia. **Y los nueve skills
+> están ✅ escritos** — mapeados, renombrados y verificados contra `maquina.go`, en
+> [`skills.md`](skills.md). Lo que falta ya no es el binario ni los skills: es el **`CLAUDE.md`
+> de cuatro líneas**, **`sf init`** y el andamio. El punto de retomada está al final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -52,6 +52,7 @@ no para surtirse.
 | **`superficie-sf.md`** | la prueba de escritorio del bucle — los 10 comandos y el reparto | ✅ **completo** |
 | **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio · **+ los 7 pasos y lo que apareció construyendo** | ✅ **completo** |
 | **`skills.md`** | el mapa `estado → skill` firme, los 15 veredictos y la cirugía común | ✅ **completo** |
+| **`skills/`** | los 9 de estado escritos + 9 utilitarios · `sf-propose`, `sf-amend` y `sf-init` borrados | ✅ **escritos** |
 | **`sf/`** | el binario: 12 paquetes, 162 tests, los 10 comandos | ✅ **anda** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
@@ -502,9 +503,13 @@ y borra la branch**.
 cd sf && go build -o /tmp/sf ./cmd/sf && cd <un proyecto> && /tmp/sf next
 ```
 
-### Paso 1 — los skills · el **mapeo ✅ cerrado**, falta **escribirlos**
+### Paso 1 — los skills · ✅ **CERRADO** — mapeados y escritos
 
 Vive en [`skills.md`](skills.md). **Acá no se copia: se apunta.**
+
+**Los nueve están escritos** (2026-08-14), con el `name:` igual a su carpeta y verificados contra
+el mapa. Dos nuevos (`sfp-po`, `sf-cierre`), tres reescritos, cuatro adaptados. Se borraron
+`sf-propose`, `sf-amend` y `sf-init` —el reemplazo ya existía— y `sf-audit` pasó a `sfx-audit`.
 
 **El mapeo cerró el 2026-08-14** y lo que encontró no eran los tres ⚠: la **regla de prefijos**
 —`sfp-` producto · `sf-` feature · `sfx-` utilitario, y **`sf` no conoce a los `sfx-`**— dejaba
@@ -518,9 +523,8 @@ FEATURE    planificacion sf-plan · implementar sf-build · revision sf-check ·
            cierre sf-cierre
 ```
 
-**El mapa ya está renombrado en `maquina.go`, con un test que fija la regla** (se verificó que
-falla si se vuelve a poner un `sfx-`). **Falta escribir los nueve:** dos desde cero —`sfp-po` y
-`sf-cierre`, los dos delgados— y siete adaptando.
+**El mapa está renombrado en `maquina.go`, con un test que fija la regla** (se verificó que falla
+si se vuelve a poner un `sfx-`).
 
 **El patrón que lo destrabó ya estaba inventado:** el skill de estado es **delgado y compone
 utilitarios**, igual que `sfp-scout` componía `sfx-think` y `sfx-grill-me`. Así `sf next` sigue
@@ -549,16 +553,18 @@ La cirugía, la misma para los nueve:
   nadie**, y el sobre **no toca `.docs/archivado/`**. El que arregla el bug no ve la spec de lo
   que rompió — el dolor #5 esperando. Es un `if` y una ruta más.
 
-### Paso 2 — el `CLAUDE.md` de cuatro líneas
+### Paso 2 — el `CLAUDE.md` de cuatro líneas ⬅ **ES LO QUE SIGUE**
 
-Cae solo una vez que los skills tengan nombre firme. Está escrito tal cual en
-[`superficie-sf.md`](superficie-sf.md) §6, y **`AGENTS.md` es el mismo archivo, no una
+**Ya no espera nada:** los nombres son firmes y los nueve skills existen. Está escrito tal cual
+en [`superficie-sf.md`](superficie-sf.md) §6, y **`AGENTS.md` es el mismo archivo, no una
 traducción**.
 
-### Paso 3 — `sf init`, y es lo que falta para arrancar un proyecto de cero
+### Paso 3 — `sf init`, y ahora hay una promesa que cumplir
 
-Hoy `sf next` en un proyecto vacío dice *"corré `sf init`"* y ese comando **no existe**. Son dos
-cosas y las dos son mecánicas (R1):
+Hoy `sf next` en un proyecto vacío dice *"corré `sf init`"* y ese comando **no existe**. Y desde
+que los skills están escritos hay una razón más: **`sfp-constitucion` le dice al que trabaja que
+la cabecera técnica *ya está llena*, y eso todavía no es cierto.** Son dos cosas y las dos son
+mecánicas (R1):
 
 - el scaffold — 2-3 directorios, no 7;
 - **`detectStack()`**, que llena `lenguaje`, `manifiesto` y `test_cmd` solo. Es lo único que se
