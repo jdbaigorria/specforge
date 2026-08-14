@@ -1,6 +1,6 @@
 # Sesión — refundación de SpecForge
 
-**Fecha:** 2026-08-07 / 08 / 10 / 11 / 12 / 13 · **Branch:** `refundation` (sin pushear)
+**Fecha:** 2026-08-07 → 14 · **Branch:** `refundation` (sin pushear)
 **Estado:** el relevamiento está **cerrado**. La pregunta de fondo está **contestada**
 (*ejecuta*, §5), **la arquitectura está decidida** (§6), la **prueba de escritorio de los
 artefactos** quedó **✅ completa** (①–㉓, en [`artefactos.md`](artefactos.md)), el **strawman
@@ -11,8 +11,10 @@ estados, las compuertas y el `estado.json`, en [`maquina-estados.md`](maquina-es
 cerrados** — 10 comandos y el bucle de 4 líneas, en
 [`superficie-sf.md`](superficie-sf.md).
 
-> **El diseño está completo.** Lo que sigue ya no es diseñar: es la construcción. El punto de
-> retomada está al final.
+> **El diseño está completo Y la columna del binario está construida.** `sf/` tiene los 10
+> comandos del inventario andando, 161 tests verdes y una sola dependencia. Lo que falta ya
+> no es el binario: son los skills, el `CLAUDE.md` y el andamio. El punto de retomada está al
+> final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -47,7 +49,8 @@ no para surtirse.
 | **`maquina-estados.md`** | los 9 estados, las compuertas, las 4 paradas y el `estado.json` | ✅ **completo** |
 | **`que-sobrevive.md`** | el recorrido de los 9 estados contra lo construido — veredicto por pieza | ✅ **completo** |
 | **`superficie-sf.md`** | la prueba de escritorio del bucle — los 10 comandos y el reparto | ✅ **completo** |
-| **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio | ✅ **completo** |
+| **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio · **+ los 7 pasos y lo que apareció construyendo** | ✅ **completo** |
+| **`sf/`** | el binario: 12 paquetes, 161 tests, los 10 comandos | ✅ **anda** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -269,6 +272,7 @@ y de paso el subagente no gasta contexto buscando qué leer.
    [`que-sobrevive.md`](que-sobrevive.md).
 6. ~~La superficie de `sf` y el reparto~~ — ✅ **cerrada**, en
    [`superficie-sf.md`](superficie-sf.md). **Con esto el diseño está completo.**
+7. ~~La construcción del binario~~ — ✅ **los 7 pasos hechos**, en `sf/`. Ver §11.
 
 ---
 
@@ -359,7 +363,7 @@ regla dura: crear directorios no es pensar ni lanzar a nadie.
 
 ---
 
-## 10. ⬅ ACÁ QUEDAMOS — la superficie de `sf` y el reparto cerraron
+## 10. La superficie de `sf` y el reparto cerraron
 
 Vive en [`superficie-sf.md`](superficie-sf.md). **Acá no se copia: se apunta.**
 
@@ -402,42 +406,150 @@ anotando cada llamada. **El inventario es lo que apareció**, sin inventar nada 
 
 ---
 
+## 11. ⬅ ACÁ QUEDAMOS — el binario está construido
+
+El plan y el saldo viven en [`construccion.md`](construccion.md). **Acá no se copia: se apunta.**
+
+### El saldo
+
+```
+sf/          12 paquetes · 161 tests verdes · go vet limpio
+comandos     los 10 del inventario, andando y probados a mano contra repos git reales
+dependencias UNA: gopkg.in/yaml.v3
+migrado      NADA del CLI viejo
+```
+
+```
+sf/
+  cmd/sf/                el ruteo de los 10 comandos
+  internal/estado/       el estado.json — el único que sf escribe
+  internal/roadmap/      el orden de las features (sólo lectura)
+  internal/maquina/      next · done · lote start · las 5 paradas · las entradas
+  internal/compuerta/    lo que frena, y por qué
+  internal/sobre/        sf context
+  internal/suite/        correr los tests · ver si existen
+  internal/git/          shell-out al binario git
+  internal/vista/        sf status — el único para humanos
+  internal/docs/ constitucion/ historia/ tareas/ revision/ frontmatter/
+```
+
+### El hallazgo de la construcción, y contradice lo que se esperaba
+
+**No se migró NADA del CLI viejo.** La regla de `construccion.md` §2 —*se migra cuando un
+comando lo necesita para andar*— resultó **más filosa de lo previsto**: al llegar cada comando,
+escribir la pieza contra el diseño nuevo salió más corto que adaptar la vieja.
+
+> `redwitness.go` eran 8.4K. Se volvió `EmpezarLote` + `internal/suite`, comentarios incluidos —
+> porque la máquina ya aportaba la mitad: el estado, los lotes y la lista de tests planificados.
+
+**No es que el código viejo fuera malo: sostenía conceptos que la máquina volvió innecesarios.**
+La regla funcionó; su respuesta, casi siempre, fue *"no"*.
+
+### Las siete cosas que aparecieron construyendo
+
+Ninguna sale de los documentos. Están con su porqué en `construccion.md` §7; las tres que más
+cambiaron el diseño:
+
+- **`backlog_visto`** — las 🛑 dejan rastro solas (un veredicto, un bool, un cambio de estado).
+  La ⏸ del ⑨ es un enter y **no sella nada**: sin campo, `sf next` la repetía para siempre.
+  Su hermana la ⏸ del ㉓ no lo necesita, porque ahí `sf approve` archiva y eso sí deja huella.
+- **`rechazo`** en producto y en feature — el motivo del `reject` no se imprime y ya: el que
+  rehace es un subagente **nuevo**, y sin el motivo vuelve a proponer lo mismo. Viaja primero
+  en el sobre.
+- **`Movio` vs `Cambio`** — un `sf done` que **falla** igual incrementa `intentos_fallidos`.
+  Sin la distinción, el contador de ME TRABÉ nunca subía y el bucle no tenía freno.
+
+### Lo que se probó a mano, y no sólo con tests
+
+La compuerta del rojo, entera, contra un proyecto Go real:
+
+```
+① el test planificado no existe        ✗ y dice cuál
+② el test existe pero YA PASA          ✗ "un test que pasa antes de que exista
+                                           el código es un test de mentira"
+③ el test falla de verdad              ✓ crea la branch · rojo · guarda el hash
+④ "arreglar" aflojando el test         ✗ "los archivos de test CAMBIARON entre
+                                           el rojo y el verde"
+⑤ el test intacto + el código real     ✓ lote cerrado en 8bbf5a2
+```
+
+Y la vuelta completa del ciclo: brief → approve → prd → constitución → backlog ⏸ → roadmap →
+take → reject (el motivo viaja) → cierre → approve, que **archiva la carpeta, mergea `--no-ff`
+y borra la branch**.
+
+---
+
 ## ⏭ POR DÓNDE ARRANCAR LA PRÓXIMA SESIÓN
 
-**El diseño está completo.** Las seis cosas de §7 están cerradas. Lo que empieza ahora es de
-otro tipo: **la construcción.**
+**El diseño está completo y el binario anda.** Lo que falta ya no es `sf`: es lo que lo rodea.
 
 ### Lo que hay que leer para retomar (y nada más)
 
 | Archivo | Para qué |
 |---|---|
-| **este `session.md`, §6** | la arquitectura y las tres reglas duras |
-| **[`superficie-sf.md`](superficie-sf.md)** §5 y §6 | los 10 comandos y el reparto |
-| **[`maquina-estados.md`](maquina-estados.md)** | los 9 estados y las compuertas |
-| **[`que-sobrevive.md`](que-sobrevive.md)** §13 | los huecos |
+| **este `session.md`, §6 y §11** | la arquitectura, y qué está construido |
+| **[`superficie-sf.md`](superficie-sf.md)** §5 y §6 | los 10 comandos y **el reparto** — es lo que viene |
+| **[`construccion.md`](construccion.md)** §7 y §9 | lo que apareció construyendo, y lo que falta |
+| `sf/internal/maquina/maquina.go` | el mapa `estado → skill`, con los ⚠ de lo provisional |
 
-### La construcción — ✅ decidida, en [`construccion.md`](construccion.md)
+**Probar el binario primero cuesta un minuto y orienta todo lo demás:**
 
-**Híbrido, y es de Javier:** *"comenzar de cero migrando lo que realmente nos sirve"*. Disuelve
-el dilema en vez de elegir un lado — no se poda (se arranca vacío) y no se tira nada bueno (se
-trae).
+```bash
+cd sf && go build -o /tmp/sf ./cmd/sf && cd <un proyecto> && /tmp/sf next
+```
 
-**La regla que lo hace funcionar, y sin ella degenera en podar con otro nombre:**
+### Paso 1 — los skills, y es el hueco más grande
 
-> **Nada se migra por existir. Se migra cuando un comando del inventario lo necesita para andar.**
+**Es la otra mitad del reparto**, y hoy es lo único que impide usar SpecForge de punta a punta.
+El mapa `estado → skill` ya existe en `maquina.go` y **tres nombres son provisionales, marcados
+con ⚠ en el código**:
 
-**El orden** ya estaba: `estado.json` + `roadmap.json` → **`sf next`**, que es el primer hito
-usable. *(Y el `roadmap.json`, que figuraba como el hueco más grande, se desinfló: no es un
-comando, es un parser — `superficie-sf.md` H19.)*
+```
+sfp-po        NO EXISTE           el skill del PRD (⑦) — hueco 2 de que-sobrevive §13
+sf-propose    hay que PARTIRLO    cubre tres estados distintos: el ⑥, el ⑨ y el ⑩
+sfx-think     hay que decidir     es el ⑫; falta ver si cubre `planificacion` entero
+```
 
-**Y un candidato que no lo era:** `state.go` tiene la premisa invertida —*"NO guarda estado
-nuevo: todo se deriva de `features.json`"*— y el `estado.json` existe exactamente por lo
-contrario. Se escribe de cero.
+Y a los **doce que sobreviven** (`que-sobrevive.md` §14) hay que hacerles lo mismo a todos:
+
+```
++  arranca con   sf context      pedí tu sobre, no busques qué leer
++  termina con   sf done         avisá que terminaste
+−  las convenciones propias      salen de la constitución            (R4)
+−  el modo / carril / fase       la máquina saltea estados           (R4)
+```
+
+> **Y los skills no saben en qué estado están** — por eso `sf context` no lleva argumentos. El
+> skill dice *"dame mi sobre"*; cuál es el sobre lo decide `sf`.
+
+### Paso 2 — el `CLAUDE.md` de cuatro líneas
+
+Cae solo una vez que los skills tengan nombre firme. Está escrito tal cual en
+[`superficie-sf.md`](superficie-sf.md) §6, y **`AGENTS.md` es el mismo archivo, no una
+traducción**.
+
+### Paso 3 — `sf init`, y es lo que falta para arrancar un proyecto de cero
+
+Hoy `sf next` en un proyecto vacío dice *"corré `sf init`"* y ese comando **no existe**. Son dos
+cosas y las dos son mecánicas (R1):
+
+- el scaffold — 2-3 directorios, no 7;
+- **`detectStack()`**, que llena `lenguaje`, `manifiesto` y `test_cmd` solo. Es lo único que se
+  rescata del CLI viejo con nombre y apellido (`construccion.md` §5).
+
+### Paso 4 — el mapa de modelos, que cierra H1b
+
+`~/.specforge/`, con qué modelos hay y cómo se invoca cada uno. Es lo único que le falta al
+campo `via:` para resolver `consola` — hoy sólo resuelve `vos` y `subagente`, y está marcado con
+⚠ en `maquina.go`.
+
+**Y el mecanismo ya está decidido:** la lista **no se escribe de antemano, se construye sola con
+cada aprobación**, igual que `dependencias_aprobadas`. Es un patrón ya firmado, no uno nuevo.
 
 ### Y sigue aparcado
 
-**Brownfield** — el debate de `que-sobrevive.md` §5. Decide el destino de `sf onboard scan` y
-de la detección de `sf-init` Step 2. **No bloquea nada.**
+**Brownfield** — el debate de `que-sobrevive.md` §5. Decide el destino de `sf onboard scan` y de
+la detección de `sf-init` Step 2. **No bloquea nada.**
 
 > **Y la advertencia que sigue vigente** (`decisions-specforge`, 2026-08-07): no sobre-indexar
 > en determinismo. `sf` nació para producir artefactos útiles que hagan alucinar menos al
@@ -445,7 +557,10 @@ de la detección de `sf-init` Step 2. **No bloquea nada.**
 
 ---
 
-## 11. Pendiente de infraestructura
+## 12. Pendiente de infraestructura
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).
+- **`cli/` sigue entero y sin tocar.** Se apaga —se borra la carpeta— recién cuando `sf/` lo
+  reemplace del todo, que es después de los skills. Mientras tanto compila y corre, que es lo
+  que permitió comparar contra él (`construccion.md` §3).
