@@ -59,6 +59,15 @@ func main() {
 		os.Exit(terminar(os.Args[2:]))
 	case "approve", "reject", "take", "model", "dismiss":
 		os.Exit(parada(os.Args[1], os.Args[2:]))
+	case "lote":
+		// `sf lote start` es el único comando de dos palabras del inventario.
+		// Se mantiene así porque "lote" nombra la unidad de trabajo, y el día
+		// que haga falta otra operación sobre el lote ya tiene dónde colgarse.
+		if len(os.Args) < 3 || os.Args[2] != "start" {
+			fmt.Fprintln(os.Stderr, "sf: el único es `sf lote start`")
+			os.Exit(salidaError)
+		}
+		os.Exit(parada("lote start", nil))
 	case "-h", "--help", "help":
 		uso()
 		os.Exit(salidaTrabajo)
@@ -67,7 +76,7 @@ func main() {
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Por ahora: next · context · done · approve · reject · take · model · dismiss")
+		fmt.Fprintln(os.Stderr, "    Por ahora: next · context · done · lote start · approve · reject · take · model · dismiss")
 		os.Exit(salidaError)
 	}
 }
@@ -251,6 +260,8 @@ func parada(cmd string, args []string) int {
 		ef = maquina.Modelo(e, arg(0))
 	case "dismiss":
 		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
+	case "lote start":
+		ef = maquina.EmpezarLote(raiz, e, r)
 	}
 
 	// El estado se guarda sólo si el comando funcionó. Un `sf take f-99` que
@@ -344,6 +355,8 @@ func uso() {
   sf next       dónde estás · qué sigue · con qué skill y modelo
   sf context    el sobre del estado actual  (--completo lo embebe)
   sf done       corre las compuertas y mueve  (--msg "…" en implementar)
+
+  sf lote start   crea la branch · exige el ROJO · guarda el hash
 
 las cinco respuestas a una parada:
   sf approve              sella lo que estés mirando

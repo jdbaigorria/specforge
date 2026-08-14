@@ -6,11 +6,14 @@ import (
 	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/compuerta"
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
+	"github.com/jdbaigorria/specforge/sf/internal/suite"
+	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
 
 // Cierre es lo que pasó al correr `sf done`.
@@ -140,7 +143,7 @@ func terminarFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, msg stri
 	case estado.Planificacion:
 		return cerrarPlanificacion(raiz, f, fr)
 	case estado.Implementar:
-		return cerrarLote(raiz, f, msg)
+		return cerrarLote(raiz, f, fr, msg)
 	case estado.Revision:
 		return cerrarRevision(raiz, f, fr)
 	case estado.Cierre:
@@ -182,7 +185,7 @@ func cerrarPlanificacion(raiz string, f *estado.Feature, fr roadmap.Feature) Cie
 //  3. commit            lo hace sf, con el mensaje que trajo el que trabajó
 //
 // Y cerrar el lote ES commitear: si falta el mensaje, no hay done.
-func cerrarLote(raiz string, f *estado.Feature, msg string) Cierre {
+func cerrarLote(raiz string, f *estado.Feature, fr roadmap.Feature, msg string) Cierre {
 	res := compuerta.Implementar(f)
 	c := Cierre{Resultado: res}
 	if !res.Pasa() {
@@ -203,10 +206,14 @@ func cerrarLote(raiz string, f *estado.Feature, msg string) Cierre {
 		return c
 	}
 
-	// ⚠ Falta correr los tests y exigir el verde, y falta comparar el hash
-	// contra el que tomó `sf lote start`. Las dos son del paso 6, donde vive la
-	// compuerta del rojo — sin ella no hay hash guardado contra qué comparar.
-	// Mientras tanto, la compuerta de arriba ya impide llegar acá sin `rojo`.
+	// El verde y el hash: las dos mitades que cierran la compuerta que
+	// `sf lote start` abrió.
+	if fallas := verdeYHash(raiz, fr, l); len(fallas) > 0 {
+		c.Fallas = append(c.Fallas, fallas...)
+		f.IntentosFallidos++
+		c.Cambio = true
+		return c
+	}
 
 	hash, err := git.Commit(raiz, msg)
 	if err != nil {
@@ -267,4 +274,70 @@ func cerrarCierre(raiz string, f *estado.Feature, fr roadmap.Feature) Cierre {
 		c.Mensaje = fmt.Sprintf("%s lista para archivar (⏸).", fr.ID)
 	}
 	return c
+}
+
+// verdeYHash cierra la compuerta que `sf lote start` abrió.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// SON DOS CHEQUEOS Y EL SEGUNDO ES EL QUE NADIE ESPERA
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	¿la suite pasa?              lo obvio
+//	¿los tests son LOS MISMOS?   el agujero astuto del #8
+//
+// El segundo existe porque un subagente que no logra implementar puede ablandar
+// el assert y llegar a verde. sf vio el rojo, vio el verde, y entre medio lo que
+// cambió fue el test — sin el hash, eso pasa sin que nadie se entere.
+//
+// Devuelve las fallas; vacío significa que se puede commitear.
+func verdeYHash(raiz string, fr roadmap.Feature, l *estado.Lote) []string {
+	c, err := constitucion.Leer(raiz)
+	if err != nil {
+		return []string{err.Error()}
+	}
+
+	res, err := suite.Correr(raiz, c.TestCmd)
+	if err != nil {
+		return []string{"no pude correr los tests: " + err.Error()}
+	}
+	if !res.Verde {
+		return []string{"los tests todavía fallan. No commiteo en rojo.", ultimasLineas(res.Salida, 15)}
+	}
+
+	// El hash sólo se compara si `sf lote start` llegó a tomarlo. Sin git no lo
+	// hay, y eso ya se avisó en su momento: no se puede exigir acá algo que no
+	// se pudo guardar allá.
+	if l.HashTests == "" {
+		return nil
+	}
+
+	p, err := tareas.Leer(raiz, fr.Carpeta())
+	if err != nil {
+		return []string{err.Error()}
+	}
+	ahora, err := git.HashDe(raiz, suite.Archivos(p.TestsDelLote(l.Lote)))
+	if err != nil {
+		return nil // sin git no hay comparación posible; el verde ya se vio
+	}
+	if ahora != l.HashTests {
+		return []string{
+			"los archivos de test CAMBIARON entre el rojo y el verde.",
+			"    Un test que se afloja para llegar a verde no prueba nada.",
+			"    Si el cambio es legítimo, volvé a correr `sf lote start`.",
+		}
+	}
+	return nil
+}
+
+// ultimasLineas recorta la salida del runner.
+//
+// Una suite grande escupe cientos de líneas y el que lee esto es un modelo con
+// contexto acotado. Las últimas son donde los runners ponen el resumen y los
+// fallos.
+func ultimasLineas(s string, n int) string {
+	lineas := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	if len(lineas) > n {
+		lineas = lineas[len(lineas)-n:]
+	}
+	return "    " + strings.Join(lineas, "\n    ")
 }

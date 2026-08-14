@@ -157,6 +157,31 @@ func Existe(dir, branch string) bool {
 	return err == nil
 }
 
+// CrearBranch crea la branch y se para en ella. Si ya existe, sólo se para.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// sf LA CREA, NO LA VERIFICA (H9)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El diseño decía "sf compara la branch actual contra el patrón y, si no
+// coincide, el estado no avanza". Comparar es LA MITAD BARATA del trabajo: el
+// patrón está en la constitución y la feature en el estado, así que el nombre
+// tiene una sola respuesta correcta — y R1 dice que eso lo hace sf.
+//
+// Y así el dolor #4 ("no crea la branch por feature") deja de ser un aviso para
+// dejar de existir: no hay forma de implementar sin branch, porque `sf lote
+// start` la crea antes de dejarte empezar.
+//
+// Es idempotente a propósito: del lote 2 en adelante la branch ya está, y esto
+// se llama igual en cada lote.
+func CrearBranch(dir, branch string) error {
+	if Existe(dir, branch) {
+		return Checkout(dir, branch)
+	}
+	_, err := correr(dir, "checkout", "-b", branch)
+	return err
+}
+
 // Checkout se para en una branch que ya existe.
 func Checkout(dir, branch string) error {
 	_, err := correr(dir, "checkout", branch)
