@@ -151,6 +151,50 @@ func Commit(dir, mensaje string) (string, error) {
 	return Head(dir)
 }
 
+// Existe dice si una branch existe.
+func Existe(dir, branch string) bool {
+	_, err := correr(dir, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	return err == nil
+}
+
+// Checkout se para en una branch que ya existe.
+func Checkout(dir, branch string) error {
+	_, err := correr(dir, "checkout", branch)
+	return err
+}
+
+// Merge trae una branch a la actual.
+//
+// `modo` sale del bloque `git:` de la constitución, y por eso el skill dejó de
+// tener convenciones propias (R4): sfx-github traía "Squash merge default"
+// cableado, y ahora el default lo pone el proyecto. Para Javier es `no-ff`, que
+// deja el merge commit y hace legible la historia por feature.
+func Merge(dir, branch, modo string) error {
+	args := []string{"merge"}
+	switch modo {
+	case "squash":
+		args = append(args, "--squash")
+	case "ff":
+		args = append(args, "--ff-only")
+	default:
+		// no-ff es el default explícito, no el de git. Si la constitución no
+		// dice nada, se usa el que Javier usa en todos lados.
+		args = append(args, "--no-ff")
+	}
+	_, err := correr(dir, append(args, branch)...)
+	return err
+}
+
+// BorrarBranch borra una branch ya mergeada.
+//
+// Usa -d y no -D a propósito: -d se niega si la branch tiene commits que no
+// están en ningún lado. Eso convierte un error silencioso —perder trabajo— en
+// un mensaje de git.
+func BorrarBranch(dir, branch string) error {
+	_, err := correr(dir, "branch", "-d", branch)
+	return err
+}
+
 // HashDe devuelve un hash del contenido de varios archivos.
 //
 // Es lo que tapa el agujero astuto del dolor #8: sf ve rojo, el subagente

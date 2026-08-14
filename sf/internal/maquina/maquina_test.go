@@ -489,3 +489,27 @@ func TestTodoTrabajoTraeSkillYModelo(t *testing.T) {
 		})
 	}
 }
+
+// Con la doc y el journal escritos, sf next para en la ⏸ del ㉓ en vez de
+// mandarte a escribir algo que ya está.
+func TestCierreCompletoParaEnLaPausa(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Cierre}
+
+	carpeta := filepath.Join(".docs", "features", "f-1-nucleo")
+	if i := p.next(); i.Tipo != Trabajar {
+		t.Fatalf("sin la doc: tipo %v, quería Trabajar", i.Tipo)
+	}
+
+	p.conArchivo(filepath.Join(carpeta, "doc.md"))
+	p.conArchivo(filepath.Join(carpeta, "journal.md"))
+
+	i := p.next()
+	if i.Tipo != Barata {
+		t.Fatalf("con la doc y el journal: tipo %v, quería Barata (la ⏸ del ㉓)", i.Tipo)
+	}
+	if !slices.Contains(i.Sugerido, "sf approve") {
+		t.Errorf("sugirió %v, quería sf approve", i.Sugerido)
+	}
+}

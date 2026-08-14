@@ -93,6 +93,21 @@ type Parte struct {
 	Falta string
 }
 
+// rechazo es el motivo del último `sf reject`, si lo hay.
+//
+// Va PRIMERO en el sobre y no al final, porque es lo único que el que rehace el
+// trabajo tiene que leer antes que nada: sin eso arranca de cero y vuelve a
+// proponer lo mismo que ya se rechazó.
+func rechazo(motivo string) (Parte, bool) {
+	if motivo == "" {
+		return Parte{}, false
+	}
+	return Parte{
+		Titulo:    "⚠ Esto se rechazó. El motivo",
+		Contenido: motivo,
+	}, true
+}
+
 // Armar arma el sobre del estado actual.
 //
 // Recibe todo ya leído —estado y roadmap— en vez de leerlo: así los tests no
@@ -102,6 +117,27 @@ func Armar(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
 	// Los cinco de producto no dependen de ninguna feature, así que se
 	// resuelven mirando sólo los sellos. El orden es el mismo que el de
 	// maquina.Siguiente, y por la misma razón: es el orden del flujo.
+	s, err := armar(raiz, e, r)
+	if err != nil {
+		return nil, err
+	}
+	// El motivo del rechazo se antepone a lo que sea que traiga el sobre: da
+	// igual el estado, si algo se rechazó eso va arriba de todo.
+	if p, hay := rechazo(motivoDeRechazo(e)); hay {
+		s.Partes = append([]Parte{p}, s.Partes...)
+	}
+	return s, nil
+}
+
+// motivoDeRechazo busca el rechazo que corresponde al estado actual.
+func motivoDeRechazo(e *estado.Estado) string {
+	if f, hay := e.Actual(); hay && f.Rechazo != "" {
+		return f.Rechazo
+	}
+	return e.Producto.Rechazo
+}
+
+func armar(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
 	if s, hay := deProducto(e); hay {
 		return s, nil
 	}
