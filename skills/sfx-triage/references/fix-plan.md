@@ -51,7 +51,7 @@ Classify the fix to recommend the right next step:
 - Wrong business logic branch
 - Missing edge case handling
 
-→ Recommend: "Run `sf-propose fix-{slug}` for a quick spec+build cycle."
+→ Recommend: "Run `sf new \"<the bug>\"` — a `tipo: bug` skips planning and review."
 
 ### Medium (50+ lines, multiple files, may change interfaces)
 - Missing feature (assumed but never implemented)
@@ -59,7 +59,7 @@ Classify the fix to recommend the right next step:
 - Wrong integration pattern
 - Performance issue requiring restructure
 
-→ Recommend: "This needs a proper feature spec. Run `sf-propose fix-{slug}`."
+→ Recommend: "This is not a bug fix any more. Run `sf new \"<the capability>\"` as a normal story."
 
 ### Large (systemic, cross-cutting, architectural)
 - Fundamental design flaw
@@ -68,7 +68,7 @@ Classify the fix to recommend the right next step:
 - Concurrency issue in core architecture
 
 → Recommend: "This may need a design change. Review the fix plan and consider
-`sf-propose --design-first fix-{slug}`."
+`sf new` as a normal story, so it gets planned."
 
 ## Why It Wasn't Caught
 

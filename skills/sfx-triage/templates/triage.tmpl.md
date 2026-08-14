@@ -89,8 +89,8 @@
 
 {{next_step_recommendation}}
 <!-- Trivial: "Apply directly"
-     Small/Medium: "Run sf-propose fix-{slug}"
-     Large: "Review fix plan, consider sf-propose --design-first fix-{slug}"
+     Small/Medium: "Run sf new \"<the bug>\""
+     Large: "Review the fix plan; this may be a story, not a bug"
      Unresolved: "Add logging at X, reproduce with debugger, consult author of commit Y" -->
 
 ---

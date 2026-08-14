@@ -113,7 +113,7 @@ Write to `specforge/context/grills/{slug}.md`:
 - {issue, one line}
 
 ### Recommended Next Step
-{sf-propose, sf-research, or "resolve open issues first"}
+{`sf new "…"`, more research, or "resolve open issues first"}
 ```
 
 ## Not this skill: when the gaps are already known
@@ -123,7 +123,7 @@ answer changes the next question. It is not a universal rule.
 
 If you can already name the open questions — after reading a PRD, or with a
 feature seeded from `--from` — this is the wrong mode: asking 20 known gaps one
-at a time is fatigue, not rigour. Use `sf-propose`'s batch mode instead.
+at a time is fatigue, not rigour. Ask them in one batch instead.
 
 ## Rules
 
