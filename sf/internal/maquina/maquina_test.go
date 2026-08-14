@@ -513,3 +513,65 @@ func TestCierreCompletoParaEnLaPausa(t *testing.T) {
 		t.Errorf("sugirió %v, quería sf approve", i.Sugerido)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// La regla de prefijos, como test
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Este test existe porque el mapa YA SE ROMPIÓ una vez: se escribió durante la
+// construcción preguntando "¿quién sabe hacer este trabajo?", y la respuesta a
+// esa pregunta es casi siempre un utilitario —porque el método vive ahí—, así
+// que seis de nueve entradas terminaron mal (skills.md §2).
+//
+// La regresión es silenciosa y ésa es la parte fea: compila, los tests pasan,
+// `sf next` contesta. Se rompe recién EN PRODUCCIÓN, porque un `sfx-` no llama
+// a `sf done` y el estado no se mueve nunca.
+func TestElMapaRespetaLaReglaDePrefijos(t *testing.T) {
+	producto := []string{"brief", "prd", "constitucion", "backlog", "roadmap"}
+	feature := []string{estado.Planificacion, estado.Implementar, estado.Revision, estado.Cierre}
+
+	for _, e := range producto {
+		s, hay := skills[e]
+		if !hay {
+			t.Errorf("el estado %q no tiene skill", e)
+			continue
+		}
+		if !strings.HasPrefix(s, "sfp-") {
+			t.Errorf("%s → %s: los estados de producto llevan sfp-", e, s)
+		}
+	}
+
+	for _, e := range feature {
+		s, hay := skills[e]
+		if !hay {
+			t.Errorf("el estado %q no tiene skill", e)
+			continue
+		}
+		if !strings.HasPrefix(s, "sf-") {
+			t.Errorf("%s → %s: los estados de feature llevan sf-", e, s)
+		}
+	}
+
+	// La que muerde: sf no conoce a los utilitarios. Se chequea sobre el mapa
+	// ENTERO y no sobre las dos listas de arriba, porque una entrada nueva mal
+	// prefijada se colaría por el agujero de no estar en ninguna.
+	for e, s := range skills {
+		if strings.HasPrefix(s, "sfx-") {
+			t.Errorf("%s → %s: un sfx- es standalone, no llama a `sf done`", e, s)
+		}
+	}
+
+	// Y nadie comparte skill: dos estados con el mismo nombre fue justo lo que
+	// pasó con sf-propose en el ⑨ y el ⑩.
+	visto := map[string]string{}
+	for e, s := range skills {
+		if otro, repetido := visto[s]; repetido {
+			t.Errorf("%s y %s comparten el skill %s", otro, e, s)
+		}
+		visto[s] = e
+	}
+
+	if len(skills) != len(producto)+len(feature) {
+		t.Errorf("el mapa tiene %d entradas, hay %d estados", len(skills), len(producto)+len(feature))
+	}
+}

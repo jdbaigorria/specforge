@@ -116,23 +116,38 @@ type Instruccion struct {
 // "¿qué skill corresponde al estado planificacion?" tiene UNA SOLA RESPUESTA
 // CORRECTA, así que la contesta sf (R1).
 //
-// ⚠ Tres de estos nombres son provisionales, y no es descuido: los skills
-// todavía no se adaptaron a la máquina (que-sobrevive.md §14 los tiene con
-// veredicto pero sin tocar).
+// Los nombres salen de la REGLA DE PREFIJOS, que dejó de ser decorativa
+// (que-sobrevive.md §4) y que este mapa violaba en seis de nueve entradas hasta
+// que la ronda de skills.md lo corrigió:
 //
-//	sfp-po           NO EXISTE todavía — es el hueco 2 de que-sobrevive §13
-//	sf-propose       cubre tres estados y hay que PARTIRLO (⑥, ⑨, ⑩)
-//	sfx-think        es el ⑫; falta ver si `planificacion` entero es un skill
+//	sfp-*   los 5 estados de PRODUCTO    corren una vez
+//	sf-*    los 4 estados de FEATURE     corren una vez por feature
+//	sfx-*   utilitarios                  fuera de la máquina — sf NO los conoce
+//
+// La tercera línea es la que muerde, y es el motivo por el que acá no aparece
+// ningún `sfx-`: un utilitario es standalone —no pide sobre, no avisa que
+// terminó—, así que devolver su nombre sería lanzar a alguien que nunca va a
+// llamar a `sf done`, y EL ESTADO NO SE MOVERÍA NUNCA.
+//
+// El método sigue viviendo en los utilitarios: el skill de estado es delgado y
+// LOS COMPONE, igual que sfp-scout ya componía sfx-think (②) y sfx-grill-me (⑤).
+//
+//	sf-plan    → sfx-think (⑫)
+//	sf-build   → sfx-tdd (⑲) · sfx-github (el commit)
+//	sf-cierre  → sfx-documenter · sfx-journal · sfx-github
+//
+// ⚠ Dos no existen todavía como archivo —`sfp-po` y `sf-cierre`, los dos
+// delgados— y los otros siete están sin adaptar (skills.md §8).
 var skills = map[string]string{
 	"brief":              "sfp-scout",
 	"prd":                "sfp-po",
-	"constitucion":       "sf-init",
-	"backlog":            "sf-propose",
-	"roadmap":            "sf-propose",
-	estado.Planificacion: "sfx-think",
-	estado.Implementar:   "sfx-tdd",
+	"constitucion":       "sfp-constitucion",
+	"backlog":            "sfp-backlog",
+	"roadmap":            "sfp-roadmap",
+	estado.Planificacion: "sf-plan",
+	estado.Implementar:   "sf-build",
 	estado.Revision:      "sf-check",
-	estado.Cierre:        "sfx-documenter",
+	estado.Cierre:        "sf-cierre",
 }
 
 // modeloPorEstado es lo que el paso PIDE, todavía sin cruzar con lo que el
