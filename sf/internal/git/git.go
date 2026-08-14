@@ -28,9 +28,12 @@
 package git
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -104,6 +107,76 @@ func Diff(dir, desde string) (string, error) {
 		return "", errors.New("no hay base_commit: ¿se cerró la planificación?")
 	}
 	return correr(dir, "diff", desde+"..HEAD")
+}
+
+// Commit agrega todo lo que cambió y commitea con ese mensaje.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ LO HACE sf Y NO EL QUE IMPLEMENTÓ (H10)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El dolor #2 es "el commit no se hace, hay que vigilarlo". Si el que
+// implementa commitea y sf VERIFICA, el dolor sobrevive: se puede terminar sin
+// commitear y sf lo único que hace es retarte después.
+//
+//	Hay que romper la posibilidad, no detectarla.
+//
+// R1 parte el trabajo en dos mitades limpias:
+//
+//	qué archivos, y cuándo   → una sola respuesta: lo del lote, ahora  → sf
+//	qué dice el mensaje      → muchas: es prosa                        → el LLM
+//
+// Y así cerrar el lote ES commitear — no son dos cosas de las que una se puede
+// olvidar. Los dolores #2 y #3 mueren juntos, porque el agrupamiento no lo
+// decide nadie en este momento: se decidió en la planificación.
+func Commit(dir, mensaje string) (string, error) {
+	if strings.TrimSpace(mensaje) == "" {
+		return "", errors.New("falta el mensaje del commit")
+	}
+
+	if _, err := correr(dir, "add", "-A"); err != nil {
+		return "", err
+	}
+
+	// Si no quedó nada staged, no hay nada que commitear. Es un caso real —el
+	// subagente dijo que terminó y no tocó un archivo— y hay que distinguirlo
+	// del error de git, porque el mensaje útil es otro.
+	if _, err := correr(dir, "diff", "--cached", "--quiet"); err == nil {
+		return "", errors.New("no hay nada que commitear: ningún archivo cambió")
+	}
+
+	if _, err := correr(dir, "commit", "-m", mensaje); err != nil {
+		return "", err
+	}
+	return Head(dir)
+}
+
+// HashDe devuelve un hash del contenido de varios archivos.
+//
+// Es lo que tapa el agujero astuto del dolor #8: sf ve rojo, el subagente
+// trabaja, sf ve verde… y lo que cambió entre medio fue EL TEST. Se toma en el
+// rojo y se compara en el verde.
+//
+// Usa `git hash-object`, que es exactamente para esto y ya está instalado: da
+// el mismo hash que git le daría al archivo, sin que tengamos que elegir un
+// algoritmo ni escribir el bucle.
+func HashDe(dir string, rutas []string) (string, error) {
+	if len(rutas) == 0 {
+		return "", nil
+	}
+	// Ordenar antes de hashear: el mismo conjunto de archivos tiene que dar el
+	// mismo hash aunque la lista venga en otro orden.
+	orden := slices.Clone(rutas)
+	slices.Sort(orden)
+
+	salida, err := correr(dir, append([]string{"hash-object", "--"}, orden...)...)
+	if err != nil {
+		return "", err
+	}
+	// git devuelve un hash por línea; los juntamos y hasheamos el conjunto para
+	// tener un solo string comparable.
+	suma := sha256.Sum256([]byte(salida))
+	return hex.EncodeToString(suma[:])[:12], nil
 }
 
 // DiffResumen es el mismo diff en una línea por archivo.
