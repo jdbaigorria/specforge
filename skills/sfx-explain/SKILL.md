@@ -27,9 +27,9 @@ after understanding it, they invoke the appropriate action skill.
 ## Step 2: Read Context (if relevant)
 
 If the topic relates to the current project:
-- `specforge/context/project.md` for stack (so code examples match the user's world)
+- `.docs/constitucion.md` for stack (so code examples match the user's world)
 - Relevant source files if the question is about THIS codebase
-- Existing `specforge/context/explanations/*.md` if the topic was explained before
+- Any note from a previous explanation of the same topic, if the user points you at one
 
 If topic is generic ("how does OAuth work?") → skip context, explain universally.
 
@@ -80,7 +80,7 @@ If the user asks to go deeper on a specific part:
 
 After the user is satisfied (no more follow-ups), ask:
 
-> Save this explanation to `specforge/context/explanations/{slug}.md`? [y/N]
+> Save this explanation to a file? Where? [path / N]
 
 Default: no.
 

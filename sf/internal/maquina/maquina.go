@@ -150,21 +150,23 @@ var skills = map[string]string{
 	estado.Cierre:        "sf-cierre",
 }
 
-// modeloPorEstado es lo que el paso PIDE, todavía sin cruzar con lo que el
-// harness PUEDE.
+// modeloPorEstado es lo que el paso PIDE por default, y es el piso de tres.
 //
-// ⚠ Esto es la mitad de H1b y está a propósito incompleto. La versión completa
-// necesita dos cosas que hoy no existen:
+// La cadena de precedencia, de la que más manda a la que menos:
 //
-//	tareas.json     el ⑯ escribe qué modelo hace falta para esta feature
-//	~/.specforge/   qué modelos tiene Javier y cómo se invoca cada uno
+//	1. sf model <nombre>   la decisión de Javier en runtime (estado.json)
+//	2. tareas.json         el ⑯: "ESTA feature necesita uno más grande"
+//	3. modeloPorEstado     el criterio del diseño, por estado
+//	4. modeloPorDefecto
 //
-// Hasta que existan, se devuelve el criterio del diseño —"la planificación la
-// debería hacer un modelo como Opus grande con amplio contexto; la
-// implementación un subagente; la revisión también"— y `via: subagente`.
+// El orden no es arbitrario: cada nivel sabe MENOS que el de arriba. El default
+// no sabe nada de la feature; el ⑯ la planificó pero no vio fallar nada; Javier
+// está mirando el bucle patinar cuando escribe `sf model`.
 //
-// Cuando `tareas.json` exista, el modelo de la feature lo pisa; cuando exista
-// el mapa de modelos, sale el `via` de verdad (subagente | consola).
+// ⚠ Falta la otra mitad de H1b: `~/.specforge/`, qué modelos hay y cómo se
+// invoca cada uno. Es lo único que le impide al campo `via:` resolver `consola`
+// — hoy resuelve `vos` y `subagente`, que alcanzan para un harness con
+// subagentes propios.
 var modeloPorEstado = map[string]string{
 	estado.Planificacion: "opus",
 	estado.Revision:      "opus",
@@ -330,7 +332,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 		}
 
 	case estado.Implementar:
-		return implementando(e.FeatureActual, f)
+		return implementando(raiz, fr, f)
 
 	case estado.Revision:
 		return trabajar(estado.Revision, e.FeatureActual,
@@ -459,7 +461,13 @@ func planificando(raiz, id string, fr roadmap.Feature) Instruccion {
 // El lote actual es el primero sin commit y no hay campo que lo diga (R6). Y
 // dentro del lote, lo que separa las dos mitades es `rojo`: sin él no se puede
 // implementar, porque sf todavía no vio fallar los tests con sus propios ojos.
-func implementando(id string, f *estado.Feature) Instruccion {
+func implementando(raiz string, fr roadmap.Feature, f *estado.Feature) Instruccion {
+	id := fr.ID
+	// El modelo se resuelve UNA VEZ acá y no en cada rama: las tres salidas de
+	// esta función que lanzan trabajo usan el mismo, y leer tareas.json tres
+	// veces sería tocar el disco de más para obtener siempre lo mismo.
+	m := modeloDeFeature(raiz, fr, f, estado.Implementar)
+
 	// Sin lotes todavía no arrancó nada: los lotes se siembran en el primer
 	// `sf lote start`, que es también donde se exige el rojo. Confundir esto con
 	// "todos commiteados" mandaba a cerrar una feature en la que no se escribió
@@ -471,7 +479,7 @@ func implementando(id string, f *estado.Feature) Instruccion {
 			Estado:   estado.Implementar,
 			Feature:  id,
 			Skill:    skills[estado.Implementar],
-			Modelo:   modeloDeFeature(f, estado.Implementar),
+			Modelo:   m,
 			Via:      "subagente",
 			Mensaje:  "escribí los tests y confirmá el rojo antes de implementar",
 			Sugerido: []string{"sf context", "sf lote start"},
@@ -498,7 +506,7 @@ func implementando(id string, f *estado.Feature) Instruccion {
 		Lote:    l.Lote,
 		DeLotes: len(f.Lotes),
 		Skill:   skills[estado.Implementar],
-		Modelo:  modeloDeFeature(f, estado.Implementar),
+		Modelo:  m,
 		Via:     "subagente",
 	}
 
@@ -536,13 +544,29 @@ func modelo(est string) string {
 	return modeloPorDefecto
 }
 
-// modeloDeFeature deja que el modelo guardado en el estado pise al del mapa.
+// modeloDeFeature resuelve la cadena de precedencia de tres niveles.
 //
-// Es el lazo del ⑳: cuando Javier sube el modelo con `sf model`, esa decisión
-// no está escrita en ningún archivo y tiene que ganarle al default.
-func modeloDeFeature(f *estado.Feature, est string) string {
+//	1. estado.json     `sf model <nombre>` — la decisión de Javier, en runtime
+//	2. tareas.json     el ⑯ — "esta feature necesita uno más grande"
+//	3. el default del estado
+//
+// El nivel 1 es el lazo del ⑳: cuando Javier sube el modelo porque el bucle
+// está patinando, esa decisión no está escrita en ningún archivo del plan y
+// tiene que ganarle a todo — incluso a lo que el ⑯ recomendó, que se escribió
+// antes de ver fallar nada.
+//
+// El nivel 2 es el ⑯, y es un campo y no un comando (regla 1.1): lo escribe el
+// mismo que planificó, en el mismo archivo, en la misma pasada.
+//
+// Un tareas.json ilegible NO es un error acá: quien se queja de eso es la
+// compuerta del ⑰, que corre antes. Si llegamos hasta acá con el archivo roto,
+// caer al default es mejor que no poder decir qué sigue.
+func modeloDeFeature(raiz string, fr roadmap.Feature, f *estado.Feature, est string) string {
 	if f.Modelo != "" {
 		return f.Modelo
+	}
+	if p, err := tareas.Leer(raiz, fr.Carpeta()); err == nil && p.Modelo != "" {
+		return p.Modelo
 	}
 	return modelo(est)
 }

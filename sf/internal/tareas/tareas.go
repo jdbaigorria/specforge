@@ -52,8 +52,34 @@ const Archivo = "tareas.json"
 
 // Plan es el archivo entero.
 type Plan struct {
-	Feature string  `json:"feature"`
-	Tareas  []Tarea `json:"tareas"`
+	Feature string `json:"feature"`
+
+	// Modelo es el ⑯: qué modelo pide ESTA feature para implementarse.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// POR QUÉ ES DEL PLAN Y NO DE LA TAREA
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// La tentación es ponerlo por tarea, y se cae sola: el subagente se lanza
+	// POR LOTE, así que un modelo por tarea no tendría quién lo lea. Y por lote
+	// tampoco, porque el que decide el lote es el mismo que decidiría el modelo
+	// y lo haría en la misma pasada: sería un campo repetido con el mismo valor.
+	//
+	// El ⑯ es "esta feature es más difícil de lo normal", y eso se dice una vez.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// Y VACÍO ES LO NORMAL, NO UN OLVIDO
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// El default existe porque es el que sirve casi siempre. Este campo es para
+	// la excepción, y por eso `omitempty`: un `"modelo": ""` en cada tareas.json
+	// invita a llenarlo, y llenarlo con el default es ruido.
+	//
+	// Le gana el `sf model` de Javier (estado.json), porque una decisión suya en
+	// runtime siempre le gana a una recomendación escrita antes.
+	Modelo string `json:"modelo,omitempty"`
+
+	Tareas []Tarea `json:"tareas"`
 }
 
 // Tarea es una unidad de trabajo con sus tests ya nombrados.

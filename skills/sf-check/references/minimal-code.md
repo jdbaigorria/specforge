@@ -48,7 +48,7 @@ ladder rung that was skipped and the minimal alternative — not "could be simpl
 
 ## Verdict mapping
 
-- A clear `P-min` violation is a valid reason for **REVISE** in `sf-check`, and a
-  **fail** verdict when audited at a phase gate (`sf-check --phase=build`).
-- Net-new lessons (e.g. "we keep reimplementing X that stdlib gives") belong in
-  `sf journal add` — they feed future audits (the judge's rules grow over time).
+- A clear `P-min` violation is a valid finding in `revision.json`, hanging off the criterion it
+  affects — or with an empty `criterio` if it is structural.
+- Net-new lessons (e.g. "we keep reimplementing X that stdlib gives") belong in the ㉓ journal
+  (`sfx-journal`) — they get archived with the feature and reach every future ⑫.

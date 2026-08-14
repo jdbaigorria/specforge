@@ -57,37 +57,36 @@ explicit adversarial re-read. Apply the rubric in `references/consolidation.md`:
 
 Drop anything that fails. A vague or ungrounded note is discarded, not softened.
 
-## Step 3: Write the raw journal entry
+## Step 3: Write the journal
 
-For each surviving observation, append to today's entry using
-`templates/journal-entry.tmpl.md`:
+Use `templates/journal-entry.tmpl.md`. **Where it goes depends on who called you:**
 
-```
-specforge/context/journal/<YYYY-MM-DD>-<slug>.md
-```
+- **Composed by `sf-cierre`** (the ㉓) → it is `journal.md` in the feature's folder. `sf` checks
+  it exists before the feature can be archived, and it gets **archived with the feature**.
+- **Standalone** → wherever the user asks.
 
-Use `[[wikilinks]]` to relate it to the feature, to entries in
-`specforge/learnings.md`, and to constitution invariants. The journal directory
-is plain markdown with wikilinks — navigable as an Obsidian-style vault, with no
-dependency on Obsidian (it is just a viewer).
+Use `[[wikilinks]]` to relate it to the feature and to the constitution's working rules.
 
-## Step 4: Consolidate
+## Step 4: Consolidate — against the archived journals, not a separate file
 
-Reconcile the new entries against `specforge/learnings.md` (the small, curated,
-always-injected file — see `references/consolidation.md`):
+**There is no `learnings.md`.** An always-injected consolidated file was a second copy of the
+same knowledge, and a second copy goes stale: someone forgets to reconcile it and it starts
+disagreeing with the entries it summarises.
 
-- **First occurrence** → add a one-line note under the right heading.
-- **Recurring** (seen ~3×) → mark it a **promotion candidate**.
-- **Dedup**: never add a second copy; bump the occurrence count and link the
-  evidence instead.
+The source is `.docs/archivado/*/journal.md`, and `sf context` already puts them in the envelope
+of every ⑫ and every ㉓. So consolidation is **reading**, not maintaining:
 
-This is where volume is controlled. `learnings.md` stays short and curated; the
-raw per-session detail lives in `journal/`.
+- **First occurrence** → it is in your entry, and that is enough.
+- **Recurring** (seen ~3× across the archived journals) → it is a **promotion candidate**.
+- **Never restate** something an earlier journal already says. Link to it instead.
+
+> **What is computed cannot go stale.** Counting to three by reading the journals is slower than
+> reading a counter, and it is right every time.
 
 ## Step 5: Promote (gated — backprop)
 
 If a pattern reached promotion-candidate status, propose it as a new invariant in
-`specforge/constitution.md`:
+`.docs/constitucion.md`:
 
 ```
 ───────────────────────────────────────

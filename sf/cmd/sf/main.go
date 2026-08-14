@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/arranque"
+	"github.com/jdbaigorria/specforge/sf/internal/auditoria"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
@@ -65,6 +66,8 @@ func main() {
 		os.Exit(parada("new", os.Args[2:]))
 	case "status":
 		os.Exit(estadoActual())
+	case "audit":
+		os.Exit(auditar(os.Args[2:]))
 	case "approve", "reject", "take", "model", "dismiss":
 		os.Exit(parada(os.Args[1], os.Args[2:]))
 	case "lote":
@@ -84,7 +87,7 @@ func main() {
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Todos: init · next · context · done · lote start · new · status · approve · reject · take · model · dismiss")
+		fmt.Fprintln(os.Stderr, "    Todos: init · next · audit · context · done · lote start · new · status · approve · reject · take · model · dismiss")
 		os.Exit(salidaError)
 	}
 }
@@ -292,6 +295,66 @@ func parada(cmd string, args []string) int {
 	return salidaError
 }
 
+// auditar es `sf audit`: el punta a punta sobre varias features.
+//
+// Es el único comando que NO es de la máquina y que igual sirve un sobre. No
+// rompe H2 —`sf context` sigue sin argumentos— porque son preguntas distintas:
+// `sf context` pregunta "¿qué necesito para el paso en el que estoy?", y eso es
+// deducible. Acá el alcance NO es deducible: lo elige Javier.
+//
+//	sf audit                 todo lo que se construyó
+//	sf audit f-1 f-2 f-3     estas tres — un "módulo" es un conjunto de features
+//	sf audit --completo      embebe el material, para un modelo sin shell
+func auditar(args []string) int {
+	completo := false
+	var ids []string
+	for _, a := range args {
+		switch {
+		case a == "--completo" || a == "--full":
+			completo = true
+		case strings.HasPrefix(a, "-"):
+			fmt.Fprintf(os.Stderr, "sf audit: no conozco %q. Sólo --completo.\n", a)
+			return salidaError
+		default:
+			ids = append(ids, a)
+		}
+	}
+
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	e, r, err := cargar(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	alcance, err := auditoria.Alcance(e, r, ids)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	inf, err := auditoria.Auditar(raiz, e, r, alcance)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	fmt.Print(inf.Texto(raiz, completo))
+
+	// Con fallas sale por parada y no por error: no se rompió nada: sf encontró
+	// contradicciones y alguien tiene que mirarlas. Es la misma distinción que
+	// hace `sf done`.
+	if inf.Fallas() > 0 {
+		return salidaParada
+	}
+	return salidaTrabajo
+}
+
 // iniciar es `sf init`: el andamio, y lo único que se corre antes que nada.
 //
 // No es un comando de la máquina —no mira el estado ni lo mueve— y por eso no
@@ -445,6 +508,7 @@ func uso() {
   sf lote start   crea la branch · exige el ROJO · guarda el hash
   sf new "…"      mete una feature o un bug al backlog (entradas B y C)
   sf status       dónde está todo — el único para vos, no para el agente
+  sf audit [f-#…]  el punta a punta: varias features contra sus historias
 
 las cinco respuestas a una parada:
   sf approve              sella lo que estés mirando

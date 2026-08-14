@@ -28,12 +28,12 @@ Horizontal (WRONG): all tests first, all impl second.
 ## Step 1: Input
 
 - `/tdd` alone → ask what to build
-- `/tdd <change>` → read `specforge/features/{change}/tasks.md`
+- `/tdd <change>` → read the batch from `sf context` (composed by `sf-build`), or the tasks the user names
 - `/tdd <description>` → use as feature description
 
 ## Step 2: Context
 
-Read: `specforge/context/compact-rules.md`, `specforge/context/project.md` (test runner), specs (acceptance criteria), design.md, existing code.
+Read: `.docs/constitucion.md` (conventions and `test_cmd`), the spec-design, the acceptance criteria, existing code. Composed by `sf-build`, all of that arrives in the envelope — do not go looking for it.
 
 ## Step 3: Plan
 
@@ -76,12 +76,11 @@ needs reading the message. That's why it lives here and not in a gate — the
 verification tier records that a RED happened, this rubric raises what that
 record is worth.
 
-> **Where the record lives.** Every `sf check run` that sees a test fail writes a
-> **RED witness** for it — the timestamp and the hash of the code it failed
-> against — and never overwrites one. You don't do anything to produce it; it's a
-> side effect of working RED-GREEN. A project can later require it
-> (`verification.require_red_witness`), at which point the verdict demands that
-> every test have failed against *different* code than the code passing it today.
+> **Where the record lives.** In a SpecForge project, `sf lote start` **is** the record: it runs
+> the batch's planned tests and refuses to let you implement unless they fail for real. It also
+> stores the hash of the test files, so `sf done` can tell whether you fixed the code or just
+> loosened the test. You do nothing to produce this — it is a side effect of working RED-GREEN,
+> and there is no way around it.
 >
 > That check is a lower bound, not proof of TDD: a test written afterwards that
 > failed because of a bug also counts. The three conditions above are what make

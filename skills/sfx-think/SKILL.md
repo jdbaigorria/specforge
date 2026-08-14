@@ -19,7 +19,7 @@ It's not propose (no requirements, no tasks). It's not explain (not teaching).
 It's not grill-me (not stress-testing an existing plan). It's thinking out loud
 with a partner who pushes back, offers alternatives, and helps reach clarity.
 
-**Always produces** `specforge/context/thinks/{slug}.md` at the end.
+**Always produces a structured conclusion.** Composed by `sf-plan` it becomes `decision.md`; standalone it goes wherever the user asks.
 
 ## Step 1: Understand What to Think About
 
@@ -70,8 +70,8 @@ back and forth. Let me summarize where we are and what's still unresolved."
 ### Read context when relevant
 
 If the debate touches on the current project:
-- `specforge/context/project.md` — stack constraints
-- `specforge/constitution.md` — principles that might settle the debate
+- `.docs/constitucion.md` — stack constraints
+- `.docs/constitucion.md` — principles that might settle the debate
 - Existing code — reality check against abstractions
 
 Don't force context reading for purely conceptual debates.
@@ -88,14 +88,14 @@ Summarize the outcome. Present it before writing the artifact:
 > - **What we ruled out:** {and why}
 > - **Open questions:** {if any remain}
 >
-> Save this to `specforge/context/thinks/{slug}.md`?
+> Save this to a file? Where? [path / N]
 
 Default: yes (unlike explain/grill-me where default is no). The whole point
 of think is to capture the reasoning for future reference.
 
 ## Step 4: Write Artifact
 
-Generate `specforge/context/thinks/{slug}.md` using `templates/think.tmpl.md`.
+Use `templates/think.tmpl.md`. Composed by `sf-plan`, this IS `decision.md` — and there it needs exactly three options.
 
 The artifact captures:
 - The question/topic
