@@ -1,5 +1,17 @@
 # AGENT.md
 
+> ## ⚠ Este archivo es del SpecForge ANTERIOR a la refundación
+>
+> Describe una máquina que ya no existe: nombra `sf-propose`, `sf-amend` y `sf-init` (borrados),
+> decide *inline vs delegate* por su cuenta, y asume que el orquestador se sabe el flujo.
+>
+> **El orquestador nuevo son cuatro líneas y vive en
+> [`plantillas/CLAUDE.md`](plantillas/CLAUDE.md).** No sabe el flujo: se lo pregunta a `sf next`,
+> que devuelve el estado, el skill, el modelo y el `via` en cada llamada.
+>
+> Se apaga junto con `cli/`, `README*.md`, `INSTALL.md` y `docs/` — todo el producto viejo a la
+> vez, porque se referencian entre sí. Mientras tanto se queda para no dejar enlaces rotos.
+
 ## Style
 
 Direct. No filler, no pleasantries, no hedging.
