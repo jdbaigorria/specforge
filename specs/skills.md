@@ -139,8 +139,9 @@ LOS 7 UTILITARIOS — no se tocan
   sfx-triage      entrada C: bug → us-# con tipo y relacionado_a
   sfx-explain     ← FALTABA. Feynman, no requiere proyecto. Queda tal cual.
 
-FUERA
-  sf-audit        → sfx-audit. Ningún estado lo consume
+FUERA DE LA MÁQUINA — pero con comando propio
+  sfx-audit       el AUDITOR. Ningún estado lo consume: lo corre Javier cuando
+                  quiere. REESCRITO ENTERO — ver §10
   sf-amend        ← FALTABA. SE TIRA — ver §6
 ```
 
@@ -302,15 +303,119 @@ sf-audit  →  sfx-audit RENOMBRADO. Ningún estado lo consume
 
 ---
 
-## 10. Qué sigue
+## 10. El auditor — reescrito, y ganó un comando
+
+Javier lo definió en una línea y eso rescató un skill que estaba muerto:
+
+> *"El auditor es quien verifica el punta a punta de la solución. Que un modelo grande verifique
+> que toda la solución construida corresponda y satisfaga a las historias de usuario que
+> involucra. **Y que el modelo implementador no haya mentido.**"*
+
+### Por qué estaba muerto, y no era el prefijo
+
+`sf-audit` eran 261 líneas construidas **enteramente** sobre cuatro comandos que se tiraron
+—`sf doctor --drift`, `sf coverage`, `sf verify`, `sf delta`— y su premisa explícita era
+*"arrancá de `sf doctor --drift`, **no** de leer"*. Sin esos motores, el audit **era** leer: justo
+lo que decía no hacer. Renombrarlo no lo arreglaba.
+
+### Lo que lo separa del ㉑, y es de posición, no de rigor
+
+```
+sf-check (㉑)   UNA feature · contra SUS criterios · JUSTO al terminarla
+sfx-audit       VARIAS features · punta a punta · CUANDO JAVIER QUIERE
+```
+
+El ㉑ revisa `f-2` el día que `f-2` termina, y después **nadie la vuelve a mirar nunca**. De ahí
+salen tres cosas que estructuralmente no puede ver, y son el trabajo del auditor:
+
+- `f-4` **rompió** un criterio de `f-1`;
+- `f-2` y `f-3` pasaron solas y **no se integran**;
+- un criterio marcado `cumple` que **hoy ya no es cierto**.
+
+### El hallazgo: "no mintió" se puede CONTAR
+
+Es lo que hace que esto no sea *"leé todo con un modelo grande"*. **Cuatro de las cinco preguntas
+del auditor tienen una sola respuesta correcta**, así que las contesta `sf` (R1):
+
+```
+① ¿qué features entran?      roadmap.json + estado.json
+② ¿qué criterios tienen?      los us-#
+③ ¿qué dijo la revisión?      los revision.json archivados
+④ ¿los tests que lo probaban  tareas.json + buscarlos en el repo
+   SIGUEN EXISTIENDO?
+⑤ ¿la suite pasa hoy?         test_cmd
+```
+
+**La ④ es la que atrapa la mentira, y no es una opinión:**
+
+```
+✗ us-1/CA-2 se dio por cumplido en f-1 y su test ya no existe: core_test.go::TestSinEstado
+```
+
+Nadie más en el flujo puede verlo: el ㉑ de esa feature ya pasó, y el de la siguiente mira otros
+criterios. **Y el modelo grande queda libre para la única pregunta que sí es juicio:** ¿el código
+hace de verdad lo que la historia pedía?
+
+### Las dos decisiones de Javier
+
+- **`sf audit` es un comando nuevo**, y no rompe H2. `sf context` sigue sin argumentos porque el
+  estado, la feature y el lote **son deducibles**; acá el alcance **no lo es**: lo elige Javier.
+- **El módulo no es un concepto nuevo.** El ⑩ ya agrupa por *"comparten solución técnica"*, así
+  que **un módulo es un conjunto de features** — nombrarlas es nombrarlo. Un campo `modulo` en el
+  roadmap sería un concepto que mantener y que ningún estado consume.
+
+```bash
+sf audit                 # todo lo que se construyó
+sf audit f-1 f-2 f-3     # estas tres
+sf audit --completo      # embebe el material
+```
+
+**Los hechos van ARRIBA del material**, y es a propósito: el que lee es un modelo que va a gastar
+contexto abriendo archivos, y saber qué buscar cambia qué abre. Probado a mano contra un proyecto
+Go real, en los dos sentidos — con la mentira (`exit 2`) y sin ella (`exit 0`).
+
+---
+
+## 11. Qué sigue
 
 1. ~~El `CLAUDE.md` de cuatro líneas~~ — ✅ **en [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md)**.
    Un archivo, dos destinos: `sf install` lo copia como `CLAUDE.md` **y** como `AGENTS.md`.
 2. ~~`sf init`~~ — ✅ **construido**, en `sf/internal/arranque/`. Probado a mano contra un
    proyecto Go real y contra uno sin manifiesto.
 3. ~~El hueco 6~~ — ✅ **cerrado** (§7).
-4. **El mapa de modelos** (`~/.specforge/`), que cierra H1b y el `via: consola`. Es lo único que
-   queda del diseño.
-5. **`sf install`** — el andamio. Hoy `plantillas/CLAUDE.md` existe y **nadie lo copia**.
-6. **Apagar el producto viejo**: `cli/`, `AGENT.md`, `README*.md`, `INSTALL.md`, `docs/`,
+4. ~~El ⑯ — recomendar modelo~~ — ✅ **`Plan.Modelo` en `tareas.json`**, con la cadena de
+   precedencia de tres niveles. Era el hueco 4 de `que-sobrevive.md` §13 y **el skill ya lo
+   prometía sin que existiera**.
+5. ~~El auditor~~ — ✅ **`sf audit` + `sfx-audit` reescrito** (§10).
+6. **El mapa de modelos** (`~/.specforge/`), que cierra H1b y el `via: consola`. Es lo único que
+   queda del diseño, y arrastra `sobre.mutantes()`.
+7. **`sf install`** — el andamio. Hoy `plantillas/CLAUDE.md` existe y **nadie lo copia**.
+8. **Apagar el producto viejo**: `cli/`, `AGENT.md`, `README*.md`, `INSTALL.md`, `docs/`,
    `examples/`. **Se referencian entre sí**, así que van juntos o no van.
+
+---
+
+## 12. La auditoría de promesas — un método que faltaba
+
+Después del corte de luz, Javier pidió revisar qué faltaba de verdad. **No se había cortado nada a
+mitad**, pero la revisión encontró **cinco inconsistencias** que la ronda anterior había dejado, y
+todas del mismo tipo: **skills que prometen cosas que el binario no tiene.**
+
+```
+grep de los COMANDOS que los skills mandan a correr   →  contra los que main.go rutea
+grep de las RUTAS que nombran                         →  contra las que define docs.go
+```
+
+Se habían auditado los punteros a **skills** borrados, pero no a **comandos** ni a **rutas**.
+
+| Lo que se encontró | |
+|---|---|
+| `sf-plan` §⑯ pedía escribir en un campo **que no existía** | ✅ el campo existe |
+| Los 9 utilitarios leían `specforge/context/*.md` — los tres archivos **que se fusionaron** | ✅ `.docs/constitucion.md` |
+| `sfx-journal` tenía un `learnings.md` en el medio: **una segunda copia** | ✅ borrado — la fuente son los journals archivados |
+| `sf journal add` · `sf check run` — comandos muertos | ✅ reemplazados |
+| Las salidas propias de los utilitarios apuntaban a `specforge/context/{thinks,grills,triages}/` | ✅ compuesto → el artefacto del estado; standalone → donde el usuario pida |
+
+> **La regla que queda:** un skill nombra un comando o una ruta, y eso es una **promesa
+> verificable**. Después de escribir skills, los dos greps de arriba se corren siempre — es el
+> único chequeo del proyecto que cruza el `.md` con el binario, y ninguna compuerta lo hace.

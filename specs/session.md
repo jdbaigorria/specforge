@@ -12,13 +12,13 @@ cerrados** — 10 comandos y el bucle de 4 líneas, en
 [`superficie-sf.md`](superficie-sf.md).
 
 > **El diseño está completo Y la columna del binario está construida.** `sf/` tiene los 10
-> comandos del inventario **más `sf init`**, 173 tests verdes y una sola dependencia. **Los nueve
+> comandos del inventario **más `sf init` y `sf audit`**, 191 tests verdes y una sola dependencia. **Los nueve
 > skills están ✅ escritos** y **el orquestador ✅ también** — cuatro líneas, en
 > [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md).
 >
 > **El bucle ya cierra de punta a punta:** `sf init` → `sf next` → skill → `sf done` → `sf next`.
-> Lo que queda del diseño es **uno solo**: el mapa de modelos (`via: consola`). El punto de
-> retomada está al final.
+> Y **el auditor está** — `sf audit`, el punta a punta sobre varias features. Lo que queda del
+> diseño es **uno solo**: el mapa de modelos (`via: consola`). El punto de retomada está al final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -57,7 +57,7 @@ no para surtirse.
 | **`skills.md`** | el mapa `estado → skill` firme, los 15 veredictos y la cirugía común | ✅ **completo** |
 | **`skills/`** | los 9 de estado escritos + 9 utilitarios · `sf-propose`, `sf-amend` y `sf-init` borrados | ✅ **escritos** |
 | **`plantillas/CLAUDE.md`** | el orquestador — cuatro líneas. Un archivo, dos destinos | ✅ **completo** |
-| **`sf/`** | el binario: 12 paquetes, 162 tests, los 10 comandos | ✅ **anda** |
+| **`sf/`** | el binario: 14 paquetes, 191 tests, los 10 comandos + `init` + `audit` | ✅ **anda** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -598,6 +598,26 @@ sf next                         → estado: brief · skill: sfp-scout · via: vo
 
 Y no pisa nada: ni el `estado.json` (perderías los sellos del ⑥ y del ⑧, que no se deducen de
 ningún archivo) ni una constitución que ya exista.
+
+### Paso 3b — la auditoría de promesas, y **el auditor** · ✅ **CERRADO**
+
+Vive en [`skills.md`](skills.md) §10 y §12. **Acá no se copia: se apunta.**
+
+**El corte de luz no dejó nada a medias**, pero la revisión encontró **cinco inconsistencias** de
+un tipo que no se había buscado: **skills que prometen cosas que el binario no tiene.** Se habían
+auditado los punteros a *skills* borrados, no a *comandos* ni a *rutas*. El método que queda son
+dos greps, y es el único chequeo que cruza el `.md` con el binario.
+
+La más grave: **`sf-plan` §⑯ mandaba a escribir el modelo recomendado en un campo que no existía**
+— el hueco 4 de `que-sobrevive.md` §13. Ahora es `Plan.Modelo`, con precedencia de tres niveles
+(`sf model` > `tareas.json` > el default), **y cada nivel sabe menos que el de arriba.**
+
+Y `sfx-audit` —261 líneas construidas sobre cuatro comandos tirados— se **rescató con una frase de
+Javier**: *"que un modelo grande verifique que toda la solución satisfaga a las historias, y que
+el implementador no haya mentido"*. Eso le dio un lugar que el ㉑ **estructuralmente no puede
+ocupar** (él revisa una feature el día que termina y nadie la vuelve a mirar), y **el hallazgo:
+"no mintió" se puede CONTAR** — si la revisión dio un criterio por cumplido y el test que lo
+probaba ya no existe, eso es un hecho. `sf audit`, probado a mano en los dos sentidos.
 
 ### Paso 4 — el mapa de modelos, que cierra H1b ⬅ **ES LO ÚLTIMO DEL DISEÑO**
 
