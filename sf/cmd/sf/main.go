@@ -26,6 +26,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/arranque"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
@@ -52,6 +53,8 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "init":
+		os.Exit(iniciar())
 	case "next":
 		os.Exit(next())
 	case "context":
@@ -81,7 +84,7 @@ func main() {
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Todos: next · context · done · lote start · new · status · approve · reject · take · model · dismiss")
+		fmt.Fprintln(os.Stderr, "    Todos: init · next · context · done · lote start · new · status · approve · reject · take · model · dismiss")
 		os.Exit(salidaError)
 	}
 }
@@ -289,6 +292,52 @@ func parada(cmd string, args []string) int {
 	return salidaError
 }
 
+// iniciar es `sf init`: el andamio, y lo único que se corre antes que nada.
+//
+// No es un comando de la máquina —no mira el estado ni lo mueve— y por eso no
+// aparece en ningún trazado del bucle. Es lo que hace que el bucle PUEDA
+// empezar: sin estado.json, `sf next` sólo sabe decir "corré sf init".
+func iniciar() int {
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	r, err := arranque.Iniciar(raiz)
+	if err != nil {
+		// Ya iniciado NO es un error del usuario: es alguien que corrió el
+		// comando dos veces. La respuesta útil es decirle por dónde seguir, no
+		// retarlo — y por eso sale por stdout con código de parada.
+		if errors.Is(err, arranque.ErrYaIniciado) {
+			fmt.Println("Este proyecto ya está iniciado.")
+			fmt.Println()
+			fmt.Println("  sf next")
+			return salidaParada
+		}
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	for _, c := range r.Creados {
+		fmt.Println("+", c)
+	}
+	fmt.Println()
+
+	if r.Stack.Reconocido() {
+		fmt.Printf("%s (%s) · test_cmd: %s\n", r.Stack.Lenguaje, r.Stack.Manifiesto, r.Stack.TestCmd)
+	} else {
+		// Se avisa fuerte porque sin test_cmd la constitución NO SELLA, y ese
+		// freno aparecería recién en el ⑧ sin decir de dónde viene.
+		fmt.Println("⚠ No reconocí el stack: completá `test_cmd:` en la constitución.")
+		fmt.Println("  Sin eso el ⑧ no sella y no se puede correr ningún test.")
+	}
+
+	fmt.Println()
+	fmt.Println("  sf next")
+	return salidaTrabajo
+}
+
 // estadoActual es `sf status`: la única salida de sf pensada para un humano.
 //
 // No mueve nada ni comprueba nada — lee tres fuentes y arma una vista. Por eso
@@ -388,6 +437,7 @@ func mostrar(i maquina.Instruccion) string {
 func uso() {
 	fmt.Fprintln(os.Stderr, `sf — la máquina de estados de SpecForge
 
+  sf init       el andamio: 2 directorios · detecta el stack · el estado vacío
   sf next       dónde estás · qué sigue · con qué skill y modelo
   sf context    el sobre del estado actual  (--completo lo embebe)
   sf done       corre las compuertas y mueve  (--msg "…" en implementar)
