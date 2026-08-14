@@ -37,6 +37,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/frontmatter"
@@ -128,4 +131,77 @@ func Criterios(raiz string, ids []string) ([]string, error) {
 		}
 	}
 	return todos, nil
+}
+
+// Ids devuelve los ids de todas las historias del backlog, ordenados.
+//
+// Ordenados por NÚMERO, no alfabéticamente: `us-10` va después de `us-9`, y un
+// sort de strings los pondría al revés. Es el tipo de detalle que no se nota
+// hasta la décima historia, y ahí se nota mucho.
+func Ids(raiz string) []string {
+	m, _ := filepath.Glob(filepath.Join(raiz, docs.Backlog, "us-*.md"))
+
+	ids := make([]string, 0, len(m))
+	for _, ruta := range m {
+		ids = append(ids, strings.TrimSuffix(filepath.Base(ruta), ".md"))
+	}
+	slices.SortFunc(ids, func(a, b string) int { return numero(a) - numero(b) })
+	return ids
+}
+
+// ProximoID es el id que le toca a la próxima historia.
+//
+// Qué id sigue tiene UNA SOLA RESPUESTA CORRECTA, así que lo hace sf y no el
+// modelo (R1). Y no es sólo comodidad: dos historias con el mismo id romperían
+// las referencias del roadmap y de `satisface`, que apuntan por id.
+//
+// Se toma el máximo + 1 y no la cantidad + 1, porque una historia archivada
+// puede haber dejado un hueco y reusar su id pisaría las referencias viejas.
+func ProximoID(raiz string) string {
+	max := 0
+	for _, id := range Ids(raiz) {
+		if n := numero(id); n > max {
+			max = n
+		}
+	}
+	return fmt.Sprintf("us-%d", max+1)
+}
+
+// numero saca el entero de "us-12". Devuelve 0 si no tiene forma de id.
+func numero(id string) int {
+	_, num, hay := strings.Cut(id, "-")
+	if !hay {
+		return 0
+	}
+	n, err := strconv.Atoi(num)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+// Esqueleto es el us-# que crea `sf new`: la cabecera puesta y el cuerpo vacío.
+//
+// sf pone lo que tiene una sola respuesta —el id, el tipo, de dónde deriva— y
+// deja el cuerpo para el pinponeo. Los criterios NO se inventan acá: son juicio,
+// y salen de la conversación con Javier.
+func Esqueleto(id, prdHash string) string {
+	return fmt.Sprintf(`---
+tipo: us                    # us | bug
+id: %s
+titulo: ""
+deriva_de: prd
+prd_version: %s
+relacionado_a: null         # el us-# original, cuando esto es un bug
+---
+
+# %s — <título>
+
+Como **<quién>** quiero **<qué>** para **<por qué>**.
+
+## Criterios de aceptación
+- **CA-1** —
+
+## Contexto
+`, id, prdHash, id)
 }

@@ -1,6 +1,7 @@
 package maquina
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
@@ -63,14 +64,22 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	// Los lotes salen de tareas.json, y el estado sólo guarda por cuál va. Si
 	// todavía no hay ninguno anotado, se siembran acá: es la primera vez que
 	// alguien mira el plan con intención de trabajarlo.
+	//
+	// Y puede no haber plan: el camino corto de un bug saltea la planificación
+	// (H21). Ahí se siembra un lote único y la compuerta se afloja abajo.
 	p, err := tareas.Leer(raiz, fr.Carpeta())
-	if err != nil {
+	conPlan := err == nil
+	if err != nil && !errors.Is(err, tareas.ErrNoHay) {
 		ef.falla("%v", err)
 		return ef
 	}
 	if len(f.Lotes) == 0 {
-		for _, n := range p.Lotes() {
-			f.Lotes = append(f.Lotes, estado.Lote{Lote: n})
+		if conPlan {
+			for _, n := range p.Lotes() {
+				f.Lotes = append(f.Lotes, estado.Lote{Lote: n})
+			}
+		} else {
+			f.Lotes = []estado.Lote{{Lote: 1}}
 		}
 	}
 
@@ -101,19 +110,31 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	// Esta lista es lo que separa "escribí tests" de "escribí LOS tests que el
 	// plan pedía". Sin ella, el #8 se cuela por el costado: la suite falla por
 	// cualquier otra cosa y el lote pasa igual.
-	planificados := p.TestsDelLote(l.Lote)
-	if len(planificados) == 0 {
-		ef.falla("el lote %d no tiene tests planificados. Eso tendría que haberlo frenado el ⑰.", l.Lote)
-		return ef
-	}
-	if faltan := suite.Faltantes(raiz, planificados); len(faltan) > 0 {
-		ef.falla("planificados %d tests para el lote %d. Faltan %d:", len(planificados), l.Lote, len(faltan))
-		for _, t := range faltan {
-			ef.falla("    %s", t)
+	//
+	// SIN PLAN la compuerta se afloja a lo que sí se puede comprobar: que la
+	// suite falle. No se cae —sigue siendo un hecho y sigue siendo un exit
+	// code— pero deja de poder decir CUÁLES tests. Es el precio del camino
+	// corto, y es el precio correcto: la alternativa era obligar a la ceremonia
+	// completa para arreglar algo chico, y una herramienta así se evita igual
+	// que ahora — y ahí sí se pierde el rastro.
+	var planificados []string
+	if conPlan {
+		planificados = p.TestsDelLote(l.Lote)
+		if len(planificados) == 0 {
+			ef.falla("el lote %d no tiene tests planificados. Eso tendría que haberlo frenado el ⑰.", l.Lote)
+			return ef
 		}
-		return ef
+		if faltan := suite.Faltantes(raiz, planificados); len(faltan) > 0 {
+			ef.falla("planificados %d tests para el lote %d. Faltan %d:", len(planificados), l.Lote, len(faltan))
+			for _, t := range faltan {
+				ef.falla("    %s", t)
+			}
+			return ef
+		}
+		pasos = append(pasos, fmt.Sprintf("los %d tests planificados existen", len(planificados)))
+	} else {
+		pasos = append(pasos, "sin plan (camino corto): alcanza con que algo falle")
 	}
-	pasos = append(pasos, fmt.Sprintf("los %d tests planificados existen", len(planificados)))
 
 	// ③ El rojo. Le alcanza un exit code.
 	res, err := suite.Correr(raiz, c.TestCmd)
@@ -122,6 +143,11 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		return ef
 	}
 	if res.Verde {
+		if !conPlan {
+			ef.falla("la suite PASA ENTERA: el bug no está reproducido.")
+			ef.falla("    Escribí primero el test que lo reproduce.")
+			return ef
+		}
 		ef.falla("la suite YA PASA, y todavía no se escribió el código del lote %d.", l.Lote)
 		ef.falla("    Un test que pasa antes de que exista el código es un test de mentira.")
 		return ef
@@ -142,7 +168,7 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	l.HashTests = hash
 
 	ef.Mensaje = fmt.Sprintf("lote %d de %d listo — %s.\n   Podés implementar.",
-		l.Lote, len(p.Lotes()), joinConY(pasos))
+		l.Lote, len(f.Lotes), joinConY(pasos))
 	return ef
 }
 

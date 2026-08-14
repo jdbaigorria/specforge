@@ -30,6 +30,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/sobre"
+	"github.com/jdbaigorria/specforge/sf/internal/vista"
 )
 
 // Los códigos de salida son parte de la interfaz, no un detalle.
@@ -57,6 +58,10 @@ func main() {
 		os.Exit(contexto(os.Args[2:]))
 	case "done":
 		os.Exit(terminar(os.Args[2:]))
+	case "new":
+		os.Exit(parada("new", os.Args[2:]))
+	case "status":
+		os.Exit(estadoActual())
 	case "approve", "reject", "take", "model", "dismiss":
 		os.Exit(parada(os.Args[1], os.Args[2:]))
 	case "lote":
@@ -72,11 +77,11 @@ func main() {
 		uso()
 		os.Exit(salidaTrabajo)
 	default:
-		// Falta `sf lote start` (paso 6) y `sf new` / `sf status`. Decirlo
+		// Los diez del inventario están. Decirlo
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Por ahora: next · context · done · lote start · approve · reject · take · model · dismiss")
+		fmt.Fprintln(os.Stderr, "    Todos: next · context · done · lote start · new · status · approve · reject · take · model · dismiss")
 		os.Exit(salidaError)
 	}
 }
@@ -262,6 +267,10 @@ func parada(cmd string, args []string) int {
 		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
 	case "lote start":
 		ef = maquina.EmpezarLote(raiz, e, r)
+	case "new":
+		// Todo lo que venga después del comando es el texto, no flags: `sf new
+		// que sf soporte brownfield` tiene que funcionar sin comillas.
+		ef = maquina.Nueva(raiz, e, strings.Join(args, " "))
 	}
 
 	// El estado se guarda sólo si el comando funcionó. Un `sf take f-99` que
@@ -278,6 +287,33 @@ func parada(cmd string, args []string) int {
 		return salidaTrabajo
 	}
 	return salidaError
+}
+
+// estadoActual es `sf status`: la única salida de sf pensada para un humano.
+//
+// No mueve nada ni comprueba nada — lee tres fuentes y arma una vista. Por eso
+// no aparece en ningún trazado del bucle: el bucle no lo necesita nunca.
+func estadoActual() int {
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	e, r, err := cargar(raiz)
+	if err != nil {
+		if errors.Is(err, estado.ErrNoHay) {
+			fmt.Println("Este proyecto todavía no tiene estado.")
+			fmt.Println()
+			fmt.Println("  sf init")
+			return salidaParada
+		}
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	fmt.Print(vista.Estado(raiz, e, r))
+	return salidaTrabajo
 }
 
 // cargar lee el estado y el roadmap, que es lo que necesitan los dos comandos.
@@ -357,6 +393,8 @@ func uso() {
   sf done       corre las compuertas y mueve  (--msg "…" en implementar)
 
   sf lote start   crea la branch · exige el ROJO · guarda el hash
+  sf new "…"      mete una feature o un bug al backlog (entradas B y C)
+  sf status       dónde está todo — el único para vos, no para el agente
 
 las cinco respuestas a una parada:
   sf approve              sella lo que estés mirando

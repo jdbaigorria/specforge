@@ -139,6 +139,12 @@ func terminarFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, msg stri
 		return c
 	}
 
+	// El mismo salteo del camino corto que hace `sf next`, y acá SÍ se escribe:
+	// `sf done` es el que mueve el estado.
+	if f.Estado == estado.Planificacion && esDeBugs(raiz, fr) {
+		f.Estado = estado.Implementar
+	}
+
 	switch f.Estado {
 	case estado.Planificacion:
 		return cerrarPlanificacion(raiz, f, fr)
@@ -196,7 +202,13 @@ func cerrarLote(raiz string, f *estado.Feature, fr roadmap.Feature, msg string) 
 
 	l, hayLote := f.LoteActual()
 	if !hayLote {
-		// Todos los lotes tienen commit: se cierra el estado entero.
+		// Todos los lotes tienen commit: se cierra el estado entero. Y acá está
+		// la otra mitad del camino corto — un bug tampoco pasa por revisión.
+		if esDeBugs(raiz, fr) {
+			f.Estado = estado.Cierre
+			return Cierre{Movio: true, Cambio: true,
+				Mensaje: "lotes cerrados — es un bug, se saltea la revisión: sigue el cierre (㉓)"}
+		}
 		f.Estado = estado.Revision
 		return Cierre{Movio: true, Cambio: true, Mensaje: "todos los lotes cerrados — sigue la revisión (㉑)"}
 	}
