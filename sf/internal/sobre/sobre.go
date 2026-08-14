@@ -56,6 +56,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
+	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
@@ -229,6 +230,10 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error
 		s.Lote, s.Partes = loteYTareas(raiz, carpeta, f, s.Partes)
 		s.Partes = append(s.Partes,
 			Parte{Titulo: "Los criterios que tenés que satisfacer", Rutas: rutasDeHistorias(fr.Historias)})
+		// Y si esto es un bug, la spec de lo que rompió. Ver loQueRompio.
+		if p, hay := loQueRompio(raiz, fr, r); hay {
+			s.Partes = append(s.Partes, p)
+		}
 
 	case estado.Revision:
 		s.Partes = []Parte{
@@ -399,6 +404,87 @@ func (s *Sobre) Texto(raiz string, completo bool) string {
 // ────────────────────────────────────────────────────────────────────────────
 // Ayudantes
 // ────────────────────────────────────────────────────────────────────────────
+
+// loQueRompio sirve la spec ARCHIVADA de la feature que este bug rompió.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// EL CAMPO ESTABA DECLARADO Y NO LO LEÍA NADIE
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `relacionado_a` vivía en historia.go y en el esqueleto del us-# desde el
+// principio, con cero consumidores. Es el mismo patrón que `tipo: bug` antes de
+// H20: un dato que ya existía, esperando el suyo.
+//
+// El agujero que tapa es concreto y es el dolor #5:
+//
+//	un bug NO desarchiva nada — entra como us-# nuevo, en una feature nueva —
+//	así que el subagente que lo arregla NO VE la spec de lo que rompió, y
+//	"el implementador que no encuentra lo que la spec dice, IMPROVISA".
+//
+// ────────────────────────────────────────────────────────────────────────────
+// Y NO ROMPE NINGUNA REGLA: SERVIR UN ARCHIVO NO ES PENSAR NI LANZAR A NADIE
+// ────────────────────────────────────────────────────────────────────────────
+//
+// La cadena son dos saltos, y los dos usan datos que ya existen:
+//
+//	us-7.relacionado_a = "us-3"      →  qué historia rompió
+//	roadmap: ¿qué feature tenía us-3?→  f-1
+//	.docs/archivado/f-1-slug/spec-design.md
+//
+// El roadmap conserva las features cerradas —archivar mueve la carpeta, no toca
+// el roadmap— así que el segundo salto es una búsqueda en memoria.
+func loQueRompio(raiz string, fr roadmap.Feature, r *roadmap.Roadmap) (Parte, bool) {
+	// Un mapa us-# → feature, armado una vez. Es más barato que recorrer el
+	// roadmap entero por cada historia, y sobre todo se lee mejor.
+	deQuienEs := map[string]roadmap.Feature{}
+	for _, f := range r.Features {
+		for _, id := range f.Historias {
+			deQuienEs[id] = f
+		}
+	}
+
+	var rutas []string
+	visto := map[string]bool{}
+
+	for _, id := range fr.Historias {
+		h, err := historia.Leer(raiz, id)
+		// Si la historia no se puede leer, el que se queja es la compuerta del
+		// ⑨, no el sobre. Acá se saltea: un sobre incompleto es mejor que un
+		// sobre que no sale.
+		if err != nil || h.RelacionadoA == "" {
+			continue
+		}
+
+		original, hay := deQuienEs[h.RelacionadoA]
+		if !hay || original.ID == fr.ID {
+			// No está en el roadmap, o el bug cayó en la MISMA feature que la
+			// historia original. En el segundo caso la spec ya está en el sobre
+			// —es la de esta feature— y repetirla sería gastar contexto.
+			continue
+		}
+
+		// La carpeta archivada conserva el mismo nombre que tenía viva: lo que
+		// cambia es el padre. Por eso alcanza con filepath.Base.
+		ruta := filepath.Join(docs.Archivado, filepath.Base(original.Carpeta()), docs.Spec)
+		if visto[ruta] {
+			continue
+		}
+		// Se comprueba que exista antes de ofrecerla: la feature original puede
+		// no estar archivada todavía (un bug sobre algo que se cerró en esta
+		// misma corrida). Ofrecer una ruta que no está sería mentir por
+		// omisión al revés.
+		if _, err := os.Stat(filepath.Join(raiz, ruta)); err != nil {
+			continue
+		}
+		visto[ruta] = true
+		rutas = append(rutas, ruta)
+	}
+
+	if len(rutas) == 0 {
+		return Parte{}, false
+	}
+	return Parte{Titulo: "Cómo se había resuelto lo que este bug rompió", Rutas: rutas}, true
+}
 
 func rutasDeHistorias(ids []string) []string {
 	r := make([]string, 0, len(ids))
