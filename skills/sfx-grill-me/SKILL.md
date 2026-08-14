@@ -30,7 +30,7 @@ Interview relentlessly about every aspect until you and the user reach a shared 
 Before starting:
 
 > Ready to grill. This session might last 15-45 minutes with 15-50 questions.
-> Save transcript to specforge/context/grills/{slug}.md when done? [y/N]
+> Save the transcript to a file? Where? [path / N]
 
 Default: no. Remember the answer.
 
@@ -38,9 +38,9 @@ Default: no. Remember the answer.
 
 Before asking questions, read:
 - The artifact (if given)
-- `specforge/context/project.md` (if exists)
+- `.docs/constitucion.md` (if exists)
 - Related code or specs
-- `specforge/` specs if relevant
+- `.docs/features/*/spec-design.md` if relevant
 
 This prevents asking questions you can answer yourself (principle 5).
 
@@ -70,7 +70,7 @@ Track:
 
 ### If user said "save"
 
-Write to `specforge/context/grills/{slug}.md`:
+If the user asked for a file, write it there:
 
 ```markdown
 # Grill: {topic}

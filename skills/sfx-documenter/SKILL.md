@@ -33,7 +33,7 @@ Before writing a single line of documentation:
    Don't duplicate, don't contradict. Extend and improve.
 3. **Read tests.** Tests are documentation. They show intended usage, edge cases, and expected
    behavior. Extract examples from real test cases when possible.
-4. **Read `specforge/context/project.md` and `specforge/context/conventions.md`** if they exist — match the project's
+4. **Read `.docs/constitucion.md`** if they exist — match the project's
    documentation style.
 
 ## Step 2: Generate Documentation
@@ -94,6 +94,6 @@ docs/
 - If a function has side effects, document them prominently.
 - If a function can throw/raise, list the exceptions and when they occur.
 - If parameters have valid ranges or constraints, state them.
-- Match the project's code style in examples (from `specforge/context/conventions.md`).
+- Match the project's code style in examples (from `.docs/constitucion.md`).
 - Don't generate docs for private/internal APIs unless the user asks.
 - Keep each doc file focused. One module = one file. One guide = one file.

@@ -7,7 +7,7 @@ description: >
   without SpecForge. Triggers: "/triage", "/triage <bug-description>", "there's a bug",
   "this is broken", "triage this", "investigate", "why is this failing", "debug this",
   "something is wrong with", "I'm getting an error", or any description of unexpected behavior
-  paired with a desire to understand why. Works on any project — does not require specforge/
+  paired with a desire to understand why. Works on any project — does not require SpecForge
   to be initialized.
 ---
 
@@ -15,7 +15,7 @@ description: >
 
 Investigate a bug. Find root cause. Produce fix plan with test strategy.
 
-**Always produces an artifact** at `specforge/context/triages/{slug}.md`.
+**Always produces a fix plan.** Composed by `sfp-backlog` it becomes the `us-#` (with `tipo: bug` and `relacionado_a`); standalone it goes wherever the user asks.
 
 ## The Iron Law
 
@@ -48,9 +48,9 @@ the symptom until you find where actual behavior diverges from expected. Check
 recent git changes in affected areas — regressions are common.
 
 Context to read if available (don't require any of these):
-- `specforge/context/project.md` — stack, architecture
-- `specforge/context/conventions.md` — patterns
-- `specforge/` specs — expected behavior per spec (if SpecForge is initialized)
+- `.docs/constitucion.md` — stack, architecture, conventions
+
+- `.docs/features/*/spec-design.md` — expected behaviour, if SpecForge is initialized
 - Source code in the affected area
 
 ## Step 3: Pattern Analysis
@@ -93,7 +93,7 @@ Test each hypothesis starting with most likely:
 
 Read `references/fix-plan.md` for fix strategy and TDD approach.
 
-Generate `specforge/context/triages/{slug}.md` using `templates/triage.tmpl.md`.
+Use `templates/triage.tmpl.md`. Composed by `sfp-backlog`, this feeds the `us-#` instead of a file of its own.
 
 The artifact covers:
 - Symptoms (the 5 dimensions from Step 1)

@@ -34,12 +34,12 @@ vague criterion and a feature that ships half-done.
    not having checked.
 
 A finding must **quote the exact requirement text** it applies to. No quote means
-you cannot report it — same citation rule the phase judge already enforces.
+you cannot report it: a finding you cannot point at is an opinion.
 
 ## What is NOT a finding
 
 - **Prose style, voice, or length.** `RQ-*` is about semantics, not writing.
-- **Vagueness the design phase legitimately resolves.** A requirement is not
+- **Vagueness the ⑬ legitimately resolves.** A criterion is not
   supposed to pin the implementation. *"Persist the session"* is not `RQ-1`
   because it doesn't name a database.
 - **New vocabulary the story itself defines.** That is not inconsistency.

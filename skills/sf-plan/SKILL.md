@@ -124,8 +124,28 @@ up and that they **failed first**.
 
 ## Step ⑯: Say which model this needs
 
-If this feature needs a bigger model than the default to implement, say so in `tareas.json`.
-Otherwise leave it out — the default is the default for a reason.
+If this feature needs a bigger model than the default to implement, say so — it is one field at
+the top of `tareas.json`:
+
+```json
+{"feature": "f-1", "modelo": "opus", "tareas": [ … ]}
+```
+
+**Leave it out otherwise.** The default is the default because it is right almost always; a
+`"modelo"` on every feature is noise, and noise here means every batch gets launched on a bigger
+model than it needed.
+
+It is a **recommendation, not an order.** The chain that resolves it has three levels, and yours
+is the middle one:
+
+```
+sf model <nombre>   Javier, in runtime, watching the loop struggle   ← wins
+tareas.json         you, here, before anything has failed
+the state default
+```
+
+You know more than the default (you just planned this feature) and less than Javier (you have
+not seen it fail yet). That is exactly where you sit.
 
 ## Step ⑰: Stop. This is one of Javier's three decisions
 
