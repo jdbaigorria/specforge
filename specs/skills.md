@@ -234,9 +234,59 @@ Y las dos que no cambian:
 
 ---
 
-## 9. Qué sigue
+## 9. ✅ Los nueve escritos — 2026-08-14
 
-1. **Renombrar el mapa en `maquina.go`** y sacar los tres ⚠ que este documento contesta.
-2. **Escribir los nueve.** Dos desde cero (`sfp-po`, `sf-cierre`), siete adaptando.
-3. **El hueco 6** — el sobre y `relacionado_a`.
-4. Recién ahí, **el `CLAUDE.md` de cuatro líneas**: cae solo cuando los nombres son firmes.
+```
+sfp-scout        121L   adaptado: pinponeo PRIMERO · −PR# · −question · −ready/not-ready ·
+                        −research.md · −decision-log.md · un archivo: brief.md
+sfp-po            98L   NUEVO. El tamaño lo dan sus dos lectores: el ⑧ y el ⑨
+sfp-constitucion 124L   de sf-init Step 3. Técnica, no filosófica. 3 archivos → 1
+sfp-backlog      155L   de sf-propose --all. Fuente = PRD · produce us-# · EARS
+sfp-roadmap      111L   de sf-propose --all Step A3. Sólo ids y orden
+sf-plan          159L   ⑫–⑯ en una pasada. Compone sfx-think · el lote lo declara el modelo
+sf-build         137L   reescrito. Un lote, un subagente, un commit. Compone sfx-tdd
+sf-check         132L   reescrito. La matriz sobre TODOS los criterios · el score, no los parches
+sf-cierre        106L   NUEVO. Delgado: compone sfx-documenter + sfx-journal
+```
+
+**Y los nueve del mapa existen como carpeta, con el `name:` igual al directorio.** Verificado.
+
+### Lo que se borró, ahora que el reemplazo existe
+
+```
+sf-propose   BORRADO   se partió en sfp-backlog + sfp-roadmap + sf-plan
+sf-amend     BORRADO   su punto de entrada es `sf new`  (§6)
+sf-init      BORRADO   Step 3 → sfp-constitucion. Y era ACTIVAMENTE dañino: escribía
+                       constitution.json y context/*.md, rutas que ya no existen
+sf-audit  →  sfx-audit RENOMBRADO. Ningún estado lo consume
+```
+
+> **El material de brownfield (`sf-init/references/onboard.md`) queda en la historia de git.**
+> El debate sigue aparcado en `que-sobrevive.md` §5 y lo nombra por su nombre.
+
+### Tres cosas que aparecieron escribiendo, y no estaban en el plan
+
+- **`sfx-github` tenía convenciones propias** —*"Squash merge default"*, `feature/<slug>`,
+  *"NEVER commit to main, ALWAYS PR"*— y R4 lo nombra por su nombre. Ahora lee `git:` de la
+  constitución, y su `specforge-integration.md` decía una máquina que no existe (waves, gate
+  ledger, `features.json`, lanes, team mode). **Reescrito: `sf` es dueño del repo local, el
+  skill es dueño del remoto.**
+- **Once punteros colgados a skills borrados** en cinco utilitarios (`sfx-triage`, `sfx-audit`,
+  `sfx-grill-me`, `sfx-think` y sus plantillas): todos decían *"corré `sf-propose fix-…`"*. En
+  la máquina nueva eso es **`sf new`** — el backlog es el embudo. Arreglados uno por uno.
+- **Dos `references/` cambiaron de dueño y mejoraron al hacerlo.** `requirement-quality.md` pasó
+  de `sf-check` a `sfp-backlog`: **un criterio defectuoso es baratísimo de arreglar cuando es una
+  línea de texto**, y carísimo tres estados después. Y `backprop.md` pasó a `sf-cierre` — con el
+  contador a mano borrado: los journals archivados ya son la fuente, y **un contador que se
+  mantiene a mano se desincroniza la primera vez que alguien se olvida**.
+
+---
+
+## 10. Qué sigue
+
+1. **El `CLAUDE.md` de cuatro líneas.** Ya no hay nada que espere: los nombres son firmes y los
+   nueve existen. Y `AGENTS.md` es **el mismo archivo**, no una traducción.
+2. **`sf init`** — el scaffold y `detectStack()`. Hoy `sfp-constitucion` dice *"la cabecera ya
+   está llena"* y **eso todavía no es cierto**: es lo único que impide arrancar de cero.
+3. **El hueco 6** — el sobre y `relacionado_a` (§7).
+4. **El mapa de modelos** (`~/.specforge/`), que cierra H1b y el `via: consola`.

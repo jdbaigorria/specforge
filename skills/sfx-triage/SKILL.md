@@ -21,7 +21,7 @@ Investigate a bug. Find root cause. Produce fix plan with test strategy.
 
 No fixes without investigation first. Do not patch, guess, or "try things".
 Understand first, recommend second. The actual fix is a separate step — either
-trivial (apply directly) or planned (`sf-propose fix-{slug}`).
+trivial (apply directly) or planned (`sf new "…"`, which enters the backlog as a bug).
 
 ## Step 1: Gather Symptoms
 
@@ -109,7 +109,7 @@ The artifact covers:
 
 Based on fix scope:
 - **Trivial** (<10 lines, no architectural change) → "Apply directly, here's the fix"
-- **Small/Medium** → "Run `sf-propose fix-{slug}` to plan the implementation"
+- **Small/Medium** → "Run `sf new \"<the bug>\"` — it enters the backlog as a `tipo: bug`"
 - **Large** (systemic issue) → "This may need a design change. Review the fix plan first"
 
 If `unresolved` → document what's still unknown and what would help

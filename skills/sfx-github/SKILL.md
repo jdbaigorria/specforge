@@ -3,9 +3,9 @@ name: sfx-github
 delegate: true
 description: >
   Execute git workflow: branch, commit, push, PR, merge. Also the home for SpecForge↔git
-  integration: feature branches, one-commit-per-wave, archive=merge, and one-way export of the
-  roadmap to issues. Trigger: "/github", "/git", "create a PR", "push this", "branch for",
-  "commit", "merge", "release", "export the roadmap to issues", "open issues for the features".
+  integration — in a SpecForge project `sf` already does the branch, the commit and the merge,
+  so this covers what it deliberately does not touch: the remote, PRs and releases. Trigger:
+  "/github", "/git", "create a PR", "push this", "branch for", "commit", "merge", "release".
 ---
 
 # github
@@ -23,31 +23,26 @@ Execute git operations. Return clean summary. Model: haiku.
 
 ## Conventions
 
-Branches: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/` — all from main, all via PR.
+**In a SpecForge project the conventions are not here — they are in the constitution.** Read
+`git:` from `.docs/constitucion.md` (`patron_branch`, `commit`, `merge`, `branch_base`) and
+follow it. A skill with git conventions of its own is a second source of truth that drifts from
+the project's.
+
+**Standalone**, with no constitution to read, these are the defaults:
+
+Branches: `feature/`, `fix/`, `refactor/`, `docs/`, `chore/` — all from the base branch.
 Commits: `type(scope): description` — imperative, max 72 chars. Breaking: `type(scope)!:`
 Types: feat, fix, refactor, docs, test, chore, ci.
 
-## SpecForge integration (optional, opt-in)
+## SpecForge integration
 
-When the project uses SpecForge, this skill is the bridge to git and the issue
-tracker. Read `references/specforge-integration.md` for the full mapping. In short:
-
-- **One branch per feature** (`feature/<slug>`), **one commit per wave** (message
-  references the wave + completed tasks), **`archive` = merge to main**. The git
-  history becomes the build op-log for free.
-- **The PR carries the artefacts.** `requirements.md`, `design.md`, `review.md`
-  travel in the PR, so the reviewer approves code *and* spec together — **the PR
-  approval IS the sf-check verdict gate** in team mode (F35).
-- **Export the roadmap to issues** (`export the roadmap to issues`): read
-  `specforge/roadmap.md` + `features.json` and open one issue per feature via
-  `gh`, each with a back-link to its artefact folder. **One-way only** — the
-  tracker is the "what to do" index, SpecForge is the detail. No bidirectional
-  sync (that's the expensive, fragile trap).
+Read `references/specforge-integration.md`. In short: **`sf` already does the branch, the commit
+and the merge**, so most of what this skill would do is taken. What is left for you is
+everything `sf` deliberately does not touch — **the remote**: push, PRs, releases, tags.
 
 ## Rules
 
-- NEVER commit directly to main. ALWAYS PR.
-- Squash merge default. Delete branch after merge.
+- In a SpecForge project, read `git:` from the constitution. Never assume a convention.
+- Never invent a branch or a merge strategy the project did not declare.
 - If CI fails, report — do NOT auto-merge.
-- If uncommitted changes, ask before stashing.
-- Issue export is **one direction** (SpecForge → tracker). Never sync back.
+- If there are uncommitted changes, ask before stashing.

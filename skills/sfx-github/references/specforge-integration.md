@@ -1,74 +1,64 @@
-# SpecForge ↔ git & issue tracker
+# SpecForge ↔ git — what `sf` already does, and what is left for you
 
-How SpecForge artefacts map to git and to an issue tracker (F35/F36). All of this
-is **opt-in convention**, not enforced — document the recommended flow, automate
-with hooks where it helps, never impose.
+## The short version
 
-## Git mapping (F36)
+**`sf` owns the local repository. You own the remote.**
 
-| SpecForge | Git |
-|-----------|-----|
-| A feature | a branch `feature/<slug>` off main |
-| A build wave | one commit (`feat(<slug>): wave N — <tasks done>`) |
-| `sf-check` archive (on APPROVE) | merge the branch to main |
+| | Who does it |
+|---|---|
+| create the feature branch | **`sf lote start`**, from `git.patron_branch` |
+| commit a batch | **`sf done --msg "…"`** — no message, no close |
+| merge and delete the branch | **`sf approve`** at the ㉓, with `git.merge` |
+| push · PR · release · tag | **you** — `sf` never touches a remote |
 
-The git history then *is* the build op-log: one commit per wave, each naming the
-tasks it completed. That gives an auditable record for free, complementing the
-`features.json` gate ledger (F10) — no separate op-log needed.
+## Why `sf` took the first three
 
-Keep it a recommended flow. A solo user on a scratch project can ignore it; a
-team turns it on. Where the enforcement hooks (F29) are installed, a wave gate
-passing can optionally trigger the commit — but the convention stands on its own.
+They each used to be something a skill remembered, and each was a recurring pain:
 
-## PR = the verdict gate (F35, team mode)
+- **the branch was not created** → now `sf lote start` creates it and refuses to proceed without
+  it, so forgetting is not reachable;
+- **the commit did not get made** → now closing a batch *is* committing. `sf done` has no path
+  that leaves work uncommitted;
+- **commits were badly grouped** → the grouping was already decided at planning time, where the
+  batch was cut. One batch, one commit. There is nothing left to group well.
 
-Single-player: the human at each gate is the author. That's fine for the creation
-gates (requirements/design/tasks/plan/wave) — those are in-progress design
-decisions.
+**None of that is a criticism of this skill.** It is R4: the convention became a field
+(`git:` in `.docs/constitucion.md`) and the machine reads the field. What is left here is the
+half a state machine cannot own, because it involves another party.
 
-Team: the artefacts live in the repo, so they travel in the PR. The reviewer sees
-`requirements.md`, `design.md`, and `review.md` alongside the diff and approves
-**code and spec together**. So:
+## Reading the conventions
 
-- **Creation gates** (propose/build) → the author's, on the branch.
-- **Verdict gate** (`sf-check`) → the team's, and it **maps to the PR approval**.
-  Don't run a separate SpecForge verdict gate *and* a PR review — the PR approval
-  satisfies it. Map, don't duplicate.
+```yaml
+git:
+  branch_por_feature: true
+  patron_branch: "feat/{feature-id}-{slug}"
+  commit: conventional
+  merge: no-ff              # no-ff | squash | ff
+  branch_base: main
+```
 
-## Ownership (F35)
+**Use these, always.** If the project says `merge: no-ff`, do not squash because squashing is
+usually nicer. The field exists so the answer is the project's, not yours.
 
-No custom permission system — lean on what git already has:
+## The commit message
 
-- `owners` in `constitution.md` — who may approve changes to **invariants** (the
-  highest-stakes edits).
-- `CODEOWNERS` (git) — who reviews which paths for everything else. A minimal
-  example at the repo root:
+`sf` makes the commit; **whoever did the work writes the message**, and it travels in
+`sf done --msg`. If you are asked to write one, follow `git.commit` — one line, with the batch's
+actual subject, not "wave 2" or "batch 3". The reader of a git log wants to know what changed.
 
-  ```
-  # CODEOWNERS
-  /specforge/constitution.md   @tech-lead
-  /specforge/                  @backend-team
-  *                            @backend-team
-  ```
+## PRs
 
-## Issue export (F36) — one way only
+`sf` merges locally and does not know what a PR is. If the project uses them, the sequence is:
 
-`sf-propose --all` produces a roadmap; export it so the team's tracker stays the
-single "what to do" index without duplicating the spec detail.
+1. the ㉓ closes and Javier runs `sf approve` — the merge happens locally;
+2. you push the base branch, or open the PR **before** approving if the team reviews there.
 
-- Read `specforge/roadmap.md` + `specforge/features.json`.
-- For each feature, open one issue (via `gh issue create`, or the tracker's API):
-  - **title:** the feature name
-  - **body:** one-line summary + a **back-link** to `specforge/features/<slug>/`
-    (or the archived path) + its `status`/`lane`
-  - **labels:** optionally `specforge`, the lane, the status
-- Record the created issue URL back into the feature (e.g. a `tracker_url` field)
-  so the link is two-way as *reference*, but the **source of truth stays one
-  direction**: SpecForge → tracker. Never import issue edits back into the spec.
+**Do not run a PR review as a second verdict gate.** The ㉑ already produced `revision.json` with
+a verdict per criterion. A PR that re-litigates it is duplicated work with a worse envelope.
 
-Why one-way: bidirectional sync between a spec system and an issue tracker is the
-classic expensive, fragile integration. The tracker indexes *what*; SpecForge owns
-*the detail*. One direction, one truth.
+## What does not exist any more
 
-GitHub is the grounded default (`gh`). Linear/Jira work the same way through their
-API/MCP — same one-way mapping.
+For anyone reading an older version of this file: **one commit per wave**, the **gate ledger**,
+`features.json`, **lanes**, **team mode**, and **exporting the roadmap to issues** are all gone.
+The machine replaced the concepts they served — the roadmap is `.docs/roadmap.json`, progress is
+`.docs/estado.json`, and there is one gate, not five.

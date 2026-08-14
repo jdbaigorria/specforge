@@ -136,8 +136,8 @@ type Instruccion struct {
 //	sf-build   → sfx-tdd (⑲) · sfx-github (el commit)
 //	sf-cierre  → sfx-documenter · sfx-journal · sfx-github
 //
-// ⚠ Dos no existen todavía como archivo —`sfp-po` y `sf-cierre`, los dos
-// delgados— y los otros siete están sin adaptar (skills.md §8).
+// Los nueve existen y están adaptados: arrancan con `sf context` y terminan con
+// `sf done` (skills.md §8).
 var skills = map[string]string{
 	"brief":              "sfp-scout",
 	"prd":                "sfp-po",

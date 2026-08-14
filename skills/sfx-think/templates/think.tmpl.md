@@ -72,7 +72,7 @@
 - {{concrete_action_1}}
 - {{concrete_action_2}}
 <!-- Examples:
-     "Run sf-propose add-graphql-layer"
+     "Run sf new \"a GraphQL layer\""
      "Prototype option B in a branch before committing"
      "Research DynamoDB stream limits before deciding"
      "No action — this was exploratory" -->
