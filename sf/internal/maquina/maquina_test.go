@@ -248,7 +248,10 @@ func TestPlanificacionRetomaMirandoLosArchivos(t *testing.T) {
 		{"sin nada", nil, "de cero"},
 		{"con decision", []string{"decision.md"}, "desde la spec"},
 		{"con decision y spec", []string{"decision.md", "spec-design.md"}, "desde las tareas"},
-		{"con los tres", []string{"decision.md", "spec-design.md", "tareas.json"}, "Falta cerrarlo"},
+		// Con los tres archivos ya no alcanza con que existan: sf corre las
+		// mismas compuertas que `sf done`. Como acá están vacíos, falla — y eso
+		// es exactamente lo que tiene que pasar.
+		{"con los tres vacíos", []string{"decision.md", "spec-design.md", "tareas.json"}, "pero falta"},
 	}
 
 	for _, c := range casos {
@@ -268,6 +271,33 @@ func TestPlanificacionRetomaMirandoLosArchivos(t *testing.T) {
 				t.Errorf("mensaje %q, quería que mencione %q", i.Mensaje, c.enElMsg)
 			}
 		})
+	}
+}
+
+// Con el plan COMPLETO y válido, sf next para: el ⑰ lo decide Javier.
+//
+// Es lo que distingue "falta trabajar" de "está listo, falta que lo mires", y
+// se decide corriendo las compuertas — no con un campo en el estado.
+func TestPlanCompletoParaEnElDiecisiete(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion}
+
+	carpeta := filepath.Join(".docs", "features", "f-1-nucleo")
+	p.conArchivoConTexto(filepath.Join(carpeta, "decision.md"),
+		"## A — una\n## B — otra\n## C — otra más\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, "spec-design.md"), "# spec\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, "tareas.json"),
+		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`)
+	p.conArchivoConTexto(".docs/backlog/us-1.md",
+		"---\nid: us-1\n---\n## Criterios\n- **CA-1** — hace algo\n")
+
+	i := p.next()
+	if i.Tipo != Para {
+		t.Fatalf("con el plan completo: tipo %v, quería Para (el ⑰)\n%s", i.Tipo, i.Mensaje)
+	}
+	if !slices.Contains(i.Sugerido, "sf approve") {
+		t.Errorf("sugirió %v, quería sf approve", i.Sugerido)
 	}
 }
 

@@ -34,7 +34,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/compuerta"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
@@ -378,10 +380,28 @@ func planificando(raiz, id string, fr roadmap.Feature) Instruccion {
 	case !existe(raiz, filepath.Join(carpeta, tareas.Archivo)):
 		i.Mensaje = "retomá desde las tareas: la spec ya está"
 	default:
-		// Los tres archivos existen pero el estado sigue en `planificacion`:
-		// el subagente terminó y no corrió `sf done`, o `sf done` dio ✗.
-		i.Mensaje = "los tres archivos están. Falta cerrarlo."
-		i.Sugerido = []string{"sf done"}
+		// Los tres archivos existen. Acá `sf next` corre las MISMAS compuertas
+		// que `sf done` para saber si esto ya está listo para el ⑰ o si todavía
+		// le falta algo.
+		//
+		// Puede hacerlo porque las compuertas de `planificacion` son baratas:
+		// contar archivos, contar opciones, comparar dos listas de criterios.
+		// En `implementar` no se hace, y no por gusto — ahí la compuerta es
+		// correr los tests, y un `sf next` que corre la suite cada vez sería
+		// insoportable. Allá no hace falta igual: el rastro es el commit.
+		if res := compuerta.Planificacion(raiz, fr); !res.Pasa() {
+			i.Mensaje = "los tres archivos están, pero falta:\n   " +
+				strings.Join(res.Fallas, "\n   ")
+			i.Sugerido = []string{"sf context", "sf done"}
+		} else {
+			return Instruccion{
+				Tipo:     Para,
+				Estado:   estado.Planificacion,
+				Feature:  id,
+				Mensaje:  fmt.Sprintf("🛑 PARÁ. El plan de %s lo revisás vos (el ⑰).", id),
+				Sugerido: []string{"sf approve", "sf reject \"motivo\"", "sf take <otra>"},
+			}
+		}
 	}
 	return i
 }

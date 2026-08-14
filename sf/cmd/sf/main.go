@@ -55,6 +55,8 @@ func main() {
 		os.Exit(next())
 	case "context":
 		os.Exit(contexto(os.Args[2:]))
+	case "done":
+		os.Exit(terminar(os.Args[2:]))
 	case "-h", "--help", "help":
 		uso()
 		os.Exit(salidaTrabajo)
@@ -63,7 +65,7 @@ func main() {
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Por ahora: sf next · sf context")
+		fmt.Fprintln(os.Stderr, "    Por ahora: sf next · sf context · sf done")
 		os.Exit(salidaError)
 	}
 }
@@ -148,6 +150,65 @@ func contexto(args []string) int {
 	return salidaTrabajo
 }
 
+// terminar es `sf done`: corre las compuertas y mueve lo que corresponda.
+//
+// Lo llama EL QUE TRABAJA, antes de morir — no el orquestador. Si `sf done` da
+// ✗, el subagente todavía tiene el contexto para arreglarlo ahí mismo; si lo
+// corriera el orquestador, cada ✗ costaría un subagente nuevo desde cero (H6).
+//
+// El único flag es `--msg`, y sólo aplica a `implementar`: sin él no se cierra
+// el lote, porque cerrar el lote ES commitear.
+func terminar(args []string) int {
+	var msg string
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--msg" && i+1 < len(args):
+			i++
+			msg = args[i]
+		case strings.HasPrefix(args[i], "--msg="):
+			msg = strings.TrimPrefix(args[i], "--msg=")
+		default:
+			fmt.Fprintf(os.Stderr, "sf done: no conozco %q. Sólo --msg \"…\"\n", args[i])
+			return salidaError
+		}
+	}
+
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	e, r, err := cargar(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	c := maquina.Terminar(raiz, e, r, msg)
+
+	// El estado se guarda SÓLO si algo se movió. Un `sf done` que falla no
+	// tiene que dejar rastro en el archivo... salvo el contador de intentos,
+	// que es justamente el que cuenta los fracasos: por eso también se guarda
+	// cuando falla dentro de una feature.
+	if c.Movio || c.Cambio {
+		if err := e.Guardar(raiz); err != nil {
+			fmt.Fprintln(os.Stderr, "sf: no pude guardar el estado:", err)
+			return salidaError
+		}
+	}
+
+	fmt.Print(c.Texto())
+	if c.Mensaje != "" {
+		fmt.Println("→ " + c.Mensaje)
+	}
+
+	if c.Pasa() {
+		return salidaTrabajo
+	}
+	return salidaParada
+}
+
 // cargar lee el estado y el roadmap, que es lo que necesitan los dos comandos.
 //
 // El roadmap puede no existir todavía —los cinco estados de producto corren
@@ -222,6 +283,7 @@ func uso() {
 
   sf next       dónde estás · qué sigue · con qué skill y modelo
   sf context    el sobre del estado actual  (--completo lo embebe)
+  sf done       corre las compuertas y mueve  (--msg "…" en implementar)
 
 salidas:
   0  hay trabajo     2  parada (🛑 ⏸ ⚠)
