@@ -12,10 +12,13 @@ cerrados** — 10 comandos y el bucle de 4 líneas, en
 [`superficie-sf.md`](superficie-sf.md).
 
 > **El diseño está completo Y la columna del binario está construida.** `sf/` tiene los 10
-> comandos del inventario andando, 162 tests verdes y una sola dependencia. **Y los nueve skills
-> están ✅ escritos** — mapeados, renombrados y verificados contra `maquina.go`, en
-> [`skills.md`](skills.md). Lo que falta ya no es el binario ni los skills: es el **`CLAUDE.md`
-> de cuatro líneas**, **`sf init`** y el andamio. El punto de retomada está al final.
+> comandos del inventario **más `sf init`**, 173 tests verdes y una sola dependencia. **Los nueve
+> skills están ✅ escritos** y **el orquestador ✅ también** — cuatro líneas, en
+> [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md).
+>
+> **El bucle ya cierra de punta a punta:** `sf init` → `sf next` → skill → `sf done` → `sf next`.
+> Lo que queda del diseño es **uno solo**: el mapa de modelos (`via: consola`). El punto de
+> retomada está al final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -53,6 +56,7 @@ no para surtirse.
 | **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio · **+ los 7 pasos y lo que apareció construyendo** | ✅ **completo** |
 | **`skills.md`** | el mapa `estado → skill` firme, los 15 veredictos y la cirugía común | ✅ **completo** |
 | **`skills/`** | los 9 de estado escritos + 9 utilitarios · `sf-propose`, `sf-amend` y `sf-init` borrados | ✅ **escritos** |
+| **`plantillas/CLAUDE.md`** | el orquestador — cuatro líneas. Un archivo, dos destinos | ✅ **completo** |
 | **`sf/`** | el binario: 12 paquetes, 162 tests, los 10 comandos | ✅ **anda** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
@@ -278,6 +282,9 @@ y de paso el subagente no gasta contexto buscando qué leer.
 7. ~~La construcción del binario~~ — ✅ **los 7 pasos hechos**, en `sf/`. Ver §11.
 8. ~~El mapeo `estado → skill`~~ — ✅ **cerrado el 2026-08-14**, en [`skills.md`](skills.md).
    Los nueve nombres firmes, ya renombrados en `maquina.go` y con test.
+9. ~~Escribir los nueve skills~~ — ✅ **hechos**, en `skills/`.
+10. ~~El `CLAUDE.md`, `sf init` y el hueco 6~~ — ✅ **los tres cerrados**. Con eso **el bucle
+    corre de punta a punta desde un directorio vacío.**
 
 ---
 
@@ -549,28 +556,50 @@ La cirugía, la misma para los nueve:
   feature archivada **no la desarchiva**: entra al backlog como `us-#` con `tipo: bug`. Y su
   premisa era la equivocada: **una spec archivada no es la doc del sistema, es el registro de
   una decisión con fecha.**
-- **Apareció el hueco 6** (`que-sobrevive.md` §13): `relacionado_a` está declarado y **no lo lee
-  nadie**, y el sobre **no toca `.docs/archivado/`**. El que arregla el bug no ve la spec de lo
-  que rompió — el dolor #5 esperando. Es un `if` y una ruta más.
+- **Apareció el hueco 6, y ✅ se cerró** (`que-sobrevive.md` §13): `relacionado_a` estaba
+  declarado y **no lo leía nadie**, y el sobre **no tocaba `.docs/archivado/`**. El que arregla el
+  bug no veía la spec de lo que rompió — el dolor #5 esperando. Es `sobre.loQueRompio`, cuatro
+  tests.
 
-### Paso 2 — el `CLAUDE.md` de cuatro líneas ⬅ **ES LO QUE SIGUE**
+### Paso 2 — el `CLAUDE.md` de cuatro líneas · ✅ **CERRADO**
 
-**Ya no espera nada:** los nombres son firmes y los nueve skills existen. Está escrito tal cual
-en [`superficie-sf.md`](superficie-sf.md) §6, y **`AGENTS.md` es el mismo archivo, no una
-traducción**.
+Vive en [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md). **Un archivo, dos destinos:**
+`sf install` lo va a copiar como `CLAUDE.md` **y** como `AGENTS.md` — mantenerlo como dos
+archivos acá sería el mismo contenido en dos lugares, que es lo que el proyecto evita en todo lo
+demás.
 
-### Paso 3 — `sf init`, y ahora hay una promesa que cumplir
+Y el `AGENT.md` de la raíz —321 líneas del orquestador viejo, que nombra skills borrados y decide
+*inline vs delegate* por su cuenta— quedó **marcado con un banner**, no borrado: lo referencian
+`README*.md`, `INSTALL.md` y `docs/`, así que se apaga con ellos (§12).
 
-Hoy `sf next` en un proyecto vacío dice *"corré `sf init`"* y ese comando **no existe**. Y desde
-que los skills están escritos hay una razón más: **`sfp-constitucion` le dice al que trabaja que
-la cabecera técnica *ya está llena*, y eso todavía no es cierto.** Son dos cosas y las dos son
-mecánicas (R1):
+### Paso 3 — `sf init` · ✅ **CERRADO**
 
-- el scaffold — 2-3 directorios, no 7;
-- **`detectStack()`**, que llena `lenguaje`, `manifiesto` y `test_cmd` solo. Es lo único que se
-  rescata del CLI viejo con nombre y apellido (`construccion.md` §5).
+Vive en `sf/internal/arranque/`. **Con esto el bucle arranca de cero.** Probado a mano:
 
-### Paso 4 — el mapa de modelos, que cierra H1b
+```
+sf next  en un proyecto vacío   → "corré sf init"          (exit 2)
+sf init                         → 2 dirs · constitución · estado.json
+                                  go (go.mod) · test_cmd: go test ./...
+sf init  otra vez               → "ya está iniciado"       (exit 2, no pisa nada)
+sf next                         → estado: brief · skill: sfp-scout · via: vos
+```
+
+**Tres decisiones que valen más que el código:**
+
+- **Escribe la constitución A MEDIAS, y es el reparto de R1 hecho archivo.** *"Hay un `go.mod`"*
+  tiene una sola respuesta correcta → `sf`. *"¿Qué arquitectura?"* tiene varias → el ⑧. Esto es
+  lo que hace verdadera la promesa de `sfp-constitucion` (*"la cabecera ya está llena"*).
+- **Dos directorios, no siete.** `features/` y `archivado/` los crean el ⑫ y `sf approve` cuando
+  hacen falta. **Un directorio vacío desde el día uno es una promesa que el proyecto todavía no
+  puede cumplir:** el que lo abre no sabe si está roto o si no llegó.
+- **La tabla de detección es una LISTA, no un mapa** — y hay un test que lo prueba 20 veces. Un
+  proyecto con dos manifiestos (Python + un `package.json` para el front) daría un lenguaje
+  distinto en cada corrida: los mapas de Go se recorren en orden aleatorio.
+
+Y no pisa nada: ni el `estado.json` (perderías los sellos del ⑥ y del ⑧, que no se deducen de
+ningún archivo) ni una constitución que ya exista.
+
+### Paso 4 — el mapa de modelos, que cierra H1b ⬅ **ES LO ÚLTIMO DEL DISEÑO**
 
 `~/.specforge/`, con qué modelos hay y cómo se invoca cada uno. Es lo único que le falta al
 campo `via:` para resolver `consola` — hoy sólo resuelve `vos` y `subagente`, y está marcado con
@@ -579,10 +608,25 @@ campo `via:` para resolver `consola` — hoy sólo resuelve `vos` y `subagente`,
 **Y el mecanismo ya está decidido:** la lista **no se escribe de antemano, se construye sola con
 cada aprobación**, igual que `dependencias_aprobadas`. Es un patrón ya firmado, no uno nuevo.
 
+**Y arrastra un segundo pendiente**, que es el mismo ⚠: `sobre.mutantes()` devuelve
+*"todavía no: falta leer `mutacion:` de la constitución"*. El ㉒ funciona igual —el modelo lee el
+código— pero sin la corrida de la herramienta.
+
+### Paso 5 — `sf install`, el andamio
+
+`plantillas/CLAUDE.md` existe y **nadie lo copia**. `sf install` es lo que lo pone en un proyecto
+—como `CLAUDE.md` y como `AGENTS.md`— y, según `que-sobrevive.md` §5, también instala la
+constitución global de `~/.specforge/`. Es el mismo lugar donde va a vivir el mapa de modelos del
+paso 4: **conviene hacerlos juntos.**
+
 ### Y sigue aparcado
 
 **Brownfield** — el debate de `que-sobrevive.md` §5. Decide el destino de `sf onboard scan` y de
 la detección de `sf-init` Step 2. **No bloquea nada.**
+
+> Ojo con un detalle nuevo: `sf-init` **ya no existe como skill** (se borró con los nueve). Su
+> `references/onboard.md` —el material de brownfield— **vive en la historia de git**, y es el
+> insumo de este debate cuando se retome.
 
 > **Y la advertencia que sigue vigente** (`decisions-specforge`, 2026-08-07): no sobre-indexar
 > en determinismo. `sf` nació para producir artefactos útiles que hagan alucinar menos al
@@ -594,6 +638,8 @@ la detección de `sf-init` Step 2. **No bloquea nada.**
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).
-- **`cli/` sigue entero y sin tocar.** Se apaga —se borra la carpeta— recién cuando `sf/` lo
-  reemplace del todo, que es después de los skills. Mientras tanto compila y corre, que es lo
-  que permitió comparar contra él (`construccion.md` §3).
+- **El producto viejo sigue entero, y se apaga TODO JUNTO.** No es sólo `cli/`: son
+  `AGENT.md` (marcado con un banner), `README.md`, `README.es.md`, `INSTALL.md`, `docs/` y
+  `examples/`. **Se referencian entre sí**, así que borrar uno solo deja enlaces rotos y ningún
+  reemplazo. Mientras tanto `cli/` compila y corre, que es lo que permitió comparar contra él
+  (`construccion.md` §3).

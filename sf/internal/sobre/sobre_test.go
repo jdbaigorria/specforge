@@ -334,3 +334,106 @@ func TestSinFeatureEnCursoDaError(t *testing.T) {
 		t.Errorf("el error no dice cómo salir: %v", err)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El hueco 6: el bug y la spec de lo que rompió
+// ────────────────────────────────────────────────────────────────────────────
+
+// unBugSobre arma el caso completo: f-1 cerrada y archivada, y f-2 con un us-#
+// de tipo bug que apunta a una historia de f-1.
+//
+// Se arma a mano y no con los ayudantes de arriba porque necesita DOS features
+// en el roadmap —una archivada y una en curso—, que es justo lo que este caso
+// prueba y ninguno de los otros necesita.
+func unBugSobre(t *testing.T, relacionadoA string) *proyecto {
+	t.Helper()
+	p := nuevo(t)
+
+	p.archivo(roadmap.Archivo, `{"features":[
+		{"id":"f-1","slug":"nucleo","nombre":"núcleo","orden":1,"historias":["us-1","us-3"]},
+		{"id":"f-2","slug":"fix-login","nombre":"el login","orden":2,"historias":["us-7"]}]}`)
+	r, err := roadmap.Leer(p.raiz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.r = r
+
+	// La spec de f-1, ya archivada: la carpeta se movió, el roadmap no cambió.
+	p.archivo(".docs/archivado/f-1-nucleo/spec-design.md", "# f-1\nasí se resolvió\n")
+
+	// Y la de f-2, que es la que se está implementando ahora.
+	p.archivo(".docs/features/f-2-fix-login/spec-design.md", "# f-2\n")
+
+	p.archivo(".docs/backlog/us-7.md", "---\ntipo: bug\nid: us-7\nrelacionado_a: "+relacionadoA+
+		"\n---\n\n# us-7\n\n## Criterios de aceptación\n- **CA-1** — no explota\n")
+
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1",
+		ConstitucionSellada: true, BacklogVisto: true,
+	}
+	p.e.FeatureActual = "f-2"
+	p.e.Features["f-2"] = &estado.Feature{Estado: estado.Implementar}
+	return p
+}
+
+func TestElSobreDelBugTraeLaSpecDeLoQueRompio(t *testing.T) {
+	txt := unBugSobre(t, "us-3").texto()
+
+	if !strings.Contains(txt, ".docs/archivado/f-1-nucleo/spec-design.md") {
+		t.Errorf("el implementador del bug no ve la spec de lo que rompió:\n%s", txt)
+	}
+	if !strings.Contains(txt, "Cómo se había resuelto") {
+		t.Errorf("falta el título de la parte:\n%s", txt)
+	}
+}
+
+// Sin `relacionado_a` no hay nada que agregar, y el sobre no tiene que inventar
+// una sección vacía: una parte de más es contexto que el subagente igual lee.
+func TestSinRelacionadoANoAgregaNada(t *testing.T) {
+	txt := unBugSobre(t, "null").texto()
+
+	if strings.Contains(txt, "archivado") {
+		t.Errorf("agregó la spec archivada sin relacionado_a:\n%s", txt)
+	}
+}
+
+// El caso del bug sobre algo que TODAVÍA no se archivó: la historia original
+// existe y está en el roadmap, pero su carpeta sigue viva. Ofrecer una ruta que
+// no está sería mentir al revés.
+func TestSiLaSpecOriginalNoEstaArchivadaNoLaOfrece(t *testing.T) {
+	p := unBugSobre(t, "us-3")
+	if err := os.Remove(filepath.Join(p.raiz, ".docs/archivado/f-1-nucleo/spec-design.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	if txt := p.texto(); strings.Contains(txt, "archivado") {
+		t.Errorf("ofreció una spec que no existe:\n%s", txt)
+	}
+}
+
+// Y si el bug cayó en la MISMA feature que la historia original, la spec ya está
+// en el sobre: repetirla sería gastarle contexto al que trabaja.
+func TestNoRepiteLaSpecDeLaMismaFeature(t *testing.T) {
+	p := nuevo(t)
+	p.archivo(roadmap.Archivo, `{"features":[
+		{"id":"f-1","slug":"nucleo","nombre":"núcleo","orden":1,"historias":["us-3","us-7"]}]}`)
+	r, err := roadmap.Leer(p.raiz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.r = r
+	p.archivo(".docs/features/f-1-nucleo/spec-design.md", "# f-1\n")
+	p.archivo(".docs/backlog/us-7.md",
+		"---\ntipo: bug\nid: us-7\nrelacionado_a: us-3\n---\n\n# us-7\n")
+
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1",
+		ConstitucionSellada: true, BacklogVisto: true,
+	}
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Implementar}
+
+	if txt := p.texto(); strings.Contains(txt, "Cómo se había resuelto") {
+		t.Errorf("repitió la spec de la feature en curso:\n%s", txt)
+	}
+}
