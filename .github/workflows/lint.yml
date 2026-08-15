@@ -5,23 +5,68 @@ on:
   pull_request:
 
 jobs:
-  cli:
+  sf:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.x"
+
       - name: Vet
-        working-directory: cli
+        working-directory: sf
         run: go vet ./...
+
       - name: Test
-        working-directory: cli
+        working-directory: sf
         run: go test ./...
+
       - name: Build
-        working-directory: cli
-        run: go build -o sf .
-      - name: Lint skill suite
-        run: ./cli/sf lint
-      - name: Example stays drift-clean
-        run: ./cli/sf doctor examples/slugify
+        working-directory: sf
+        run: go build -o sf ./cmd/sf
+
+      # El mapa estado → skill es la costura entre el binario y skills/, y es la
+      # única que ningún test de Go puede cubrir: `maquina.go` comprueba que los
+      # nombres respeten la regla de prefijos, pero no que la carpeta exista.
+      #
+      # Ya se rompió una vez de la forma silenciosa (skills.md §12): un skill se
+      # renombra, el binario compila, los tests pasan, y revienta en producción.
+      - name: Los nueve skills del mapa existen
+        run: |
+          set -euo pipefail
+          for s in sfp-scout sfp-po sfp-constitucion sfp-backlog sfp-roadmap \
+                   sf-plan sf-build sf-check sf-cierre; do
+            test -f "skills/$s/SKILL.md" || { echo "falta skills/$s/SKILL.md"; exit 1; }
+          done
+
+      # Y el `name:` del frontmatter tiene que coincidir con la carpeta: un
+      # skill que se llama distinto de su directorio no lo encuentra nadie.
+      - name: El name de cada skill coincide con su carpeta
+        run: |
+          set -euo pipefail
+          for d in skills/*/; do
+            n="$(basename "$d")"
+            f="$(grep -m1 '^name:' "$d/SKILL.md" | sed 's/^name: *//')"
+            [ "$n" = "$f" ] || { echo "$d: carpeta=$n name=$f"; exit 1; }
+          done
+
+      # Los skills nombran comandos de sf, y eso es una PROMESA VERIFICABLE.
+      # Este chequeo es el único del proyecto que cruza el .md con el binario —
+      # ninguna compuerta lo hace, y por eso quedaron once punteros colgados a
+      # comandos borrados hasta que se buscaron a mano.
+      - name: Ningun skill nombra un comando que no existe
+        run: |
+          set -euo pipefail
+          muertos='sf (coverage|doctor|verify|delta|gate|mutation|save|trace|question|metrics|domain|events|report|graph|onboard|stale|arch|evidence|migrate|check run|journal add)'
+          if grep -rnE "$muertos" skills/; then
+            echo "↑ comandos que sf no tiene"
+            exit 1
+          fi
+
+      - name: Ningun skill usa la ruta vieja specforge/
+        run: |
+          set -euo pipefail
+          if grep -rn 'specforge/' skills/; then
+            echo "↑ la ruta es .docs/"
+            exit 1
+          fi

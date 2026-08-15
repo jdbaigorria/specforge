@@ -1,6 +1,6 @@
 {
   "name": "specforge",
-  "description": "SpecForge — a Spec-Driven Development skill suite: gated feature pipeline, project audit, and support skills.",
+  "description": "SpecForge — a state machine that guides the harness: 9 states, 18 skills, and a four-line orchestrator.",
   "owner": {
     "name": "Javier Baigorria"
   },
@@ -8,7 +8,7 @@
     {
       "name": "specforge",
       "source": "./",
-      "description": "Spec-Driven Development: gated feature pipeline + audit + support skills."
+      "description": "Spec-Driven Development, executed: sf tells you where you are and whether you can advance."
     }
   ]
 }

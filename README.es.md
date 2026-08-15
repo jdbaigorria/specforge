@@ -4,221 +4,155 @@
 
 # SpecForge
 
-Framework de Spec-Driven Development. La especificación es el producto — el código es un subproducto regenerable.
+**SpecForge no te dice cómo trabajar. Ejecuta cómo trabajás vos.**
 
-Un pipeline de 4 skills por feature + `sf-audit` para revisión transversal del proyecto + skills de soporte. Revelación progresiva. Gate humano en cada artefacto. Cero ceremonia sin propósito.
+`sf` es una máquina de estados que sabe **dónde estás**, **qué sigue** y **si podés avanzar**. Tu
+agente le pregunta, hace el trabajo, y vuelve a preguntar.
 
-**¿Recién llegás?** Leé primero [el modelo mental](docs/mental-model.md) — una página sobre cómo piensa SpecForge.
-
-**Instalación:** ver [INSTALL.md](INSTALL.md). **Licencia:** [MIT](LICENSE).
+**Licencia:** [MIT](LICENSE)
 
 ---
 
-## Qué es SpecForge — y qué no es
+## La idea, en una línea
 
-SpecForge gobierna el *ciclo completo* de spec a código verificado, y se apoya en una
-**capa determinista** (un CLI en Go + hooks por harness) para que el workflow no dependa
-de que el modelo se porte bien a medida que el contexto se llena.
+> `sf` expone la máquina de estados que guía al harness — y es el árbitro que decide si se puede
+> avanzar.
 
-**Es:**
-- Un pipeline de specs donde **la estructura y la secuencia se fuerzan mecánicamente** — un
-  hook *deniega* escribir código antes de su gate, el CLI *rechaza* un artefacto malformado.
-  Los estados ilegales son inalcanzables, no solo desaconsejados.
-- **JSON-first**: cada artefacto es una fuente JSON validada que se renderiza a Markdown, así
-  los docs no pueden driftear de los datos.
-- **Autogobernado desde disco**: la próxima acción válida se deriva del estado
-  (`sf state current`), los gates viven en un ledger, y las lecciones vuelven a la
-  constitution (`backprop`). La conversación puede desaparecer y SpecForge sigue sabiendo qué hacer.
+Son dos verbos, y el segundo es el que importa:
 
-**No es:**
-- Una garantía de *calidad del código* — solo de *estructura y secuencia*, más una traza para
-  auditar la calidad vos mismo. SpecForge es honesto con esa línea.
-- Un instalador universal de agentes, una wiki de conocimiento, ni un generador autónomo de
-  código que saltea el juicio humano.
+| | Qué hace | Sin esto sería… |
+|---|---|---|
+| **expone** | *"estás en el ⑬, ahora toca el ⑭"* | una lista de tareas |
+| **comprueba** | *"no terminaste: falta la branch"* | una sugerencia que el agente puede ignorar |
 
-### Dónde encaja en el panorama
+`sf` **no maneja el auto** —no agarra el volante ni elige la ruta— pero **da verde o rojo, y en
+rojo no se pasa**. Su poder es uno solo: es el único que puede mover el estado, y sólo lo mueve
+cuando lo comprobó él mismo.
 
-La frase honesta: **otras herramientas preparan o proponen; SpecForge gobierna.**
-
-| Herramienta | Qué hace | Enforcement | Fuente de verdad |
-|-------------|----------|-------------|------------------|
-| **SpecForge** | Pipeline spec→build→verify con gates, trace, backprop | **Bloqueante** (hooks deniegan) | **JSON validado** → MD renderizado |
-| [Kaddo](https://github.com/Kaddo-kdd/kaddo) | Prepara *conocimiento* vivo como contexto para agentes | Advisory (informa) | Markdown + front-matter |
-| [OpenSpec](https://github.com/Fission-AI/OpenSpec) | Capa liviana de specs (proposal/spec/design/tasks) | Ninguno (living docs) | Markdown |
-| [GitHub spec-kit](https://github.com/github/spec-kit) | Scaffolding spec-driven para agentes | Ninguno | Markdown |
-
-Encontrar buenos vecinos acá es justamente el punto: Kaddo y SpecForge llegaron de forma
-independiente a la misma apuesta de fondo — *determinismo antes que IA, conocimiento cerca del
-código*. La contribución distintiva de SpecForge es la **espina de enforcement + trazabilidad**
-que las demás dejan libradas a la buena voluntad.
-
-## Tabla de contenidos
-
-- [Qué es SpecForge — y qué no es](#qué-es-specforge--y-qué-no-es)
-- [Cómo funciona](#cómo-funciona)
-- [La capa determinista](#la-capa-determinista)
-- [Documentación](#documentación)
-- [FAQ](#faq)
-
-## Cómo funciona
+## El reparto
 
 ```
-  sf-init ──▶ sf-propose ──▶ sf-build ──▶ sf-check
-  scaffold    requirements    plan+ejecutar  validar
-  + contexto  diseño          wave por wave  + archivar
-              tareas
-
-  El loop por feature: 4 skills. Cada uno produce artefactos. Gate humano 🔴 en cada artefacto.
+sf       →  DÓNDE estás · QUÉ sigue · ¿PODÉS avanzar?
+skills   →  CÓMO se hace cada paso
+harness  →  lo HACE
+vos      →  DECIDÍS   (en tres puntos, y sólo tres)
 ```
 
-Este es el loop por feature. Al lado hay dos piezas más: `sf-audit` corre una
-revisión adversarial de todo el proyecto (constitución vs realidad, consistencia
-entre features), y un conjunto de [skills de soporte](SUPPORT-SKILLS.es.md)
-(`sfx-think`, `sfx-triage`, `sfx-grill-me`, `sfx-tdd`, `sfx-documenter`, y más) complementan el
-pipeline sin ser parte de él.
+**El orquestador es el agente, no el CLI.** `sf` arranca, contesta y se muere: dura
+milisegundos. Un programa muerto no puede lanzar a nadie — no tiene manos. El único vivo durante
+toda la sesión es el agente, así que el que lanza es él.
 
-Flujo detallado con gates:
+Por eso el `CLAUDE.md` son **cuatro líneas**:
 
 ```
-sf-init
-  ├─ scaffolding                          → automático
-  ├─ constitución (greenfield)            → 🔴 GATE
-  ├─ onboard (brownfield)                 → 🔴 GATE
-  └─ constitución (brownfield)            → 🔴 GATE
-
-sf-propose
-  ├─ requirements.md                      → 🔴 GATE
-  ├─ design.md                            → 🔴 GATE
-  └─ tasks.md                             → 🔴 GATE
-
-sf-build
-  ├─ plan de ejecución                    → 🔴 GATE
-  ├─ wave 0 ejecución                     → 🔴 GATE
-  ├─ wave 1 ejecución                     → 🔴 GATE
-  └─ wave N...                            → 🔴 GATE
-
-sf-check
-  ├─ review + veredicto                   → 🔴 GATE
-  ├─ APPROVE → archivo (automático)
-  └─ REVISE  → vuelve a sf-build con feedback
+1.  Corré `sf next`.
+2.  Hacé lo que diga, con el skill y el modelo que diga:
+      via: vos        → trabajás vos, de frente
+      via: subagente  → lanzás un subagente fresco
+      via: consola    → salís por CLI con el `comando:` que te dio
+3.  Cuando vuelva el control, corré `sf next` otra vez.
+    NO leas lo que devolvió el que trabajó — el estado es la verdad.
+4.  Si `sf` dice 🛑 o ⏸, mostrale al usuario y esperá.
 ```
 
-El loop REVISE es lo que hace el flujo iterativo, no waterfall. Cuando check
-encuentra gaps, envía la feature de vuelta a build con correcciones específicas.
-Si el spec estaba mal, el usuario lo edita directamente y la detección de resync
-propaga los cambios en cascada.
+**`AGENTS.md` es el mismo archivo, no una traducción.** Lo único que cambia entre harness es cómo
+se lanza un subagente, y eso el harness ya lo sabe hacer.
 
-## La capa determinista
+## Las tres reglas duras
 
-Las skills son la mitad **cooperativa**: un LLM produce specs y juzga código. Pero el
-seguimiento de instrucciones se degrada a medida que el contexto se llena — por eso
-SpecForge trae una mitad **determinista** que no depende de la buena voluntad del modelo:
-un CLI chico en Go, **`sf`**, y **hooks** por harness.
+1. **`sf` nunca lanza a nadie.** Si spawneara, manejaría contexto y tool-calling — y **sería un
+   harness**, reinventando lo que Claude Code y Codex ya hacen bien.
+2. **El estado avanza con hechos comprobados, nunca con la palabra del que trabajó.** El
+   subagente dice *"terminé"*; `sf` **no le cree**: corre los tests él, mira si existe el archivo,
+   mira si hay branch. Si falta algo, el estado **no se mueve**.
+3. **El estado vive en el repo, no en el chat.** Un `estado.json` versionado — porque cuando
+   pasás a otro modelo, el que implementa no estuvo en la conversación.
 
-> **La división del trabajo:** el LLM *produce y juzga*; `sf` *persiste, valida, computa y
-> renderiza*; los hooks *fuerzan e inyectan* en los eventos del harness.
+## Arrancar
 
-| Tier | Qué protege | Cómo |
-|------|-------------|------|
-| **Estructural** (hermético) | orden de gates, schema, dependencias, flujo serial | un hook *deniega* la tool call — no se puede saltear |
-| **Calidad** (cooperativo) | "¿esto es bueno / mínimo / alineado?" | un sub-agente fresco juzga; el veredicto es un *nudge*, registrado para el humano |
+```bash
+cd sf && go build -o ~/go/bin/sf ./cmd/sf
 
-Podés volver inalcanzables los estados ilegales (estructural). No podés forzar buen contenido
-a existir (calidad) — así que la calidad la sube un checker, no se garantiza. SpecForge es
-honesto sobre cuál es cuál.
+cd <tu proyecto>
+sf install    # CLAUDE.md + AGENTS.md · ~/.specforge/ con tus modelos
+sf init       # el andamio: 2 directorios, detecta el stack, el estado vacío
+sf next       # y de acá en adelante, el bucle
+```
 
-→ **Referencia completa: [docs/cli-and-hooks.md](docs/cli-and-hooks.md)** (en inglés) — el
-surface de `sf`, la vía de escritura JSON-first, el cómputo de waves, los slices de contexto
-y cada evento de hook.
+## Los nueve estados
 
-## Documentación
+Cinco corren una vez por producto, cuatro una vez por feature:
 
-El README es la puerta de entrada; la profundidad vive en `docs/` (en inglés).
+```
+PRODUCTO   brief → prd → constitución → backlog → roadmap
+FEATURE    planificación → implementar → revisión → cierre
+```
 
-| Página | Qué contiene |
-|--------|--------------|
-| [Mental model](docs/mental-model.md) | Cómo piensa SpecForge en una página. **Empezá acá.** |
-| [CLI & hooks](docs/cli-and-hooks.md) | La capa determinista completa: comandos `sf`, JSON-first, hooks. |
-| [Arquitectura](docs/architecture.md) | Layout de directorios, estructura de skills, modelo de ejecución. |
-| [Referencia de skills](docs/skills.md) | Cada skill (pipeline + audit + soporte) y el flujo de artefactos. |
-| [Conceptos](docs/concepts.md) | Notación EARS, ciclo de vida, backprop, resync. |
-| [Walkthrough](docs/walkthrough.md) | Ejemplos greenfield y brownfield, de punta a punta. |
-| [Skills de soporte](SUPPORT-SKILLS.es.md) | Los helpers standalone `sfx-*`. |
-| [Ejemplos](examples/) | Features reales y completas para inspeccionar. |
-| [Instalación](INSTALL.md) | Setup para Claude Code y otros harnesses. |
+**Tres de ellos paran y te preguntan**, y sólo tres: el sello del brief, la constitución y la
+revisión del plan. Todo lo demás avanza solo.
 
-## FAQ
+Cada estado tiene un skill que sabe hacerlo, y `sf next` te dice cuál — así la tabla
+`estado → skill → modelo` vive en un solo lugar en vez de una copia por harness.
 
-**¿Por qué el pipeline de features es solo 4 skills?**
-Revelación progresiva. Las capacidades que antes eran skills separados (clarify,
-research, map, archive, explore, constitute) ahora viven como references dentro
-de los 4 skills del pipeline. Se cargan bajo demanda. Menos overhead de contexto,
-menos carga cognitiva. El pipeline es deliberadamente chico — pero no es todo el
-framework: `sf-audit` agrega revisión transversal, y los
-[skills de soporte](SUPPORT-SKILLS.es.md) cubren pensamiento, triage, TDD, docs
-y diseño de infra alrededor.
+## Los comandos
 
-**¿No es overkill el pipeline completo para un typo o un ajuste de config?**
-Para eso hay dos carriles (F34). `sf-propose` arranca clasificando el cambio y
-proponiendo un carril **lite** para ediciones triviales y de bajo riesgo — un
-`change.md` combinado, un gate, build, un check mínimo — versus el carril
-**standard** completo. No elegís el carril para saltarte trabajo; el framework lo
-propone y vos lo aprobás en un gate, y queda registrado en `features.json`. Lite
-igual escribe un test y un `trace.json`, así que sigue dentro de drift detection
-— menos ceremonia, no menos integridad. Si un cambio lite resulta más grande de
-lo que parecía, se promueve a standard en pleno vuelo (el escape hatch solo va
-hacia arriba).
+```
+sf init                       el andamio
+sf install · uninstall        el orquestador + ~/.specforge/
 
-**¿Qué pasa con un spec después de archivar la feature? ¿No envejece?**
-Ese es el modo de falla clásico de SDD, y SpecForge trata el spec archivado como
-**documento vivo**, no como snapshot congelado (el snapshot histórico ya lo da el
-commit de git). `archive` sella la feature con un vínculo vivo al código —
-`trace.json`, la matriz estructurada que mapea cada requirement a su `path:símbolo`
-y test. Para cambiar una feature enviada corrés `sf-amend`, que edita ese spec y
-esa matriz en su lugar en vez de forkear uno paralelo. Y `sf doctor --drift`
-lee el `trace.json` para avisarte cuando el código se movió de abajo de un
-requirement — barato, porque solo chequea los anclajes exactos, no el repo entero.
+sf next                       dónde estás · qué sigue · skill · modelo · via
+sf context [--completo]       el sobre del estado actual. Sin argumentos
+sf done [--msg "…"]           corre las compuertas y mueve — o dice qué falta
+sf lote start                 crea la branch · exige el ROJO · guarda el hash
+sf new "…"                    mete una feature o un bug al backlog
 
-**¿Funciona para un equipo, o solo individual? ¿Cómo se relaciona con el code review del PR?**
-Funciona en equipo sin construir un sistema de permisos propio — se apoya en
-git/PR (F35/F36). Los gates de creación (propose/build) son del autor en una
-branch `feature/<slug>`; el **gate de veredicto se mapea al approve del PR** —
-los artefactos viajan en el PR, así que el reviewer aprueba código y spec juntos
-(mapear, no duplicar). El ownership es `owners` en la constitución + `CODEOWNERS`
-de git. La convención git es una branch por feature, un commit por wave,
-`archive` = merge. Y `sfx-github` puede exportar el roadmap a issues **en una
-dirección** (el tracker indexa el *qué*, SpecForge tiene el detalle — sin sync
-bidireccional frágil).
+sf approve                    sella lo que estés mirando
+sf reject "motivo"            no sella, y guarda el motivo para el que rehaga
+sf take <f-#>                 saca la próxima del roadmap
+sf model <nombre> [--via …]   sube el modelo — y lo declara si es nuevo
+sf dismiss <h-#> "motivo"     descarta un hallazgo de la revisión
 
-**¿Puedo usar SpecForge con cualquier agente de IA?**
-Sí. Los skills son archivos markdown. Cualquier agente que lea markdown puede
-ejecutarlos. El AGENT.md está pensado para Claude Code pero los skills son agnósticos.
+sf status                     dónde está todo — el único para humanos
+sf audit [f-# …]              el punta a punta: varias features contra sus historias
+```
 
-**¿Qué pasa si check sigue devolviendo REVISE?**
-REVISE te devuelve a sf-build con correcciones específicas. Si el spec en sí estaba
-mal, editalo directamente y la detección de resync propagará los cambios.
+## Qué impide de verdad
 
-**¿Puedo tener múltiples features activas a la vez?**
-Todavía no — en esta versión el flujo es **serial**: una feature activa a la vez,
-el resto queda `queued` en `features.json`. Así los gates y el checkpoint de
-sesión quedan sin ambigüedad. Cada feature igual tiene su propia carpeta, así que
-el paralelismo es una capacidad futura planificada (`active_feature` rastreado +
-secciones de sesión por feature); por ahora, archivá o aparcá la feature actual
-antes de arrancar otra.
+No por opinión, por aritmética:
 
-**¿En qué se diferencia de OpenSpec / Spec Kit / CaveKit?**
-SpecForge combina: constitución + identidad de Spec Kit, organización por cambios
-de OpenSpec, ejecución por waves + backprop de CaveKit. Gates humanos en cada
-artefacto, notación EARS, detección de resync, specs vivas con detección de drift,
-y revelación progresiva son exclusivos de SpecForge. Y donde las herramientas SDD
-(Spec Kit incluido) son más fuertes una vez que ya *sabés* qué construir,
-SpecForge además cubre el paso anterior — `sfp-scout` de-riskea una idea difusa
-desde cero — abarcando el arco completo: idea → de-riskeada → spec → build → check
-→ mantenida viva.
+- **El commit no se hace** → cerrar el lote **es** commitear. Sin `--msg` no hay `done`.
+- **Commits mal agrupados** → el agrupamiento se decidió al planificar. Un lote, un commit.
+- **No se crea la branch** → `sf lote start` la crea, y sin ella no sigue.
+- **"Todo verde" sin tests** → `sf` tiene la lista exacta de tests que deben existir, los corre
+  él, y **no te deja implementar hasta haberlos visto fallar**.
+- **Un test aflojado para que pase** → el hash de los archivos de test se toma en el rojo y se
+  compara en el verde.
+- **"Terminado" con media historia** → cada criterio de aceptación tiene id. `sf` no juzga la
+  revisión: comprueba **que el juicio haya ocurrido, sobre todos**.
+- **Mocks con el contexto al 50%** → un subagente fresco por lote. Es el único de todos que se
+  puede atacar *antes* del daño en vez de detectarlo después.
 
-**¿Me ayuda a descubrir QUÉ construir, o solo a construir un spec ya conocido?**
-Ambos. Para una idea clara, arrancás en `sf-init`. Para una difusa, arrancás en
-`sfp-scout`: investiga el landscape (vía los MCPs de research), stress-testea la
-idea, y devuelve un discovery brief con veredicto proceed/pivot/**kill** — y hace
-handoff a `sf-init`. De-riskea; no pretende validar demanda. La visión/identidad
-en sí la sigue capturando la conversación de constitución de `sf-init`.
+## Qué NO promete
+
+- **Calidad de código.** `sf` garantiza estructura, secuencia y evidencia — no que el diseño sea
+  bueno. Una compuerta frena sobre un **hecho**; un juez opina.
+- **Que el modelo no alucine.** Produce artefactos que lo hacen alucinar *menos*, y comprueba lo
+  comprobable.
+- **Decidir por vos.** La IA propone, la última palabra es tuya. Siempre. Por eso una dependencia
+  no aprobada **avisa** en vez de frenar: una herramienta que frena sola rompe esa regla.
+
+## La estructura
+
+```
+sf/          el binario — 17 paquetes, 211 tests, una sola dependencia
+skills/      18 skills: 9 de estado (sfp-* · sf-*) + 9 utilitarios (sfx-*)
+specs/       el diseño, y por qué cada decisión es como es
+```
+
+**El prefijo dice algo:** `sfp-` corre una vez por producto, `sf-` una vez por feature, y `sfx-`
+es un utilitario que vive **fuera** de la máquina — standalone, usable en cualquier proyecto.
+
+## El diseño
+
+Todo en [`specs/`](specs/), y no es decoración: cada documento dice **por qué** y qué se
+descartó. Empezá por [`session.md`](specs/session.md), que apunta al resto.

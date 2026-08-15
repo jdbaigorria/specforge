@@ -11,7 +11,7 @@ description: >
 
 Design data systems that are reliable, observable, and maintainable. Think in data contracts, lineage, quality gates, and idempotency.
 
-**Always produces** `specforge/context/data-designs/{slug}.md`. Model: opus.
+**Always produces a written design.** Model: opus. It goes wherever the user asks — this skill is standalone and does not write inside `.docs/` uninvited.
 
 ## Step 1: Understand the Data
 
@@ -23,7 +23,7 @@ Clarify what's not obvious:
 - **Freshness**: real-time, near-real-time, hourly, daily, on-demand
 - **History**: retention needs, reprocessing requirements
 
-Read `specforge/context/project.md` for stack context if exists.
+Read `.docs/constitucion.md` for stack context if it exists.
 
 ## Step 2: Design the Pipeline
 
@@ -36,7 +36,7 @@ For each pipeline, define:
 
 ## Step 3: Write Artifact
 
-Generate `specforge/context/data-designs/{slug}.md` using `templates/pipeline.tmpl.md`.
+Write it using `templates/pipeline.tmpl.md`.
 
 Only include sections relevant to the pipeline's complexity. A simple CSV-to-DB loader doesn't need Streaming considerations. A real-time event pipeline does.
 
@@ -45,7 +45,7 @@ Only include sections relevant to the pipeline's complexity. A simple CSV-to-DB 
 ```
 ## Pipeline: {name}
 
-**Artifact**: specforge/context/data-designs/{slug}.md
+**Artifact**: the path the user chose
 **Type**: {batch | streaming | hybrid}
 **Volume**: {records/day}
 **Latency**: {SLA}
@@ -53,7 +53,7 @@ Only include sections relevant to the pipeline's complexity. A simple CSV-to-DB 
 **Quality gates**: {count}
 **Risks**: {count}
 
-Next: {sf-propose or "resolve open questions"}
+Next: {`sf new "…"` to put it in the backlog, or "resolve open questions"}
 ```
 
 ## Rules
