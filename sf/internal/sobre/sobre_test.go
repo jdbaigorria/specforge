@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 )
@@ -263,9 +264,10 @@ func TestLoQueFaltaSeDice(t *testing.T) {
 	if !strings.Contains(txt, "git") {
 		t.Errorf("no dijo que falta el diff:\n%s", txt)
 	}
-	// Los mutantes todavía no están, y también tiene que decirse.
-	if !strings.Contains(txt, "mutacion") {
-		t.Errorf("no avisó que falta la corrida de mutantes:\n%s", txt)
+	// Y sin constitución tampoco se pueden correr los mutantes: se dice POR QUÉ,
+	// que es más útil que un "no hay mutantes" pelado.
+	if !strings.Contains(txt, "constitución") {
+		t.Errorf("no dijo por qué no hay mutantes:\n%s", txt)
 	}
 }
 
@@ -435,5 +437,56 @@ func TestNoRepiteLaSpecDeLaMismaFeature(t *testing.T) {
 
 	if txt := p.texto(); strings.Contains(txt, "Cómo se había resuelto") {
 		t.Errorf("repitió la spec de la feature en curso:\n%s", txt)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El ㉒ — la corrida de mutantes va EN EL SOBRE
+// ────────────────────────────────────────────────────────────────────────────
+
+// conConstitucion escribe una constitución mínima con el `mutacion:` que se pida.
+func (p *proyecto) conConstitucion(mutacion string) *proyecto {
+	p.t.Helper()
+	return p.archivo(docs.Constitucion,
+		"---\ntest_cmd: true\nmutacion: "+mutacion+"\n---\n\n# c\n")
+}
+
+// Vacío NO es un error: si el stack no tiene una herramienta buena, el ㉒ lo
+// hace el modelo leyendo el código. La herramienta es una mejora, no un
+// requisito — y el sobre tiene que decirlo en vez de callarse.
+func TestSinHerramientaDeMutacionLoDice(t *testing.T) {
+	txt := nuevo(t).enFeature(estado.Revision).conConstitucion(`""`).texto()
+
+	if !strings.Contains(txt, "no declaró `mutacion:`") {
+		t.Errorf("no explicó que no hay herramienta:\n%s", txt)
+	}
+	if !strings.Contains(txt, "leyendo el código") {
+		t.Errorf("no dijo qué hacer en su lugar:\n%s", txt)
+	}
+}
+
+// EL CASO QUE JUSTIFICA QUE VAYA EN EL SOBRE: el revisor recibe la corrida como
+// INSUMO. Si tuviera que correrla él después de opinar, habría opinado a ciegas.
+func TestConHerramientaCorreYEmbebeLaSalida(t *testing.T) {
+	txt := nuevo(t).enFeature(estado.Revision).
+		conConstitucion(`"echo 'mutation score 71% · sobrevivieron 4'"`).texto()
+
+	if !strings.Contains(txt, "mutation score 71%") {
+		t.Errorf("no embebió la salida de la herramienta:\n%s", txt)
+	}
+	// Y no viene como ⚠: es contenido, no una parte que falta.
+	if strings.Contains(txt, "⚠ el proyecto no declaró") {
+		t.Errorf("la sirvió como faltante:\n%s", txt)
+	}
+}
+
+// El exit code NO se mira, y es a propósito: una corrida de mutantes sale
+// distinta de cero JUSTO cuando sobrevive alguno, que es el caso interesante.
+func TestUnaCorridaQueFallaIgualSirveSuSalida(t *testing.T) {
+	txt := nuevo(t).enFeature(estado.Revision).
+		conConstitucion(`"echo 'sobrevivió el mutante de suite.go:118'; exit 1"`).texto()
+
+	if !strings.Contains(txt, "sobrevivió el mutante") {
+		t.Errorf("se tragó la salida por el exit code:\n%s", txt)
 	}
 }
