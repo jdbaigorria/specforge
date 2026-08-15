@@ -26,9 +26,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/andamio"
 	"github.com/jdbaigorria/specforge/sf/internal/arranque"
 	"github.com/jdbaigorria/specforge/sf/internal/auditoria"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/sobre"
@@ -68,6 +70,10 @@ func main() {
 		os.Exit(estadoActual())
 	case "audit":
 		os.Exit(auditar(os.Args[2:]))
+	case "install":
+		os.Exit(instalar(os.Args[2:]))
+	case "uninstall":
+		os.Exit(desinstalar())
 	case "approve", "reject", "take", "model", "dismiss":
 		os.Exit(parada(os.Args[1], os.Args[2:]))
 	case "lote":
@@ -87,7 +93,7 @@ func main() {
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Todos: init · next · audit · context · done · lote start · new · status · approve · reject · take · model · dismiss")
+		fmt.Fprintln(os.Stderr, "    Todos: init · install · next · audit · context · done · lote start · new · status · approve · reject · take · model · dismiss")
 		os.Exit(salidaError)
 	}
 }
@@ -114,7 +120,12 @@ func next() int {
 		return salidaError
 	}
 
-	i := maquina.Siguiente(raiz, e, r)
+	// El mapa de modelos puede no existir —nadie corrió `sf install`— y eso NO
+	// impide trabajar: `via()` cae a subagente. Lo único que no se puede
+	// resolver sin él es `consola`.
+	g, _ := global.Leer()
+
+	i := maquina.Siguiente(raiz, e, r, g)
 	fmt.Print(mostrar(i))
 
 	switch i.Tipo {
@@ -259,6 +270,11 @@ func parada(cmd string, args []string) int {
 		return ""
 	}
 
+	// El mapa global sólo lo toca `sf model`, y sólo cuando trae `--via`. Se lee
+	// igual para todos porque leerlo es barato y el error de "no está" ya está
+	// contemplado: g queda nil y Modelo() lo maneja.
+	g, _ := global.Leer()
+
 	var ef maquina.Efecto
 	switch cmd {
 	case "approve":
@@ -268,7 +284,12 @@ func parada(cmd string, args []string) int {
 	case "take":
 		ef = maquina.Tomar(e, r, arg(0))
 	case "model":
-		ef = maquina.Modelo(e, arg(0))
+		nombre, via, comando, err := flagsDeModelo(args)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sf model:", err)
+			return salidaError
+		}
+		ef = maquina.Modelo(e, g, nombre, via, comando)
 	case "dismiss":
 		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
 	case "lote start":
@@ -286,6 +307,14 @@ func parada(cmd string, args []string) int {
 			fmt.Fprintln(os.Stderr, "sf: no pude guardar el estado:", err)
 			return salidaError
 		}
+		// Y el mapa global sólo cuando algo lo cambió: escribirlo en cada
+		// `sf approve` sería tocar el home de Javier para no cambiar nada.
+		if ef.Global && g != nil {
+			if err := g.Guardar(); err != nil {
+				fmt.Fprintln(os.Stderr, "sf: no pude guardar ~/.specforge/:", err)
+				return salidaError
+			}
+		}
 	}
 
 	fmt.Print(ef.Texto())
@@ -293,6 +322,130 @@ func parada(cmd string, args []string) int {
 		return salidaTrabajo
 	}
 	return salidaError
+}
+
+// flagsDeModelo parte `sf model <nombre> [--via …] [--comando "…"]`.
+//
+// Los dos flags son cómo se DECLARA un modelo nuevo, y por eso van acá y no en
+// un `sf model add` aparte: aprobar es declarar (ver maquina.Modelo).
+func flagsDeModelo(args []string) (nombre, via, comando string, err error) {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		siguiente := func() (string, bool) {
+			if i+1 < len(args) {
+				i++
+				return args[i], true
+			}
+			return "", false
+		}
+
+		switch {
+		case a == "--via":
+			v, ok := siguiente()
+			if !ok {
+				return "", "", "", errors.New("`--via` sin valor. Es `subagente` o `consola`.")
+			}
+			via = v
+		case strings.HasPrefix(a, "--via="):
+			via = strings.TrimPrefix(a, "--via=")
+		case a == "--comando":
+			c, ok := siguiente()
+			if !ok {
+				return "", "", "", errors.New("`--comando` sin valor")
+			}
+			comando = c
+		case strings.HasPrefix(a, "--comando="):
+			comando = strings.TrimPrefix(a, "--comando=")
+		case strings.HasPrefix(a, "-"):
+			return "", "", "", fmt.Errorf("no conozco %q. Sólo --via y --comando", a)
+		default:
+			if nombre != "" {
+				return "", "", "", fmt.Errorf("dos modelos: %q y %q", nombre, a)
+			}
+			nombre = a
+		}
+	}
+	return nombre, via, comando, nil
+}
+
+// instalar es `sf install`: el andamio.
+//
+// No es de la máquina —no mira el estado ni lo mueve— y por eso no aparece en
+// ningún trazado del bucle. Es lo que hace que SpecForge se pueda USAR: pone el
+// orquestador en el proyecto y arma ~/.specforge/.
+func instalar(args []string) int {
+	var o andamio.Opciones
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "--forzar" || a == "--force":
+			o.Forzar = true
+		case a == "--harness" && i+1 < len(args):
+			i++
+			o.Harness = args[i]
+		case strings.HasPrefix(a, "--harness="):
+			o.Harness = strings.TrimPrefix(a, "--harness=")
+		default:
+			fmt.Fprintf(os.Stderr, "sf install: no conozco %q. Sólo --harness y --forzar.\n", a)
+			return salidaError
+		}
+	}
+
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	r, err := andamio.Instalar(raiz, o)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	for _, e := range r.Escritos {
+		fmt.Println("+", e)
+	}
+	for _, s := range r.Salteados {
+		fmt.Println("·", s)
+	}
+
+	fmt.Println()
+	fmt.Printf("harness: %s · %d modelos declarados\n", r.Harness, r.Modelos)
+	if r.Harness == "desconocido" {
+		// Se avisa fuerte porque el harness es la mitad de H1b: sin él, sf no
+		// puede decidir si un modelo va por subagente o por consola.
+		fmt.Println("⚠ No reconocí el harness. Corregilo con `sf install --harness=<nombre>`.")
+	}
+	return salidaTrabajo
+}
+
+// desinstalar es `sf uninstall`: saca el orquestador y NO toca ~/.specforge/.
+func desinstalar() int {
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	r, err := andamio.Desinstalar(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	for _, e := range r.Escritos {
+		fmt.Println("-", e)
+	}
+	for _, s := range r.Salteados {
+		fmt.Println("·", s)
+	}
+	if len(r.Escritos) == 0 && len(r.Salteados) == 0 {
+		fmt.Println("No había nada que sacar.")
+	}
+	fmt.Println()
+	fmt.Println("~/.specforge/ no se toca: tus modelos son de la máquina, no de este proyecto.")
+	return salidaTrabajo
 }
 
 // auditar es `sf audit`: el punta a punta sobre varias features.
@@ -480,6 +633,10 @@ func mostrar(i maquina.Instruccion) string {
 		campo("skill", i.Skill)
 		campo("modelo", i.Modelo)
 		campo("via", i.Via)
+		// El comando sólo aparece con `via: consola`, y es lo que el
+		// orquestador tiene que tipear. Sin esta línea, "consola" sería una
+		// instrucción que no se puede ejecutar.
+		campo("comando", i.Comando)
 
 		if i.Mensaje != "" {
 			fmt.Fprintf(&b, "\n%s\n", i.Mensaje)
@@ -500,6 +657,7 @@ func mostrar(i maquina.Instruccion) string {
 func uso() {
 	fmt.Fprintln(os.Stderr, `sf — la máquina de estados de SpecForge
 
+  sf install    pone CLAUDE.md y AGENTS.md · arma ~/.specforge/  (una vez por proyecto)
   sf init       el andamio: 2 directorios · detecta el stack · el estado vacío
   sf next       dónde estás · qué sigue · con qué skill y modelo
   sf context    el sobre del estado actual  (--completo lo embebe)

@@ -12,13 +12,19 @@ cerrados** — 10 comandos y el bucle de 4 líneas, en
 [`superficie-sf.md`](superficie-sf.md).
 
 > **El diseño está completo Y la columna del binario está construida.** `sf/` tiene los 10
-> comandos del inventario **más `sf init` y `sf audit`**, 191 tests verdes y una sola dependencia. **Los nueve
-> skills están ✅ escritos** y **el orquestador ✅ también** — cuatro líneas, en
-> [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md).
+> comandos del inventario **más `init`, `install`, `uninstall` y `audit`**, 211 tests verdes y una
+> sola dependencia. **Los nueve skills están ✅ escritos** y **el orquestador ✅ también** —
+> cuatro líneas, embebidas en el binario
+> ([`plantilla/CLAUDE.md`](../sf/internal/andamio/plantilla/CLAUDE.md)).
 >
-> **El bucle ya cierra de punta a punta:** `sf init` → `sf next` → skill → `sf done` → `sf next`.
-> Y **el auditor está** — `sf audit`, el punta a punta sobre varias features. Lo que queda del
-> diseño es **uno solo**: el mapa de modelos (`via: consola`). El punto de retomada está al final.
+> **El bucle cierra de punta a punta:** `sf install` → `sf init` → `sf next` → skill → `sf done`.
+> Está el auditor (`sf audit`) y está el mapa de modelos, así que **`via: consola` resuelve y el
+> ⑱ dejó de ser un caso especial**.
+>
+> ## ✅ EL DISEÑO ESTÁ TERMINADO — no queda ningún ⚠ en el código.
+>
+> Lo que sigue ya no es construir SpecForge: es **apagar el producto viejo** y **usarlo**. El
+> punto de retomada está al final.
 
 > La sesión anterior —el contrato de la capa cross— quedó en
 > [`session-capa-cross.md`](session-capa-cross.md). Está **congelada**, no descartada.
@@ -56,8 +62,8 @@ no para surtirse.
 | **`construccion.md`** | por dónde se empieza, qué se migra y con qué criterio · **+ los 7 pasos y lo que apareció construyendo** | ✅ **completo** |
 | **`skills.md`** | el mapa `estado → skill` firme, los 15 veredictos y la cirugía común | ✅ **completo** |
 | **`skills/`** | los 9 de estado escritos + 9 utilitarios · `sf-propose`, `sf-amend` y `sf-init` borrados | ✅ **escritos** |
-| **`plantillas/CLAUDE.md`** | el orquestador — cuatro líneas. Un archivo, dos destinos | ✅ **completo** |
-| **`sf/`** | el binario: 14 paquetes, 191 tests, los 10 comandos + `init` + `audit` | ✅ **anda** |
+| **`sf/internal/andamio/plantilla/CLAUDE.md`** | el orquestador — cuatro líneas, embebido en el binario. Un archivo, dos destinos | ✅ **completo** |
+| **`sf/`** | el binario: 17 paquetes, 211 tests, los 10 de la máquina + `init` · `install` · `uninstall` · `audit` · `status` | ✅ **anda** |
 | **`anexo-determinismo.md`** | insumo de diseño: la cita de Uncle Bob contrastada contra los datos | completo |
 | `contract/audit.md` · `judge.md` | la capa cross | ❌ **descartados** — son el contrato de `sf-audit`, y ningún estado lo consume |
 | `inception/brief-inception.md` · `flame-inception.md` | Spark y Flame caminados a mano | quedaron de la etapa anterior al corte |
@@ -285,6 +291,9 @@ y de paso el subagente no gasta contexto buscando qué leer.
 9. ~~Escribir los nueve skills~~ — ✅ **hechos**, en `skills/`.
 10. ~~El `CLAUDE.md`, `sf init` y el hueco 6~~ — ✅ **los tres cerrados**. Con eso **el bucle
     corre de punta a punta desde un directorio vacío.**
+11. ~~El auditor~~ — ✅ **`sf audit` + `sfx-audit` reescrito** (`skills.md` §10).
+12. ~~El mapa de modelos, `sf install` y la corrida de mutantes~~ — ✅ **cerrados**. **Con esto
+    el diseño terminó: no queda ningún ⚠ en el código.**
 
 ---
 
@@ -563,7 +572,7 @@ La cirugía, la misma para los nueve:
 
 ### Paso 2 — el `CLAUDE.md` de cuatro líneas · ✅ **CERRADO**
 
-Vive en [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md). **Un archivo, dos destinos:**
+Vive en [`plantilla/CLAUDE.md`](../sf/internal/andamio/plantilla/CLAUDE.md). **Un archivo, dos destinos:**
 `sf install` lo va a copiar como `CLAUDE.md` **y** como `AGENTS.md` — mantenerlo como dos
 archivos acá sería el mismo contenido en dos lugares, que es lo que el proyecto evita en todo lo
 demás.
@@ -619,25 +628,71 @@ ocupar** (él revisa una feature el día que termina y nadie la vuelve a mirar),
 "no mintió" se puede CONTAR** — si la revisión dio un criterio por cumplido y el test que lo
 probaba ya no existe, eso es un hecho. `sf audit`, probado a mano en los dos sentidos.
 
-### Paso 4 — el mapa de modelos, que cierra H1b ⬅ **ES LO ÚLTIMO DEL DISEÑO**
+### Paso 4 — el mapa de modelos · ✅ **CERRADO** — con esto **el diseño terminó**
 
-`~/.specforge/`, con qué modelos hay y cómo se invoca cada uno. Es lo único que le falta al
-campo `via:` para resolver `consola` — hoy sólo resuelve `vos` y `subagente`, y está marcado con
-⚠ en `maquina.go`.
+Vive en `sf/internal/global/` y en `sf/internal/andamio/`. **Acá no se copia: se apunta.**
 
-**Y el mecanismo ya está decidido:** la lista **no se escribe de antemano, se construye sola con
-cada aprobación**, igual que `dependencias_aprobadas`. Es un patrón ya firmado, no uno nuevo.
+`~/.specforge/modelos.yaml` guarda **qué modelos tenés y cómo se invoca cada uno**, más el
+harness. Los dos en el mismo archivo porque contestan **una sola pregunta**: *"¿cómo lanzo este
+modelo acá?"* — que es el argumento de Javier que cerró H1b.
 
-**Y arrastra un segundo pendiente**, que es el mismo ⚠: `sobre.mutantes()` devuelve
-*"todavía no: falta leer `mutacion:` de la constitución"*. El ㉒ funciona igual —el modelo lee el
-código— pero sin la corrida de la herramienta.
+```
+sf next → modelo: deepseek · via: consola · comando: deepseek exec
+```
 
-### Paso 5 — `sf install`, el andamio
+**Y el ⑱ dejó de ser un caso especial**, como el diseño anticipaba: es la misma llamada con otro
+`via:`. El skill es el mismo `.md` y el sobre es idéntico.
 
-`plantillas/CLAUDE.md` existe y **nadie lo copia**. `sf install` es lo que lo pone en un proyecto
-—como `CLAUDE.md` y como `AGENTS.md`— y, según `que-sobrevive.md` §5, también instala la
-constitución global de `~/.specforge/`. Es el mismo lugar donde va a vivir el mapa de modelos del
-paso 4: **conviene hacerlos juntos.**
+**Cuando el modelo no está declarado, `sf` PARA y no elige el reemplazo** — eso sería opinar sobre
+qué modelo se parece a cuál, y R3 lo prohíbe. Las tres salidas declaran, y por eso **la lista
+crece sola**, exactamente como `dependencias_aprobadas`:
+
+```bash
+sf model deepseek --via consola --comando "deepseek exec"
+```
+
+**No hay `sf model add` aparte, a propósito:** separar *declarar* de *usar* crearía un estado
+intermedio —declarado y nunca usado— que no le sirve a nadie. **Aprobar es declarar.**
+
+Tres decisiones que valen más que el código:
+
+- **Sin mapa, la máquina anda igual.** `via()` cae a `subagente`. No tener `~/.specforge/` no
+  puede impedir trabajar; sólo impide resolver `consola`.
+- **El harness se ESCRIBE, no se detecta en cada corrida.** La detección es una **pista** —una
+  variable de entorno que puede estar o no— y una pista re-evaluada daría respuestas distintas
+  según desde dónde se invoque. Se decide una vez, al instalar, y `--harness` lo corrige.
+- **Los tres nativos se siembran igual** (`opus`, `sonnet`, `haiku`). No contradice el *"se
+  construye sola"*: son los que **la propia máquina elige por default**, y un default sin declarar
+  haría que el primer `sf next` pare a pedir permiso para usar lo que `sf` mismo recomendó.
+
+### Paso 5 — `sf install` · ✅ **CERRADO**
+
+Es la diferencia entre *"funciona si lo armás a mano"* y *"se puede instalar"*. Pone el
+orquestador —`CLAUDE.md` **y** `AGENTS.md`, el mismo texto— y arma `~/.specforge/`.
+
+**El orquestador viaja EMBEBIDO en el binario** (`go:embed`). La alternativa —buscarlo en disco
+relativo al ejecutable— se cae sola: un `sf` instalado con `go install` vive en `~/go/bin` y no
+tiene el repo al lado. **Eso obligó a mover la plantilla** de `plantillas/` a
+`sf/internal/andamio/plantilla/`, porque `go:embed` no puede salir del directorio de su paquete.
+Sigue habiendo **una sola copia**, que era lo importante.
+
+Y las dos reglas de no pisar nada:
+
+- **`CLAUDE.md` que ya existe NO se pisa** (`--forzar` lo hace). El de un proyecto suele tener
+  instrucciones propias de Javier, y pisarlo sería borrarle trabajo para poner cuatro líneas.
+- **`~/.specforge/` que ya existe NO se re-siembra.** Ahí viven los modelos aprobados de a uno.
+- Y `sf uninstall` **sólo borra el archivo si es idéntico al que escribimos**, y **nunca toca
+  `~/.specforge/`**: los modelos son de la máquina, no del proyecto.
+
+### Y de paso cayó el último ⚠: la corrida de mutantes
+
+`sobre.mutantes()` devolvía *"todavía no"*. Ahora lee `mutacion:` de la constitución y **corre la
+herramienta, embebiendo su salida en el sobre del ㉑**. Va en el sobre y no en un comando porque
+el revisor la necesita **como insumo**: si tuviera que correrla después de opinar, habría opinado
+a ciegas.
+
+**El exit code no se mira**, y es a propósito: una corrida de mutantes sale distinta de cero
+**justo cuando sobrevive alguno**, que es el caso interesante.
 
 ### Y sigue aparcado
 

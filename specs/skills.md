@@ -378,8 +378,10 @@ Go real, en los dos sentidos — con la mentira (`exit 2`) y sin ella (`exit 0`)
 
 ## 11. Qué sigue
 
-1. ~~El `CLAUDE.md` de cuatro líneas~~ — ✅ **en [`plantillas/CLAUDE.md`](../plantillas/CLAUDE.md)**.
-   Un archivo, dos destinos: `sf install` lo copia como `CLAUDE.md` **y** como `AGENTS.md`.
+1. ~~El `CLAUDE.md` de cuatro líneas~~ — ✅ **en
+   [`sf/internal/andamio/plantilla/CLAUDE.md`](../sf/internal/andamio/plantilla/CLAUDE.md)**, y
+   embebido en el binario. Un archivo, dos destinos: `sf install` lo escribe como `CLAUDE.md`
+   **y** como `AGENTS.md`.
 2. ~~`sf init`~~ — ✅ **construido**, en `sf/internal/arranque/`. Probado a mano contra un
    proyecto Go real y contra uno sin manifiesto.
 3. ~~El hueco 6~~ — ✅ **cerrado** (§7).
@@ -387,11 +389,16 @@ Go real, en los dos sentidos — con la mentira (`exit 2`) y sin ella (`exit 0`)
    precedencia de tres niveles. Era el hueco 4 de `que-sobrevive.md` §13 y **el skill ya lo
    prometía sin que existiera**.
 5. ~~El auditor~~ — ✅ **`sf audit` + `sfx-audit` reescrito** (§10).
-6. **El mapa de modelos** (`~/.specforge/`), que cierra H1b y el `via: consola`. Es lo único que
-   queda del diseño, y arrastra `sobre.mutantes()`.
-7. **`sf install`** — el andamio. Hoy `plantillas/CLAUDE.md` existe y **nadie lo copia**.
-8. **Apagar el producto viejo**: `cli/`, `AGENT.md`, `README*.md`, `INSTALL.md`, `docs/`,
-   `examples/`. **Se referencian entre sí**, así que van juntos o no van.
+6. ~~El mapa de modelos~~ — ✅ **`~/.specforge/modelos.yaml`**, en `sf/internal/global/`. Cierra
+   H1b: `via: consola` resuelve y **el ⑱ dejó de ser un caso especial**.
+7. ~~`sf install`~~ — ✅ **el andamio**, en `sf/internal/andamio/`, con el orquestador embebido.
+8. ~~La corrida de mutantes~~ — ✅ **`sobre.mutantes()` corre la herramienta** de `mutacion:`.
+
+> ### ✅ Con eso **el diseño terminó**: cero ⚠ pendientes en el código.
+
+9. **Apagar el producto viejo**: `cli/`, `AGENT.md`, `README*.md`, `INSTALL.md`, `docs/`,
+   `examples/`. **Se referencian entre sí**, así que van juntos o no van. Es lo único que queda,
+   y es mecánico.
 
 ---
 
