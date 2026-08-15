@@ -9,7 +9,10 @@
 `sf` is a state machine that knows **where you are**, **what comes next**, and **whether you're
 allowed to advance**. Your agent asks it, does the work, and asks again.
 
-**License:** [MIT](LICENSE)
+**[Install](INSTALL.md)** · **[Docs](docs/)** · **[First run, end to end](docs/primeros-pasos.md)** ·
+**[Commands](docs/comandos.md)** · **License:** [MIT](LICENSE)
+
+> The guides are in Spanish, like `sf`'s own output and the design notes in `specs/`.
 
 ---
 
@@ -72,12 +75,16 @@ harnesses is how a subagent is launched, and the harness already knows how to do
 
 ```bash
 cd sf && go build -o ~/go/bin/sf ./cmd/sf
+cp -r skills/* ~/.claude/skills/
 
 cd <your project>
 sf install    # CLAUDE.md + AGENTS.md · ~/.specforge/ with your models
 sf init       # the scaffold: 2 directories, stack detection, empty state
 sf next       # and from here on, the loop
 ```
+
+Full instructions in **[INSTALL.md](INSTALL.md)**, and a complete walkthrough in
+**[docs/primeros-pasos.md](docs/primeros-pasos.md)**.
 
 ## The nine states
 
@@ -152,6 +159,18 @@ specs/       the design, and why each decision is the way it is
 
 **The prefix says something:** `sfp-` runs once per product, `sf-` once per feature, and `sfx-`
 is a utility that lives **outside** the machine — standalone, usable in any project.
+
+## Documentation
+
+| | |
+|---|---|
+| [`INSTALL.md`](INSTALL.md) | install it |
+| [`docs/primeros-pasos.md`](docs/primeros-pasos.md) | a complete run, end to end |
+| [`docs/comandos.md`](docs/comandos.md) | the 16 commands |
+| [`docs/estados.md`](docs/estados.md) | the 9 states and what each gate checks |
+| [`docs/artefactos.md`](docs/artefactos.md) | every file and its shape |
+| [`docs/skills.md`](docs/skills.md) | the 18 skills |
+| [`docs/problemas.md`](docs/problemas.md) | what to do when `sf` stops you |
 
 ## The design
 

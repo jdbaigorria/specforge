@@ -9,6 +9,8 @@
 `sf` es una máquina de estados que sabe **dónde estás**, **qué sigue** y **si podés avanzar**. Tu
 agente le pregunta, hace el trabajo, y vuelve a preguntar.
 
+**[Instalar](INSTALL.md)** · **[Documentación](docs/)** ·
+**[Una vuelta completa](docs/primeros-pasos.md)** · **[Comandos](docs/comandos.md)** ·
 **Licencia:** [MIT](LICENSE)
 
 ---
@@ -72,6 +74,7 @@ se lanza un subagente, y eso el harness ya lo sabe hacer.
 
 ```bash
 cd sf && go build -o ~/go/bin/sf ./cmd/sf
+cp -r skills/* ~/.claude/skills/
 
 cd <tu proyecto>
 sf install    # CLAUDE.md + AGENTS.md · ~/.specforge/ con tus modelos
@@ -151,6 +154,18 @@ specs/       el diseño, y por qué cada decisión es como es
 
 **El prefijo dice algo:** `sfp-` corre una vez por producto, `sf-` una vez por feature, y `sfx-`
 es un utilitario que vive **fuera** de la máquina — standalone, usable en cualquier proyecto.
+
+## La documentación
+
+| | |
+|---|---|
+| [`INSTALL.md`](INSTALL.md) | instalarlo |
+| [`docs/primeros-pasos.md`](docs/primeros-pasos.md) | una vuelta completa, de punta a punta |
+| [`docs/comandos.md`](docs/comandos.md) | los 16 comandos |
+| [`docs/estados.md`](docs/estados.md) | los 9 estados y qué exige cada compuerta |
+| [`docs/artefactos.md`](docs/artefactos.md) | cada archivo y su forma |
+| [`docs/skills.md`](docs/skills.md) | los 18 skills |
+| [`docs/problemas.md`](docs/problemas.md) | qué hacer cuando `sf` te frena |
 
 ## El diseño
 
