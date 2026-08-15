@@ -50,9 +50,11 @@ package sobre
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
@@ -241,7 +243,7 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error
 			{Titulo: "Qué se había planeado", Rutas: []string{filepath.Join(carpeta, docs.Spec)}},
 			{Titulo: "Los criterios, y hay que opinar sobre TODOS", Rutas: rutasDeHistorias(fr.Historias)},
 			diff(raiz, f.BaseCommit, "El código que quedó"),
-			mutantes(),
+			mutantes(raiz),
 		}
 
 	case estado.Cierre:
@@ -319,20 +321,55 @@ func diff(raiz, base, titulo string) Parte {
 	return Parte{Titulo: titulo + " (desde " + base + ")", Contenido: resumen}
 }
 
-// mutantes es la corrida de la herramienta del ㉒, y TODAVÍA NO ESTÁ.
+// mutantes es la corrida de la herramienta del ㉒.
 //
-// Va acá y no en un comando aparte: `sf mutation` no existe (H13). El modelo
-// necesita los sobrevivientes como INSUMO —si corre después, inventó a ciegas—
-// y sf necesita el score igual, porque 71% → 88% es un número que compara entre
-// vueltas. Si se lo pidiera al modelo le estaría creyendo al que trabajó.
+// Va en el sobre y no en un comando aparte: `sf mutation` no existe (H13). El
+// modelo necesita los sobrevivientes como INSUMO —si la corrida fuera después,
+// habría opinado a ciegas— y sf necesita el score igual, porque 71% → 88% es un
+// número que compara entre vueltas. Pedírselo al modelo sería creerle al que
+// trabajó.
 //
-// Falta parsear el frontmatter de la constitución para saber qué herramienta
-// declaró el proyecto (`mutacion: gremlins`). Es del paso 4.
-func mutantes() Parte {
-	return Parte{
-		Titulo: "Los mutantes que sobrevivieron",
-		Falta:  "todavía no: falta leer `mutacion:` de la constitución (paso 4)",
+// ────────────────────────────────────────────────────────────────────────────
+// VACÍO NO ES UN ERROR
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `mutacion:` puede estar vacío y está bien: si el stack no tiene una
+// herramienta buena, el ㉒ lo hace el modelo leyendo el código. La herramienta
+// es una MEJORA, no un requisito — igual que los subagentes.
+//
+// Y por eso esto no frena nunca: pase lo que pase, la parte se sirve diciendo
+// qué ocurrió. Un sobre al que le falta el dato tiene que DECIRLO; si la parte
+// simplemente no apareciera, el revisor creería que no hacía falta.
+func mutantes(raiz string) Parte {
+	const titulo = "Los mutantes que sobrevivieron"
+
+	c, err := constitucion.Leer(raiz)
+	if err != nil {
+		return Parte{Titulo: titulo, Falta: "no pude leer la constitución: " + err.Error()}
 	}
+	if strings.TrimSpace(c.Mutacion) == "" {
+		return Parte{Titulo: titulo, Falta: "el proyecto no declaró `mutacion:` — el ㉒ lo hacés leyendo el código"}
+	}
+
+	// Se corre con la shell por lo mismo que `test_cmd`: las líneas reales
+	// llevan flags con comillas y a veces un pipe, y partir por espacios las
+	// rompe en silencio.
+	cmd := exec.Command("sh", "-c", c.Mutacion)
+	cmd.Dir = raiz
+	salida, err := cmd.CombinedOutput()
+
+	// El exit code NO se mira: una corrida de mutantes sale distinto de cero
+	// cuando sobrevive alguno, que es justamente el caso interesante. Lo que
+	// importa es la salida, y de ahí el score lo lee el modelo — sf no parsea
+	// una herramienta por lenguaje (mismo argumento que suite.Correr).
+	texto := strings.TrimRight(string(salida), "\n")
+	if texto == "" {
+		if err != nil {
+			return Parte{Titulo: titulo, Falta: c.Mutacion + " no se pudo correr: " + err.Error()}
+		}
+		return Parte{Titulo: titulo, Falta: c.Mutacion + " no imprimió nada"}
+	}
+	return Parte{Titulo: titulo + " (" + c.Mutacion + ")", Contenido: texto}
 }
 
 // aprendizajes son los journals de las features ya cerradas.

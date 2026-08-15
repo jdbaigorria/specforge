@@ -10,6 +10,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/frontmatter"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 )
@@ -31,6 +32,14 @@ import (
 type Efecto struct {
 	Mensaje string
 	Fallas  []string
+
+	// Global es que además del estado del proyecto hay que guardar
+	// ~/.specforge/. Sólo lo enciende `sf model` al declarar uno nuevo.
+	//
+	// Es un campo y no "guardá siempre las dos cosas" porque escribir el mapa
+	// global en cada `sf approve` sería tocar el home de Javier veinte veces
+	// por feature para no cambiar nada.
+	Global bool
 }
 
 func (e Efecto) Pasa() bool { return len(e.Fallas) == 0 }
@@ -320,26 +329,88 @@ func Tomar(e *estado.Estado, r *roadmap.Roadmap, id string) Efecto {
 //
 // Y resetea el contador: cambiar de modelo es empezar de nuevo, no seguir
 // acumulando los fracasos del anterior.
-func Modelo(e *estado.Estado, nombre string) Efecto {
+//
+// ────────────────────────────────────────────────────────────────────────────
+// APROBAR ES DECLARAR, Y POR ESO EL MAPA SE LLENA SOLO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Este comando es también la respuesta a la 🛑 de "ese modelo no está
+// declarado". Cuando trae `--via`, además de usar el modelo LO DECLARA en
+// ~/.specforge/, y queda para todos los proyectos.
+//
+//	sf model deepseek --via consola --comando "deepseek exec"
+//
+// No hay un `sf model add` aparte a propósito: separar "declarar" de "usar"
+// crearía un estado intermedio —declarado pero nunca usado— que no le sirve a
+// nadie. Es el mismo mecanismo que `dependencias_aprobadas`: la lista no se
+// escribe de antemano, se construye con cada aprobación.
+func Modelo(e *estado.Estado, g *global.Config, nombre, via, comando string) Efecto {
 	var ef Efecto
 	if nombre == "" {
 		ef.falla("falta el modelo: `sf model <nombre>`")
 		return ef
 	}
+
+	// La validación va ANTES de tocar el estado: un `--via consola` sin comando
+	// dejaría un modelo declarado que nadie puede invocar, y eso se descubriría
+	// recién cuando el orquestador lo intente.
+	if via != "" {
+		if via != global.Subagente && via != global.Consola {
+			ef.falla("`--via %s` no existe. Es `subagente` o `consola`.", via)
+			return ef
+		}
+		if via == global.Consola && comando == "" {
+			ef.falla("`--via consola` necesita `--comando \"…\"`: sin eso nadie sabe cómo invocarlo.")
+			return ef
+		}
+		if via == global.Subagente && comando != "" {
+			ef.falla("`--comando` sólo tiene sentido con `--via consola`.")
+			return ef
+		}
+	}
+
 	f, hay := e.Actual()
 	if !hay {
 		ef.falla("no hay feature en curso")
 		return ef
 	}
 
+	// Sin `--via`, el modelo tiene que estar declarado: cambiar a uno que sf no
+	// sabe invocar es cambiar a nada, y el próximo `sf next` pararía igual.
+	// Decirlo acá ahorra esa vuelta.
+	if via == "" && g != nil {
+		if _, declarado := g.Buscar(nombre); !declarado {
+			ef.falla("%q no está declarado. Decime cómo se lanza: `--via subagente` o `--via consola --comando \"…\"`.", nombre)
+			return ef
+		}
+	}
+
 	anterior := f.Modelo
 	f.Modelo = nombre
 	f.IntentosFallidos = 0
 
-	if anterior == "" {
+	if via != "" && g != nil {
+		g.Declarar(nombre, global.Modelo{Via: via, Comando: comando})
+		ef.Global = true
+	}
+
+	// El "a → b" sólo si de verdad cambió. El caso `a → a` es real y frecuente:
+	// el ⑯ recomendó un modelo, la 🛑 pidió declararlo, y `sf model` lo declara
+	// sin cambiar nada. Imprimir "deepseek → deepseek" ahí es ruido que hace
+	// dudar de si el comando hizo algo.
+	switch {
+	case anterior == "":
 		ef.Mensaje = "modelo: " + nombre
-	} else {
+	case anterior == nombre:
+		ef.Mensaje = "modelo: " + nombre + " (contador reseteado)"
+	default:
 		ef.Mensaje = fmt.Sprintf("modelo: %s → %s (contador reseteado)", anterior, nombre)
+	}
+	if ef.Global {
+		ef.Mensaje += fmt.Sprintf("\n   declarado en ~/.specforge/: via %s", via)
+		if comando != "" {
+			ef.Mensaje += " · " + comando
+		}
 	}
 	return ef
 }
