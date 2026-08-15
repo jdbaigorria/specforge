@@ -729,3 +729,35 @@ func TestElBriefSiempreEsVos(t *testing.T) {
 		t.Errorf("el brief salió con via %q", i.Via)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El plan que envejece
+// ────────────────────────────────────────────────────────────────────────────
+
+// Planificás f-2, implementás f-1, y la spec de f-2 queda mirando un repo que ya
+// cambió. Avisa y NO frena: qué cambió y si importa es criterio, y el criterio
+// es de Javier.
+func TestAvisaCuandoElPlanSeEscribioSobreOtroCommit(t *testing.T) {
+	p := nuevo(t).enImplementarCon("")
+	p.e.Features["f-1"].BaseCommit = "0000000000000000000000000000000000000000"
+
+	i := p.next()
+	if i.Tipo != Trabajar {
+		t.Fatalf("tipo %v: el plan viejo AVISA, no frena", i.Tipo)
+	}
+	// El proyecto de prueba no es un repo git, así que no hay con qué comparar:
+	// sin git no se puede saber si el suelo se movió, y callarse es correcto.
+	if len(i.Avisos) != 0 {
+		t.Errorf("avisó sin poder comparar: %v", i.Avisos)
+	}
+}
+
+// Sin base_commit no hay nada que comparar, y eso es lo normal en el camino
+// corto de un bug: ahí no hay planificación que lo escriba.
+func TestSinBaseCommitNoAvisa(t *testing.T) {
+	i := nuevo(t).enImplementarCon("").next()
+
+	if len(i.Avisos) != 0 {
+		t.Errorf("avisó sin base_commit: %v", i.Avisos)
+	}
+}

@@ -39,6 +39,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/compuerta"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
@@ -117,6 +118,13 @@ type Instruccion struct {
 	// Sugerido son los comandos que corresponden ahora. En una parada, son las
 	// salidas que tiene Javier.
 	Sugerido []string
+
+	// Avisos son cosas que hay que saber y que NO frenan.
+	//
+	// La distinción es de diseño: sf frena sobre hechos y avisa sobre todo lo
+	// demás, porque la última palabra es de Javier y una herramienta que frena
+	// sola rompe esa regla.
+	Avisos []string
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -489,6 +497,24 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 	// veces sería tocar el disco de más para obtener siempre lo mismo.
 	m := modeloDeFeature(raiz, fr, f, estado.Implementar)
 
+	i := Instruccion{}
+	// EL PLAN QUE ENVEJECE, y es el aviso más barato del diseño.
+	//
+	// Si planificaste f-2 y después implementaste f-1, la spec de f-2 quedó
+	// mirando un repo QUE YA CAMBIÓ. Y el implementador que no encuentra lo que
+	// la spec dice IMPROVISA — que es exactamente donde nacen los mocks.
+	//
+	// El mecanismo es de pobre a propósito: guardar un número al planificar y
+	// compararlo al implementar. sf no sabe QUÉ cambió ni si importa; sabe que
+	// el suelo se movió desde que se dibujó el plano. Avisa, no frena.
+	if f.BaseCommit != "" && git.EsRepo(raiz) {
+		if h, err := git.Head(raiz); err == nil && h != f.BaseCommit {
+			i.Avisos = append(i.Avisos, fmt.Sprintf(
+				"el plan de %s se escribió sobre %s y el repo ya se movió. Si la spec no coincide con lo que ves, DECILO — no improvises.",
+				id, f.BaseCommit[:min(7, len(f.BaseCommit))]))
+		}
+	}
+
 	// Y el `via` sale del mapa, igual que en `trabajar`. Acá el caso pesa más
 	// que en ningún otro estado: es JUSTO donde el ⑯ recomienda un modelo
 	// distinto, y donde Javier sube el modelo con `sf model` cuando el bucle
@@ -504,17 +530,14 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 	// una línea — y en el camino corto de un bug pasaba siempre, porque ahí no
 	// hay planificación que los siembre antes.
 	if len(f.Lotes) == 0 {
-		return Instruccion{
-			Tipo:     Trabajar,
-			Estado:   estado.Implementar,
-			Feature:  id,
-			Skill:    skills[estado.Implementar],
-			Modelo:   m,
-			Via:      v,
-			Comando:  cmd,
-			Mensaje:  "escribí los tests y confirmá el rojo antes de implementar",
-			Sugerido: []string{"sf context", "sf lote start"},
-		}
+		i.Tipo = Trabajar
+		i.Estado = estado.Implementar
+		i.Feature = id
+		i.Skill = skills[estado.Implementar]
+		i.Modelo, i.Via, i.Comando = m, v, cmd
+		i.Mensaje = "escribí los tests y confirmá el rojo antes de implementar"
+		i.Sugerido = []string{"sf context", "sf lote start"}
+		return i
 	}
 
 	l, hay := f.LoteActual()
@@ -530,17 +553,13 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 		}
 	}
 
-	i := Instruccion{
-		Tipo:    Trabajar,
-		Estado:  estado.Implementar,
-		Feature: id,
-		Lote:    l.Lote,
-		DeLotes: len(f.Lotes),
-		Skill:   skills[estado.Implementar],
-		Modelo:  m,
-		Via:     v,
-		Comando: cmd,
-	}
+	i.Tipo = Trabajar
+	i.Estado = estado.Implementar
+	i.Feature = id
+	i.Lote = l.Lote
+	i.DeLotes = len(f.Lotes)
+	i.Skill = skills[estado.Implementar]
+	i.Modelo, i.Via, i.Comando = m, v, cmd
 
 	if !l.Rojo {
 		i.Mensaje = "escribí los tests del lote y confirmá el rojo antes de implementar"
