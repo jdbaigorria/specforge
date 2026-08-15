@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
@@ -28,6 +29,7 @@ type proyecto struct {
 	raiz string
 	e    *estado.Estado
 	r    *roadmap.Roadmap
+	g    *global.Config
 	t    *testing.T
 }
 
@@ -94,7 +96,17 @@ func (p *proyecto) productoListo() *proyecto {
 }
 
 func (p *proyecto) next() Instruccion {
-	return Siguiente(p.raiz, p.e, p.r)
+	return Siguiente(p.raiz, p.e, p.r, p.g)
+}
+
+// conModelos declara un mapa de modelos para este proyecto de prueba.
+//
+// Los tests que NO lo llaman corren con g == nil, que es el caso de "todavía no
+// se corrió sf install" — y tiene que seguir funcionando: no tener el mapa no
+// puede impedir trabajar.
+func (p *proyecto) conModelos(m map[string]global.Modelo) *proyecto {
+	p.g = &global.Config{Harness: "claude-code", Modelos: m}
+	return p
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -484,8 +496,10 @@ func TestTodoTrabajoTraeSkillYModelo(t *testing.T) {
 			if modelo(est) == "" {
 				t.Errorf("el estado %q no resuelve modelo", est)
 			}
-			if via(est) == "" {
-				t.Errorf("el estado %q no resuelve via", est)
+			// Sin mapa (nadie corrió sf install) el via igual resuelve: es
+			// lo que permite trabajar antes de instalar nada.
+			if v, _, hay := via(est, modelo(est), nil); !hay || v == "" {
+				t.Errorf("el estado %q no resuelve via sin mapa", est)
 			}
 		})
 	}
@@ -627,5 +641,91 @@ func TestLaPrecedenciaDelModelo(t *testing.T) {
 				t.Errorf("modelo %q, quería %q", m, c.quiero)
 			}
 		})
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// H1b — el via sale del mapa, y un modelo sin declarar PARA
+// ────────────────────────────────────────────────────────────────────────────
+
+// enImplementarCon deja f-1 lista para implementar con el modelo que se pida.
+func (p *proyecto) enImplementarCon(modelo string) *proyecto {
+	p.t.Helper()
+	p.productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Implementar, Modelo: modelo}
+	return p
+}
+
+// EL TEST QUE JUSTIFICA EL MAPA. El ⑱ deja de ser un caso especial: es la misma
+// llamada con otro `via:`, y el comando viene con ella — sin eso, "consola"
+// sería una instrucción que el orquestador no puede ejecutar.
+func TestUnModeloDeOtroProveedorSalePorConsola(t *testing.T) {
+	p := nuevo(t).enImplementarCon("deepseek").conModelos(map[string]global.Modelo{
+		"sonnet":   {Via: global.Subagente},
+		"deepseek": {Via: global.Consola, Comando: "deepseek exec"},
+	})
+
+	i := p.next()
+	if i.Tipo != Trabajar {
+		t.Fatalf("tipo %v, quería Trabajar", i.Tipo)
+	}
+	if i.Via != global.Consola {
+		t.Errorf("via %q, quería consola", i.Via)
+	}
+	if i.Comando != "deepseek exec" {
+		t.Errorf("comando %q, quería el del mapa", i.Comando)
+	}
+	// Y el skill es EL MISMO: lo único que cambia es cómo se lanza.
+	if i.Skill != skills[estado.Implementar] {
+		t.Errorf("skill %q — el ⑱ no es un skill distinto", i.Skill)
+	}
+}
+
+// Un modelo que no está en el mapa PARA, y sf no elige el reemplazo: eso sería
+// opinar sobre qué modelo se parece a cuál, y R3 lo prohíbe.
+func TestUnModeloSinDeclararPara(t *testing.T) {
+	p := nuevo(t).enImplementarCon("grok").conModelos(map[string]global.Modelo{
+		"sonnet": {Via: global.Subagente},
+	})
+
+	i := p.next()
+	if i.Tipo != Para {
+		t.Fatalf("tipo %v, quería Para", i.Tipo)
+	}
+	if !strings.Contains(i.Mensaje, "grok") {
+		t.Errorf("no dijo cuál falta: %q", i.Mensaje)
+	}
+	// Las tres salidas son las del diseño, y las tres declaran.
+	if len(i.Sugerido) != 3 {
+		t.Errorf("sugirió %v, querían ser tres salidas", i.Sugerido)
+	}
+	if !strings.Contains(strings.Join(i.Sugerido, " "), "--via consola") {
+		t.Errorf("no ofreció la salida por consola: %v", i.Sugerido)
+	}
+}
+
+// Sin mapa —nadie corrió `sf install`— la máquina sigue funcionando. No tener
+// el mapa no puede impedir trabajar: sólo impide resolver `consola`.
+func TestSinMapaCaeASubagente(t *testing.T) {
+	i := nuevo(t).enImplementarCon("loquesea").next()
+
+	if i.Tipo != Trabajar {
+		t.Fatalf("tipo %v: sin sf install la máquina tiene que andar igual", i.Tipo)
+	}
+	if i.Via != global.Subagente {
+		t.Errorf("via %q, quería subagente", i.Via)
+	}
+}
+
+// El brief es el único que conversa, y eso NO depende del mapa: un subagente
+// arranca, trabaja y muere — no te habla.
+func TestElBriefSiempreEsVos(t *testing.T) {
+	p := nuevo(t).conModelos(map[string]global.Modelo{
+		"sonnet": {Via: global.Consola, Comando: "lo que sea"},
+	})
+
+	if i := p.next(); i.Via != global.Vos {
+		t.Errorf("el brief salió con via %q", i.Via)
 	}
 }

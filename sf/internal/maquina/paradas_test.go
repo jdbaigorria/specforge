@@ -230,7 +230,7 @@ func TestModelResetaElContador(t *testing.T) {
 		Estado: estado.Implementar, Modelo: "deepseek", IntentosFallidos: 3,
 	}
 
-	ef := Modelo(p.e, "opus")
+	ef := Modelo(p.e, nil, "opus", "", "")
 	if !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}

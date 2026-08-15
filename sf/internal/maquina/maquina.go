@@ -39,6 +39,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/compuerta"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
@@ -100,6 +101,16 @@ type Instruccion struct {
 	Modelo string
 	Via    string
 
+	// Comando es con qué se sale por consola, y sólo viene con `via: consola`.
+	//
+	//	modelo:  deepseek
+	//	via:     consola
+	//	comando: deepseek exec
+	//
+	// Sale del mapa de modelos (~/.specforge/), que es el único lugar que sabe
+	// cómo se invoca cada uno en ESTA máquina.
+	Comando string
+
 	// Mensaje es qué pasa, en una línea, para el humano o el LLM que lee.
 	Mensaje string
 
@@ -154,19 +165,19 @@ var skills = map[string]string{
 //
 // La cadena de precedencia, de la que más manda a la que menos:
 //
-//	1. sf model <nombre>   la decisión de Javier en runtime (estado.json)
-//	2. tareas.json         el ⑯: "ESTA feature necesita uno más grande"
-//	3. modeloPorEstado     el criterio del diseño, por estado
-//	4. modeloPorDefecto
+//  1. sf model <nombre>   la decisión de Javier en runtime (estado.json)
+//  2. tareas.json         el ⑯: "ESTA feature necesita uno más grande"
+//  3. modeloPorEstado     el criterio del diseño, por estado
+//  4. modeloPorDefecto
 //
 // El orden no es arbitrario: cada nivel sabe MENOS que el de arriba. El default
 // no sabe nada de la feature; el ⑯ la planificó pero no vio fallar nada; Javier
 // está mirando el bucle patinar cuando escribe `sf model`.
 //
-// ⚠ Falta la otra mitad de H1b: `~/.specforge/`, qué modelos hay y cómo se
-// invoca cada uno. Es lo único que le impide al campo `via:` resolver `consola`
-// — hoy resuelve `vos` y `subagente`, que alcanzan para un harness con
-// subagentes propios.
+// Y la otra mitad de H1b —CÓMO se lanza el modelo que sale de acá— vive en
+// `~/.specforge/` y la resuelve `via()`. Este mapa dice QUÉ hace falta; el otro
+// dice cómo se invoca en esta máquina. Ninguno de los dos sabe lo del otro, y
+// por eso `sf next` es el único que puede contestar la pregunta entera.
 var modeloPorEstado = map[string]string{
 	estado.Planificacion: "opus",
 	estado.Revision:      "opus",
@@ -178,28 +189,28 @@ const modeloPorDefecto = "sonnet"
 //
 // `raiz` es la raíz del proyecto: hace falta porque varias decisiones se toman
 // mirando qué archivos existen, que es el truco de los checkpoints.
-func Siguiente(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instruccion {
+func Siguiente(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Instruccion {
 	// El orden importa y es el del flujo: los cinco de producto primero, y
 	// recién cuando están los cinco empieza el ciclo de feature. No hay forma
 	// de planificar sin constitución.
-	if i, hay := siguienteDeProducto(raiz, e, r); hay {
+	if i, hay := siguienteDeProducto(raiz, e, r, g); hay {
 		return i
 	}
-	return siguienteDeFeature(raiz, e, r)
+	return siguienteDeFeature(raiz, e, r, g)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // Producto — los cinco que corren una vez
 // ────────────────────────────────────────────────────────────────────────────
 
-func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Instruccion, bool) {
+func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) (Instruccion, bool) {
 	// ① brief. El sello es un veredicto, no un bool: vacío = no sellado.
 	if e.Producto.BriefSellado == "" {
 		// Acá está el patrón que se repite en los tres primeros estados, y es
 		// la diferencia entre "falta hacerlo" y "está hecho, falta que lo
 		// mires": lo separa la EXISTENCIA DEL ARCHIVO, no un campo.
 		if !existe(raiz, docs.Brief) {
-			return trabajar("brief", "", "el ⑥ lo sellás vos cuando esté"), true
+			return trabajar("brief", "", "el ⑥ lo sellás vos cuando esté", g), true
 		}
 		return Instruccion{
 			Tipo:     Para,
@@ -222,13 +233,13 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Ins
 
 	// ⑦ prd. El hash lo pone `sf done`, así que vacío = todavía no cerró.
 	if e.Producto.PrdHash == "" {
-		return trabajar("prd", "", "sin parada: del ⑦ se pasa derecho al ⑧"), true
+		return trabajar("prd", "", "sin parada: del ⑦ se pasa derecho al ⑧", g), true
 	}
 
 	// ⑧ constitución.
 	if !e.Producto.ConstitucionSellada {
 		if !existe(raiz, docs.Constitucion) {
-			return trabajar("constitucion", "", "el ⑧ lo sellás vos cuando esté"), true
+			return trabajar("constitucion", "", "el ⑧ lo sellás vos cuando esté", g), true
 		}
 		return Instruccion{
 			Tipo:     Para,
@@ -242,7 +253,7 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Ins
 	// campo BacklogVisto porque un enter no deja rastro (ver estado.go).
 	if !e.Producto.BacklogVisto {
 		if !hayHistorias(raiz) {
-			return trabajar("backlog", "", "el ⑨ parte el PRD en historias"), true
+			return trabajar("backlog", "", "el ⑨ parte el PRD en historias", g), true
 		}
 		return Instruccion{
 			Tipo:     Barata,
@@ -254,7 +265,7 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Ins
 
 	// ⑩ roadmap. Sin parada: agrupa y ordena, y de ahí arranca el ciclo.
 	if !existe(raiz, roadmap.Archivo) {
-		return trabajar("roadmap", "", "el ⑩ agrupa las historias en features"), true
+		return trabajar("roadmap", "", "el ⑩ agrupa las historias en features", g), true
 	}
 
 	// Y el ⑩ vuelve a hacer falta cada vez que entra algo nuevo por `sf new`:
@@ -262,7 +273,7 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Ins
 	// esto el ciclo seguiría como si nada.
 	if sueltas := huerfanas(raiz, r); len(sueltas) > 0 {
 		i := trabajar("roadmap", "", fmt.Sprintf(
-			"hay %d historia(s) sin feature: %s", len(sueltas), strings.Join(sueltas, " · ")))
+			"hay %d historia(s) sin feature: %s", len(sueltas), strings.Join(sueltas, " · ")), g)
 		return i, true
 	}
 
@@ -273,7 +284,7 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap) (Ins
 // Feature — los cuatro que se repiten, una vuelta por feature
 // ────────────────────────────────────────────────────────────────────────────
 
-func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instruccion {
+func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Instruccion {
 	// Sin roadmap no hay cola. No debería pasar (siguienteDeProducto ya lo
 	// habría atajado), pero un nil acá sería un panic y no un mensaje.
 	if r == nil {
@@ -282,7 +293,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 
 	f, hay := e.Actual()
 	if !hay {
-		return tomarLaProxima(e, r)
+		return tomarLaProxima(e, r, g)
 	}
 
 	// ME TRABÉ va PRIMERO, antes de mirar en qué estado está: si el contador
@@ -317,7 +328,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 
 	switch actual {
 	case estado.Planificacion:
-		return planificando(raiz, e.FeatureActual, fr)
+		return planificando(raiz, e.FeatureActual, fr, g)
 
 	case estado.Planificada:
 		// El plan está aprobado y esperando. Es la puerta "otra feature" del
@@ -332,11 +343,11 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 		}
 
 	case estado.Implementar:
-		return implementando(raiz, fr, f)
+		return implementando(raiz, fr, f, g)
 
 	case estado.Revision:
 		return trabajar(estado.Revision, e.FeatureActual,
-			"el ㉑ juzga los criterios y el ㉒ mira los mutantes, en la misma pasada")
+			"el ㉑ juzga los criterios y el ㉒ mira los mutantes, en la misma pasada", g)
 
 	case estado.Cierre:
 		// Igual que en `planificacion`: la compuerta es barata —mirar dos
@@ -352,11 +363,11 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 			}
 		}
 		return trabajar(estado.Cierre, e.FeatureActual,
-			"el ㉓ escribe la doc y el journal")
+			"el ㉓ escribe la doc y el journal", g)
 
 	case estado.Cerrada:
 		// La feature actual quedó cerrada y nadie tomó otra: sigue la cola.
-		return tomarLaProxima(e, r)
+		return tomarLaProxima(e, r, g)
 	}
 
 	return Instruccion{
@@ -375,7 +386,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) Instr
 //  2. El diseño le dio nombre propio a esa transición justamente porque Javier
 //     puede querer otra: "sirve igual fuera del ⑰ — es como se elige la primera
 //     feature de todas, y como se cambia de idea a mitad de la cola" (H4).
-func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap) Instruccion {
+func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Instruccion {
 	cerradas := map[string]bool{}
 	for id, f := range e.Features {
 		if f.Estado == estado.Cerrada {
@@ -391,13 +402,23 @@ func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap) Instruccion {
 		}
 	}
 
+	// Acá todavía no se lanza a nadie —lo sugerido es `sf take`— pero el `via`
+	// igual sale del mapa: es un anticipo de la próxima vuelta, y un anticipo
+	// que dice "subagente" cuando en realidad va por consola desinforma.
+	m := modelo(estado.Planificacion)
+	v, cmd, declarado := via(estado.Planificacion, m, g)
+	if !declarado {
+		return sinDeclarar(estado.Planificacion, prox.ID, m)
+	}
+
 	return Instruccion{
 		Tipo:     Trabajar,
 		Estado:   estado.Planificacion,
 		Feature:  prox.ID,
 		Skill:    skills[estado.Planificacion],
-		Modelo:   modelo(estado.Planificacion),
-		Via:      "subagente",
+		Modelo:   m,
+		Via:      v,
+		Comando:  cmd,
 		Mensaje:  fmt.Sprintf("Sigue %s — %s (%d historias).", prox.ID, prox.Nombre, len(prox.Historias)),
 		Sugerido: []string{"sf take " + prox.ID},
 	}
@@ -410,8 +431,8 @@ func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap) Instruccion {
 // objetó: el dolor #5 es daño de código, no de planificación, y acá el contexto
 // grande es un ACTIVO — el ⑬ aprovecha acordarse de las dos opciones que
 // descartó (maquina-estados.md §1).
-func planificando(raiz, id string, fr roadmap.Feature) Instruccion {
-	i := trabajar(estado.Planificacion, id, "")
+func planificando(raiz, id string, fr roadmap.Feature, g *global.Config) Instruccion {
+	i := trabajar(estado.Planificacion, id, "", g)
 
 	// La carpeta sale del roadmap (id + slug). Si la feature no está en el
 	// roadmap, fr viene en cero y Carpeta() daría una ruta rara: en ese caso no
@@ -461,12 +482,21 @@ func planificando(raiz, id string, fr roadmap.Feature) Instruccion {
 // El lote actual es el primero sin commit y no hay campo que lo diga (R6). Y
 // dentro del lote, lo que separa las dos mitades es `rojo`: sin él no se puede
 // implementar, porque sf todavía no vio fallar los tests con sus propios ojos.
-func implementando(raiz string, fr roadmap.Feature, f *estado.Feature) Instruccion {
+func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global.Config) Instruccion {
 	id := fr.ID
 	// El modelo se resuelve UNA VEZ acá y no en cada rama: las tres salidas de
 	// esta función que lanzan trabajo usan el mismo, y leer tareas.json tres
 	// veces sería tocar el disco de más para obtener siempre lo mismo.
 	m := modeloDeFeature(raiz, fr, f, estado.Implementar)
+
+	// Y el `via` sale del mapa, igual que en `trabajar`. Acá el caso pesa más
+	// que en ningún otro estado: es JUSTO donde el ⑯ recomienda un modelo
+	// distinto, y donde Javier sube el modelo con `sf model` cuando el bucle
+	// patina. Los dos caminos pueden traer un nombre que el mapa no conoce.
+	v, cmd, declarado := via(estado.Implementar, m, g)
+	if !declarado {
+		return sinDeclarar(estado.Implementar, id, m)
+	}
 
 	// Sin lotes todavía no arrancó nada: los lotes se siembran en el primer
 	// `sf lote start`, que es también donde se exige el rojo. Confundir esto con
@@ -480,7 +510,8 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature) Instrucci
 			Feature:  id,
 			Skill:    skills[estado.Implementar],
 			Modelo:   m,
-			Via:      "subagente",
+			Via:      v,
+			Comando:  cmd,
 			Mensaje:  "escribí los tests y confirmá el rojo antes de implementar",
 			Sugerido: []string{"sf context", "sf lote start"},
 		}
@@ -507,7 +538,8 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature) Instrucci
 		DeLotes: len(f.Lotes),
 		Skill:   skills[estado.Implementar],
 		Modelo:  m,
-		Via:     "subagente",
+		Via:     v,
+		Comando: cmd,
 	}
 
 	if !l.Rojo {
@@ -524,14 +556,25 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature) Instrucci
 // Ayudantes
 // ────────────────────────────────────────────────────────────────────────────
 
-func trabajar(est, feature, mensaje string) Instruccion {
+// trabajar arma la instrucción de "hay algo que hacer".
+//
+// Devuelve la 🛑 de modelo sin declarar cuando corresponde: es el único lugar
+// donde el mapa puede frenar, y frenar acá —antes de decir "trabajá"— es lo que
+// evita que el orquestador lance a alguien que no sabe invocar.
+func trabajar(est, feature, mensaje string, g *global.Config) Instruccion {
+	m := modelo(est)
+	v, cmd, hay := via(est, m, g)
+	if !hay {
+		return sinDeclarar(est, feature, m)
+	}
 	return Instruccion{
 		Tipo:     Trabajar,
 		Estado:   est,
 		Feature:  feature,
 		Skill:    skills[est],
-		Modelo:   modelo(est),
-		Via:      via(est),
+		Modelo:   m,
+		Via:      v,
+		Comando:  cmd,
 		Mensaje:  mensaje,
 		Sugerido: []string{"sf context", "sf done"},
 	}
@@ -546,9 +589,9 @@ func modelo(est string) string {
 
 // modeloDeFeature resuelve la cadena de precedencia de tres niveles.
 //
-//	1. estado.json     `sf model <nombre>` — la decisión de Javier, en runtime
-//	2. tareas.json     el ⑯ — "esta feature necesita uno más grande"
-//	3. el default del estado
+//  1. estado.json     `sf model <nombre>` — la decisión de Javier, en runtime
+//  2. tareas.json     el ⑯ — "esta feature necesita uno más grande"
+//  3. el default del estado
 //
 // El nivel 1 es el lazo del ⑳: cuando Javier sube el modelo porque el bucle
 // está patinando, esa decisión no está escrita en ningún archivo del plan y
@@ -574,16 +617,51 @@ func modeloDeFeature(raiz string, fr roadmap.Feature, f *estado.Feature, est str
 // via es quién hace el trabajo, y tiene tres valores (H17).
 //
 // `brief` es el único que conversa: ①–⑤ es un pinponeo con Javier, y un
-// subagente arranca, trabaja y muere — NO TE HABLA. El resto va a subagente.
+// subagente arranca, trabaja y muere — NO TE HABLA. El resto sale del mapa.
 //
-// El tercer valor —`consola`, para modelos de otro proveedor— todavía no se
-// puede decidir acá: necesita saber en qué harness corre y qué modelos hay
-// declarados, y ninguna de las dos cosas existe. Ver modeloPorEstado.
-func via(est string) string {
+// El segundo retorno es la parada: `false` significa que el modelo que hace
+// falta NO ESTÁ DECLARADO, y ahí sf no elige un reemplazo (eso sería opinar
+// sobre qué modelo se parece a cuál, y R3 lo prohíbe): para y pregunta.
+//
+// Con `g == nil` —todavía no se corrió `sf install`— se cae a `subagente`. Es a
+// propósito: no tener el mapa no puede impedir trabajar, sólo impide resolver
+// `consola`. La máquina funcionaba así antes de que el mapa existiera y sigue
+// funcionando igual.
+func via(est, modelo string, g *global.Config) (string, string, bool) {
 	if est == "brief" {
-		return "vos"
+		return global.Vos, "", true
 	}
-	return "subagente"
+	if g == nil {
+		return global.Subagente, "", true
+	}
+	m, hay := g.Buscar(modelo)
+	if !hay {
+		return "", "", false
+	}
+	return m.Via, m.Comando, true
+}
+
+// sinDeclarar es la 🛑 de un modelo que no está en el mapa.
+//
+// Las tres salidas son las del diseño, y las tres declaran: contestar es lo que
+// construye la lista. Es el mismo mecanismo que `dependencias_aprobadas`
+// —comparar contra una lista que se llena con cada aprobación— aplicado a otra
+// cosa. Un patrón ya firmado, no uno nuevo.
+func sinDeclarar(est, feature, modelo string) Instruccion {
+	return Instruccion{
+		Tipo:    Para,
+		Estado:  est,
+		Feature: feature,
+		Modelo:  modelo,
+		Mensaje: fmt.Sprintf(
+			"🛑 PARÁ. Hace falta %q y no está declarado en ~/.specforge/modelos.yaml.\n"+
+				"   sf no elige el reemplazo: decime vos cómo se lanza acá.", modelo),
+		Sugerido: []string{
+			fmt.Sprintf("sf model %s --via subagente", modelo),
+			fmt.Sprintf("sf model %s --via consola --comando \"…\"", modelo),
+			"sf model <otro>",
+		},
+	}
 }
 
 // existe pregunta por un archivo relativo a la raíz.
