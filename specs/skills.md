@@ -396,9 +396,9 @@ Go real, en los dos sentidos — con la mentira (`exit 2`) y sin ella (`exit 0`)
 
 > ### ✅ Con eso **el diseño terminó**: cero ⚠ pendientes en el código.
 
-9. **Apagar el producto viejo**: `cli/`, `AGENT.md`, `README*.md`, `INSTALL.md`, `docs/`,
-   `examples/`. **Se referencian entre sí**, así que van juntos o no van. Es lo único que queda,
-   y es mecánico.
+9. ~~Apagar el producto viejo~~ — ✅ **hecho el 2026-08-15** (`session.md` §12). ~200 archivos.
+   Los README **se reescribieron**, no se borraron, y el CI **se reescribió sobre `sf/`** — y de
+   paso ganó el chequeo que faltaba: *ningún skill nombra un comando que `sf` no tiene*.
 
 ---
 
