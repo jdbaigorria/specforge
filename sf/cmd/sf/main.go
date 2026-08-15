@@ -638,6 +638,12 @@ func mostrar(i maquina.Instruccion) string {
 		// instrucción que no se puede ejecutar.
 		campo("comando", i.Comando)
 
+		// Los avisos van ANTES del mensaje: son lo que puede cambiar cómo se
+		// hace el trabajo, y el mensaje es sólo qué toca hacer.
+		for _, a := range i.Avisos {
+			fmt.Fprintf(&b, "\n⚠ %s\n", a)
+		}
+
 		if i.Mensaje != "" {
 			fmt.Fprintf(&b, "\n%s\n", i.Mensaje)
 		}
@@ -658,6 +664,7 @@ func uso() {
 	fmt.Fprintln(os.Stderr, `sf — la máquina de estados de SpecForge
 
   sf install    pone CLAUDE.md y AGENTS.md · arma ~/.specforge/  (una vez por proyecto)
+  sf uninstall  saca el orquestador. NO toca ~/.specforge/
   sf init       el andamio: 2 directorios · detecta el stack · el estado vacío
   sf next       dónde estás · qué sigue · con qué skill y modelo
   sf context    el sobre del estado actual  (--completo lo embebe)
