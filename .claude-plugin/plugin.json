@@ -1,17 +1,16 @@
 {
   "name": "specforge",
-  "version": "0.11.0",
-  "description": "Spec-Driven Development framework: a 4-skill feature pipeline (sf-init → sf-propose → sf-build → sf-check) plus sf-audit and sfx-* support skills, with a human gate on every artefact and requirement-to-test traceability.",
+  "version": "1.0.0",
+  "description": "SpecForge: a state machine that guides the harness. `sf` knows where you are, what comes next and whether you can advance; 9 states, 18 skills, and a four-line orchestrator. The state advances on checked facts, never on the worker's word.",
   "author": {
     "name": "Javier Baigorria"
   },
   "license": "MIT",
-  "hooks": "./hooks/claude-code/hooks.json",
   "keywords": [
     "spec-driven-development",
     "sdd",
     "skills",
-    "workflow",
-    "traceability"
+    "state-machine",
+    "workflow"
   ]
 }

@@ -11,7 +11,7 @@ description: >
 
 Design AWS infrastructure. Evaluate through Well-Architected Framework lens. Justify every choice with tradeoffs.
 
-**Always produces** `specforge/context/architectures/{slug}.md`. Model: opus.
+**Always produces a written design.** Model: opus. It goes wherever the user asks — this skill is standalone and does not write inside `.docs/` uninvited.
 
 ## Step 1: Clarify Requirements
 
@@ -22,7 +22,7 @@ Ask only what's not clear:
 - **Compliance**: GDPR, HIPAA, SOC2, data residency
 - **Team**: size, AWS experience, on-call capacity
 
-Read `specforge/context/project.md` for stack context if exists.
+Read `.docs/constitucion.md` for stack context if it exists.
 
 ## Step 2: Design with Tradeoffs
 
@@ -35,7 +35,7 @@ For each service choice, state:
 
 ## Step 3: Write Artifact
 
-Generate `specforge/context/architectures/{slug}.md` using `templates/architecture.tmpl.md`.
+Write it using `templates/architecture.tmpl.md`.
 
 Only include sections relevant to the design's complexity. A static site doesn't need Multi-region Reliability. A HIPAA-compliant API does.
 
@@ -44,14 +44,14 @@ Only include sections relevant to the design's complexity. A static site doesn't
 ```
 ## Architecture: {name}
 
-**Artifact**: specforge/context/architectures/{slug}.md
+**Artifact**: the path the user chose
 **Pattern**: {e.g., "Serverless API", "Event-driven microservices"}
 **Services**: {count}
 **Est. cost**: ${N}/month
 **Risks**: {count} ({highest severity})
 **Open questions**: {count}
 
-Next: {sf-propose or "resolve open questions"}
+Next: {`sf new "…"` to put it in the backlog, or "resolve open questions"}
 ```
 
 ## Rules

@@ -713,8 +713,33 @@ la detección de `sf-init` Step 2. **No bloquea nada.**
 
 - La branch `refundation` **no está pusheada**.
 - Siguen los ~155 commits viejos sin subir (`OPS-1`).
-- **El producto viejo sigue entero, y se apaga TODO JUNTO.** No es sólo `cli/`: son
-  `AGENT.md` (marcado con un banner), `README.md`, `README.es.md`, `INSTALL.md`, `docs/` y
-  `examples/`. **Se referencian entre sí**, así que borrar uno solo deja enlaces rotos y ningún
-  reemplazo. Mientras tanto `cli/` compila y corre, que es lo que permitió comparar contra él
-  (`construccion.md` §3).
+
+### ✅ El producto viejo se apagó — 2026-08-15
+
+Iba todo junto porque se referenciaban entre sí, y así fue: **~200 archivos, 15M de `cli/`**.
+
+```
+cli/                   129 archivos   el CLI viejo — sf/ lo reemplaza entero
+examples/               66 archivos   los tres pipelines, en el formato viejo
+docs/                    9 archivos   la máquina que ya no existe (cli-and-hooks.md, 25K)
+hooks/                   6 archivos   los 3 adaptadores de harness — mueren con el hook
+AGENT.md · INSTALL.md · SUPPORT-SKILLS{,.es}.md · mkdocs.yml
+```
+
+**Y aparecieron tres cosas que no eran borrar:**
+
+- **El CI corría `./cli/sf lint` y `./cli/sf doctor examples/slugify`.** Borrar sin tocarlo lo
+  rompía. Se reescribió sobre `sf/`, **y ganó cuatro chequeos que no existían** — el más valioso
+  cruza los `.md` con el binario: *ningún skill nombra un comando que `sf` no tiene*. Es
+  exactamente el agujero de `skills.md` §12, ahora automatizado.
+- **Los README no se borran: se reescriben.** Eran la cara pública y describían un producto que
+  ya no existe (*"JSON-first"*, *"hooks deny"*, *"gate ledger"*, `sf state current`). Borrarlos
+  dejaba el repo sin readme.
+- **`skills-community/` tenía los mismos punteros muertos** que los utilitarios — `specforge/`,
+  `sf-propose`. Arreglados; y el `plugin.json` declaraba `hooks: ./hooks/…`, que dejaba de
+  existir.
+
+**Lo que se queda y por qué:** `assets/` (los logos son la marca, no el producto viejo) y
+`skills-community/` (son `sfx-`, utilitarios fuera de la máquina).
+
+> **El repo quedó en 19M**, y de eso 17M son los tres PNG de `assets/`.
