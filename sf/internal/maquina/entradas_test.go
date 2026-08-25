@@ -9,6 +9,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/historia"
+	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 )
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -213,5 +214,112 @@ func TestLaPrimeraVueltaDelNueveSigueSiendoPartirElPRD(t *testing.T) {
 	}
 	if !strings.Contains(i.Mensaje, "parte el PRD") {
 		t.Errorf("mensaje %q, quería el de partir el PRD", i.Mensaje)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// La compuerta del ⑩ — corría en el único caso en que no sirve
+// ────────────────────────────────────────────────────────────────────────────
+
+// Estaba colgada de `r == nil`, y r es nil sólo cuando NO HAY roadmap.json — o
+// sea que fallaba en su primera línea, al intentar leerlo. Sus dos chequeos
+// reales no se ejecutaban nunca.
+//
+// Y una historia que quedó fuera de todas las features NO LA IMPLEMENTA NADIE,
+// que es justo el error que esta compuerta existe para atrapar.
+func TestElDoneDelDiezAtrapaLaHistoriaHuerfana(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true, BacklogVisto: true,
+	}
+	p.conArchivoConTexto(docs.Historia("us-1"), "---\nid: us-1\n---\n- **CA-1** — algo\n")
+	p.conArchivoConTexto(docs.Historia("us-9"), "---\nid: us-9\n---\n- **CA-1** — otra\n")
+	p.conArchivoConTexto(roadmap.Archivo,
+		`{"features":[{"id":"f-1","slug":"x","orden":1,"historias":["us-1"]}]}`)
+	r, err := roadmap.Leer(p.raiz)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := Terminar(p.raiz, p.e, r, "")
+	if c.Pasa() {
+		t.Fatal("pasó con us-9 fuera de todas las features")
+	}
+	if !strings.Contains(strings.Join(c.Fallas, " "), "us-9") {
+		t.Errorf("no dijo cuál quedó afuera: %v", c.Fallas)
+	}
+}
+
+// Y con el roadmap completo cierra, sin mover el estado: el ⑩ no guarda sello
+// —"¿existe el roadmap.json?" es deducible— y la transición al ciclo la hace
+// `sf take`, que es una decisión de Javier.
+func TestElDoneDelDiezCierraSinMoverElEstado(t *testing.T) {
+	p := nuevo(t).conRoadmap()
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true, BacklogVisto: true,
+	}
+	p.conArchivoConTexto(docs.Historia("us-1"), "---\nid: us-1\n---\n- **CA-1** — algo\n")
+	p.conArchivoConTexto(docs.Historia("us-2"), "---\nid: us-2\n---\n- **CA-1** — otra\n")
+
+	c := Terminar(p.raiz, p.e, p.r, "")
+	if !c.Pasa() {
+		t.Fatalf("no pasó con el roadmap completo: %v", c.Fallas)
+	}
+	if c.Movio || c.Cambio {
+		t.Error("movió el estado, y el ⑩ no guarda sello")
+	}
+	if !strings.Contains(c.Mensaje, "sf take") {
+		t.Errorf("no dijo cómo seguir: %q", c.Mensaje)
+	}
+}
+
+// El aviso de la feature grande AVISA y no frena: partirla o no es criterio, y
+// el criterio es de Javier. Es el único de los dos chequeos que no cubre nadie
+// más, y era el que se perdía entero.
+func TestElDoneDelDiezAvisaDeLaFeatureGrandeSinFrenar(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true, BacklogVisto: true,
+	}
+	var ids []string
+	for _, id := range []string{"us-1", "us-2", "us-3", "us-4", "us-5", "us-6"} {
+		p.conArchivoConTexto(docs.Historia(id), "---\nid: "+id+"\n---\n- **CA-1** — algo\n")
+		ids = append(ids, `"`+id+`"`)
+	}
+	p.conArchivoConTexto(roadmap.Archivo,
+		`{"features":[{"id":"f-1","slug":"x","orden":1,"historias":[`+strings.Join(ids, ",")+`]}]}`)
+	r, err := roadmap.Leer(p.raiz)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := Terminar(p.raiz, p.e, r, "")
+	if !c.Pasa() {
+		t.Fatalf("una feature grande FRENÓ, y sólo tiene que avisar: %v", c.Fallas)
+	}
+	if len(c.Avisos) == 0 {
+		t.Error("no avisó de la feature de 6 historias")
+	}
+}
+
+// Sin roadmap.json el mensaje sigue siendo el del ⑩ que falta, y no un panic:
+// `Buscar` sobre un roadmap nil contesta "no está" en vez de reventar.
+func TestSinRoadmapNoRevienta(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true, BacklogVisto: true,
+	}
+
+	if c := Terminar(p.raiz, p.e, nil, ""); c.Pasa() {
+		t.Error("pasó sin roadmap.json")
+	}
+
+	// Y el caso raro que antes hacía panic: feature_actual puesto y el
+	// roadmap.json borrado a mano.
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Implementar}
+	c := Terminar(p.raiz, p.e, nil, "")
+	if c.Pasa() {
+		t.Error("pasó con una feature en curso y sin roadmap")
 	}
 }

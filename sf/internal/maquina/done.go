@@ -119,18 +119,33 @@ func paraDeProducto(r compuerta.Resultado, mensaje string) Cierre {
 // ────────────────────────────────────────────────────────────────────────────
 
 func terminarFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, msg string) Cierre {
-	if r == nil {
-		// El ⑩ es el último de producto y su compuerta necesita el roadmap ya
-		// escrito, así que se resuelve acá.
-		res := compuerta.Roadmap(raiz)
-		return Cierre{Resultado: res, Movio: res.Pasa(), Cambio: res.Pasa(),
-			Mensaje: "el roadmap está listo — arranca el ciclo de feature"}
-	}
-
 	f, hay := e.Actual()
 	if !hay {
-		var c Cierre
-		c.Fallas = []string{"no hay feature en curso: corré `sf take <feature>` primero"}
+		// Sin feature en curso, el `sf done` que llega es el del ⑩: el
+		// subagente del roadmap acaba de escribirlo y avisa que terminó.
+		//
+		// ────────────────────────────────────────────────────────────────
+		// LA COMPUERTA DEL ⑩ CORRÍA EN EL ÚNICO CASO EN QUE NO SIRVE
+		// ────────────────────────────────────────────────────────────────
+		//
+		// Estaba colgada de `r == nil`, y `r` es nil sólo cuando NO HAY
+		// roadmap.json — o sea que `compuerta.Roadmap` fallaba en su primera
+		// línea, al intentar leerlo. Sus dos chequeos reales —que ninguna
+		// historia quedara fuera de todas las features, y el aviso de la
+		// feature que junta seis— no se ejecutaban nunca.
+		//
+		// Y con el roadmap ya escrito el `sf done` del ⑩ caía acá abajo y
+		// contestaba "no hay feature en curso: corré `sf take`", que le decía
+		// al subagente que hizo bien su trabajo que se había equivocado.
+		//
+		// El estado no se mueve, y eso es correcto: el ⑩ no guarda sello
+		// —"¿existe el roadmap.json?" es deducible (R6)— y la transición al
+		// ciclo la hace `sf take`, que es una decisión de Javier (H4).
+		res := compuerta.Roadmap(raiz)
+		c := Cierre{Resultado: res}
+		if res.Pasa() {
+			c.Mensaje = "el roadmap está listo. Elegí con `sf take <feature>`."
+		}
 		return c
 	}
 	fr, enRoadmap := r.Buscar(e.FeatureActual)

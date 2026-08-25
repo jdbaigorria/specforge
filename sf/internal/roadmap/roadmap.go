@@ -183,6 +183,17 @@ func (r *Roadmap) validar() error {
 
 // Buscar devuelve la feature con ese id.
 func (r *Roadmap) Buscar(id string) (Feature, bool) {
+	// Un roadmap que no existe no tiene features, así que la respuesta honesta
+	// es "no está" y no un panic.
+	//
+	// El nil llega desde `Leer`, que lo devuelve cuando todavía no se corrió el
+	// ⑩, y hay un estado que lo alcanza: un `estado.json` con `feature_actual`
+	// puesto y el `roadmap.json` borrado a mano. Es raro, pero los dos comandos
+	// que llaman acá —`sf done` y `sf approve`— ya saben contestar "no está en
+	// el roadmap", y eso es exactamente lo que pasa.
+	if r == nil {
+		return Feature{}, false
+	}
 	for _, f := range r.Features {
 		if f.ID == id {
 			return f, true
