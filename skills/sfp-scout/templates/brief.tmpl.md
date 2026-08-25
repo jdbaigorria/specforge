@@ -1,5 +1,5 @@
 ---
-veredicto: ""       # hacelo | pivotea | no-lo-hagas — lo pone Javier en el ⑥
+veredicto: <hacelo | pivotea | no-lo-hagas>   # el que PROPONÉS. Javier lo sella con `sf approve`
 ---
 
 # <producto> — brief

@@ -87,12 +87,17 @@ The frontmatter carries the verdict, and `sf` reads it:
 
 ```yaml
 ---
-veredicto: ""       # hacelo | pivotea | no-lo-hagas  ← Javier fills this at the ⑥
+veredicto: hacelo   # hacelo | pivotea | no-lo-hagas — the one YOU propose
 ---
 ```
 
-**Leave `veredicto` empty.** You propose it in the body and in your gate message; the value is
-written when Javier answers. `sf` will not let the state move without one of the three.
+**Write the verdict you propose.** Not empty — one of the three, the same one you argue for in
+the body and print in the gate message. `sf approve` means *"yes, seal it with what it says"*, so
+the file has to say something; an empty `veredicto` deadlocks the ⑥ — `sf done` refuses to move,
+`sf approve` has nothing to seal, and the only way out is editing the file by hand.
+
+Javier's decision is `approve` or `reject`, not filling in the blank. If he wants a different
+verdict than the one you propose, he rejects and the ①–⑤ runs again.
 
 ## Step 6: The ⑥ — stop, and it is Javier's
 

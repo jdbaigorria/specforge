@@ -96,6 +96,12 @@ sf done
 The gate: the file parses, and every `us-#` in the backlog belongs to some feature. Then the
 feature cycle begins — `sf next` will tell the orchestrator to `sf take f-1`.
 
+> **If you were called mid-cycle** — a `sf new` orphaned a story while a feature was already in
+> progress — `sf done` answers about that *feature*, not about you: it has no way to know the ⑩
+> is what just ran. Place the loose story, write the file, and **read the answer as noise**;
+> `sf next` picks the cycle back up where it was. Do not re-run `sf done` trying to get a
+> different answer — every attempt counts toward that feature's ME TRABÉ.
+
 **No stop here.** Getting this wrong is cheap: fixing the order is changing a number, and the ⑰
 already has a door for *"do another feature first"*. The expensive mistake was the ⑨, and that
 one already had its pause.
