@@ -89,7 +89,20 @@ sino **un subagente frío**. Lo leen el ⑨, el implementador (es su manual), el
 ```
 
 Y no es pedantería: **sin `test_cmd` caen tres compuertas** — el rojo, el verde y el conteo de
-tests.
+tests. **`sf approve` la corre antes de sellar**, así que la constitución sin `test_cmd` no se
+sella: es la única línea del frontmatter que se exige.
+
+> **`sf init` deja la constitución escrita a medias, y eso es a propósito.** Llena la cabecera
+> técnica —`lenguaje`, `manifiesto`, `test_cmd`— porque eso se detecta mirando el manifiesto y
+> tiene una sola respuesta correcta. El cuerpo lo deja con un marcador:
+>
+> ```
+> <Esto lo escribe el ⑧. Corré: sf next>
+> ```
+>
+> **Ese marcador es el checkpoint del ⑧.** El brief y el PRD se distinguen por si el archivo
+> existe; la constitución no puede, porque `sf init` siempre la crea. Mientras el marcador esté,
+> `sf next` te manda a escribirla; cuando el ⑧ lo reemplaza, aparece la 🛑.
 
 **Es puramente técnica.** Cero principios abstractos: el *qué* y el *por qué* ya están escritos y
 sellados arriba, en el brief y el PRD. Repetirlos acá crearía una segunda copia que se
@@ -104,12 +117,16 @@ produce  .docs/backlog/us-#.md
 parada   ⏸ mirá si querés y seguí
 ```
 
-**La compuerta:**
+**La compuerta**, y la corren tanto `sf done` como el `sf approve` de la ⏸:
 
 ```
 ✓ hay al menos una historia
 ✓ TODAS tienen criterios con id:  CA-1, CA-2, …
 ```
+
+**La ⏸ es barata, la compuerta no.** Que mirar el backlog sea un enter no significa que se pueda
+sellar cualquier cosa: un backlog sin ids desarma el mecanismo entero — la cobertura del ⑰ cuenta
+cero contra cero y pasa, y el conteo de veredictos del ㉑ también.
 
 > **Los ids son el mecanismo entero contra el "terminado" con media historia.** Con criterios en
 > prosa el revisor contesta *"anda"*. Con ids tiene que contestar **uno por uno**, y `sf` cuenta:

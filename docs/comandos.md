@@ -208,6 +208,20 @@ cierre (⏸)     → ARCHIVA: commitea lo pendiente, mergea, borra la branch,
 **Un comando, cinco significados, ninguno ambiguo.** Las cinco son el mismo hecho —aprobás lo que
 se produjo— y qué se sella tiene **una sola respuesta correcta**.
 
+**Y corre la compuerta del estado antes de sellar.** Eso no lo convierte en `sf done`: `done`
+**mueve** cuando la compuerta pasa; `approve` **sella lo que decidiste**, y lo único que cambia es
+que ya no puede sellar algo que la máquina sabe que está roto. La decisión sigue siendo tuya; deja
+de poder ser una decisión sobre un artefacto inválido.
+
+```bash
+$ sf approve            # la constitución sin test_cmd
+✗ No pude.
+  · la constitución no tiene `test_cmd:` — sin eso sf no puede correr los tests
+```
+
+Los **avisos** de la compuerta no frenan y se muestran igual, salga bien o mal: esconderlos detrás
+de un ✓ es la forma más fácil de que nadie los lea.
+
 > **El archivado hace el git antes de mover la carpeta**, que es al revés de como se lee. El
 > movimiento es lo único irreversible y el git es lo único que puede fallar: si el merge conflictúa,
 > no se movió nada y volvés a correr `sf approve`. Detalle completo en

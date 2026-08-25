@@ -2,10 +2,10 @@
 
 **Fecha de la auditoría:** 2026-08-25 · **Branch:** `refundation` · **Commit:** `cb4d905`
 
-> **Estado: PR1 y PR2 hechos.** A0, A1, A2, A5 y A6 están arreglados, con tests que fallan sin el
-> arreglo (verificado revirtiendo el código y, en A2, reproduciendo el bug con el binario viejo
-> sobre un repo real). **Ya no queda ningún crítico.** Quedan A3, A4, A7, A8, A9 y los menores. El
-> detalle está al final, en **Lo que se implementó**.
+> **Estado: PR1, PR2 y PR3 hechos.** A0, A1, A2, A3, A4, A5 y A6 están arreglados, con tests que
+> fallan sin el arreglo (verificado revirtiendo el código y, en A2, reproduciendo el bug con el
+> binario viejo sobre un repo real). **No queda ningún crítico ni ningún alto.** Quedan A7, A8, A9
+> y los menores. El detalle está al final, en **Lo que se implementó**.
 
 Este documento no es diseño: es el **parte de daños**, escrito para implementarse. Cada hallazgo
 trae el síntoma **reproducido de verdad** (no leído), la causa raíz con archivo y línea, el arreglo
@@ -41,8 +41,8 @@ A0, la mitad de A1, y A5.
 | **A0** ✅ | `sf done` saltea `implementar` entero: sin branch, sin tests, sin código, sin commit | 🔴 **crítico** | la razón de ser del producto |
 | **A1** ✅ | El camino corto del bug no funciona: llega a `cierre` sin escribir nada | 🔴 **crítico** | entrada C |
 | **A2** ✅ | Archivar deja el repo inconsistente **e irrecuperable** | 🔴 **crítico** | el cierre de toda feature |
-| **A3** | `sf approve` nunca corre compuertas | 🟠 alto | el ⑧ y el ⑨ |
-| **A4** | El estado ⑧ es inalcanzable; `sfp-constitucion` es código muerto | 🟠 alto | el ⑧ |
+| **A3** ✅ | `sf approve` nunca corre compuertas | 🟠 alto | el ⑧ y el ⑨ |
+| **A4** ✅ | El estado ⑧ es inalcanzable; `sfp-constitucion` es código muerto | 🟠 alto | el ⑧ |
 | **A5** ✅ | `revision → implementar` es un loop muerto | 🟠 alto | el ㉑ con hallazgos |
 | **A6** ✅ | `sf context` no aplica el camino corto del bug | 🟡 medio | entrada C |
 | **A7** | `sf new` no lleva a `sfp-backlog` | 🟡 medio | entradas B y C |
@@ -50,8 +50,8 @@ A0, la mitad de A1, y A5.
 | **A9** | `compuerta.Roadmap` es código muerto | 🔵 bajo | el ⑩ |
 | **M1–M3** | Números y punteros desactualizados en docs | 🔵 bajo | — |
 
-**Orden sugerido:** ~~A0 → A1 → A5~~ ✅ · ~~A2~~ ✅ · ~~A6~~ ✅ · **A3 → A4** (comparten `approve`,
-y son lo que sigue) · A7 · A8 · A9 · M.
+**Orden sugerido:** ~~A0 → A1 → A5~~ ✅ · ~~A2~~ ✅ · ~~A6~~ ✅ · ~~A3 → A4~~ ✅ · **A7** · A8 ·
+A9 · M.
 
 ---
 
@@ -1185,3 +1185,149 @@ sf next                   → 3   🎉
 **No queda ningún crítico.** Lo próximo es **A3 + A4**, que comparten `Aprobar`: hoy `sf approve`
 no corre ninguna compuerta —sella la constitución sin `test_cmd` y el backlog sin criterios—, y el
 estado ⑧ es inalcanzable porque `sf init` siempre crea `constitucion.md`.
+
+
+---
+
+# Lo que se implementó — PR3
+
+**A3 y A4**, los dos altos. Van juntos porque los dos son el mismo error de forma: **un checkpoint
+que pregunta lo que no es.**
+
+```
+A4   "¿existe el archivo?"   cuando la pregunta era "¿está escrito?"
+A3   "¿Javier dijo que sí?"  cuando la pregunta era "¿y además está bien?"
+```
+
+## A4 — el ⑧ vuelve a existir
+
+`sf init` **siempre** crea `.docs/constitucion.md`, y tiene que crearla: ahí escribe el `test_cmd`
+que detectó del stack. Pero el checkpoint miraba si el archivo existía, así que del ⑦ se saltaba
+derecho a *"🛑 la constitución está escrita, sellala vos"* — y lo que se sellaba era la plantilla.
+El skill `sfp-constitucion` estaba en el mapa, en el CI y en el disco, y **no lo invocaba nadie
+nunca**.
+
+El arreglo es el marcador que el andamio ya dejaba, ascendido a constante con dueño:
+
+```go
+constitucion.MarcaSinEscribir = "<Esto lo escribe el ⑧. Corré: sf next>"
+constitucion.SinEscribir(raiz) bool
+```
+
+`arranque` la usa para escribir la plantilla y `maquina` para leerla, así que **el marcador tiene
+una sola definición**: si alguien cambia el texto, no puede desincronizar las dos puntas. Y la
+pregunta sigue siendo comparar dos strings — un hecho, no un juicio.
+
+```
+$ sf next
+estado:   constitucion
+skill:    sfp-constitucion      ← antes: 🛑 sellá la plantilla
+```
+
+## A3 — `approve` corre la compuerta antes de sellar
+
+Sellaba con una asignación directa. O sea que la regla dura del producto —*"el estado avanza con
+hechos comprobados"*— valía para `sf done` y **no para el otro comando que mueve el estado**:
+
+```
+$ sf approve      # constitución con test_cmd vacío
+✓ constitución sellada
+
+$ sf approve      # backlog con historias sin criterios
+✓ backlog visto — sigue el ⑩
+```
+
+Lo primero contradecía a `INSTALL.md` textual. Lo segundo es lo grave: **un backlog sellado sin ids
+desarma el mecanismo entero** — sin criterios, la cobertura del ⑰ cuenta cero contra cero y pasa, y
+el conteo de veredictos del ㉑ también.
+
+Ahora las cuatro paradas que sellan corren su compuerta:
+
+| Parada | Compuerta |
+|---|---|
+| `constitucion` | `compuerta.Constitucion` — `test_cmd` no vacío |
+| `backlog` (⏸) | `compuerta.Backlog` — todas las historias con ids |
+| `planificacion` (⑰) | `compuerta.Planificacion` — las cinco |
+| `cierre` (⏸) | `compuerta.Cierre` — la doc y el journal |
+
+**El `brief` queda como estaba**, y no por olvido: su compuerta es *"trae uno de los tres
+veredictos"*, y `approve` ya lee el valor concreto que va a sellar — el mismo chequeo, hecho mejor.
+
+> **Esto no convierte a `approve` en `done`.** `done` **mueve** cuando la compuerta pasa; `approve`
+> **sella lo que Javier decidió**, y lo único que cambia es que ya no puede sellar algo que la
+> máquina sabe que está roto. La decisión sigue siendo suya; deja de poder ser una decisión sobre
+> un artefacto inválido.
+
+`Efecto` gana `Avisos`, para no tragarse los de la compuerta. Van primero y en los dos casos —salga
+bien o mal—: esconderlos detrás de un ✓ es la forma más fácil de que nadie los lea.
+
+## Dos cosas que aparecieron al implementar
+
+**① El plan decía que la compuerta del ㉓ "queda como está", y estaba mal.** Se agregó igual —
+archivar es irreversible, y hacerlo sin doc ni journal deja la carpeta en `.docs/archivado/` sin lo
+único que alguien va a leer seis meses después. Pero al agregarla **rompió el test de idempotencia
+de A2**: `compuerta.Cierre` buscaba en `.docs/features/`, y en el caso de recuperación la carpeta
+ya está archivada.
+
+El arreglo no fue sacar la compuerta sino **destaparla**: ahora busca en la carpeta viva y, si no
+está, en la archivada. La pregunta es *"¿el ㉓ produjo sus dos archivos?"*, no *"¿dónde está la
+carpeta hoy?"* — y atarla al lugar la hacía fallar justo cuando más se la necesita.
+
+**② Un test existente estaba asegurando el bug.** `TestApproveDelPlanMandaAImplementar` aprobaba un
+plan sin ninguno de los tres archivos y esperaba que pasara. No falló por casualidad: **falló
+porque el arreglo es correcto.** Se le agregó el plan completo al andamio.
+
+## Los archivos
+
+| Archivo | Qué cambió |
+|---|---|
+| `constitucion/constitucion.go` | `MarcaSinEscribir` · `SinEscribir` |
+| `arranque/arranque.go` | la plantilla usa la constante en vez del literal |
+| `maquina/maquina.go` | el checkpoint del ⑧ pregunta si está **escrita** |
+| `maquina/paradas.go` | `Aprobar` corre la compuerta · `Efecto.Avisos` · `Efecto.compuerta` |
+| `compuerta/compuerta.go` | `Cierre` busca también en la carpeta archivada |
+
+## Los tests
+
+**252 pasan** (eran 246). Verificados revirtiendo `paradas.go` y `maquina.go` —dejando el resto—
+para ver las fallas de comportamiento y no de compilación: los cuatro fallan.
+
+```
+maquina    TestElOchoEsAlcanzableConLaPlantillaDelAndamio
+           TestElOchoParaCuandoLaConstitucionYaSeEscribio     ← guarda
+           TestApproveNoSellaLaConstitucionSinTestCmd
+           TestApproveNoSellaElBacklogSinCriterios
+           TestApproveNoApruebaUnPlanIncompleto
+           TestApproveMuestraLosAvisosDeLaCompuerta
+```
+
+Los tres de `approve` comprueban además **el caso feliz**: el arreglo no puede frenar el flujo
+normal, y sin eso una compuerta demasiado estricta se descubre en producción.
+
+## Corrido con el binario
+
+```
+sf next    (repo vacío, sin stack)  → 0   constitucion · sfp-constitucion      A4
+sf approve (test_cmd vacío)         → 1   ✗ la constitución no tiene test_cmd  A3
+sf approve (con test_cmd)           → 0   ✓ constitución sellada
+sf approve (us-1 sin criterios)     → 1   ✗ us-1 no tiene criterios            A3
+sf approve (con criterios)          → 0   ✓ backlog visto
+sf approve (plan sin CA-2)          → 1   ✗ cubren 1 de 2. Sin cubrir: CA-2    A3
+sf approve (plan completo)          → 0   ✓ plan aprobado
+sf approve (cierre sin doc)         → 1   ✗ falta doc.md · falta journal.md    A3
+                                          y la carpeta NO se movió
+```
+
+## Docs actualizadas
+
+`INSTALL.md` (deja de prometer lo que el binario no hacía), `docs/estados.md` (el ⑧ y su marcador ·
+la ⏸ del ⑨ es barata pero la compuerta no), `docs/comandos.md` (`sf approve` corre la compuerta) y
+`docs/primeros-pasos.md` (el ⑧ aparece en el recorrido, que antes se lo salteaba igual que la
+máquina).
+
+## Lo que sigue
+
+**A7** — `sf new` no lleva a `sfp-backlog`, aunque el propio código dice que sí. Y de paso la
+compuerta del backlog cuenta ids de criterio sin mirar si tienen texto, así que el esqueleto vacío
+que deja `sf new` la pasa. Después **A8** (`sf model` ignorado fuera de `implementar`) y **A9**
+(`compuerta.Roadmap`, código muerto).

@@ -134,7 +134,21 @@ sin parada: del ⑦ se pasa derecho al ⑧
 fresco con `sfp-po`. El subagente corre `sf context`, escribe `.docs/prd.md`, corre `sf done` y
 se muere.
 
-El ⑧ es distinto: **para**.
+Después sigue el ⑧, con su propio subagente:
+
+```
+estado:   constitucion
+skill:    sfp-constitucion
+modelo:   sonnet
+via:      subagente
+```
+
+> **`sf init` ya dejó la constitución a medias, y eso no la da por escrita.** Llenó la cabecera
+> técnica —`lenguaje`, `manifiesto`, `test_cmd`— porque eso se detecta mirando el manifiesto. El
+> cuerpo lo dejó con un marcador, y **ese marcador es el checkpoint**: mientras esté, `sf next` te
+> manda al ⑧; cuando el ⑧ lo reemplaza, aparece la parada.
+
+Y el ⑧ es distinto de los otros dos subagentes: **para**.
 
 ```
 🛑 ⑧ — constitution written
@@ -148,6 +162,17 @@ implementador (es su manual)**, el revisor y `sf` mismo.
 ```bash
 sf approve
 ```
+
+**`sf approve` corre la compuerta antes de sellar**, así que si el `test_cmd` quedó vacío no sella:
+
+```
+✗ No pude.
+  · la constitución no tiene `test_cmd:` — sin eso sf no puede correr los tests
+```
+
+Vale para las cinco paradas. No convierte a `approve` en `done` —`done` **mueve**, `approve`
+**sella lo que decidiste**—: lo único que cambia es que ya no podés sellar algo que la máquina
+sabe que está roto.
 
 ### Si algo salió mal
 

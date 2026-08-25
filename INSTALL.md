@@ -165,8 +165,14 @@ Hace tres cosas, **y las tres son mecánicas**:
   Sin eso el ⑧ no sella y no se puede correr ningún test.
 ```
 
-Abrí `.docs/constitucion.md` y completá la línea. **No es opcional:** sin `test_cmd` caen tres
-compuertas —el rojo, el verde y el conteo de tests— y la constitución no se puede sellar.
+Abrí `.docs/constitucion.md` y completá la línea, o dejásela al ⑧ — llega igual. **No es
+opcional:** sin `test_cmd` caen tres compuertas —el rojo, el verde y el conteo de tests— y
+`sf approve` **no sella**:
+
+```
+✗ No pude.
+  · la constitución no tiene `test_cmd:` — sin eso sf no puede correr los tests
+```
 
 #### Correrlo dos veces no rompe nada
 
