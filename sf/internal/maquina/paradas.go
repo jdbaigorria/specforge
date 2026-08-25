@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/compuerta"
 	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
@@ -32,6 +34,14 @@ import (
 type Efecto struct {
 	Mensaje string
 	Fallas  []string
+
+	// Avisos son cosas que hay que saber y que NO frenan.
+	//
+	// Vienen de las compuertas que `approve` corre antes de sellar, y la
+	// distinción es la misma que en `compuerta.Resultado`: sf frena sobre
+	// hechos y avisa sobre todo lo demás, porque la última palabra es de
+	// Javier. Tragárselos acá sería silenciarlos justo cuando está mirando.
+	Avisos []string
 
 	// Global es que además del estado del proyecto hay que guardar
 	// ~/.specforge/. Sólo lo enciende `sf model` al declarar uno nuevo.
@@ -82,16 +92,39 @@ func (e *Efecto) falla(formato string, args ...any) {
 	e.Fallas = append(e.Fallas, fmt.Sprintf(formato, args...))
 }
 
+// compuerta corre una compuerta antes de sellar, y dice si se puede seguir.
+//
+// Los avisos NO frenan y viajan igual: son lo que hay que saber y no lo que
+// impide avanzar, y perderlos acá sería silenciarlos justo cuando Javier está
+// mirando.
+func (e *Efecto) compuerta(r compuerta.Resultado) bool {
+	e.Avisos = append(e.Avisos, r.Avisos...)
+	if r.Pasa() {
+		return true
+	}
+	e.Fallas = append(e.Fallas, r.Fallas...)
+	return false
+}
+
 // Texto arma la respuesta para el orquestador.
+//
+// Los avisos van primero y en los dos casos —salga bien o mal—: son cosas que
+// hay que saber, y esconderlos detrás de un ✓ es la forma más fácil de que
+// nadie los lea.
 func (e Efecto) Texto() string {
+	var b strings.Builder
+	for _, a := range e.Avisos {
+		fmt.Fprintf(&b, "⚠ %s\n", a)
+	}
 	if e.Pasa() {
-		return "✓ " + e.Mensaje + "\n"
+		fmt.Fprintf(&b, "✓ %s\n", e.Mensaje)
+		return b.String()
 	}
-	s := "✗ No pude.\n"
+	b.WriteString("✗ No pude.\n")
 	for _, f := range e.Fallas {
-		s += "  · " + f + "\n"
+		fmt.Fprintf(&b, "  · %s\n", f)
 	}
-	return s
+	return b.String()
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -113,6 +146,30 @@ func (e Efecto) Texto() string {
 // Las cinco son el mismo hecho —Javier aprueba lo que se produjo— y lo que
 // cambia es qué se sella. Eso sf lo deduce del estado en el que está: una sola
 // respuesta correcta, R1.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// Y CORRE LA COMPUERTA ANTES DE SELLAR, QUE NO ES LO MISMO QUE SER `done`
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Sellaba con una asignación directa, sin comprobar nada. O sea que la regla
+// dura del producto —"el estado avanza con hechos comprobados"— valía para
+// `sf done` y no para el otro comando que mueve el estado:
+//
+//	sf approve   →  ✓ constitución sellada        con test_cmd vacío
+//	sf approve   →  ✓ backlog visto — sigue el ⑩  con historias sin criterios
+//
+// Lo segundo es lo grave: sin ids de criterio, la cobertura del ⑰ cuenta cero
+// contra cero y pasa, y el conteo de veredictos del ㉑ también. Un backlog
+// sellado sin ids desarma el mecanismo entero.
+//
+// Esto NO convierte a `approve` en `done`. `done` mueve cuando la compuerta
+// pasa; `approve` sella lo que Javier decidió, y lo único que cambia es que ya
+// no puede sellar algo que la máquina sabe que está roto. La decisión sigue
+// siendo suya; deja de poder ser una decisión sobre un artefacto inválido.
+//
+// El `brief` es la excepción, y no por olvido: su compuerta es "trae uno de los
+// tres veredictos", y acá se lee el valor concreto que se va a sellar — que es
+// el mismo chequeo, hecho mejor.
 func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	var ef Efecto
 
@@ -142,12 +199,18 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		return ef
 
 	case !e.Producto.ConstitucionSellada:
+		if !ef.compuerta(compuerta.Constitucion(raiz)) {
+			return ef
+		}
 		e.Producto.ConstitucionSellada = true
 		e.Producto.Rechazo = ""
 		ef.Mensaje = "constitución sellada"
 		return ef
 
 	case !e.Producto.BacklogVisto:
+		if !ef.compuerta(compuerta.Backlog(raiz)) {
+			return ef
+		}
 		e.Producto.BacklogVisto = true
 		ef.Mensaje = "backlog visto — sigue el ⑩"
 		return ef
@@ -169,12 +232,27 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	case estado.Planificacion:
 		// El ⑰. La puerta "otra feature" NO se elige acá: se elige con
 		// `sf take f-3` después de aprobar. Cada comando hace un solo trabajo.
+		//
+		// `sf next` ya corre estas cinco antes de ofrecer el ⑰, así que en el
+		// bucle normal esto no cambia nada. Cambia para el `sf approve` tipeado
+		// directo, que las salteaba: aprobar un plan que cubre 7 de 9 criterios
+		// es exactamente lo que el ⑰ existe para impedir.
+		if !ef.compuerta(compuerta.Planificacion(raiz, fr)) {
+			return ef
+		}
 		f.Estado = estado.Implementar
 		f.Rechazo = ""
 		ef.Mensaje = fmt.Sprintf("plan de %s aprobado — a implementar", fr.ID)
 		return ef
 
 	case estado.Cierre:
+		// Archivar es irreversible —mueve la carpeta, mergea, borra la branch—,
+		// así que la compuerta va antes: archivar una feature sin doc y sin
+		// journal deja la carpeta en `.docs/archivado/` sin lo único que alguien
+		// va a leer seis meses después, y de ahí no se vuelve.
+		if !ef.compuerta(compuerta.Cierre(raiz, fr)) {
+			return ef
+		}
 		return archivar(raiz, e, f, fr)
 	}
 

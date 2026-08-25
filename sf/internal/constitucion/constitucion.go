@@ -101,6 +101,39 @@ func (g Git) Base() string {
 // ErrNoHay es que todavía no se corrió el ⑧.
 var ErrNoHay = errors.New("no hay constitucion.md: falta el ⑧")
 
+// MarcaSinEscribir es lo que `sf init` deja en el cuerpo de la constitución.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// ES UN CHECKPOINT, Y SIN ÉL EL ⑧ ERA INALCANZABLE
+// ────────────────────────────────────────────────────────────────────────────
+//
+// La máquina distingue "falta hacerlo" de "está hecho, falta que lo mires"
+// mirando si el archivo existe. Funciona para el brief y para el PRD porque
+// `sf init` no los crea — pero la constitución SÍ la crea, y tiene que
+// crearla: ahí es donde escribe el `test_cmd` que detectó del stack.
+//
+// Así que el checkpoint por existencia y el andamio se pisaban: del ⑦ se
+// saltaba derecho a "🛑 la constitución está escrita, sellala vos", y lo que
+// se sellaba era la plantilla. El skill `sfp-constitucion` estaba en el mapa,
+// en el CI y en el disco, y no lo invocaba nadie nunca.
+//
+// El marcador convierte la pregunta en "¿está ESCRITA?", que sigue siendo
+// comparar dos strings — un hecho, no un juicio (R3).
+const MarcaSinEscribir = "<Esto lo escribe el ⑧. Corré: sf next>"
+
+// SinEscribir dice si la constitución todavía es la plantilla del andamio.
+//
+// Una constitución que no se puede leer cuenta como sin escribir: mandar a
+// escribirla es la respuesta útil, y si el problema era otro lo dice la
+// compuerta, que corre después.
+func SinEscribir(raiz string) bool {
+	b, err := os.ReadFile(filepath.Join(raiz, docs.Constitucion))
+	if err != nil {
+		return true
+	}
+	return strings.Contains(string(b), MarcaSinEscribir)
+}
+
 // Leer carga la constitución desde la raíz del proyecto.
 func Leer(raiz string) (*Constitucion, error) {
 	ruta := filepath.Join(raiz, docs.Constitucion)

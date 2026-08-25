@@ -377,14 +377,32 @@ func Revision(raiz string, f roadmap.Feature) Resultado {
 // Son dos y no uno: la doc Y el journal. El journal entró tarde al diseño —ya
 // estaba construido y ningún estado lo había reclamado— y lleva la memoria que
 // el ⑫ de una feature futura va a leer.
+//
+// Busca en la carpeta viva y, si no está, en la archivada. La pregunta es "¿el
+// ㉓ produjo sus dos archivos?", no "¿dónde está la carpeta hoy?" — y atarla al
+// lugar hace que la compuerta falle cuando alguien está terminando un archivado
+// que quedó a medias, que es justo cuando más se la necesita.
 func Cierre(raiz string, f roadmap.Feature) Resultado {
 	var r Resultado
+
+	carpeta := f.Carpeta()
+	if _, err := os.Stat(filepath.Join(raiz, carpeta)); os.IsNotExist(err) {
+		if archivada := filepath.Join(docs.Archivado, filepath.Base(carpeta)); existe(raiz, archivada) {
+			carpeta = archivada
+		}
+	}
+
 	for _, n := range []string{docs.Doc, docs.Journal} {
-		if _, err := os.Stat(filepath.Join(raiz, f.Carpeta(), n)); err != nil {
-			r.falla("falta %s", filepath.Join(f.Carpeta(), n))
+		if _, err := os.Stat(filepath.Join(raiz, carpeta, n)); err != nil {
+			r.falla("falta %s", filepath.Join(carpeta, n))
 		}
 	}
 	return r
+}
+
+func existe(raiz, rel string) bool {
+	_, err := os.Stat(filepath.Join(raiz, rel))
+	return err == nil
 }
 
 // ────────────────────────────────────────────────────────────────────────────

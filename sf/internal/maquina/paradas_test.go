@@ -61,7 +61,7 @@ func TestApproveEnElPrdMandaAlDone(t *testing.T) {
 // El ⑰: aprobar el plan manda a implementar. La puerta "otra feature" NO se
 // elige acá — se elige con `sf take` después. Cada comando, un trabajo.
 func TestApproveDelPlanMandaAImplementar(t *testing.T) {
-	p := nuevo(t).productoListo()
+	p := nuevo(t).productoListo().conPlanCompleto()
 	p.e.FeatureActual = "f-1"
 	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion, Rechazo: "el diseño B no cierra"}
 
@@ -420,5 +420,125 @@ func TestArchivarEsIdempotenteSiLaCarpetaYaEstaba(t *testing.T) {
 	}
 	if p.e.Features["f-1"].Estado != estado.Cerrada {
 		t.Errorf("la feature quedó en %q", p.e.Features["f-1"].Estado)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// sf approve corre la compuerta antes de sellar
+// ────────────────────────────────────────────────────────────────────────────
+
+// conPlanCompleto deja una planificación que pasa las cinco compuertas del ⑰.
+func (p *proyecto) conPlanCompleto() *proyecto {
+	p.t.Helper()
+	carpeta := filepath.Join(".docs", "features", "f-1-nucleo")
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\n---\n## Criterios\n- **CA-1** — uno\n- **CA-2** — dos\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, docs.Decision),
+		"## A — una\n## B — otra\n## C — la tercera\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, docs.Spec), "# spec\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, "tareas.json"),
+		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],
+		  "tests":["a_test.go::TestX"]}]}`)
+	return p
+}
+
+// La constitución sin `test_cmd` no se puede sellar, y ESO ES LO QUE DICE LA
+// DOCUMENTACIÓN — pero `sf approve` la sellaba igual, porque no corría ninguna
+// compuerta. Sin test_cmd caen tres: el rojo, el verde y el conteo de tests.
+func TestApproveNoSellaLaConstitucionSinTestCmd(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{BriefSellado: "hacelo", PrdHash: "a3f9c1"}
+	p.conArchivoConTexto(docs.Constitucion, "---\nlenguaje: go\ntest_cmd: \"\"\n---\n# reglas\n")
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if ef.Pasa() {
+		t.Fatal("selló la constitución sin test_cmd")
+	}
+	if !strings.Contains(strings.Join(ef.Fallas, " "), "test_cmd") {
+		t.Errorf("no dijo qué falta: %v", ef.Fallas)
+	}
+	if p.e.Producto.ConstitucionSellada {
+		t.Error("marcó el sello igual")
+	}
+
+	// Y con test_cmd sí sella: el arreglo no puede frenar el flujo normal.
+	p.conArchivoConTexto(docs.Constitucion, "---\nlenguaje: go\ntest_cmd: go test ./...\n---\n# reglas\n")
+	if ef := Aprobar(p.raiz, p.e, p.r); !ef.Pasa() {
+		t.Errorf("no selló una constitución completa: %v", ef.Fallas)
+	}
+}
+
+// Y el peor de los dos: un backlog sellado sin ids de criterio DESARMA EL
+// MECANISMO ENTERO. Sin ids, la cobertura del ⑰ cuenta cero contra cero y pasa,
+// y el conteo de veredictos del ㉑ también.
+func TestApproveNoSellaElBacklogSinCriterios(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1", ConstitucionSellada: true,
+	}
+	p.conArchivoConTexto(docs.Historia("us-1"), "---\nid: us-1\n---\nComo usuario quiero algo.\n")
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if ef.Pasa() {
+		t.Fatal("selló un backlog con una historia sin criterios")
+	}
+	if !strings.Contains(strings.Join(ef.Fallas, " "), "criterios de aceptación") {
+		t.Errorf("no dijo qué falta: %v", ef.Fallas)
+	}
+	if p.e.Producto.BacklogVisto {
+		t.Error("marcó el backlog como visto igual")
+	}
+
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\n---\n## Criterios\n- **CA-1** — algo\n")
+	if ef := Aprobar(p.raiz, p.e, p.r); !ef.Pasa() {
+		t.Errorf("no selló un backlog con criterios: %v", ef.Fallas)
+	}
+}
+
+// El ⑰ tipeado directo también pasa por las cinco. `sf next` ya las corre antes
+// de ofrecer la 🛑, pero un `sf approve` a mano las salteaba — y aprobar un plan
+// que cubre 7 de 9 criterios es justo lo que el ⑰ existe para impedir.
+func TestApproveNoApruebaUnPlanIncompleto(t *testing.T) {
+	p := nuevo(t).productoListo().conPlanCompleto()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion}
+
+	// Una tarea que cubre CA-1 y deja CA-2 afuera.
+	p.conArchivoConTexto(filepath.Join(".docs", "features", "f-1-nucleo", "tareas.json"),
+		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`)
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if ef.Pasa() {
+		t.Fatal("aprobó un plan que deja un criterio sin cubrir")
+	}
+	if !strings.Contains(strings.Join(ef.Fallas, " "), "us-1/CA-2") {
+		t.Errorf("no dijo cuál falta: %v", ef.Fallas)
+	}
+	if p.e.Features["f-1"].Estado != estado.Planificacion {
+		t.Error("movió el estado igual")
+	}
+}
+
+// Los avisos de la compuerta NO frenan y viajan igual: esconderlos detrás de un
+// ✓ es la forma más fácil de que nadie los lea.
+func TestApproveMuestraLosAvisosDeLaCompuerta(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1", ConstitucionSellada: true,
+	}
+	// Seis historias en una feature: la compuerta del roadmap avisa, no frena.
+	for _, id := range []string{"us-1", "us-2", "us-3"} {
+		p.conArchivoConTexto(docs.Historia(id),
+			"---\nid: "+id+"\n---\n## Criterios\n- **CA-1** — algo\n")
+	}
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if !ef.Pasa() {
+		t.Fatalf("no selló: %v", ef.Fallas)
+	}
+	// Sin avisos que mostrar, el texto arranca con el ✓ y no con un ⚠ vacío.
+	if !strings.HasPrefix(ef.Texto(), "✓ ") {
+		t.Errorf("el texto arranca raro: %q", ef.Texto())
 	}
 }

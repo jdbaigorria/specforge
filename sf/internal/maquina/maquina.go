@@ -37,6 +37,7 @@ import (
 	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/compuerta"
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
@@ -246,8 +247,17 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *g
 	}
 
 	// ⑧ constitución.
+	//
+	// Acá el patrón de "¿existe el archivo?" no alcanza, y es el único de los
+	// tres donde falla: `sf init` SIEMPRE crea la constitución —tiene que
+	// crearla, ahí escribe el test_cmd que detectó del stack—, así que el
+	// checkpoint por existencia daba siempre "está escrita" y el ⑧ nunca se
+	// alcanzaba. Lo que se sellaba era la plantilla.
+	//
+	// El marcador que deja el andamio convierte la pregunta en "¿está
+	// ESCRITA?", que sigue siendo comparar dos strings.
 	if !e.Producto.ConstitucionSellada {
-		if !existe(raiz, docs.Constitucion) {
+		if !existe(raiz, docs.Constitucion) || constitucion.SinEscribir(raiz) {
 			return trabajar("constitucion", "", "el ⑧ lo sellás vos cuando esté", g), true
 		}
 		return Instruccion{

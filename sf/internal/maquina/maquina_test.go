@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
+	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
@@ -759,5 +761,47 @@ func TestSinBaseCommitNoAvisa(t *testing.T) {
 
 	if len(i.Avisos) != 0 {
 		t.Errorf("avisó sin base_commit: %v", i.Avisos)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El ⑧ tiene que ser alcanzable
+// ────────────────────────────────────────────────────────────────────────────
+
+// `sf init` SIEMPRE crea la constitución —tiene que crearla, ahí escribe el
+// test_cmd que detectó del stack—, así que el checkpoint por existencia daba
+// siempre "está escrita" y del ⑦ se saltaba derecho a la 🛑. Lo que se sellaba
+// era la plantilla, y `sfp-constitucion` no lo invocaba nadie nunca.
+func TestElOchoEsAlcanzableConLaPlantillaDelAndamio(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{BriefSellado: "hacelo", PrdHash: "a3f9c1"}
+	p.conArchivoConTexto(docs.Constitucion,
+		"---\nlenguaje: go\ntest_cmd: go test ./...\n---\n\n# Constitución\n\n"+
+			constitucion.MarcaSinEscribir+"\n\n## Arquitectura\n")
+
+	i := p.next()
+	if i.Tipo != Trabajar {
+		t.Fatalf("tipo %v, quería Trabajar: la constitución es la plantilla", i.Tipo)
+	}
+	if i.Estado != "constitucion" || i.Skill != "sfp-constitucion" {
+		t.Errorf("estado %q skill %q, quería constitucion/sfp-constitucion", i.Estado, i.Skill)
+	}
+}
+
+// Y cuando el ⑧ la escribió de verdad —el marcador ya no está—, vuelve la 🛑:
+// el arreglo no puede dejar la máquina pidiendo la constitución para siempre.
+func TestElOchoParaCuandoLaConstitucionYaSeEscribio(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{BriefSellado: "hacelo", PrdHash: "a3f9c1"}
+	p.conArchivoConTexto(docs.Constitucion,
+		"---\nlenguaje: go\ntest_cmd: go test ./...\n---\n\n# Constitución\n\n"+
+			"## Arquitectura\nHexagonal, con los puertos en internal/.\n")
+
+	i := p.next()
+	if i.Tipo != Para {
+		t.Fatalf("tipo %v, quería Para: la constitución está escrita", i.Tipo)
+	}
+	if !slices.Contains(i.Sugerido, "sf approve") {
+		t.Errorf("sugirió %v, quería sf approve", i.Sugerido)
 	}
 }

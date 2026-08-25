@@ -49,6 +49,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 )
@@ -213,7 +214,7 @@ git:
 
 # Constitución
 
-<Esto lo escribe el ⑧. Corré: sf next>
+%s
 
 ## Arquitectura
 
@@ -224,5 +225,5 @@ git:
 ## Estructura de carpetas
 
 ## Reglas de trabajo
-`, s.Lenguaje, s.Manifiesto, s.TestCmd, aviso)
+`, s.Lenguaje, s.Manifiesto, s.TestCmd, aviso, constitucion.MarcaSinEscribir)
 }
