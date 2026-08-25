@@ -70,6 +70,35 @@ const (
 	Cerrada       = "cerrada"
 )
 
+// Efectivo aplica el camino corto del bug sobre el estado guardado.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// UN SOLO LUGAR QUE DECIDA, PORQUE TENERLO EN DOS YA COSTÓ CARO
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	tipo: us    →  planificacion → implementar → revision → cierre
+//	tipo: bug   →  implementar → cierre        (se saltean dos estados)
+//
+// No hay carril paralelo ni segunda máquina: hay un campo que saltea estados
+// (maquina-estados.md §8, H20). Pero la REGLA vivía copiada en `sf next` y en
+// `sf done`, y faltaba en `sf lote start` y en `sf context` — así que los
+// comandos se contradecían sobre la misma feature: `next` decía "implementar,
+// corré lote start" y `lote start` contestaba "esto está en planificacion".
+//
+// Por eso esto es una función y no un `if` en cada uno: el que decide por
+// estado tiene que preguntar acá, y agregar un comando nuevo no puede volver a
+// olvidarse de la regla.
+//
+// `revision` no aparece: el salteo de la revisión no se puede resolver mirando
+// sólo el estado guardado —depende de que TODOS los lotes estén commiteados—,
+// así que lo sigue haciendo `cerrarLote`, que es el que tiene esa información.
+func Efectivo(actual string, esBug bool) string {
+	if esBug && actual == Planificacion {
+		return Implementar
+	}
+	return actual
+}
+
 // Estado es el archivo entero.
 //
 // Las etiquetas `json:"..."` le dicen a encoding/json cómo se llama cada campo
@@ -377,6 +406,28 @@ func (f *Feature) LoteActual() (*Lote, bool) {
 	}
 	return nil, false
 }
+
+// SinSembrar dice que esta feature nunca pasó por `sf lote start`.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// NO ES LO MISMO QUE "NO QUEDA NINGÚN LOTE ABIERTO"
+// ────────────────────────────────────────────────────────────────────────────
+//
+// LoteActual() devuelve (nil, false) en DOS situaciones que no tienen nada que
+// ver entre sí:
+//
+//	f.Lotes vacío              nadie empezó         ← acá
+//	todos con Commit != nil    todos terminaron
+//
+// Confundirlas era el agujero más grande del binario: los lotes se siembran
+// recién cuando alguien va a trabajarlos, así que una lista vacía significa que
+// NADIE EMPEZÓ — y eso se leía como "terminado". Con eso, un solo `sf done`
+// después de aprobar el plan movía la feature a revisión sin branch, sin tests,
+// sin código y sin commit.
+//
+// Es un hecho contable, no un juicio (R3): `len(f.Lotes) == 0`. Y no agrega
+// estado nuevo — se deriva de lo que ya está en el estado.json (R6).
+func (f *Feature) SinSembrar() bool { return len(f.Lotes) == 0 }
 
 // Cerrados cuenta los lotes que ya tienen commit.
 //

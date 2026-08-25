@@ -115,22 +115,3 @@ func huerfanas(raiz string, r *roadmap.Roadmap) []string {
 	}
 	return sueltas
 }
-
-// esDeBugs dice si TODAS las historias de una feature son bugs.
-//
-// Se exige que sean todas y no "alguna", porque saltear la planificación de una
-// feature que mezcla un bug con dos historias nuevas sería dejar esas dos sin
-// diseño. Si están mezcladas, el agrupamiento del ⑩ ya estaba mal: un bug y una
-// feature nueva no comparten solución técnica (artefactos.md §3).
-func esDeBugs(raiz string, f roadmap.Feature) bool {
-	if len(f.Historias) == 0 {
-		return false
-	}
-	for _, id := range f.Historias {
-		h, err := historia.Leer(raiz, id)
-		if err != nil || !h.EsBug() {
-			return false
-		}
-	}
-	return true
-}

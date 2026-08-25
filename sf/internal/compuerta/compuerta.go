@@ -388,19 +388,36 @@ func Cierre(raiz string, f roadmap.Feature) Resultado {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// implementar — la única que no está completa todavía
+// implementar — dos preguntas, y la primera parecía no hacer falta
 // ────────────────────────────────────────────────────────────────────────────
 
 // Implementar comprueba lo que se puede sin haber visto el rojo.
 //
 // La compuerta del medio —"corré los tests, TIENEN QUE FALLAR"— es de `sf lote
-// start`, que es del paso 6. Hasta que exista, esta función igual hace lo
-// correcto: sin `rojo` en el estado, NO AVANZA.
+// start`. Acá se cierran las dos puntas que esa compuerta deja abiertas:
 //
-// Y no es un parche: es el diseño funcionando. sf no puede dejar pasar al verde
-// sin haber visto el rojo con sus propios ojos, y si nunca lo vio, no pasa.
+//	¿empezó?     f.Lotes vacío = nadie corrió `sf lote start`
+//	¿vio rojo?   sin `rojo` en el lote en curso, NO AVANZA
+//
+// ────────────────────────────────────────────────────────────────────────────
+// LA PRIMERA FALTABA, Y ERA EL AGUJERO MÁS GRANDE DEL BINARIO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// LoteActual() devuelve false tanto para "no hay lotes" como para "todos
+// commiteados", y esta función devolvía "pasa" en los dos casos. Con el plan
+// recién aprobado f.Lotes está vacío —los lotes se siembran en `sf lote
+// start`—, así que UN SOLO `sf done` movía la feature a revisión sin branch,
+// sin tests, sin código y sin commit. Todo el mecanismo del producto se
+// evitaba corriendo un comando una vez.
+//
+// El arreglo es contar (R3): una lista vacía no es una lista terminada.
 func Implementar(f *estado.Feature) Resultado {
 	var r Resultado
+
+	if f.SinSembrar() {
+		r.falla("no empezaste ningún lote. Corré `sf lote start` antes de implementar")
+		return r
+	}
 
 	l, hay := f.LoteActual()
 	if !hay {

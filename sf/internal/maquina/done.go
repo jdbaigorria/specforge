@@ -10,6 +10,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
+	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/suite"
@@ -140,10 +141,10 @@ func terminarFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, msg stri
 	}
 
 	// El mismo salteo del camino corto que hace `sf next`, y acá SÍ se escribe:
-	// `sf done` es el que mueve el estado.
-	if f.Estado == estado.Planificacion && esDeBugs(raiz, fr) {
-		f.Estado = estado.Implementar
-	}
+	// `sf done` es el que mueve el estado. La regla vive en estado.Efectivo —
+	// tenerla copiada en cada comando fue lo que dejó a `sf lote start`
+	// contradiciendo a `sf next`.
+	f.Estado = estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
 
 	switch f.Estado {
 	case estado.Planificacion:
@@ -204,7 +205,11 @@ func cerrarLote(raiz string, f *estado.Feature, fr roadmap.Feature, msg string) 
 	if !hayLote {
 		// Todos los lotes tienen commit: se cierra el estado entero. Y acá está
 		// la otra mitad del camino corto — un bug tampoco pasa por revisión.
-		if esDeBugs(raiz, fr) {
+		//
+		// Que acá "no hay lote en curso" signifique de verdad "todos cerrados"
+		// y no "nunca empezó" lo garantiza compuerta.Implementar, que corrió
+		// arriba y frena con f.Lotes vacío.
+		if historia.SonTodasBugs(raiz, fr.Historias) {
 			f.Estado = estado.Cierre
 			return Cierre{Movio: true, Cambio: true,
 				Mensaje: "lotes cerrados — es un bug, se saltea la revisión: sigue el cierre (㉓)"}
@@ -257,8 +262,10 @@ func cerrarRevision(raiz string, f *estado.Feature, fr roadmap.Feature) Cierre {
 		// archivo, no el texto de la falla.
 		if hayAbiertos(raiz, fr) {
 			f.Estado = estado.Implementar
+			l := abrirLoteDeCorreccion(f)
 			return Cierre{Movio: true, Cambio: true, Resultado: res,
-				Mensaje: "hay hallazgos abiertos — vuelve a implementar"}
+				Mensaje: fmt.Sprintf(
+					"hay hallazgos abiertos — vuelve a implementar en el lote %d", l)}
 		}
 		return c
 	}
@@ -267,6 +274,41 @@ func cerrarRevision(raiz string, f *estado.Feature, fr roadmap.Feature) Cierre {
 	c.Movio, c.Cambio = true, true
 	c.Mensaje = "revisión limpia — sigue el cierre (㉓)"
 	return c
+}
+
+// abrirLoteDeCorreccion le da al ㉑ dónde arreglar lo que encontró.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// SIN ESTO, LA VUELTA DEL ㉑ ERA UN LOOP MUERTO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El estado volvía a `implementar` y no había nada que implementar: los lotes
+// del plan ya estaban todos commiteados, así que `sf lote start` contestaba
+// "todos los lotes ya están commiteados" y `sf done` rebotaba a `revision`.
+// El arreglo del hallazgo no tenía dónde commitearse, y la única salida era
+// `sf dismiss` — o sea, declarar falso lo que el revisor encontró.
+//
+// El lote es la unidad de trabajo que la máquina ya tiene, y el arreglo de un
+// hallazgo es exactamente eso: un cambio con su test, que termina en un commit.
+// Abrir uno nuevo mantiene "un lote, un commit" (los dolores #2 y #3) en vez de
+// inventar un carril donde el fix se commitea suelto.
+//
+// El lote nuevo NO está en tareas.json —el plan se escribió antes de que el
+// hallazgo existiera—, así que `sf lote start` cae en la rama del lote de
+// corrección: no puede exigir CUÁLES tests, pero sigue exigiendo que la suite
+// falle. Y eso es lo correcto acá: un hallazgo sin un test que lo reproduzca es
+// un hallazgo que nadie va a poder verificar.
+//
+// Devuelve el número, que es lo único que el mensaje necesita.
+func abrirLoteDeCorreccion(f *estado.Feature) int {
+	n := 1
+	for _, l := range f.Lotes {
+		if l.Lote >= n {
+			n = l.Lote + 1
+		}
+	}
+	f.Lotes = append(f.Lotes, estado.Lote{Lote: n})
+	return n
 }
 
 func hayAbiertos(raiz string, fr roadmap.Feature) bool {

@@ -273,6 +273,32 @@ func TestImplementarNoPasaSinRojo(t *testing.T) {
 	}
 }
 
+// Una lista de lotes VACÍA no es una lista terminada.
+//
+// Era el agujero más grande del binario: con el plan recién aprobado f.Lotes
+// está vacío —los lotes se siembran en `sf lote start`—, y esta compuerta
+// devolvía "pasa" porque LoteActual() da false igual que cuando están todos
+// commiteados. Un solo `sf done` movía la feature a revisión sin branch, sin
+// tests, sin código y sin commit.
+func TestImplementarFrenaSinLotesSembrados(t *testing.T) {
+	exige(t, Implementar(&estado.Feature{}), "no empezaste ningún lote")
+	exige(t, Implementar(&estado.Feature{Lotes: []estado.Lote{}}), "no empezaste ningún lote")
+}
+
+// Y la otra mitad: con TODOS commiteados sí se puede cerrar el estado. Sin este
+// test, el arreglo de arriba podría frenar el cierre legítimo y nadie se
+// enteraría — los dos casos entran por el mismo `false` de LoteActual().
+func TestImplementarPasaConTodosLosLotesCommiteados(t *testing.T) {
+	uno, dos := "abc123", "def456"
+	f := &estado.Feature{Lotes: []estado.Lote{
+		{Lote: 1, Rojo: true, Commit: &uno},
+		{Lote: 2, Rojo: true, Commit: &dos},
+	}}
+	if !Implementar(f).Pasa() {
+		t.Errorf("con todos los lotes commiteados no pasó: %v", Implementar(f).Fallas)
+	}
+}
+
 // El ㉓ agrega DOS archivos, no uno: la doc y el journal.
 func TestCierreExigeLaDocYElJournal(t *testing.T) {
 	p := nuevo(t).archivo(carpetaF1+"/doc.md", "# doc\n")

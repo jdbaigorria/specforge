@@ -295,3 +295,58 @@ func TestCerrados(t *testing.T) {
 		t.Errorf("Cerrados() = %d, quería 1", n)
 	}
 }
+
+// SinSembrar separa los dos casos que LoteActual() mete en la misma bolsa.
+//
+// "Nadie empezó" y "todos terminaron" devuelven las dos (nil, false), y
+// confundirlas dejaba pasar una feature sin una sola línea de código. El test
+// pone los tres estados posibles al lado para que la diferencia se vea.
+func TestSinSembrarNoEsLoMismoQueTodosCerrados(t *testing.T) {
+	c := "abc123"
+
+	nadie := &Feature{}
+	empezada := &Feature{Lotes: []Lote{{Lote: 1, Rojo: true}}}
+	terminada := &Feature{Lotes: []Lote{{Lote: 1, Rojo: true, Commit: &c}}}
+
+	if !nadie.SinSembrar() {
+		t.Error("una feature sin lotes tiene que dar SinSembrar()")
+	}
+	if empezada.SinSembrar() || terminada.SinSembrar() {
+		t.Error("una feature con lotes NO está sin sembrar")
+	}
+
+	// Y la trampa, explícita: los dos extremos dan el mismo LoteActual().
+	_, hayNadie := nadie.LoteActual()
+	_, hayTerminada := terminada.LoteActual()
+	if hayNadie || hayTerminada {
+		t.Fatal("el test se apoya en que los dos den false")
+	}
+	if nadie.SinSembrar() == terminada.SinSembrar() {
+		t.Error("SinSembrar() existe justamente para distinguirlos")
+	}
+}
+
+// El camino corto tiene que dar lo mismo desde donde se lo mire, y esa es toda
+// la razón por la que Efectivo existe: la regla vivía copiada en `sf next` y en
+// `sf done`, y faltaba en `sf lote start`.
+func TestEfectivoSalteaPlanificacionSoloParaBugs(t *testing.T) {
+	casos := []struct {
+		nombre string
+		actual string
+		esBug  bool
+		quiero string
+	}{
+		{"un bug saltea la planificación", Planificacion, true, Implementar},
+		{"una us no la saltea", Planificacion, false, Planificacion},
+		{"un bug ya en implementar no se mueve", Implementar, true, Implementar},
+		{"el cierre no se toca nunca", Cierre, true, Cierre},
+		{"la revisión no se saltea acá: depende de los lotes", Revision, true, Revision},
+	}
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			if got := Efectivo(c.actual, c.esBug); got != c.quiero {
+				t.Errorf("Efectivo(%q, %v) = %q, quería %q", c.actual, c.esBug, got, c.quiero)
+			}
+		})
+	}
+}

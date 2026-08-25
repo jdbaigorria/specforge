@@ -41,6 +41,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
+	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
@@ -327,12 +328,12 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 	// que mantener— sino la MISMA máquina con estados salteados.
 	//
 	// Se calcula en una variable local y NO se escribe en f: `sf next` es
-	// consulta pura y correrlo dos veces tiene que dar lo mismo. El que mueve el
-	// estado es `sf done`, y allá el mismo salteo se aplica de nuevo.
-	actual := f.Estado
-	if actual == estado.Planificacion && esDeBugs(raiz, fr) {
-		actual = estado.Implementar
-	}
+	// consulta pura y correrlo dos veces tiene que dar lo mismo. Los que mueven
+	// el estado son `sf done` y `sf lote start`, y allá se aplica la MISMA
+	// función — que exista una sola es el arreglo: tenerla copiada acá y en
+	// `done` mientras faltaba en `lote start` dejaba a los comandos
+	// contradiciéndose sobre la misma feature.
+	actual := estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
 
 	switch actual {
 	case estado.Planificacion:

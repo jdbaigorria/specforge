@@ -133,6 +133,38 @@ func Criterios(raiz string, ids []string) ([]string, error) {
 	return todos, nil
 }
 
+// SonTodasBugs dice si un conjunto de historias va por el camino corto.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// TODAS, Y NO "ALGUNA"
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Saltear la planificación de una feature que mezcla un bug con dos historias
+// nuevas dejaría esas dos sin diseño. Y si están mezcladas, el agrupamiento del
+// ⑩ ya estaba mal: un bug y una feature nueva no comparten solución técnica
+// (artefactos.md §3).
+//
+// Vive acá y no en `maquina` porque la pregunta es sobre las historias, y
+// porque el que la necesita ya no es uno solo: `sf next`, `sf done`, `sf lote
+// start` y `sf context` tienen que contestarla igual. Recibe []string y no
+// roadmap.Feature para que `historia` no dependa de `roadmap`.
+//
+// Una historia ilegible cuenta como "no es bug": el que se queja de eso es la
+// compuerta del ⑨, y ante la duda conviene el camino largo — de más se puede
+// saltear después, de menos ya se implementó sin diseño.
+func SonTodasBugs(raiz string, ids []string) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	for _, id := range ids {
+		h, err := Leer(raiz, id)
+		if err != nil || !h.EsBug() {
+			return false
+		}
+	}
+	return true
+}
+
 // Ids devuelve los ids de todas las historias del backlog, ordenados.
 //
 // Ordenados por NÚMERO, no alfabéticamente: `us-10` va después de `us-9`, y un

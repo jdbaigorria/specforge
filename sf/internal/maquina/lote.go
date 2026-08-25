@@ -3,10 +3,12 @@ package maquina
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
+	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/suite"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
@@ -45,13 +47,21 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		ef.falla("no hay feature en curso: corré `sf take <feature>` primero")
 		return ef
 	}
-	if f.Estado != estado.Implementar {
-		ef.falla("%s está en %q, y `sf lote start` es de implementar", e.FeatureActual, f.Estado)
-		return ef
-	}
 	fr, enRoadmap := r.Buscar(e.FeatureActual)
 	if !enRoadmap {
 		ef.falla("%s no está en el roadmap", e.FeatureActual)
+		return ef
+	}
+
+	// El estado EFECTIVO, no el guardado. Un bug entra a `implementar` sin
+	// pasar por `planificacion`, y el estado.json todavía dice "planificacion"
+	// porque el que lo mueve es `sf done` — que en el camino corto va DESPUÉS
+	// de esto. Comparar contra el crudo era pedirle al bug que hiciera primero
+	// lo que la máquina dice que se saltea, y dejaba `sf lote start`
+	// contradiciendo a `sf next` sobre la misma feature.
+	esBug := historia.SonTodasBugs(raiz, fr.Historias)
+	if estado.Efectivo(f.Estado, esBug) != estado.Implementar {
+		ef.falla("%s está en %q, y `sf lote start` es de implementar", e.FeatureActual, f.Estado)
 		return ef
 	}
 
@@ -73,7 +83,7 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		ef.falla("%v", err)
 		return ef
 	}
-	if len(f.Lotes) == 0 {
+	if f.SinSembrar() {
 		if conPlan {
 			for _, n := range p.Lotes() {
 				f.Lotes = append(f.Lotes, estado.Lote{Lote: n})
@@ -111,15 +121,35 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	// plan pedía". Sin ella, el #8 se cuela por el costado: la suite falla por
 	// cualquier otra cosa y el lote pasa igual.
 	//
-	// SIN PLAN la compuerta se afloja a lo que sí se puede comprobar: que la
-	// suite falle. No se cae —sigue siendo un hecho y sigue siendo un exit
-	// code— pero deja de poder decir CUÁLES tests. Es el precio del camino
-	// corto, y es el precio correcto: la alternativa era obligar a la ceremonia
-	// completa para arreglar algo chico, y una herramienta así se evita igual
-	// que ahora — y ahí sí se pierde el rastro.
+	// UN LOTE FUERA DEL PLAN afloja la compuerta a lo que sí se puede
+	// comprobar: que la suite falle. No se cae —sigue siendo un hecho y sigue
+	// siendo un exit code— pero deja de poder decir CUÁLES tests.
+	//
+	// Son dos los casos que llegan así, y los dos son legítimos:
+	//
+	//	el camino corto de un bug   no hay tareas.json: saltea el ⑫–⑯ (H21)
+	//	la vuelta del ㉑            el lote lo abrió cerrarRevision, y el plan
+	//	                            se escribió antes de que el hallazgo
+	//	                            existiera
+	//
+	// Es el precio del camino corto, y es el precio correcto: la alternativa
+	// era obligar a la ceremonia completa para arreglar algo chico, y una
+	// herramienta así se evita igual que ahora — y ahí sí se pierde el rastro.
+	// Y las dos preguntas son distintas, aunque las dos den "cero tests":
+	//
+	//	el lote ESTÁ en el plan y no tiene tests   →  error del ⑰, se frena
+	//	el lote NO está en el plan                 →  lote de corrección
+	//
+	// Confundirlas haría que la vuelta del ㉑ recibiera un mensaje que le echa
+	// la culpa a una compuerta que hizo bien su trabajo.
 	var planificados []string
+	delPlan := false
 	if conPlan {
 		planificados = p.TestsDelLote(l.Lote)
+		delPlan = slices.Contains(p.Lotes(), l.Lote)
+	}
+	switch {
+	case delPlan:
 		if len(planificados) == 0 {
 			ef.falla("el lote %d no tiene tests planificados. Eso tendría que haberlo frenado el ⑰.", l.Lote)
 			return ef
@@ -132,7 +162,9 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 			return ef
 		}
 		pasos = append(pasos, fmt.Sprintf("los %d tests planificados existen", len(planificados)))
-	} else {
+	case conPlan:
+		pasos = append(pasos, "lote de corrección: alcanza con que algo falle")
+	default:
 		pasos = append(pasos, "sin plan (camino corto): alcanza con que algo falle")
 	}
 
@@ -143,9 +175,12 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		return ef
 	}
 	if res.Verde {
-		if !conPlan {
-			ef.falla("la suite PASA ENTERA: el bug no está reproducido.")
-			ef.falla("    Escribí primero el test que lo reproduce.")
+		// El mensaje sale de la MISMA distinción de arriba: sin la lista de
+		// tests planificados, lo que falta no es "el código del lote" sino el
+		// test que reproduce lo que se vino a arreglar.
+		if !delPlan {
+			ef.falla("la suite PASA ENTERA: todavía no está reproducido lo que venís a arreglar.")
+			ef.falla("    Escribí primero el test que falla.")
 			return ef
 		}
 		ef.falla("la suite YA PASA, y todavía no se escribió el código del lote %d.", l.Lote)
@@ -166,6 +201,18 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 
 	l.Rojo = true
 	l.HashTests = hash
+
+	// ⑤ Y el salteo se escribe, que es lo que lo hace real.
+	//
+	// En el camino corto éste es el primer comando que muta el estado, y dejar
+	// el estado.json diciendo "planificacion" mientras el rojo ya está
+	// confirmado es exactamente la divergencia que rompía el camino del bug:
+	// cada comando volvía a deducir el salteo por su cuenta, y el que no lo
+	// hacía contradecía a los demás.
+	//
+	// `sf next` no puede hacer esto porque es consulta pura; `sf lote start` sí
+	// escribe —ya guarda Rojo y HashTests—, así que es el lugar correcto.
+	f.Estado = estado.Efectivo(f.Estado, esBug)
 
 	ef.Mensaje = fmt.Sprintf("lote %d de %d listo — %s.\n   Podés implementar.",
 		l.Lote, len(f.Lotes), joinConY(pasos))

@@ -490,3 +490,122 @@ func TestUnaCorridaQueFallaIgualSirveSuSalida(t *testing.T) {
 		t.Errorf("se tragó la salida por el exit code:\n%s", txt)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El lote de corrección — la vuelta del ㉑ necesita saber QUÉ arreglar
+// ────────────────────────────────────────────────────────────────────────────
+
+// Un lote que no está en tareas.json lo abrió cerrarRevision para arreglar un
+// hallazgo, y el plan se escribió antes de que el hallazgo existiera. Servirle
+// las tareas del plan le daba una lista vacía y un "lote 2 de 1" que no
+// significa nada — o sea, un subagente fresco improvisando, que es justo lo que
+// la máquina existe para evitar.
+func TestElSobreDelLoteDeCorreccionTraeElHallazgo(t *testing.T) {
+	commit := "abc123"
+	p := nuevo(t).enFeature(estado.Implementar)
+	p.e.Features["f-1"].Lotes = []estado.Lote{
+		{Lote: 1, Rojo: true, Commit: &commit},
+		{Lote: 2}, // el de corrección
+	}
+	p.archivo(carpetaF1+"/tareas.json",
+		`{"tareas":[{"id":"t-1","lote":1,"descripcion":"el parser","tests":["a_test.go::TestX"]}]}`)
+	p.archivo(carpetaF1+"/"+docs.Revision, `{"vuelta":1,"hallazgos":[
+		{"id":"h-1","origen":21,"criterio":"us-1/CA-2","estado":"abierto","detalle":"no valida el caso vacío"},
+		{"id":"h-2","origen":21,"estado":"descartado","motivo":"falso positivo","detalle":"otra cosa"}]}`)
+
+	texto := p.texto()
+
+	if !strings.Contains(texto, "Qué hay que arreglar") {
+		t.Errorf("el sobre no dice qué arreglar:\n%s", texto)
+	}
+	for _, pedazo := range []string{"h-1", "us-1/CA-2", "no valida el caso vacío"} {
+		if !strings.Contains(texto, pedazo) {
+			t.Errorf("el sobre no trae %q:\n%s", pedazo, texto)
+		}
+	}
+	// El descartado NO va: lo descartó Javier, y volver a ponerlo sería pedirle
+	// al que trabaja que arregle algo que ya se decidió que no está roto.
+	if strings.Contains(texto, "h-2") {
+		t.Errorf("el sobre trae un hallazgo descartado:\n%s", texto)
+	}
+	// Y no puede quedar el "lote 2 de 1" del plan, que no significa nada.
+	if strings.Contains(texto, "lote 2 de 1") {
+		t.Errorf("sirvió las tareas del plan para un lote que no está en él:\n%s", texto)
+	}
+}
+
+// Y el lote normal sigue trayendo sus tareas: el arreglo de arriba no puede
+// robarle el sobre a los lotes que SÍ están en el plan.
+func TestElSobreDelLoteDelPlanSigueTrayendoLasTareas(t *testing.T) {
+	p := nuevo(t).enFeature(estado.Implementar)
+	p.e.Features["f-1"].Lotes = []estado.Lote{{Lote: 1}}
+	p.archivo(carpetaF1+"/tareas.json",
+		`{"tareas":[{"id":"t-1","lote":1,"descripcion":"el parser","tests":["a_test.go::TestX"]}]}`)
+
+	texto := p.texto()
+	if !strings.Contains(texto, "Tus tareas (lote 1 de 1)") {
+		t.Errorf("no sirvió las tareas del plan:\n%s", texto)
+	}
+	if !strings.Contains(texto, "el parser") {
+		t.Errorf("no trae la descripción de la tarea:\n%s", texto)
+	}
+}
+
+// El sobre tiene que aplicar el mismo camino corto que `sf next`, o el
+// subagente que el orquestador lanzó con sf-build recibe el sobre del ⑫.
+func TestElSobreDeUnBugEnPlanificacionEsElDeImplementar(t *testing.T) {
+	p := nuevo(t).enFeature(estado.Planificacion)
+	p.e.Features["f-1"].Lotes = []estado.Lote{{Lote: 1}}
+	p.archivo(docs.Historia("us-1"), "---\ntipo: bug\nid: us-1\n---\n- **CA-1** — x\n")
+	p.archivo(docs.Historia("us-3"), "---\ntipo: bug\nid: us-3\n---\n- **CA-1** — y\n")
+	p.archivo(carpetaF1+"/"+docs.Spec, "# spec\n")
+
+	s, err := Armar(p.raiz, p.e, p.r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Estado != estado.Implementar {
+		t.Errorf("el sobre es de %q, quería implementar: es un bug", s.Estado)
+	}
+	if strings.Contains(s.Texto(p.raiz, false), "Qué hay que resolver") {
+		t.Error("sirvió el sobre del ⑫ para un bug que ya está implementando")
+	}
+}
+
+// Y una feature normal en planificación sigue recibiendo el sobre del ⑫.
+func TestElSobreDeUnaUsEnPlanificacionNoSeSaltea(t *testing.T) {
+	p := nuevo(t).enFeature(estado.Planificacion)
+	p.archivo(docs.Historia("us-1"), "---\ntipo: us\nid: us-1\n---\n- **CA-1** — x\n")
+	p.archivo(docs.Historia("us-3"), "---\ntipo: us\nid: us-3\n---\n- **CA-1** — y\n")
+
+	s, err := Armar(p.raiz, p.e, p.r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Estado != estado.Planificacion {
+		t.Errorf("el sobre es de %q, quería planificacion", s.Estado)
+	}
+}
+
+// "Nunca empezaste" y "ya terminaste" no son lo mismo, y en el sobre la
+// confusión es peor que en la compuerta: decirle "no queda nada por
+// implementar" a un subagente que acaba de nacer para implementar es mandarlo a
+// no hacer nada.
+func TestElSobreDistingueSinEmpezarDeTodoCommiteado(t *testing.T) {
+	commit := "abc123"
+
+	sinEmpezar := nuevo(t).enFeature(estado.Implementar)
+	sinEmpezar.archivo(carpetaF1+"/tareas.json", `{"tareas":[{"id":"t-1","lote":1}]}`)
+	if texto := sinEmpezar.texto(); !strings.Contains(texto, "sf lote start") {
+		t.Errorf("sin lotes no mandó a empezar:\n%s", texto)
+	} else if strings.Contains(texto, "commiteados") {
+		t.Errorf("dijo que estaban todos commiteados sin ningún lote:\n%s", texto)
+	}
+
+	terminada := nuevo(t).enFeature(estado.Implementar)
+	terminada.e.Features["f-1"].Lotes = []estado.Lote{{Lote: 1, Rojo: true, Commit: &commit}}
+	terminada.archivo(carpetaF1+"/tareas.json", `{"tareas":[{"id":"t-1","lote":1}]}`)
+	if texto := terminada.texto(); !strings.Contains(texto, "commiteados") {
+		t.Errorf("con todo commiteado no lo dijo:\n%s", texto)
+	}
+}

@@ -52,6 +52,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
@@ -59,6 +60,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/historia"
+	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
@@ -213,9 +215,18 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error
 	}
 	carpeta := fr.Carpeta()
 
-	s := &Sobre{Estado: f.Estado, Feature: fr.ID}
+	// El estado EFECTIVO, igual que `sf next` y `sf done`. Sin esto, el sobre
+	// de un bug era el del ⑫ —"qué hay que resolver"— mientras `sf next` ya
+	// había lanzado a sf-build a implementar: el subagente recibía la historia
+	// en vez de la spec, las tareas y los criterios.
+	//
+	// Y se perdía loQueRompio, que cuelga de la rama `implementar`: la spec
+	// archivada de la feature que el bug rompió es justo lo que evita que el
+	// que lo arregla arranque de cero sin saber qué se había decidido.
+	est := estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
+	s := &Sobre{Estado: est, Feature: fr.ID}
 
-	switch f.Estado {
+	switch est {
 	case estado.Planificacion:
 		s.Partes = []Parte{
 			{Titulo: "El manual del proyecto", Rutas: []string{docs.Constitucion}},
@@ -271,6 +282,16 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error
 // lotes al implementador es gastarle contexto y tentarlo con trabajo que
 // todavía no le toca.
 func loteYTareas(raiz, carpeta string, f *estado.Feature, partes []Parte) (int, []Parte) {
+	// Los dos casos que LoteActual() mete en la misma bolsa, otra vez — y acá
+	// mentir cuesta caro: decirle "no queda nada por implementar" a un
+	// subagente que acaba de nacer para implementar es mandarlo a no hacer nada.
+	if f.SinSembrar() {
+		return 0, append(partes, Parte{
+			Titulo: "Tus tareas",
+			Falta:  "todavía no empezaste ningún lote: corré `sf lote start`",
+		})
+	}
+
 	l, hayLote := f.LoteActual()
 	if !hayLote {
 		return 0, append(partes, Parte{
@@ -287,6 +308,19 @@ func loteYTareas(raiz, carpeta string, f *estado.Feature, partes []Parte) (int, 
 		})
 	}
 
+	// Un lote que NO está en el plan es el que abrió la vuelta del ㉑ para
+	// arreglar un hallazgo. Servirle las tareas del plan sería servirle una
+	// lista vacía —y un "lote 2 de 1" que no significa nada—, así que en su
+	// lugar va LO QUE HAY QUE ARREGLAR.
+	//
+	// Sin esto el arreglo de A5 quedaba a mitad de camino: el lote existía, el
+	// rojo se podía confirmar, y el subagente fresco no tenía cómo saber qué
+	// venía a arreglar. Un lote sin sobre es un subagente improvisando, que es
+	// exactamente lo que la máquina existe para evitar.
+	if !slices.Contains(p.Lotes(), l.Lote) {
+		return l.Lote, append(partes, hallazgosAbiertos(raiz, carpeta, l.Lote))
+	}
+
 	var b strings.Builder
 	for _, t := range p.DelLote(l.Lote) {
 		fmt.Fprintf(&b, "%s  %s\n", t.ID, t.Descripcion)
@@ -300,6 +334,42 @@ func loteYTareas(raiz, carpeta string, f *estado.Feature, partes []Parte) (int, 
 
 	titulo := fmt.Sprintf("Tus tareas (lote %d de %d)", l.Lote, len(p.Lotes()))
 	return l.Lote, append(partes, Parte{Titulo: titulo, Contenido: strings.TrimRight(b.String(), "\n")})
+}
+
+// hallazgosAbiertos arma la parte del lote de corrección.
+//
+// Va el detalle ENTERO y no una ruta, al revés que casi todo el resto del
+// sobre: son dos o tres líneas que ya están escritas y que el que las lee
+// necesita sí o sí. Mandarlo a abrir el revision.json para leer un renglón
+// sería gastar una tool-call en algo que entra en el prompt.
+//
+// Y el criterio va adelante del detalle porque es lo que ata el arreglo a lo
+// que hay que volver a probar: el ㉑ de la vuelta siguiente opina sobre ese
+// mismo id.
+func hallazgosAbiertos(raiz, carpeta string, lote int) Parte {
+	titulo := fmt.Sprintf("Qué hay que arreglar (lote %d, la vuelta del ㉑)", lote)
+
+	rev, err := revision.Leer(filepath.Join(raiz, carpeta, docs.Revision))
+	if err != nil {
+		return Parte{Titulo: titulo, Falta: err.Error()}
+	}
+
+	abiertos := rev.Abiertos()
+	if len(abiertos) == 0 {
+		// No debería pasar —el lote lo abrió cerrarRevision justamente porque
+		// había hallazgos—, pero un sobre incompleto es mejor que uno que miente.
+		return Parte{Titulo: titulo, Falta: "no quedan hallazgos abiertos en revision.json"}
+	}
+
+	var b strings.Builder
+	for _, h := range abiertos {
+		fmt.Fprintf(&b, "%s", h.ID)
+		if h.Criterio != "" {
+			fmt.Fprintf(&b, "  (%s)", h.Criterio)
+		}
+		fmt.Fprintf(&b, "\n    %s\n", h.Detalle)
+	}
+	return Parte{Titulo: titulo, Contenido: strings.TrimRight(b.String(), "\n")}
 }
 
 // diff sirve el resumen, no el diff completo.
