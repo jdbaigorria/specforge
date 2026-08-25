@@ -63,6 +63,22 @@ jobs:
             exit 1
           fi
 
+      # Los dos numeros del README envejecen callados: nadie los mira al agregar
+      # un paquete o un test, y quedaron mintiendo por 7 paquetes y 66 tests
+      # hasta que alguien los conto a mano. Compararlos cuesta tres lineas.
+      - name: Los numeros del README son los de verdad
+        run: |
+          set -euo pipefail
+          paquetes="$(ls -d sf/internal/*/ | wc -l | tr -d ' ')"
+          tests="$(cd sf && go test ./... -count=1 -v 2>/dev/null | grep -cE '^ *--- PASS')"
+          for f in README.md README.es.md; do
+            grep -qE "$paquetes (packages|paquetes), $tests tests" "$f" || {
+              echo "$f no dice \"$paquetes paquetes, $tests tests\":"
+              grep -nE '(packages|paquetes), [0-9]+ tests' "$f"
+              exit 1
+            }
+          done
+
       - name: Ningun skill usa la ruta vieja specforge/
         run: |
           set -euo pipefail

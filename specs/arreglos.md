@@ -2,10 +2,13 @@
 
 **Fecha de la auditoría:** 2026-08-25 · **Branch:** `refundation` · **Commit:** `cb4d905`
 
-> **Estado: PR1 a PR5 hechos.** A0 a A8 están arreglados, con tests que fallan sin el arreglo
-> (verificado revirtiendo el código y, en A2, reproduciendo el bug con el binario viejo sobre un
-> repo real). Queda **A9** —que es código muerto— y los tres menores de docs. El detalle está al
-> final, en **Lo que se implementó**.
+> **Estado: TERMINADO.** Los diez hallazgos y los tres menores están arreglados, cada uno con
+> tests que fallan sin el arreglo (verificado revirtiendo el código y, en A2, reproduciendo el bug
+> con el binario viejo sobre un repo real). **277 tests** contra los 213 del día de la auditoría.
+> El detalle de cada PR está al final, en **Lo que se implementó**.
+>
+> Lo único que quedó afuera está anotado como **residuo conocido** al final de PR6, y es una
+> aspereza, no un defecto.
 
 Este documento no es diseño: es el **parte de daños**, escrito para implementarse. Cada hallazgo
 trae el síntoma **reproducido de verdad** (no leído), la causa raíz con archivo y línea, el arreglo
@@ -47,11 +50,11 @@ A0, la mitad de A1, y A5.
 | **A6** ✅ | `sf context` no aplica el camino corto del bug | 🟡 medio | entrada C |
 | **A7** ✅ | `sf new` no lleva a `sfp-backlog` | 🟡 medio | entradas B y C |
 | **A8** ✅ | `sf model` se ignora fuera de `implementar` | 🟡 medio | la salida de ME TRABÉ |
-| **A9** | `compuerta.Roadmap` es código muerto | 🔵 bajo | el ⑩ |
-| **M1–M3** | Números y punteros desactualizados en docs | 🔵 bajo | — |
+| **A9** ✅ | `compuerta.Roadmap` es código muerto | 🔵 bajo | el ⑩ |
+| **M1–M3** ✅ | Números y punteros desactualizados en docs | 🔵 bajo | — |
 
-**Orden sugerido:** ~~A0 → A1 → A5~~ ✅ · ~~A2~~ ✅ · ~~A6~~ ✅ · ~~A3 → A4~~ ✅ · ~~A7~~ ✅ ·
-~~A8~~ ✅ · **A9** · M.
+**Orden ejecutado:** ~~A0 → A1 → A5~~ · ~~A2~~ · ~~A6~~ · ~~A3 → A4~~ · ~~A7~~ · ~~A8~~ ·
+~~A9 + M~~ — **todo hecho.**
 
 ---
 
@@ -1558,3 +1561,145 @@ y `docs/problemas.md` (por qué el nombre del modelo está en el mensaje de ME T
 `r == nil` —o sea sin `roadmap.json`—, y ahí falla en la primera línea. Sus dos chequeos reales no
 corren nunca. Hay que revivirla o borrarla; **código muerto con tests que pasan es peor que código
 que no existe**, porque da confianza falsa. Y después los tres menores de docs.
+
+
+---
+
+# Lo que se implementó — PR6
+
+**A9** y los tres menores. El último, y el único que era una decisión antes que un arreglo.
+
+## A9 — la compuerta corría en el único caso en que no sirve
+
+`compuerta.Roadmap` estaba colgada de `r == nil`, y `r` es nil **sólo cuando no hay
+`roadmap.json`** — o sea que la función fallaba en su primera línea, al intentar leerlo. Sus dos
+chequeos reales no se ejecutaban nunca.
+
+Y había un segundo síntoma que el plan no había visto: con el roadmap ya escrito, el `sf done` del
+⑩ caía en el camino de feature y contestaba
+
+```
+✗ no hay feature en curso: corré `sf take <feature>` primero
+```
+
+o sea que **le decía al subagente que hizo bien su trabajo que se había equivocado.** Los dos
+síntomas eran la misma línea.
+
+### La decisión: revivirla, no borrarla
+
+Las dos opciones estaban abiertas. Se revivió por el chequeo que **no cubre nadie más**:
+
+| Chequeo | ¿Lo cubre otro? |
+|---|---|
+| historia huérfana | sí — `huerfanas` en `sf next` |
+| **feature con 6+ historias** | **no** |
+
+Borrarla habría perdido ese aviso en silencio, que es justo la forma de pérdida que esta auditoría
+encontró diez veces.
+
+### Dónde corre ahora
+
+Cuando **no hay feature en curso**, que es exactamente el `sf done` del ⑩. Y no mueve el estado, a
+propósito: el ⑩ no guarda sello —*"¿existe el `roadmap.json`?"* es deducible (R6)— y la transición
+al ciclo la hace `sf take`, que es una decisión de Javier (H4).
+
+```
+$ sf done
+⚠ f-1 junta 6 historias. ¿La partís?
+✓ listo
+→ el roadmap está listo. Elegí con `sf take <feature>`.
+```
+
+### Un panic que estaba esperando
+
+Al sacar el `if r == nil` del principio quedó expuesto `r.Buscar(...)`, que hace
+`range r.Features` sobre un puntero nil. El estado que lo alcanza es raro pero existe: un
+`estado.json` con `feature_actual` puesto y el `roadmap.json` borrado a mano.
+
+`Buscar` es ahora nil-safe —un roadmap que no existe no tiene features, así que *"no está"* es la
+respuesta honesta— y eso **protege también a `Aprobar`**, que tenía el mismo riesgo desde antes y
+nadie lo había mirado.
+
+## M1–M3, y un chequeo para que no vuelvan
+
+| | Decía | Es |
+|---|---|---|
+| **M1** | *"17 packages, 211 tests"* | **18 paquetes, 277 tests** |
+| **M2** | *"los 16 comandos"* | 15 |
+| **M3** | *"aren't validated by `sf lint`"* | `sf lint` no existe — es el CI |
+
+**Y el CI ahora los compara.** Los dos números de M1 son de los que envejecen callados: nadie los
+mira al agregar un paquete o un test, y quedaron mintiendo por 7 paquetes y 66 tests hasta que
+alguien los contó a mano. Tres líneas en `lint.yml` y no vuelve a pasar.
+
+## Los tests
+
+**277 pasan** (eran 273).
+
+```
+TestElDoneDelDiezAtrapaLaHistoriaHuerfana
+TestElDoneDelDiezCierraSinMoverElEstado              ← y que NO mueve el estado
+TestElDoneDelDiezAvisaDeLaFeatureGrandeSinFrenar     ← el chequeo que no cubre nadie más
+TestSinRoadmapNoRevienta                             ← el panic expuesto
+```
+
+Los tres primeros fallan revirtiendo `done.go`, y con el mensaje viejo — *"no hay feature en curso"*
+donde tendría que decir cuál historia quedó afuera.
+
+## Residuo conocido
+
+**El ⑩ puede correr a mitad del ciclo** —`sf new` deja una historia huérfana y `sf next` prioriza
+el ⑩ aunque haya una feature en curso—, y ahí el `sf done` del subagente del roadmap cae en el
+camino de feature: intenta cerrar el lote de la feature en curso y suma un `intentos_fallidos`
+espurio.
+
+No se arregló, y la razón es que las dos salidas obvias son peores que el problema:
+
+- **condicionar por `huerfanas`** no funciona: cuando el subagente del ⑩ llama a `sf done` ya las
+  arregló, así que la lista está vacía justo en ese momento;
+- **pasarle un argumento a `sf done`** rompe H2 —el estado, la feature y el lote son deducibles, y
+  un argumento deducible es un argumento que se pasa mal.
+
+El costo real es un contador que sube de más; el trabajo no se pierde y `sf next` sigue diciendo
+la verdad. Queda anotado acá porque **un residuo escrito es distinto de un residuo olvidado**, que
+es la moraleja de A9.
+
+---
+
+# El cierre
+
+## Los seis PRs
+
+| PR | Qué | Tests |
+|---|---|---|
+| 1 | A0 · A1 · A5 · A6 — los lotes y el camino corto | 213 → 242 |
+| 2 | A2 — archivar | 242 → 246 |
+| 3 | A3 · A4 — `approve` y el ⑧ | 246 → 252 |
+| 4 | A7 — `sf new` y el ⑨ | 252 → 265 |
+| 5 | A8 — la cadena de modelo | 265 → 273 |
+| 6 | A9 · M1–M3 — la compuerta del ⑩ y los números | 273 → 277 |
+
+## El patrón, que es lo que conviene recordar
+
+**Nueve de los diez hallazgos eran la misma pregunta mal hecha**, en cuatro lugares distintos:
+
+```
+¿existe el archivo?     cuando la pregunta era ¿está escrito?      A4 · A7
+¿hay algún lote?        cuando la pregunta era ¿empezó alguno?     A0 · A1 · A5
+¿aprobó Javier?         cuando la pregunta era ¿y además está bien? A3
+¿en qué estado está?    leído crudo en vez de efectivo             A1 · A6
+```
+
+Y todos comparten una propiedad que explica por qué sobrevivieron a 213 tests:
+
+> **Ninguno se ve desde adentro de un paquete. Todos viven en la costura entre comandos.**
+
+Por eso el guion de humo del apéndice es el entregable más importante de este documento, y por eso
+**dos de los defectos de esta ronda —el sobre vacío del lote de corrección y el `con .` de ME
+TRABÉ— los encontró el binario y no los tests.**
+
+## Lo que falta construir
+
+El guion de humo se corrió **a mano** en cada PR. Automatizarlo —`sf/cmd/sf/e2e_test.go` con
+`//go:build e2e`, como está descrito en el apéndice— es lo único que queda para que estos diez no
+puedan volver en silencio.

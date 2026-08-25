@@ -185,6 +185,16 @@ soluciones distintas, el agrupamiento está mal.
 
 Y el ⑩ **vuelve a hacer falta** cada vez que `sf new` deja una historia huérfana.
 
+**El `sf done` del ⑩ no mueve ningún sello**, y es correcto: *"¿existe el `roadmap.json`?"* se
+deduce del archivo, así que no hay nada que guardar. Lo que sigue —elegir cuál feature— es tuyo:
+
+```
+$ sf done
+⚠ f-1 junta 6 historias. ¿La partís?
+✓ listo
+→ el roadmap está listo. Elegí con `sf take <feature>`.
+```
+
 ---
 
 # Los cuatro de feature

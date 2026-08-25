@@ -5,7 +5,7 @@ SpecForge core** (D7' of the platform evaluation: every generic skill competes
 for maintenance time against the enforcement spine nobody else has — less
 surface, more spine).
 
-They don't participate in the SDD pipeline, aren't validated by `sf lint`, and
+They don't participate in the SDD pipeline, aren't checked by the CI that validates `skills/`, and
 aren't installed by `sf install`. To use one, copy or symlink its folder into
 your agent's skills directory:
 

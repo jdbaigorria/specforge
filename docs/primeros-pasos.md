@@ -500,6 +500,6 @@ Más en [`comandos.md`](comandos.md#sf-audit).
 
 ## Qué leer ahora
 
-- **[`comandos.md`](comandos.md)** — los 16 comandos con sus flags.
+- **[`comandos.md`](comandos.md)** — los 15 comandos con sus flags.
 - **[`problemas.md`](problemas.md)** — qué hacer con cada ✗ que te tire `sf`.
 - **[`estados.md`](estados.md)** — qué exige la compuerta de cada estado.

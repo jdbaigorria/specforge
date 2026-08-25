@@ -147,7 +147,7 @@ No por opinión, por aritmética:
 ## La estructura
 
 ```
-sf/          el binario — 17 paquetes, 211 tests, una sola dependencia
+sf/          el binario — 18 paquetes, 277 tests, una sola dependencia
 skills/      18 skills: 9 de estado (sfp-* · sf-*) + 9 utilitarios (sfx-*)
 specs/       el diseño, y por qué cada decisión es como es
 ```
@@ -161,7 +161,7 @@ es un utilitario que vive **fuera** de la máquina — standalone, usable en cua
 |---|---|
 | [`INSTALL.md`](INSTALL.md) | instalarlo |
 | [`docs/primeros-pasos.md`](docs/primeros-pasos.md) | una vuelta completa, de punta a punta |
-| [`docs/comandos.md`](docs/comandos.md) | los 16 comandos |
+| [`docs/comandos.md`](docs/comandos.md) | los 15 comandos |
 | [`docs/estados.md`](docs/estados.md) | los 9 estados y qué exige cada compuerta |
 | [`docs/artefactos.md`](docs/artefactos.md) | cada archivo y su forma |
 | [`docs/skills.md`](docs/skills.md) | los 18 skills |

@@ -152,7 +152,7 @@ Not by opinion — by arithmetic:
 ## Layout
 
 ```
-sf/          the binary — 17 packages, 211 tests, one dependency
+sf/          the binary — 18 packages, 277 tests, one dependency
 skills/      18 skills: 9 for the states (sfp-* · sf-*) + 9 utilities (sfx-*)
 specs/       the design, and why each decision is the way it is
 ```
@@ -166,7 +166,7 @@ is a utility that lives **outside** the machine — standalone, usable in any pr
 |---|---|
 | [`INSTALL.md`](INSTALL.md) | install it |
 | [`docs/primeros-pasos.md`](docs/primeros-pasos.md) | a complete run, end to end |
-| [`docs/comandos.md`](docs/comandos.md) | the 16 commands |
+| [`docs/comandos.md`](docs/comandos.md) | the 15 commands |
 | [`docs/estados.md`](docs/estados.md) | the 9 states and what each gate checks |
 | [`docs/artefactos.md`](docs/artefactos.md) | every file and its shape |
 | [`docs/skills.md`](docs/skills.md) | the 18 skills |
