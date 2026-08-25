@@ -319,6 +319,11 @@ sf new "el login rompe con email en mayúsculas"
 us-7 creada. Ahora se pinponea: `sf next` te lleva.
 ```
 
+**Y te lleva de verdad:** reabre la ⏸ del ⑨, y el próximo `sf next` te manda a `sfp-backlog`
+nombrando la historia que falta (`completá: us-7`). El esqueleto que deja `sf new` **no pasa la
+compuerta** — tiene el `CA-1` puesto y vacío, y un criterio sin texto es peor que ninguno: el ⑰ lo
+daría por cubierto y el ㉑ le pondría veredicto.
+
 **No lleva bandera para el bug.** El `us-#` ya tiene `tipo: us | bug` en el frontmatter, lo
 escribe el que lo completa, y `sf` lo lee para rutear:
 

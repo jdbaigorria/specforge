@@ -2,10 +2,10 @@
 
 **Fecha de la auditoría:** 2026-08-25 · **Branch:** `refundation` · **Commit:** `cb4d905`
 
-> **Estado: PR1, PR2 y PR3 hechos.** A0, A1, A2, A3, A4, A5 y A6 están arreglados, con tests que
-> fallan sin el arreglo (verificado revirtiendo el código y, en A2, reproduciendo el bug con el
-> binario viejo sobre un repo real). **No queda ningún crítico ni ningún alto.** Quedan A7, A8, A9
-> y los menores. El detalle está al final, en **Lo que se implementó**.
+> **Estado: PR1 a PR4 hechos.** A0 a A7 están arreglados, con tests que fallan sin el arreglo
+> (verificado revirtiendo el código y, en A2, reproduciendo el bug con el binario viejo sobre un
+> repo real). **No queda ningún crítico ni ningún alto.** Quedan A8, A9 y los menores. El detalle
+> está al final, en **Lo que se implementó**.
 
 Este documento no es diseño: es el **parte de daños**, escrito para implementarse. Cada hallazgo
 trae el síntoma **reproducido de verdad** (no leído), la causa raíz con archivo y línea, el arreglo
@@ -45,13 +45,13 @@ A0, la mitad de A1, y A5.
 | **A4** ✅ | El estado ⑧ es inalcanzable; `sfp-constitucion` es código muerto | 🟠 alto | el ⑧ |
 | **A5** ✅ | `revision → implementar` es un loop muerto | 🟠 alto | el ㉑ con hallazgos |
 | **A6** ✅ | `sf context` no aplica el camino corto del bug | 🟡 medio | entrada C |
-| **A7** | `sf new` no lleva a `sfp-backlog` | 🟡 medio | entradas B y C |
+| **A7** ✅ | `sf new` no lleva a `sfp-backlog` | 🟡 medio | entradas B y C |
 | **A8** | `sf model` se ignora fuera de `implementar` | 🟡 medio | la salida de ME TRABÉ |
 | **A9** | `compuerta.Roadmap` es código muerto | 🔵 bajo | el ⑩ |
 | **M1–M3** | Números y punteros desactualizados en docs | 🔵 bajo | — |
 
-**Orden sugerido:** ~~A0 → A1 → A5~~ ✅ · ~~A2~~ ✅ · ~~A6~~ ✅ · ~~A3 → A4~~ ✅ · **A7** · A8 ·
-A9 · M.
+**Orden sugerido:** ~~A0 → A1 → A5~~ ✅ · ~~A2~~ ✅ · ~~A6~~ ✅ · ~~A3 → A4~~ ✅ · ~~A7~~ ✅ ·
+**A8** · A9 · M.
 
 ---
 
@@ -1331,3 +1331,118 @@ máquina).
 compuerta del backlog cuenta ids de criterio sin mirar si tienen texto, así que el esqueleto vacío
 que deja `sf new` la pasa. Después **A8** (`sf model` ignorado fuera de `implementar`) y **A9**
 (`compuerta.Roadmap`, código muerto).
+
+
+---
+
+# Lo que se implementó — PR4
+
+**A7**, y es el tercer caso del mismo error de forma que ya apareció en el ⑧ y en los lotes:
+
+```
+"¿hay historias?"   funciona UNA vez — la primera
+"¿qué falta?"       funciona siempre
+```
+
+## El bug era doble
+
+**El enrutado.** El propio código decía lo que no hacía (`entradas.go`): *"volver a abrir la ⏸ del
+⑨ es lo que hace que `sf next` mande al pinponeo"*. `Nueva` reabría la ⏸, sí — pero el checkpoint
+preguntaba si había historias, y con un producto en marcha eso es siempre sí. Salía la ⏸ y lo que
+quedaba para aprobar era el esqueleto.
+
+**La compuerta.** Y el esqueleto **pasaba**, porque contaba ids y el esqueleto trae `- **CA-1** —`
+con el id puesto y el texto no. Un criterio que no dice nada es **peor que ninguno**: el ⑰ lo da
+por cubierto y el ㉑ le pone veredicto, así que el mecanismo de los ids queda en pie sobre algo que
+nadie puede juzgar.
+
+## Lo que quedó
+
+```go
+historia.Historia.SinTexto      los criterios con id y sin texto
+historia.SinPinponear(raiz)     qué historias siguen siendo un esqueleto
+historia.marcasDelEsqueleto     los huecos que deja `sf new`, compartidos
+sobre.aPinponear(raiz)          la parte del ⑨ que dice CUÁL
+```
+
+El mensaje del ⑨ ahora distingue las dos entradas: con todas incompletas sigue siendo *"el ⑨ parte
+el PRD en historias"*; con algunas, es `completá: us-7`. Y el sobre las nombra en vez de servir el
+PRD entero — más la historia que el bug rompió, si `relacionado_a` apunta a una.
+
+## Tres correcciones sobre la marcha
+
+**① Exigí el título en la compuerta, y era de más.** Rompió cinco tests, y tenían razón: la
+compuerta pregunta si el **mecanismo** se sostiene, y lo que el ⑰ cuenta y el ㉑ juzga son los
+criterios. Un título flojo no rompe nada. El título quedó sólo en el checkpoint, donde la pregunta
+es otra.
+
+**② El checkpoint atado a `titulo:` daba falsos positivos.** Lo delató el binario: en un proyecto
+real, una historia completa escrita a mano —con el título sólo en el encabezado— se marcaba como
+pendiente, y el ⑨ decía *"partí el PRD"* cuando lo que faltaba era una sola historia.
+
+El arreglo es **el mismo marcador que el ⑧**: `sf new` deja `<título>`, `<quién>`, `<qué>`,
+`<por qué>`, y ahora esos huecos son constantes que **escribe y busca el mismo paquete**, así que
+no se pueden desincronizar. Un marcador no se equivoca: o está, o no.
+
+> **Un checkpoint que frena trabajo terminado es peor que no tenerlo** — se aprende a ignorarlo.
+
+**③ Con CERO historias, `SinPinponear` no devuelve nada** —una lista vacía no tiene nada
+incompleto—, así que el backlog vacío se iba a la ⏸ en vez de mandar a escribirlas. Es literalmente
+A0 otra vez: *"ninguno" no es "todos"*. Los dos casos se preguntan por separado.
+
+## Los archivos
+
+| Archivo | Qué cambió |
+|---|---|
+| `historia/historia.go` | `SinTexto` · `SinPinponear` · las marcas del esqueleto, compartidas con `Esqueleto` |
+| `compuerta/compuerta.go` | `Backlog` exige que el criterio diga algo |
+| `maquina/maquina.go` | el checkpoint del ⑨ pregunta qué falta · `mensajeDelNueve` |
+| `sobre/sobre.go` | `aPinponear` — el sobre nombra la historia y la que el bug rompió |
+
+## Los tests
+
+**265 pasan** (eran 252). Verificados revirtiendo `maquina.go`, `compuerta.go` y `sobre.go`.
+
+```
+historia   TestSinTextoAtrapaElCriterioVacio
+           TestSinTextoNoSeComeLosCriteriosEscritos          ← em dash · dos puntos · sin negritas
+           TestSinPinponearDetectaElEsqueletoDeNew
+           TestSinPinponearNoDevuelveNadaConElBacklogCompleto   ← guarda
+           TestSinPinponearNoFrenaUnaHistoriaSinTituloEnElFrontmatter ← el falso positivo ②
+compuerta  TestBacklogRechazaElCriterioSinTexto
+           TestBacklogNoExigeTitulo                          ← la corrección ①
+maquina    TestDespuesDeNewElNueveMandaACompletarLaHistoria
+           TestConElBacklogCompletoVuelveLaParadaBarata      ← guarda
+           TestLaPrimeraVueltaDelNueveSigueSiendoPartirElPRD ← la corrección ③
+sobre      TestElSobreDelNueveNombraLoQueHayQueCompletar
+           TestElSobreDelNueveTraeLaHistoriaQueElBugRompio
+           TestElSobreDelNueveNoAgregaNadaEnLaPrimeraVuelta  ← guarda
+```
+
+Y dos tests existentes usaban un `us-1.md` **vacío** para llegar a la ⏸. Ahora un archivo vacío es
+—correctamente— una historia sin pinponear, así que se les dio una historia completa: el helper
+`conHistoria` existe para eso.
+
+## Corrido con el binario
+
+```
+sf new "…"                      → 0   us-2 creada
+sf next                         → 0   backlog · sfp-backlog · "completá: us-2"
+sf context                      → 0   ## Lo que hay que completar → us-2.md
+sf approve  (el esqueleto)      → 1   ✗ us-2 tiene el id puesto y el criterio vacío
+sf done     (el esqueleto)      → 2   ✗ lo mismo
+sf next     (ya completa)       → 2   ⏸ Salieron las historias
+sf approve                      → 0   ✓ backlog visto
+```
+
+## Docs actualizadas
+
+`docs/estados.md` (el ⑨ corre dos veces y el checkpoint lo sabe · la compuerta exige texto y no
+título), `docs/comandos.md` (`sf new` lleva de verdad) y `docs/primeros-pasos.md` (el ⑨ nombra la
+historia, y el sobre del bug trae la que rompió).
+
+## Lo que sigue
+
+**A8** — `modeloDeFeature` se usa sólo en `implementar`, así que `sf model` se ignora en
+`planificacion`, `revision` y `cierre`: la salida de ME TRABÉ no funciona en tres de los cuatro
+estados de feature. Después **A9** y los menores.

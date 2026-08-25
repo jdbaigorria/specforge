@@ -122,13 +122,34 @@ parada   ⏸ mirá si querés y seguí
 ```
 ✓ hay al menos una historia
 ✓ TODAS tienen criterios con id:  CA-1, CA-2, …
+✓ y los criterios DICEN algo
 ```
+
+La tercera existe por el esqueleto de `sf new`, que deja la línea puesta y vacía —`- **CA-1** —`—.
+Contando sólo ids, ese esqueleto pasaba. Y **un criterio que no dice nada es peor que ninguno**: el
+⑰ lo da por cubierto y el ㉑ le pone veredicto, así que el mecanismo entero queda en pie sobre algo
+que nadie puede juzgar.
+
+> **El título NO se exige.** La compuerta pregunta si el mecanismo se sostiene, y lo que el ⑰
+> cuenta y el ㉑ juzga son los criterios. De la historia a medio escribir se ocupa el checkpoint,
+> abajo.
 
 **La ⏸ es barata, la compuerta no.** Que mirar el backlog sea un enter no significa que se pueda
 sellar cualquier cosa: un backlog sin ids desarma el mecanismo entero — la cobertura del ⑰ cuenta
 cero contra cero y pasa, y el conteo de veredictos del ㉑ también.
 
-> **Los ids son el mecanismo entero contra el "terminado" con media historia.** Con criterios en
+> ### El ⑨ corre dos veces, y el checkpoint lo sabe
+
+La primera es partir el PRD. Las otras son completar lo que metió `sf new`, y ahí la pregunta no
+puede ser *"¿hay historias?"* — con un producto en marcha la respuesta es siempre sí, y la ⏸
+saldría con el esqueleto sin completar adentro.
+
+Así que el checkpoint pregunta **qué falta**: una historia cuenta como pendiente si no tiene
+criterios, si alguno está vacío, o si todavía tiene los huecos que dejó `sf new` (`<título>`,
+`<quién>`, …). Es el mismo marcador que usa el ⑧, y por el mismo motivo — atarlo a `titulo:` daría
+falsos positivos con una historia escrita a mano que lleva el título sólo en el encabezado.
+
+**Los ids son el mecanismo entero contra el "terminado" con media historia.** Con criterios en
 > prosa el revisor contesta *"anda"*. Con ids tiene que contestar **uno por uno**, y `sf` cuenta:
 > *"la historia tiene 3 criterios y el informe habla de 2"*. **Contar no es juzgar** — es la única
 > parte que una máquina puede hacer, y alcanza.

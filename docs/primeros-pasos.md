@@ -414,8 +414,29 @@ sf new "el login rompe con email en mayúsculas"
 us-7 creada. Ahora se pinponea: `sf next` te lleva.
 ```
 
-`sf next` te manda a `sfp-backlog` a completarla. Si es un **bug**, el skill compone `sfx-triage`
-para encontrar la causa raíz, marca `tipo: bug` y llena `relacionado_a` con el `us-#` original.
+`sf next` te manda a `sfp-backlog` **a completar ésa**, y lo dice por nombre:
+
+```
+estado:   backlog
+skill:    sfp-backlog
+
+completá: us-7
+```
+
+Y el sobre la nombra en vez de darte el PRD entero:
+
+```
+## Lo que hay que completar
+.docs/backlog/us-7.md
+```
+
+> **Al ⑨ se entra dos veces y por motivos distintos.** La primera es partir el PRD, y no hay nada
+> escrito. Las otras son completar lo que entró por `sf new` — y con veinte historias ya escritas,
+> *"partí el PRD"* es la instrucción equivocada: lo que falta es una.
+
+Si es un **bug**, el skill compone `sfx-triage` para encontrar la causa raíz, marca `tipo: bug` y
+llena `relacionado_a` con el `us-#` original — y el sobre trae **también esa historia**, porque sin
+saber qué comportamiento se esperaba no se puede escribir el criterio del bug.
 
 > **`tipo: bug` es lo que rutea.** Un bug **saltea planificación y revisión** y va derecho
 > `implementar → cierre`. No hay carril paralelo ni segunda máquina: **hay un campo que saltea dos
