@@ -73,6 +73,29 @@ func EsRepo(dir string) bool {
 	return err == nil
 }
 
+// Sucio dice si hay cambios sin commitear — staged o no, incluidos los sin
+// trackear.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// EXISTE POR UN CASO QUE PASABA SIEMPRE, NO DE VEZ EN CUANDO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Archivar una feature hace `git checkout` a la branch base, y git ABORTA el
+// checkout si hay cambios locales que pisaría. Y `.docs/estado.json` está
+// siempre modificado en ese momento: sf lo escribe en cada transición y sólo lo
+// commitea al cerrar un lote, así que entre el último lote y el ㉓ hay dos
+// escrituras sin commit.
+//
+// Con `--porcelain` la salida vacía significa limpio, y ese formato está
+// congelado por git a propósito para que lo lean los scripts.
+func Sucio(dir string) (bool, error) {
+	salida, err := correr(dir, "status", "--porcelain")
+	if err != nil {
+		return false, err
+	}
+	return salida != "", nil
+}
+
 // Head devuelve el hash del commit actual, corto.
 //
 // Corto y no largo porque es lo que se guarda en el estado.json y lo que se le

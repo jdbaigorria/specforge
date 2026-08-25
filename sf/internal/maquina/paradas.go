@@ -40,6 +40,40 @@ type Efecto struct {
 	// global en cada `sf approve` sería tocar el home de Javier veinte veces
 	// por feature para no cambiar nada.
 	Global bool
+
+	// Cambio es que hay que guardar el estado AUNQUE el comando haya fallado.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// LA REGLA NORMAL ES NO GUARDAR, Y ESTÁ BIEN — SALVO EN UN CASO
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Un `sf take f-99` que falla no tiene que dejar rastro, y por eso el
+	// default es guardar sólo si pasó. Pero `archivar` toca el DISCO —mueve
+	// una carpeta, mergea, borra una branch— y si falla después de eso, no
+	// guardar el estado deja al estado.json describiendo un repo que ya no
+	// existe. Ahí el comando falló y el mundo cambió igual, y la única
+	// respuesta correcta es anotar lo que sí pasó.
+	//
+	// Es el mismo campo que ya tenía `Cierre` (done.go) por la misma razón:
+	// un `sf done` que falla igual incrementa `intentos_fallidos`.
+	Cambio bool
+
+	// Commit es "cuando el estado esté guardado, commiteá con este mensaje".
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// POR QUÉ NO LO COMMITEA EL QUE LO PIDE
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Archivar mueve una carpeta entera, y eso tiene que quedar en un commit
+	// suyo. Pero el estado.json lo escribe main DESPUÉS de que esto vuelve,
+	// así que un commit hecho acá adentro dejaría el estado afuera.
+	//
+	// Y dejarlo sin commitear no es neutral: el `git add -A` del primer lote
+	// de la feature SIGUIENTE se lo lleva puesto, y ahí el archivado de f-1
+	// termina adentro del commit de f-2. Eso es exactamente el dolor #3
+	// —commits mal agrupados— colándose por el único lugar donde sf mueve
+	// archivos sin cerrar un lote.
+	Commit string
 }
 
 func (e Efecto) Pasa() bool { return len(e.Fallas) == 0 }
@@ -155,32 +189,57 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 //
 // Son cuatro cosas mecánicas, y ninguna necesita criterio:
 //
-//	mover la carpeta entera a .docs/archivado/
 //	merge a la branch base, con el modo que diga la constitución
 //	borrar la branch de la feature
+//	mover la carpeta entera a .docs/archivado/
 //	marcar la feature como cerrada
+//
+// ────────────────────────────────────────────────────────────────────────────
+// EL ORDEN NO ES EL DEL DISEÑO, Y ES A PROPÓSITO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El diseño las lista con el movimiento primero, y así estaba escrito. Pero el
+// movimiento es lo ÚNICO irreversible de los cuatro, y el git es lo único que
+// puede fallar — o sea que estaban exactamente al revés:
+//
+//	mover · fallar el checkout   →  carpeta archivada, feature sin cerrar,
+//	                                branch sin mergear, y `sf next` mandando al
+//	                                ㉓ sobre archivos que ya no están ahí
+//
+// De ese estado no se sale: el segundo `sf approve` falla en el `rename` porque
+// el origen ya no existe. Había que arreglarlo a mano.
+//
+// Con git primero, un merge que falla no movió nada y `sf approve` se reintenta
+// tal cual. Lo reversible antes que lo irreversible.
 func archivar(raiz string, e *estado.Estado, f *estado.Feature, fr roadmap.Feature) Efecto {
 	var ef Efecto
 
-	origen := filepath.Join(raiz, fr.Carpeta())
-	destino := filepath.Join(raiz, docs.Archivado, filepath.Base(fr.Carpeta()))
-
-	if err := os.MkdirAll(filepath.Dir(destino), 0o755); err != nil {
-		ef.falla("%v", err)
-		return ef
+	// ① El estado.json, que viene sucio POR CONSTRUCCIÓN.
+	//
+	// sf lo escribe en cada transición y sólo lo commitea al cerrar un lote, así
+	// que entre el último lote y el ㉓ hay al menos dos escrituras sin commit —
+	// y `git checkout` aborta si tiene que pisar un archivo modificado. Esto no
+	// fallaba a veces: fallaba SIEMPRE.
+	//
+	// Y commitearlo no es un truco para destrabar el checkout: es trabajo real
+	// que si no queda huérfano. El estado se versiona con el repo justamente
+	// para que viaje (regla dura 3).
+	if git.EsRepo(raiz) {
+		sucio, err := git.Sucio(raiz)
+		if err != nil {
+			ef.falla("no pude ver si hay cambios sin commitear: %v", err)
+			return ef
+		}
+		if sucio {
+			if _, err := git.Commit(raiz, "chore: cierre de "+fr.ID); err != nil {
+				ef.falla("no pude commitear lo que quedaba antes de archivar: %v", err)
+				return ef
+			}
+		}
 	}
-	// Se mueve la carpeta ENTERA con todo adentro —decision, spec, tareas,
-	// revision, doc, journal—. Las referencias por id siguen funcionando porque
-	// sf es el que resuelve dónde vive cada cosa (regla 1.4).
-	if err := os.Rename(origen, destino); err != nil {
-		ef.falla("no pude archivar la carpeta: %v", err)
-		return ef
-	}
 
-	// El git es lo único que puede fallar de verdad acá, y si falla NO se
-	// deshace el movimiento: la carpeta archivada es correcta igual, y el merge
-	// se puede reintentar a mano. Deshacer sería peor — dejaría el repo a medias
-	// sin que nadie sepa en qué mitad quedó.
+	// ② El git: mergear y borrar la branch. Es lo único que puede fallar de
+	// verdad, así que va antes de tocar el disco.
 	if c, err := constitucion.Leer(raiz); err == nil && git.EsRepo(raiz) {
 		branch := c.Branch(fr.ID, fr.Slug)
 		base := c.Git.Base()
@@ -188,22 +247,73 @@ func archivar(raiz string, e *estado.Estado, f *estado.Feature, fr roadmap.Featu
 		if git.Existe(raiz, branch) {
 			if err := git.Checkout(raiz, base); err != nil {
 				ef.falla("no pude pararme en %s: %v", base, err)
-			} else if err := git.Merge(raiz, branch, c.Git.Merge); err != nil {
+				return ef
+			}
+			if err := git.Merge(raiz, branch, c.Git.Merge); err != nil {
 				ef.falla("el merge falló: %v", err)
-			} else if err := git.BorrarBranch(raiz, branch); err != nil {
+				return ef
+			}
+			if err := git.BorrarBranch(raiz, branch); err != nil {
 				// Que no se pueda borrar no invalida el merge: se avisa y sigue.
+				// Es el único de los cuatro pasos que puede quedar a medias sin
+				// dejar nada inconsistente.
 				ef.Mensaje = "merge hecho, pero la branch no se borró: " + err.Error()
 			}
 		}
 	}
 
+	// ③ La carpeta. A partir de acá el disco cambió, así que todo lo que siga
+	// enciende `Cambio`: el comando puede fallar y el estado igual tiene que
+	// anotar lo que ya pasó.
+	if err := archivarCarpeta(raiz, fr); err != nil {
+		ef.falla("%v", err)
+		return ef
+	}
+
+	// ④ El sello, y el commit del archivado — que lo hace main, cuando el
+	// estado.json ya esté escrito y pueda entrar en el mismo commit.
 	f.Estado = estado.Cerrada
 	e.FeatureActual = ""
+	ef.Cambio = true
+	if git.EsRepo(raiz) {
+		ef.Commit = "chore: " + fr.ID + " archivada"
+	}
 
 	if ef.Mensaje == "" {
 		ef.Mensaje = fmt.Sprintf("%s archivada y cerrada", fr.ID)
 	}
 	return ef
+}
+
+// archivarCarpeta mueve la carpeta de la feature, y es idempotente.
+//
+// Se mueve ENTERA con todo adentro —decision, spec, tareas, revision, doc,
+// journal—. Las referencias por id siguen funcionando porque sf es el que
+// resuelve dónde vive cada cosa (regla 1.4).
+//
+// Lo de idempotente no es elegancia: es lo que destraba un repo que quedó a
+// medias con la versión vieja, donde el movimiento pasó y el merge falló. Si el
+// destino ya está y el origen no, el trabajo ya se hizo — decirlo "no existe el
+// archivo" sería frenar por algo que está bien.
+func archivarCarpeta(raiz string, fr roadmap.Feature) error {
+	origen := filepath.Join(raiz, fr.Carpeta())
+	destino := filepath.Join(raiz, docs.Archivado, filepath.Base(fr.Carpeta()))
+
+	if _, err := os.Stat(destino); err == nil {
+		if _, err := os.Stat(origen); os.IsNotExist(err) {
+			return nil // ya estaba archivada
+		}
+		return fmt.Errorf("%s existe en las dos: archivada y sin archivar. Mirá cuál querés",
+			filepath.Base(fr.Carpeta()))
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destino), 0o755); err != nil {
+		return err
+	}
+	if err := os.Rename(origen, destino); err != nil {
+		return fmt.Errorf("no pude archivar la carpeta: %w", err)
+	}
+	return nil
 }
 
 // ────────────────────────────────────────────────────────────────────────────

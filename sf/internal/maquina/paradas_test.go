@@ -292,3 +292,133 @@ func TestDismissExigeMotivo(t *testing.T) {
 		t.Error("descartó sin motivo")
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Archivar con git de verdad — el orden importa y antes estaba al revés
+// ────────────────────────────────────────────────────────────────────────────
+
+// listoParaArchivar deja f-1 en `cierre`, con constitución, branch y los dos
+// archivos del ㉓. Es el estado exacto en el que llega un `sf approve` real.
+func (p *proyecto) listoParaArchivar() *proyecto {
+	p.t.Helper()
+	p.productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Cierre}
+
+	p.conArchivoConTexto(docs.Constitucion,
+		"---\nlenguaje: go\ntest_cmd: exit 0\ngit:\n"+
+			"  branch_por_feature: true\n  patron_branch: \"feat/{feature-id}-{slug}\"\n"+
+			"  merge: no-ff\n  branch_base: main\n---\n# reglas\n")
+
+	carpeta := filepath.Join(".docs", "features", "f-1-nucleo")
+	p.conArchivoConTexto(filepath.Join(carpeta, "doc.md"), "# doc\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, "journal.md"), "- lección\n")
+
+	p.conGit()
+	// La branch de la feature, con un commit propio: es lo que el merge trae.
+	corrergit(p.t, p.raiz, "checkout", "-b", "feat/f-1-nucleo")
+	p.conArchivoConTexto("codigo.go", "package a\n")
+	corrergit(p.t, p.raiz, "add", "-A")
+	corrergit(p.t, p.raiz, "commit", "-m", "feat: el código")
+	return p
+}
+
+// EL CASO NORMAL, y era el que fallaba SIEMPRE.
+//
+// `.docs/estado.json` está sucio por construcción cuando se llega al ㉓ —sf lo
+// escribe en cada transición y sólo lo commitea al cerrar un lote—, así que el
+// `git checkout main` abortaba. Y como el movimiento de la carpeta iba PRIMERO,
+// el repo quedaba con la carpeta archivada, la feature sin cerrar y la branch
+// sin mergear: un estado del que no se salía, porque el segundo intento fallaba
+// en el rename.
+func TestArchivarConElEstadoSucioIgualCierraLaFeature(t *testing.T) {
+	p := nuevo(t).listoParaArchivar()
+	// Lo que sf deja sucio en la vida real, puesto a mano.
+	p.conArchivoConTexto(estado.Archivo, `{"producto":{},"features":{}}`)
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if !ef.Pasa() {
+		t.Fatalf("no archivó con el estado sucio: %v", ef.Fallas)
+	}
+	if p.e.Features["f-1"].Estado != estado.Cerrada {
+		t.Errorf("la feature quedó en %q", p.e.Features["f-1"].Estado)
+	}
+	if b := branchActual(t, p.raiz); b != "main" {
+		t.Errorf("quedó parado en %q, quería main", b)
+	}
+	// El merge trajo el código de la feature, y la branch se borró.
+	if _, err := os.Stat(filepath.Join(p.raiz, "codigo.go")); err != nil {
+		t.Errorf("el merge no trajo el código: %v", err)
+	}
+	// El trabajo que estaba pendiente quedó en un commit propio: es lo que
+	// destraba el checkout, y de paso es trabajo real que si no queda huérfano.
+	if !strings.Contains(gitLog(t, p.raiz), "chore: cierre de f-1") {
+		t.Error("no commiteó lo que estaba pendiente antes de archivar")
+	}
+	// Y pide el commit del archivado, que lo hace main cuando el estado.json ya
+	// está escrito y puede entrar en el mismo commit. Sin esto, el `git add -A`
+	// del primer lote de la feature siguiente se lleva puesto este archivado.
+	if ef.Commit == "" {
+		t.Error("no pidió commitear el archivado")
+	}
+	// Y la carpeta viajó entera.
+	if _, err := os.Stat(filepath.Join(p.raiz, docs.Archivado, "f-1-nucleo", "journal.md")); err != nil {
+		t.Errorf("el journal no viajó: %v", err)
+	}
+}
+
+// LO IRREVERSIBLE VA ÚLTIMO: si el git falla, la carpeta NO se movió y
+// `sf approve` se puede reintentar tal cual.
+//
+// Es la mitad del arreglo que no se ve cuando todo sale bien, y la que convertía
+// un error recuperable en un repo trabado.
+func TestArchivarNoMueveLaCarpetaSiElMergeFalla(t *testing.T) {
+	p := nuevo(t).listoParaArchivar()
+
+	// Un conflicto de verdad: main toca el mismo archivo que la branch.
+	corrergit(t, p.raiz, "checkout", "main")
+	p.conArchivoConTexto("codigo.go", "package a // otra cosa\n")
+	corrergit(t, p.raiz, "add", "-A")
+	corrergit(t, p.raiz, "commit", "-m", "otro cambio")
+	corrergit(t, p.raiz, "checkout", "feat/f-1-nucleo")
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if ef.Pasa() {
+		t.Fatal("archivó con el merge fallado")
+	}
+	if _, err := os.Stat(filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo")); err != nil {
+		t.Errorf("movió la carpeta aunque el merge falló: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(p.raiz, docs.Archivado, "f-1-nucleo")); err == nil {
+		t.Error("la carpeta terminó archivada con el merge fallado")
+	}
+	if p.e.Features["f-1"].Estado != estado.Cierre {
+		t.Errorf("movió el estado: quedó en %q", p.e.Features["f-1"].Estado)
+	}
+}
+
+// Y si un repo YA quedó a medias con la versión vieja —carpeta archivada,
+// feature sin cerrar—, `sf approve` tiene que poder terminar el trabajo en vez
+// de fallar en el rename. Es lo único que destraba a los que ya se comieron el
+// bug.
+func TestArchivarEsIdempotenteSiLaCarpetaYaEstaba(t *testing.T) {
+	p := nuevo(t).listoParaArchivar()
+
+	// El estado en que quedaba la versión vieja: la carpeta ya movida.
+	origen := filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo")
+	destino := filepath.Join(p.raiz, docs.Archivado, "f-1-nucleo")
+	if err := os.MkdirAll(filepath.Dir(destino), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(origen, destino); err != nil {
+		t.Fatal(err)
+	}
+
+	ef := Aprobar(p.raiz, p.e, p.r)
+	if !ef.Pasa() {
+		t.Fatalf("no pudo terminar de archivar algo ya movido: %v", ef.Fallas)
+	}
+	if p.e.Features["f-1"].Estado != estado.Cerrada {
+		t.Errorf("la feature quedó en %q", p.e.Features["f-1"].Estado)
+	}
+}

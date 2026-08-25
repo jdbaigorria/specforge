@@ -30,6 +30,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/arranque"
 	"github.com/jdbaigorria/specforge/sf/internal/auditoria"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
@@ -300,9 +301,15 @@ func parada(cmd string, args []string) int {
 		ef = maquina.Nueva(raiz, e, strings.Join(args, " "))
 	}
 
-	// El estado se guarda sólo si el comando funcionó. Un `sf take f-99` que
-	// falla no tiene que dejar rastro.
-	if ef.Pasa() {
+	// El estado se guarda si el comando funcionó. Un `sf take f-99` que falla no
+	// tiene que dejar rastro.
+	//
+	// Y `Cambio` es la excepción, que existe por un caso concreto: `archivar`
+	// toca el disco —mueve la carpeta, mergea, borra la branch— y si algo falla
+	// DESPUÉS de eso, no guardar deja al estado.json describiendo un repo que ya
+	// no existe. Cuando el comando falló y el mundo cambió igual, lo correcto es
+	// anotar lo que sí pasó.
+	if ef.Pasa() || ef.Cambio {
 		if err := e.Guardar(raiz); err != nil {
 			fmt.Fprintln(os.Stderr, "sf: no pude guardar el estado:", err)
 			return salidaError
@@ -313,6 +320,19 @@ func parada(cmd string, args []string) int {
 			if err := g.Guardar(); err != nil {
 				fmt.Fprintln(os.Stderr, "sf: no pude guardar ~/.specforge/:", err)
 				return salidaError
+			}
+		}
+		// El commit va acá y no adentro del comando, porque recién ahora el
+		// estado.json está escrito y puede entrar en el mismo commit. Hoy sólo
+		// lo pide `archivar`: es el único lugar donde sf mueve archivos sin
+		// estar cerrando un lote.
+		//
+		// Que falle NO invalida lo que ya pasó —la carpeta se movió, la branch
+		// se mergeó, el estado se guardó—, así que avisa y sigue. Frenar acá
+		// sería reportar como error un archivado que salió bien.
+		if ef.Commit != "" {
+			if _, err := git.Commit(raiz, ef.Commit); err != nil {
+				fmt.Fprintln(os.Stderr, "sf: quedó sin commitear:", err)
 			}
 		}
 	}

@@ -153,3 +153,28 @@ func TestElErrorDeGitLlegaConSuMensaje(t *testing.T) {
 		t.Errorf("el error perdió el mensaje de git: %v", err)
 	}
 }
+
+// Sucio existe por el caso que rompía el archivado: `git checkout` aborta si
+// tiene que pisar un archivo modificado, y `.docs/estado.json` está SIEMPRE
+// modificado cuando se llega al ㉓.
+//
+// Los tres estados que importan van juntos, porque el que sorprende es el
+// tercero: un archivo sin trackear también cuenta.
+func TestSucio(t *testing.T) {
+	dir := repo(t)
+
+	if sucio, err := Sucio(dir); err != nil || sucio {
+		t.Errorf("un repo recién commiteado dio sucio=%v err=%v", sucio, err)
+	}
+
+	escribir(t, dir, "uno.txt", "cambiado")
+	if sucio, err := Sucio(dir); err != nil || !sucio {
+		t.Errorf("con un archivo modificado dio sucio=%v err=%v", sucio, err)
+	}
+
+	correrTest(t, dir, "checkout", "--", "uno.txt")
+	escribir(t, dir, "nuevo.txt", "sin trackear")
+	if sucio, err := Sucio(dir); err != nil || !sucio {
+		t.Errorf("con un archivo sin trackear dio sucio=%v err=%v", sucio, err)
+	}
+}
