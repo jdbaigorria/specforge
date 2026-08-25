@@ -817,3 +817,89 @@ func TestElOchoParaCuandoLaConstitucionYaSeEscribio(t *testing.T) {
 		t.Errorf("sugirió %v, quería sf approve", i.Sugerido)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// La cadena de modelo vale en los CUATRO estados de feature
+// ────────────────────────────────────────────────────────────────────────────
+
+// `modeloDeFeature` implementa los tres niveles y tenía un solo consumidor:
+// `implementando`. Los otros tres pasaban por `trabajar`, que sólo mira el mapa
+// por estado — así que `sf model opus` no hacía nada en `planificacion`,
+// `revision` ni `cierre`.
+//
+// Es la salida de ME TRABÉ, o sea la que Javier usa mirando el bucle patinar, y
+// no funcionaba en tres de los cuatro estados.
+func TestElModeloDeJavierGanaEnLosCuatroEstadosDeFeature(t *testing.T) {
+	for _, est := range []string{
+		estado.Planificacion, estado.Implementar, estado.Revision, estado.Cierre,
+	} {
+		t.Run(est, func(t *testing.T) {
+			p := nuevo(t).productoListo().enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`)
+			p.e.Features["f-1"].Estado = est
+			p.e.Features["f-1"].Modelo = "gpt5"
+			p.conModelos(map[string]global.Modelo{"gpt5": {Via: global.Consola, Comando: "codex exec"}})
+
+			if i := p.next(); i.Modelo != "gpt5" {
+				t.Errorf("modelo %q, quería gpt5: lo puso `sf model`", i.Modelo)
+			}
+		})
+	}
+}
+
+// El nivel 2 es el ⑯: "ESTA feature necesita uno más grande", escrito en
+// tareas.json por el mismo que planificó. Le gana al default del estado y
+// pierde contra `sf model`.
+func TestElModeloDelPlanGanaAlDefaultDelEstado(t *testing.T) {
+	p := nuevo(t).productoListo().
+		enImplementar(`{"modelo":"opus","tareas":[{"id":"t-1","lote":1}]}`)
+	p.e.Features["f-1"].Estado = estado.Cierre
+	p.conModelos(map[string]global.Modelo{"opus": {Via: global.Subagente}})
+
+	// El default de `cierre` es sonnet, y el plan pide opus.
+	if i := p.next(); i.Modelo != "opus" {
+		t.Errorf("modelo %q, quería opus: lo pidió el ⑯", i.Modelo)
+	}
+
+	// Y `sf model` le gana igual, porque Javier decide en runtime y el ⑯ se
+	// escribió antes de ver fallar nada.
+	p.e.Features["f-1"].Modelo = "haiku"
+	p.conModelos(map[string]global.Modelo{
+		"opus": {Via: global.Subagente}, "haiku": {Via: global.Subagente},
+	})
+	if i := p.next(); i.Modelo != "haiku" {
+		t.Errorf("modelo %q, quería haiku: le gana la decisión de runtime", i.Modelo)
+	}
+}
+
+// Y sin nada declarado sigue el default del estado: `revision` pide opus porque
+// juzgar es donde el contexto grande paga.
+func TestSinDecidirNadaMandaElDefaultDelEstado(t *testing.T) {
+	p := nuevo(t).productoListo().enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`)
+	p.e.Features["f-1"].Estado = estado.Revision
+
+	if i := p.next(); i.Modelo != "opus" {
+		t.Errorf("modelo %q, quería opus: es el default de revision", i.Modelo)
+	}
+}
+
+// ME TRABÉ tiene que decir CON QUÉ MODELO se trabó, y decía "con ." — el campo
+// `f.Modelo` está vacío hasta el primer `sf model`, y justo la primera vez que
+// aparece esta parada es la vez que nadie lo corrió todavía.
+//
+// Es la mitad del dato que hace falta para contestarle: "¿subo el modelo?" no
+// se puede decidir sin saber cuál está fallando.
+func TestMeTrabeDiceConQueModeloSeTrabo(t *testing.T) {
+	p := nuevo(t).productoListo().enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`)
+	p.e.Features["f-1"].IntentosFallidos = TopeIntentos
+
+	i := p.next()
+	if i.Tipo != MeTrabe {
+		t.Fatalf("tipo %v, quería MeTrabe", i.Tipo)
+	}
+	if !strings.Contains(i.Mensaje, "sonnet") {
+		t.Errorf("no dijo con qué modelo se trabó: %q", i.Mensaje)
+	}
+	if strings.Contains(i.Mensaje, "con .") {
+		t.Errorf("el nombre del modelo salió vacío: %q", i.Mensaje)
+	}
+}

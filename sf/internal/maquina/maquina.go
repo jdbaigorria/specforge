@@ -325,26 +325,32 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 
 	f, hay := e.Actual()
 	if !hay {
-		return tomarLaProxima(e, r, g)
+		return tomarLaProxima(raiz, e, r, g)
 	}
 
 	// ME TRABÉ va PRIMERO, antes de mirar en qué estado está: si el contador
 	// llegó al tope, no importa qué falta — importa que hace rato que no
 	// avanza. Ponerlo después dejaría que sf siga proponiendo trabajo mientras
 	// el bucle patina.
+	fr, _ := r.Buscar(e.FeatureActual)
+
 	if f.IntentosFallidos >= TopeIntentos {
+		// El modelo sale de la cadena y no de `f.Modelo` crudo: ese campo está
+		// vacío hasta el primer `sf model`, y justo la primera vez que aparece
+		// esta parada es la vez que nadie lo corrió todavía. El mensaje decía
+		// "falló 3 veces seguidas con ." — que es la mitad del dato que hace
+		// falta para contestarle.
 		return Instruccion{
 			Tipo:    MeTrabe,
 			Estado:  f.Estado,
 			Feature: e.FeatureActual,
 			Mensaje: fmt.Sprintf("⚠ ME TRABÉ. %s falló %d veces seguidas con %s.\n"+
 				"   ¿Subo el modelo, o entrás vos?",
-				e.FeatureActual, f.IntentosFallidos, f.Modelo),
+				e.FeatureActual, f.IntentosFallidos,
+				modeloDeFeature(raiz, fr, f, f.Estado)),
 			Sugerido: []string{"sf model <nombre>", "sf dismiss <h-#> \"motivo\""},
 		}
 	}
-
-	fr, _ := r.Buscar(e.FeatureActual)
 
 	// El camino corto (maquina-estados.md §8): un bug no pasa por planificación
 	// ni por revisión. No es un carril paralelo —eso sería una segunda máquina
@@ -360,7 +366,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 
 	switch actual {
 	case estado.Planificacion:
-		return planificando(raiz, e.FeatureActual, fr, g)
+		return planificando(raiz, fr, f, g)
 
 	case estado.Planificada:
 		// El plan está aprobado y esperando. Es la puerta "otra feature" del
@@ -378,7 +384,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 		return implementando(raiz, fr, f, g)
 
 	case estado.Revision:
-		return trabajar(estado.Revision, e.FeatureActual,
+		return trabajarEnFeature(raiz, estado.Revision, fr, f,
 			"el ㉑ juzga los criterios y el ㉒ mira los mutantes, en la misma pasada", g)
 
 	case estado.Cierre:
@@ -394,12 +400,12 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 				Sugerido: []string{"sf approve"},
 			}
 		}
-		return trabajar(estado.Cierre, e.FeatureActual,
+		return trabajarEnFeature(raiz, estado.Cierre, fr, f,
 			"el ㉓ escribe la doc y el journal", g)
 
 	case estado.Cerrada:
 		// La feature actual quedó cerrada y nadie tomó otra: sigue la cola.
-		return tomarLaProxima(e, r, g)
+		return tomarLaProxima(raiz, e, r, g)
 	}
 
 	return Instruccion{
@@ -418,7 +424,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 //  2. El diseño le dio nombre propio a esa transición justamente porque Javier
 //     puede querer otra: "sirve igual fuera del ⑰ — es como se elige la primera
 //     feature de todas, y como se cambia de idea a mitad de la cola" (H4).
-func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Instruccion {
+func tomarLaProxima(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Instruccion {
 	cerradas := map[string]bool{}
 	for id, f := range e.Features {
 		if f.Estado == estado.Cerrada {
@@ -437,7 +443,16 @@ func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Inst
 	// Acá todavía no se lanza a nadie —lo sugerido es `sf take`— pero el `via`
 	// igual sale del mapa: es un anticipo de la próxima vuelta, y un anticipo
 	// que dice "subagente" cuando en realidad va por consola desinforma.
+	//
+	// Y el modelo se anticipa con la misma cadena que se va a usar de verdad,
+	// si la feature ya está en el estado: puede estar `planificada` —la puerta
+	// "otra feature" del ⑰— y traer un `sf model` de una vuelta anterior.
+	// Anticipar el default cuando el real es otro es la misma desinformación
+	// que el `via`, un renglón más abajo.
 	m := modelo(estado.Planificacion)
+	if f, hay := e.Features[prox.ID]; hay {
+		m = modeloDeFeature(raiz, prox, f, estado.Planificacion)
+	}
 	v, cmd, declarado := via(estado.Planificacion, m, g)
 	if !declarado {
 		return sinDeclarar(estado.Planificacion, prox.ID, m)
@@ -463,8 +478,9 @@ func tomarLaProxima(e *estado.Estado, r *roadmap.Roadmap, g *global.Config) Inst
 // objetó: el dolor #5 es daño de código, no de planificación, y acá el contexto
 // grande es un ACTIVO — el ⑬ aprovecha acordarse de las dos opciones que
 // descartó (maquina-estados.md §1).
-func planificando(raiz, id string, fr roadmap.Feature, g *global.Config) Instruccion {
-	i := trabajar(estado.Planificacion, id, "", g)
+func planificando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global.Config) Instruccion {
+	id := fr.ID
+	i := trabajarEnFeature(raiz, estado.Planificacion, fr, f, "", g)
 
 	// La carpeta sale del roadmap (id + slug). Si la feature no está en el
 	// roadmap, fr viene en cero y Carpeta() daría una ruta rara: en ese caso no
@@ -516,12 +532,14 @@ func planificando(raiz, id string, fr roadmap.Feature, g *global.Config) Instruc
 // implementar, porque sf todavía no vio fallar los tests con sus propios ojos.
 func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global.Config) Instruccion {
 	id := fr.ID
-	// El modelo se resuelve UNA VEZ acá y no en cada rama: las tres salidas de
-	// esta función que lanzan trabajo usan el mismo, y leer tareas.json tres
-	// veces sería tocar el disco de más para obtener siempre lo mismo.
-	m := modeloDeFeature(raiz, fr, f, estado.Implementar)
 
-	i := Instruccion{}
+	// La base la arma el mismo helper que los otros tres estados de feature, y
+	// de ahí salen el modelo, el via y el skill. Lo que sigue sólo ajusta el
+	// mensaje y los sugeridos según por qué lote va.
+	i := trabajarEnFeature(raiz, estado.Implementar, fr, f, "", g)
+	if i.Tipo != Trabajar {
+		return i // el modelo que hace falta no está declarado
+	}
 	// EL PLAN QUE ENVEJECE, y es el aviso más barato del diseño.
 	//
 	// Si planificaste f-2 y después implementaste f-1, la spec de f-2 quedó
@@ -539,26 +557,12 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 		}
 	}
 
-	// Y el `via` sale del mapa, igual que en `trabajar`. Acá el caso pesa más
-	// que en ningún otro estado: es JUSTO donde el ⑯ recomienda un modelo
-	// distinto, y donde Javier sube el modelo con `sf model` cuando el bucle
-	// patina. Los dos caminos pueden traer un nombre que el mapa no conoce.
-	v, cmd, declarado := via(estado.Implementar, m, g)
-	if !declarado {
-		return sinDeclarar(estado.Implementar, id, m)
-	}
-
 	// Sin lotes todavía no arrancó nada: los lotes se siembran en el primer
 	// `sf lote start`, que es también donde se exige el rojo. Confundir esto con
 	// "todos commiteados" mandaba a cerrar una feature en la que no se escribió
 	// una línea — y en el camino corto de un bug pasaba siempre, porque ahí no
 	// hay planificación que los siembre antes.
-	if len(f.Lotes) == 0 {
-		i.Tipo = Trabajar
-		i.Estado = estado.Implementar
-		i.Feature = id
-		i.Skill = skills[estado.Implementar]
-		i.Modelo, i.Via, i.Comando = m, v, cmd
+	if f.SinSembrar() {
 		i.Mensaje = "escribí los tests y confirmá el rojo antes de implementar"
 		i.Sugerido = []string{"sf context", "sf lote start"}
 		return i
@@ -567,6 +571,8 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 	l, hay := f.LoteActual()
 	if !hay {
 		// Todos los lotes tienen commit y el estado no se movió: falta cerrar.
+		// Acá no se lanza a nadie —lo que falta es un `sf done`—, así que la
+		// instrucción va sin skill ni modelo.
 		return Instruccion{
 			Tipo:     Trabajar,
 			Estado:   estado.Implementar,
@@ -577,13 +583,8 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 		}
 	}
 
-	i.Tipo = Trabajar
-	i.Estado = estado.Implementar
-	i.Feature = id
 	i.Lote = l.Lote
 	i.DeLotes = len(f.Lotes)
-	i.Skill = skills[estado.Implementar]
-	i.Modelo, i.Via, i.Comando = m, v, cmd
 
 	if !l.Rojo {
 		i.Mensaje = "escribí los tests del lote y confirmá el rojo antes de implementar"
@@ -604,6 +605,12 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 // Devuelve la 🛑 de modelo sin declarar cuando corresponde: es el único lugar
 // donde el mapa puede frenar, y frenar acá —antes de decir "trabajá"— es lo que
 // evita que el orquestador lance a alguien que no sabe invocar.
+// trabajar arma la instrucción de los cinco estados de PRODUCTO.
+//
+// El modelo sale del mapa por estado y nada más, porque los dos niveles de
+// arriba de la cadena —`sf model` y el ⑯ de tareas.json— viven DENTRO de una
+// feature, y acá no hay ninguna. Los cuatro del ciclo usan
+// `trabajarEnFeature`, que sí los aplica.
 func trabajar(est, feature, mensaje string, g *global.Config) Instruccion {
 	m := modelo(est)
 	v, cmd, hay := via(est, m, g)
@@ -614,6 +621,44 @@ func trabajar(est, feature, mensaje string, g *global.Config) Instruccion {
 		Tipo:     Trabajar,
 		Estado:   est,
 		Feature:  feature,
+		Skill:    skills[est],
+		Modelo:   m,
+		Via:      v,
+		Comando:  cmd,
+		Mensaje:  mensaje,
+		Sugerido: []string{"sf context", "sf done"},
+	}
+}
+
+// trabajarEnFeature es `trabajar` con la cadena de modelo COMPLETA.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// LA PRECEDENCIA EXISTÍA Y SE APLICABA EN UN SOLO ESTADO DE CUATRO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `modeloDeFeature` implementa los tres niveles —`sf model`, el ⑯ de
+// tareas.json, el default del estado— y tenía UN solo consumidor:
+// `implementando`. Los otros tres estados de feature pasaban por `trabajar`,
+// que sólo mira el mapa por estado.
+//
+// O sea que `sf model opus` no hacía nada en `planificacion`, `revision` ni
+// `cierre`: la salida de ME TRABÉ —la que Javier usa cuando está mirando el
+// bucle patinar— no funcionaba en tres de los cuatro estados.
+//
+// `trabajar` se queda para los cinco de PRODUCTO, que no tienen feature: ahí no
+// hay `sf model` ni ⑯ que aplicar, porque los dos viven dentro de una feature.
+func trabajarEnFeature(raiz, est string, fr roadmap.Feature, f *estado.Feature,
+	mensaje string, g *global.Config,
+) Instruccion {
+	m := modeloDeFeature(raiz, fr, f, est)
+	v, cmd, hay := via(est, m, g)
+	if !hay {
+		return sinDeclarar(est, fr.ID, m)
+	}
+	return Instruccion{
+		Tipo:     Trabajar,
+		Estado:   est,
+		Feature:  fr.ID,
 		Skill:    skills[est],
 		Modelo:   m,
 		Via:      v,
