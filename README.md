@@ -160,6 +160,10 @@ specs/       the design, and why each decision is the way it is
 **The prefix says something:** `sfp-` runs once per product, `sf-` once per feature, and `sfx-`
 is a utility that lives **outside** the machine — standalone, usable in any project.
 
+**And there's a smoke run behind a build tag** — `go test -tags e2e ./cmd/sf/` — that compiles the
+binary and walks both loops end to end against a real repo. It's separate on purpose: the checks
+that matter most here live in the **seam between commands**, and no package test can see them.
+
 ## Documentation
 
 | | |

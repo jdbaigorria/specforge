@@ -155,6 +155,11 @@ specs/       el diseño, y por qué cada decisión es como es
 **El prefijo dice algo:** `sfp-` corre una vez por producto, `sf-` una vez por feature, y `sfx-`
 es un utilitario que vive **fuera** de la máquina — standalone, usable en cualquier proyecto.
 
+**Y hay un guion de humo detrás de un build tag** —`go test -tags e2e ./cmd/sf/`— que compila el
+binario y recorre las dos vueltas punta a punta contra un repo de verdad. Está aparte a propósito:
+lo que más importa comprobar acá vive en la **costura entre comandos**, y ningún test de paquete
+lo ve.
+
 ## La documentación
 
 | | |

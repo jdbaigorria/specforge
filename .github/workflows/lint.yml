@@ -25,6 +25,17 @@ jobs:
         working-directory: sf
         run: go build -o sf ./cmd/sf
 
+      # El guion de humo: la maquina entera, por la superficie del binario.
+      #
+      # Va aparte de `go test ./...` porque compila y corre git, y porque los
+      # tests de paquete NO LO REEMPLAZAN: la auditoria de specs/arreglos.md
+      # encontro diez defectos con la suite en verde, y ninguno de los diez se
+      # ve desde adentro de un paquete — todos viven en la costura entre
+      # comandos.
+      - name: El guion de humo, punta a punta
+        working-directory: sf
+        run: go test -tags e2e ./cmd/sf/
+
       # El mapa estado → skill es la costura entre el binario y skills/, y es la
       # única que ningún test de Go puede cubrir: `maquina.go` comprueba que los
       # nombres respeten la regla de prefijos, pero no que la carpeta exista.

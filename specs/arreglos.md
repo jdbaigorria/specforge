@@ -7,8 +7,9 @@
 > con el binario viejo sobre un repo real). **277 tests** contra los 213 del día de la auditoría.
 > El detalle de cada PR está al final, en **Lo que se implementó**.
 >
-> Lo único que quedó afuera está anotado como **residuo conocido** al final de PR6, y es una
-> aspereza, no un defecto.
+> El guion de humo del apéndice **está construido y corre en el CI**
+> (`sf/cmd/sf/e2e_test.go`). Lo único que quedó afuera está anotado como **residuo conocido** al
+> final de PR6, y es una aspereza, no un defecto.
 
 Este documento no es diseño: es el **parte de daños**, escrito para implementarse. Cada hallazgo
 trae el síntoma **reproducido de verdad** (no leído), la causa raíz con archivo y línea, el arreglo
@@ -1698,8 +1699,57 @@ Por eso el guion de humo del apéndice es el entregable más importante de este 
 **dos de los defectos de esta ronda —el sobre vacío del lote de corrección y el `con .` de ME
 TRABÉ— los encontró el binario y no los tests.**
 
-## Lo que falta construir
+## El guion de humo, construido
 
-El guion de humo se corrió **a mano** en cada PR. Automatizarlo —`sf/cmd/sf/e2e_test.go` con
-`//go:build e2e`, como está descrito en el apéndice— es lo único que queda para que estos diez no
-puedan volver en silencio.
+`sf/cmd/sf/e2e_test.go`, detrás de `//go:build e2e`, y en el CI como paso propio:
+
+```bash
+go test -tags e2e ./cmd/sf/
+```
+
+Compila el binario de ESTA corrida, arma un proyecto de juguete con git de verdad, y recorre las
+dos vueltas afirmando **exit codes** — que ya son parte de la interfaz. Tres tests:
+
+| | Qué recorre | Hallazgos que cubre |
+|---|---|---|
+| `TestVueltaCompletaDeUnaHistoria` | ⑥ → archivado, con dos lotes y una vuelta del ㉑ | A0 · A2 · A3 · A4 · A5 · A7 · A9 |
+| `TestVueltaDeUnBugPorElCaminoCorto` | `sf new` → bug → cierre, salteando dos estados | A1 · A6 · A7 |
+| `TestElModeloDeJavierMandaEnLosCuatroEstados` | la cadena de modelo, estado por estado | A8 |
+
+**Cada paso nombra el hallazgo que cubre.** Los marcados con `A#` no están para que la vuelta sea
+completa: están porque **ese paso fallaba**. Si alguno se cae, el comentario manda a buscar el
+hallazgo en este documento antes de tocar el test.
+
+### Comprobado contra el código roto
+
+No alcanza con que pase: tiene que **fallar cuando corresponde**. Se trajeron los diez archivos de
+`cb4d905` —el commit del día de la auditoría— y se corrió:
+
+```
+sf (0 passed, 3 failed)
+  [FAIL] TestVueltaCompletaDeUnaHistoria       A4 · el ⑧ tiene que pedir trabajo, no la 🛑
+  [FAIL] TestVueltaDeUnBugPorElCaminoCorto     el andamio ya no llega
+  [FAIL] TestElModeloDeJavierMandaEnLosCuatroEstados
+```
+
+Las tres caen en el primer hallazgo que tocan.
+
+### Tres cosas que el guion enseñó al escribirlo
+
+Las tres son la máquina teniendo razón sobre un escenario mal armado, y valen más que el test:
+
+**① Un hallazgo inventado no se puede reproducir.** El primer intento le hacía encontrar al ㉑ un
+bug que el código no tenía, y `sf lote start` contestó *"la suite PASA ENTERA: todavía no está
+reproducido lo que venís a arreglar"*. Hubo que darle a `Resta` un bug **de verdad** —clampear en
+cero— que el test del lote no ve porque `5-3` no es negativo.
+
+**② El lote 2 no puede nacer en verde.** El primer intento implementaba `Suma` y `Resta` juntas en
+el lote 1, y el lote 2 arrancaba sin rojo que confirmar. El plan decía dos lotes; el código tenía
+que respetarlo.
+
+**③ La rama "falta cerrar la feature" no lanza a nadie**, así que va sin skill ni modelo — y el
+test de la cadena lo descubrió pidiendo un modelo donde no hay ninguno. Es correcto: lo que falta
+ahí es un `sf done`, no un subagente.
+
+> Que el guion de humo se pelee con quien lo escribe es exactamente lo que se le pide a la máquina.
+> Las tres veces, el que estaba equivocado era el test.
