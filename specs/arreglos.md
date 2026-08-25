@@ -2,10 +2,10 @@
 
 **Fecha de la auditoría:** 2026-08-25 · **Branch:** `refundation` · **Commit:** `cb4d905`
 
-> **Estado: PR1 a PR4 hechos.** A0 a A7 están arreglados, con tests que fallan sin el arreglo
+> **Estado: PR1 a PR5 hechos.** A0 a A8 están arreglados, con tests que fallan sin el arreglo
 > (verificado revirtiendo el código y, en A2, reproduciendo el bug con el binario viejo sobre un
-> repo real). **No queda ningún crítico ni ningún alto.** Quedan A8, A9 y los menores. El detalle
-> está al final, en **Lo que se implementó**.
+> repo real). Queda **A9** —que es código muerto— y los tres menores de docs. El detalle está al
+> final, en **Lo que se implementó**.
 
 Este documento no es diseño: es el **parte de daños**, escrito para implementarse. Cada hallazgo
 trae el síntoma **reproducido de verdad** (no leído), la causa raíz con archivo y línea, el arreglo
@@ -46,12 +46,12 @@ A0, la mitad de A1, y A5.
 | **A5** ✅ | `revision → implementar` es un loop muerto | 🟠 alto | el ㉑ con hallazgos |
 | **A6** ✅ | `sf context` no aplica el camino corto del bug | 🟡 medio | entrada C |
 | **A7** ✅ | `sf new` no lleva a `sfp-backlog` | 🟡 medio | entradas B y C |
-| **A8** | `sf model` se ignora fuera de `implementar` | 🟡 medio | la salida de ME TRABÉ |
+| **A8** ✅ | `sf model` se ignora fuera de `implementar` | 🟡 medio | la salida de ME TRABÉ |
 | **A9** | `compuerta.Roadmap` es código muerto | 🔵 bajo | el ⑩ |
 | **M1–M3** | Números y punteros desactualizados en docs | 🔵 bajo | — |
 
 **Orden sugerido:** ~~A0 → A1 → A5~~ ✅ · ~~A2~~ ✅ · ~~A6~~ ✅ · ~~A3 → A4~~ ✅ · ~~A7~~ ✅ ·
-**A8** · A9 · M.
+~~A8~~ ✅ · **A9** · M.
 
 ---
 
@@ -1446,3 +1446,115 @@ historia, y el sobre del bug trae la que rompió).
 **A8** — `modeloDeFeature` se usa sólo en `implementar`, así que `sf model` se ignora en
 `planificacion`, `revision` y `cierre`: la salida de ME TRABÉ no funciona en tres de los cuatro
 estados de feature. Después **A9** y los menores.
+
+
+---
+
+# Lo que se implementó — PR5
+
+**A8.** Es el más chico de los nueve y el que tiene la consecuencia más incómoda: la salida de
+emergencia no funcionaba donde más se la necesita.
+
+## El bug
+
+`modeloDeFeature` implementa la cadena de tres niveles y tenía **un solo consumidor**:
+`implementando`. Los otros tres estados de feature pasaban por `trabajar`, que sólo mira el mapa
+por estado.
+
+```
+$ sf model gpt5 --via consola --comando "codex exec"
+✓ modelo: opus → gpt5 (contador reseteado)
+$ sf next
+estado:   cierre
+modelo:   sonnet          ← lo ignoró
+```
+
+O sea que **`sf model` —la salida de ME TRABÉ, la que Javier usa mirando el bucle patinar— no hacía
+nada en tres de los cuatro estados de feature.** Y ME TRABÉ puede aparecer en cualquiera de ellos:
+la dispara el contador de `sf done` fallidos, y `done` corre en los cuatro.
+
+## El arreglo
+
+`trabajarEnFeature`, hermano de `trabajar` con la cadena completa, en los cuatro call sites:
+
+| Antes | Ahora |
+|---|---|
+| `revision` → `trabajar` | `trabajarEnFeature` |
+| `cierre` → `trabajar` | `trabajarEnFeature` |
+| `planificacion` → `trabajar` | `trabajarEnFeature` |
+| `implementar` → la cadena a mano | `trabajarEnFeature`, y se le borraron 12 líneas |
+
+`trabajar` **se queda**, y para lo que corresponde: los cinco estados de producto, donde los dos
+niveles de arriba de la cadena no existen porque los dos viven dentro de una feature. Después del
+cambio, sus únicos seis call sites son ésos.
+
+Y `tomarLaProxima` —el anticipo de la próxima feature— aplica la cadena si esa feature ya está en
+el estado: puede estar `planificada` (la puerta *"otra feature"* del ⑰) y traer un `sf model` de
+una vuelta anterior. Anticipar el default cuando el real es otro es la misma desinformación que el
+`via` ya evitaba un renglón más abajo.
+
+## Un defecto que apareció al mirar la salida
+
+```
+⚠ ME TRABÉ. f-1 falló 3 veces seguidas con .
+```
+
+El mensaje leía `f.Modelo` **crudo**, y ese campo está vacío hasta el primer `sf model` — o sea que
+la **primera** vez que aparece la parada es exactamente la vez que sale sin el nombre. Y el nombre
+es la mitad del mensaje: *"¿subo el modelo?"* no se puede contestar sin saber cuál está fallando.
+
+Ahora sale de la cadena, igual que todo lo demás:
+
+```
+⚠ ME TRABÉ. f-1 falló 3 veces seguidas con opus.
+```
+
+Hubo que subir el `r.Buscar` de la feature por encima del bloque de ME TRABÉ. Es una lectura pura,
+así que mover el orden no cambia nada más.
+
+## Los archivos
+
+Uno: `maquina/maquina.go`. Es el arreglo más contenido de los cinco PRs.
+
+## Los tests
+
+**273 pasan** (eran 265).
+
+```
+TestElModeloDeJavierGanaEnLosCuatroEstadosDeFeature   (4 subtests, uno por estado)
+TestElModeloDelPlanGanaAlDefaultDelEstado             el nivel 2, y que el 1 le gana
+TestSinDecidirNadaMandaElDefaultDelEstado             ← guarda
+TestMeTrabeDiceConQueModeloSeTrabo
+```
+
+El primero es una tabla sobre los cuatro estados a propósito: revirtiendo `maquina.go` fallan
+`planificacion`, `revision` y `cierre`, y **`implementar` pasa en las dos versiones**. Eso es la
+demostración exacta de cuál era el bug.
+
+## Corrido con el binario
+
+```
+sf next     (cierre)              → modelo: sonnet
+sf model opus                     → ✓
+sf next                           → modelo: opus                      A8
+
+sf next     (revision, 3 fallos)  → ⚠ ME TRABÉ … con opus             el defecto de arriba
+sf model gpt5 --via consola …     → ✓ declarado en ~/.specforge/
+sf next                           → modelo: gpt5 · via: consola
+                                    comando: codex exec
+```
+
+La última línea es el punto: la salida de ME TRABÉ funciona en `revision` **y** resuelve el `via`
+de un modelo que no es de Anthropic, que era el caso H1b entero.
+
+## Docs actualizadas
+
+`docs/comandos.md` (la cadena de precedencia escrita, y que `sf model` vale en los cuatro estados)
+y `docs/problemas.md` (por qué el nombre del modelo está en el mensaje de ME TRABÉ).
+
+## Lo que sigue
+
+**A9**, el último, y es una decisión más que un arreglo: `compuerta.Roadmap` sólo se llama con
+`r == nil` —o sea sin `roadmap.json`—, y ahí falla en la primera línea. Sus dos chequeos reales no
+corren nunca. Hay que revivirla o borrarla; **código muerto con tests que pasan es peor que código
+que no existe**, porque da confianza falsa. Y después los tres menores de docs.

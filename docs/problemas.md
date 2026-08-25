@@ -212,6 +212,10 @@ El ㉓ produce **dos** archivos, no uno: la doc **y** el journal. El journal es 
 Es una parada de seguridad, y **no es configurable**: sin ella, el bucle *"`sf` da rojo → el
 orquestador relanza"* no termina nunca.
 
+**El nombre del modelo es la mitad del mensaje**, y por eso está: *"¿subo el modelo?"* no se puede
+contestar sin saber cuál está fallando. Sale de la cadena completa, así que dice el que se está
+usando de verdad — no el default del estado.
+
 Tres salidas:
 
 ```bash
@@ -219,6 +223,9 @@ sf model opus                      # subí el modelo — resetea el contador
 sf dismiss h-1 "falso positivo"    # si lo que traba es un hallazgo irreal
                                    # o entrás vos y lo arreglás a mano
 ```
+
+`sf model` vale en los **cuatro** estados de feature, y ME TRABÉ puede aparecer en cualquiera de
+ellos: la parada la dispara el contador de `sf done` fallidos, y `done` corre en los cuatro.
 
 ### `🛑 Hace falta "deepseek" y no está declarado`
 

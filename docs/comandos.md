@@ -262,6 +262,26 @@ sf model opus
 
 Cambiar de modelo es **empezar de nuevo**, no seguir acumulando los fracasos del anterior.
 
+**Vale en los cuatro estados de feature** —`planificacion`, `implementar`, `revision` y `cierre`—,
+que es lo mínimo para que sirva: ME TRABÉ puede aparecer en cualquiera de ellos, y una salida que
+funciona en uno solo no es una salida.
+
+### De dónde sale el modelo, y quién le gana a quién
+
+```
+1. sf model <nombre>   tu decisión en runtime          estado.json
+2. tareas.json         el ⑯: "ESTA feature es difícil"  lo escribió el que planificó
+3. el default del estado    opus en planificacion y revision
+4. el default general       sonnet
+```
+
+**El orden no es arbitrario: cada nivel sabe menos que el de arriba.** El default no sabe nada de
+la feature; el ⑯ la planificó pero no vio fallar nada; vos estás mirando el bucle patinar cuando
+escribís `sf model`.
+
+Los dos primeros niveles **sólo existen dentro de una feature**, así que en los cinco estados de
+producto manda el default del estado y listo.
+
 ### Declarar un modelo nuevo
 
 Cuando `sf` para porque el modelo no está en tu mapa, la respuesta **lo declara**:
