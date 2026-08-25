@@ -201,11 +201,17 @@ brief          → guarda el veredicto que escribiste en el archivo
 constitucion   → constitucion_sellada = true
 backlog (⏸)    → backlog_visto = true
 planificacion  → la feature pasa a implementar          (el ⑰)
-cierre (⏸)     → ARCHIVA: mueve la carpeta, mergea, borra la branch
+cierre (⏸)     → ARCHIVA: commitea lo pendiente, mergea, borra la branch,
+                 mueve la carpeta y deja el archivado en su propio commit
 ```
 
 **Un comando, cinco significados, ninguno ambiguo.** Las cinco son el mismo hecho —aprobás lo que
 se produjo— y qué se sella tiene **una sola respuesta correcta**.
+
+> **El archivado hace el git antes de mover la carpeta**, que es al revés de como se lee. El
+> movimiento es lo único irreversible y el git es lo único que puede fallar: si el merge conflictúa,
+> no se movió nada y volvés a correr `sf approve`. Detalle completo en
+> [`estados.md`](estados.md#-cierre--la-doc-y-el-aprendizaje).
 
 ## `sf reject "motivo"`
 

@@ -259,6 +259,29 @@ entera**, así que `h-1` simplemente **no reaparece** — *eso* es estar arregla
 
 Queda **un solo estado que no se deduce**: `descartado`, y lo ponés vos con `sf dismiss`.
 
+### Con un hallazgo abierto: la vuelta abre un lote
+
+Volver a `implementar` sin más sería mandar al que arregla a un estado sin trabajo. Así que la
+vuelta **abre un lote nuevo**, y el arreglo pasa por el mismo carril que todo lo demás:
+
+```
+✗ No avanzo.
+  · hay 1 hallazgos abiertos: h-1
+→ hay hallazgos abiertos — vuelve a implementar en el lote 2
+```
+
+Ese lote **no está en `tareas.json`** —el plan se escribió antes de que el hallazgo existiera—, y
+eso cambia dos cosas:
+
+- **el sobre trae el hallazgo** en vez de las tareas del plan: el id, el criterio y el detalle,
+  embebidos, porque el que los lee es un subagente nuevo que no estuvo en la revisión;
+- **`sf lote start` afloja a lo comprobable**: no puede exigir *cuáles* tests, pero **sigue
+  exigiendo que la suite falle**. Un hallazgo sin un test que lo reproduzca es un hallazgo que
+  nadie va a poder verificar.
+
+Y el arreglo termina en `sf done --msg "…"`, o sea en un commit: **un lote, un commit**, también
+acá.
+
 ## ⑨ `cierre` — la doc y el aprendizaje
 
 ```
@@ -275,14 +298,29 @@ alguien lo quería**. Esa mitad es la que un humano lee seis meses después.
 
 **La compuerta:** que existan los dos archivos. Son dos y no uno — **la doc y el journal**.
 
-Y después de la ⏸, `sf approve` hace **cuatro cosas mecánicas**:
+Y después de la ⏸, `sf approve` hace **cuatro cosas mecánicas**, en este orden:
 
 ```
-mueve la carpeta entera → .docs/archivado/f-#-slug/
-mergea la branch        → con el modo de tu constitución
-borra la branch
-marca la feature cerrada
+commitea lo que quedaba pendiente   → "chore: cierre de f-#"
+mergea la branch y la borra         → con el modo de tu constitución
+mueve la carpeta entera             → .docs/archivado/f-#-slug/
+marca la feature cerrada            → "chore: f-# archivada"
 ```
+
+**El orden es al revés de lo que parece, y a propósito.** Mover la carpeta es lo único
+irreversible; el git es lo único que puede fallar. Con el movimiento primero, un merge conflictivo
+te dejaba la carpeta archivada, la feature sin cerrar y el ㉓ apuntando a archivos que ya no
+estaban ahí — y no se salía, porque el segundo intento fallaba al mover algo que ya no existía.
+Así, un merge que falla **no movió nada** y `sf approve` se reintenta tal cual.
+
+**Y empieza commiteando** porque `.docs/estado.json` está sucio *por construcción* cuando llegás
+acá: `sf` lo escribe en cada transición y sólo lo commitea al cerrar un lote. Sin ese commit,
+`git checkout` aborta **siempre**. De paso, ese trabajo —la revisión, la doc, el journal— deja de
+quedar huérfano.
+
+El archivado termina en **un commit propio**. Si quedara suelto, el `git add -A` del primer lote
+de la feature siguiente se lo llevaría puesto, y el cierre de `f-1` terminaría adentro del commit
+de `f-2` — que es el dolor #3 entrando por la única puerta que quedaba abierta.
 
 ---
 

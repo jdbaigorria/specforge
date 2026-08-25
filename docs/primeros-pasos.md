@@ -357,8 +357,12 @@ sf approve
 ✓ f-1 archivada y cerrada
 ```
 
-Eso hizo **cuatro cosas mecánicas**: movió la carpeta a `.docs/archivado/`, mergeó la branch con
-el modo de tu constitución, borró la branch, y marcó la feature cerrada.
+Eso hizo **cuatro cosas mecánicas**: commiteó lo que quedaba pendiente, mergeó la branch con el
+modo de tu constitución y la borró, movió la carpeta a `.docs/archivado/`, y marcó la feature
+cerrada — dejando el archivado en un commit propio.
+
+> **El git va antes que el movimiento**, aunque se lea al revés: mover la carpeta es lo único
+> irreversible. Si el merge conflictúa, no se movió nada y `sf approve` se reintenta tal cual.
 
 ```bash
 sf next     # → Sigue f-2 …

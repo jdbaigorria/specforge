@@ -59,6 +59,24 @@ This does three things and **refuses to do them if the tests are not honestly re
 **So the order is: write the tests first, run `sf lote start`, then implement.** Not the other
 way round.
 
+### If your envelope says "Qué hay que arreglar" instead of "Tus tareas"
+
+Then this is a **correction batch**: the ㉑ found something and the feature came back to
+`implementar`. Two things change, and nothing else does.
+
+- **Your work is the finding**, not a task from the plan. The envelope has its id, the criterion
+  it breaks, and the detail — that is all there is, because the plan was written before the
+  finding existed.
+- **`sf lote start` cannot name your tests**, so it asks for less: that the suite fails. It asks
+  for it anyway. **Write the test that reproduces the finding first.** If the suite is already
+  green, you have not reproduced anything — and a finding nobody can verify is a finding nobody
+  can close.
+
+The batch still ends in `sf done --msg "…"`, so the fix is one commit, like everything else.
+
+The same relaxed gate applies on the short path of a bug (`tipo: bug`), where there is no
+`tareas.json` at all: same rule, same reason.
+
 ## Step ⑲: Red → Green → Refactor
 
 Compose **`sfx-tdd`**. The cycle is unchanged: one test, one implementation, one cycle, repeat.
