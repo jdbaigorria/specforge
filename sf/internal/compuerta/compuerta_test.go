@@ -334,3 +334,32 @@ func TestElTextoSoloMuestraLoQueFalta(t *testing.T) {
 		t.Errorf("un resultado limpio no dice que está listo:\n%s", ok.Texto())
 	}
 }
+
+// Un criterio con id y sin texto contaba como criterio, y el esqueleto de
+// `sf new` deja exactamente eso: `- **CA-1** —`.
+//
+// Es PEOR que no tener ninguno: el ⑰ lo da por cubierto y el ㉑ le pone
+// veredicto, así que el mecanismo de los ids queda en pie sobre algo que nadie
+// puede juzgar.
+func TestBacklogRechazaElCriterioSinTexto(t *testing.T) {
+	p := nuevo(t).archivo(".docs/backlog/us-1.md",
+		"---\nid: us-1\ntitulo: sumar\n---\n## Criterios\n- **CA-1** —\n")
+	exige(t, Backlog(p.raiz), "criterio vacío")
+
+	p.archivo(".docs/backlog/us-1.md",
+		"---\nid: us-1\ntitulo: sumar\n---\n## Criterios\n- **CA-1** — Suma(2,3) da 5\n")
+	if !Backlog(p.raiz).Pasa() {
+		t.Errorf("no pasó con el criterio escrito: %v", Backlog(p.raiz).Fallas)
+	}
+}
+
+// Y el título NO se exige acá, a propósito: la compuerta pregunta si el
+// MECANISMO se sostiene, y lo que el ⑰ cuenta y el ㉑ juzga son los criterios.
+// De la historia sin pinponear se ocupa el checkpoint del ⑨.
+func TestBacklogNoExigeTitulo(t *testing.T) {
+	p := nuevo(t).archivo(".docs/backlog/us-1.md",
+		"---\nid: us-1\n---\n## Criterios\n- **CA-1** — algo concreto\n")
+	if !Backlog(p.raiz).Pasa() {
+		t.Errorf("frenó por el título: %v", Backlog(p.raiz).Fallas)
+	}
+}

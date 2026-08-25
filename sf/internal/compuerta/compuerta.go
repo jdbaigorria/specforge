@@ -155,10 +155,18 @@ func Constitucion(raiz string) Resultado {
 	return r
 }
 
-// Backlog cuenta que todas las historias tengan criterios con id.
+// Backlog cuenta que todas las historias tengan criterios con id Y CON TEXTO.
 //
 // Es la compuerta que HABILITA el mecanismo del ㉑: sin ids, el revisor
 // contesta "anda" y no hay nada que contar después.
+//
+// Lo del texto no es un extra: el esqueleto de `sf new` deja la línea puesta y
+// vacía —`- **CA-1** —`— así que contando sólo ids, un esqueleto sin completar
+// pasaba la compuerta. Y un criterio que no dice nada es PEOR que ninguno: el
+// ⑰ lo da por cubierto y el ㉑ le pone veredicto, o sea que el mecanismo entero
+// queda en pie sobre algo que nadie puede juzgar.
+//
+// Sigue sin ser un juicio: no se mira si el texto es bueno, se mira si hay.
 func Backlog(raiz string) Resultado {
 	var r Resultado
 
@@ -177,6 +185,18 @@ func Backlog(raiz string) Resultado {
 		}
 		if len(h.Criterios) == 0 {
 			r.falla("%s no tiene criterios de aceptación (CA-1, CA-2, …)", id)
+			continue
+		}
+		// El título NO se exige acá, y la diferencia importa: la compuerta
+		// pregunta si el MECANISMO se sostiene, y lo que el ⑰ cuenta y el ㉑
+		// juzga son los criterios. Un título flojo no rompe nada.
+		//
+		// De que la historia esté sin pinponear se ocupa el checkpoint del ⑨
+		// (historia.SinPinponear), que sí lo mira: ahí la pregunta es otra
+		// —"¿hay algo que completar?"— y ahí un título vacío es la señal.
+		if len(h.SinTexto) > 0 {
+			r.falla("%s tiene el id puesto y el criterio vacío: %s",
+				id, strings.Join(h.SinTexto, " · "))
 		}
 	}
 	return r

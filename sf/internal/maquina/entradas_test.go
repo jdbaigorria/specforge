@@ -154,3 +154,64 @@ func TestLosIdsSeOrdenanPorNumeroNoPorTexto(t *testing.T) {
 		t.Errorf("ProximoID() = %q, quería us-11", got)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// `sf new` tiene que LLEVAR a sfp-backlog, no sólo reabrir la ⏸
+// ────────────────────────────────────────────────────────────────────────────
+
+// El propio código decía que `Nueva` reabre la ⏸ "para que sf next mande al
+// pinponeo", y no lo hacía: el checkpoint preguntaba "¿hay historias?" y con un
+// producto en marcha la respuesta es siempre sí. Así que salía la ⏸ y lo que
+// quedaba para aprobar era el esqueleto con el título vacío.
+func TestDespuesDeNewElNueveMandaACompletarLaHistoria(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\ntitulo: la primera\n---\n## Criterios\n- **CA-1** — algo\n")
+
+	if ef := Nueva(p.raiz, p.e, "el login rompe con mayúsculas"); !ef.Pasa() {
+		t.Fatalf("%v", ef.Fallas)
+	}
+
+	i := p.next()
+	if i.Tipo != Trabajar {
+		t.Fatalf("tipo %v, quería Trabajar: us-2 es un esqueleto", i.Tipo)
+	}
+	if i.Estado != "backlog" || i.Skill != "sfp-backlog" {
+		t.Errorf("estado %q skill %q, quería backlog/sfp-backlog", i.Estado, i.Skill)
+	}
+	// Y dice CUÁL, que es la diferencia entre una instrucción y una consigna:
+	// "partí el PRD" con veinte historias ya escritas es lo contrario de útil.
+	if !strings.Contains(i.Mensaje, "us-2") {
+		t.Errorf("no dijo cuál completar: %q", i.Mensaje)
+	}
+}
+
+// Y con el backlog completo vuelve la ⏸: el arreglo no puede dejar la máquina
+// pidiendo pinponeo para siempre.
+func TestConElBacklogCompletoVuelveLaParadaBarata(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.e.Producto.BacklogVisto = false
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\ntitulo: la primera\n---\n## Criterios\n- **CA-1** — algo\n")
+
+	if i := p.next(); i.Tipo != Barata {
+		t.Errorf("tipo %v, quería Barata: no hay nada que completar", i.Tipo)
+	}
+}
+
+// La primera vuelta sigue diciendo "partí el PRD": ahí faltan TODAS, y nombrar
+// veinte historias que no existen no ayuda a nadie.
+func TestLaPrimeraVueltaDelNueveSigueSiendoPartirElPRD(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true,
+	}
+
+	i := p.next()
+	if i.Estado != "backlog" || i.Tipo != Trabajar {
+		t.Fatalf("estado %q tipo %v", i.Estado, i.Tipo)
+	}
+	if !strings.Contains(i.Mensaje, "parte el PRD") {
+		t.Errorf("mensaje %q, quería el de partir el PRD", i.Mensaje)
+	}
+}

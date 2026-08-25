@@ -65,6 +65,25 @@ type Historia struct {
 	// No vienen del frontmatter: se extraen de la prosa. El texto del criterio
 	// lo lee el modelo; sf sólo necesita SABER CUÁNTOS SON Y CÓMO SE LLAMAN.
 	Criterios []string
+
+	// SinTexto son los criterios que tienen id y no dicen nada.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// UN ID VACÍO CUENTA IGUAL, Y ESO ERA UN AGUJERO
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// El esqueleto que deja `sf new` trae la línea puesta y el texto no:
+	//
+	//	- **CA-1** —
+	//
+	// Como el id existe, la compuerta del ⑨ lo contaba y el backlog pasaba.
+	// Y contar un criterio que no dice nada es peor que no contarlo: el ⑰ lo
+	// da por cubierto y el ㉑ le pone veredicto, así que el mecanismo de los
+	// ids sigue en pie sobre algo que nadie puede juzgar.
+	//
+	// Sigue siendo contar caracteres, no leer: sf no opina sobre si el texto
+	// es bueno — mira si hay texto.
+	SinTexto []string
 }
 
 // EsBug decide si esta entrada va por el camino corto.
@@ -83,7 +102,15 @@ func (h *Historia) EsBug() bool { return h.Tipo == "bug" }
 // el que escribe esto es un LLM y el formato exacto varía. Lo que NO varía es el
 // id: es lo único que sf necesita, y es lo que el revisor va a tener que
 // nombrar uno por uno.
-var reCriterio = regexp.MustCompile(`(?m)^\s*[-*]\s*\**\s*(CA-\d+)\b`)
+// El segundo grupo es el resto de la línea, y sirve para saber si el criterio
+// dice algo o es el hueco que dejó `sf new`.
+var reCriterio = regexp.MustCompile(`(?m)^\s*[-*]\s*\**\s*(CA-\d+)\b(.*)$`)
+
+// separadores es lo que va entre el id y el texto, y no es texto.
+//
+// Varía porque el que escribe esto es un LLM: em dash, guión, dos puntos, y las
+// negritas que cierran. Lo que queda después de sacarlos es el criterio.
+const separadores = "*—–-:. \t"
 
 // Leer carga una historia por id.
 func Leer(raiz, id string) (*Historia, error) {
@@ -99,9 +126,13 @@ func Leer(raiz, id string) (*Historia, error) {
 	}
 
 	// FindAllSubmatch con -1 devuelve todas las coincidencias; el índice 1 es
-	// el primer grupo de captura, que es el id.
+	// el primer grupo de captura, que es el id, y el 2 es el resto de la línea.
 	for _, m := range reCriterio.FindAllSubmatch(cuerpo, -1) {
-		h.Criterios = append(h.Criterios, string(m[1]))
+		id := string(m[1])
+		h.Criterios = append(h.Criterios, id)
+		if strings.Trim(string(m[2]), separadores) == "" {
+			h.SinTexto = append(h.SinTexto, id)
+		}
 	}
 
 	// El id del frontmatter puede faltar o estar mal escrito; el del nombre de
@@ -131,6 +162,82 @@ func Criterios(raiz string, ids []string) ([]string, error) {
 		}
 	}
 	return todos, nil
+}
+
+// Las marcas del esqueleto son el checkpoint del ⑨, igual que
+// constitucion.MarcaSinEscribir lo es del ⑧.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ UN MARCADOR Y NO "¿TIENE TÍTULO?"
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El primer intento miraba `titulo:` en el frontmatter, y da falsos positivos:
+// una historia escrita a mano puede tener el título sólo en el encabezado y
+// estar perfectamente completa. Un checkpoint que frena trabajo terminado es
+// peor que no tenerlo — se aprende a ignorarlo.
+//
+// El marcador no puede equivocarse: o está el hueco que dejó `sf new`, o no.
+// Y las escribe el MISMO paquete que después las busca, así que no se pueden
+// desincronizar.
+const (
+	marcaTitulo = "<título>"
+	marcaQuien  = "<quién>"
+	marcaQue    = "<qué>"
+	marcaPorQue = "<por qué>"
+)
+
+var marcasDelEsqueleto = []string{marcaTitulo, marcaQuien, marcaQue, marcaPorQue}
+
+// SinPinponear son las historias que todavía son el esqueleto de `sf new`.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// EL ⑨ TAMBIÉN NECESITA SABER CUÁNDO TERMINÓ, NO SÓLO CUÁNDO EMPEZÓ
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `sf new` mete una entrada al backlog y reabre la ⏸ del ⑨ para que se
+// pinponee. Pero el checkpoint preguntaba "¿hay alguna historia?", y con un
+// producto en marcha la respuesta es siempre sí — así que `sf next` mostraba la
+// ⏸ y nunca mandaba a `sfp-backlog`. Lo que quedaba para aprobar era un
+// esqueleto con el título vacío y un `CA-1` que no dice nada.
+//
+// Es el mismo patrón que `huerfanas` para el ⑩ —preguntar qué falta, no si hay
+// algo— y es la misma forma que fallaba en el ⑧: un checkpoint que pregunta si
+// existe cuando la pregunta es si está terminado.
+//
+// El criterio es contable y no de gusto: sin criterios, con criterios que sólo
+// tienen id, o con alguno de los huecos que dejó el esqueleto todavía puesto.
+// sf no opina sobre si la historia está BIEN escrita — mira si está escrita.
+func SinPinponear(raiz string) []string {
+	var faltan []string
+	for _, id := range Ids(raiz) {
+		h, err := Leer(raiz, id)
+		if err != nil {
+			// Una historia ilegible es un problema del ⑨ igual: mandarla a
+			// pinponear es la respuesta útil, y de lo que esté roto se queja la
+			// compuerta, que corre después.
+			faltan = append(faltan, id)
+			continue
+		}
+		if len(h.Criterios) == 0 || len(h.SinTexto) > 0 || tieneMarcas(raiz, id) {
+			faltan = append(faltan, id)
+		}
+	}
+	return faltan
+}
+
+// tieneMarcas dice si el cuerpo todavía tiene alguno de los huecos del esqueleto.
+func tieneMarcas(raiz, id string) bool {
+	b, err := os.ReadFile(filepath.Join(raiz, docs.Historia(id)))
+	if err != nil {
+		return false // ya se contó como faltante arriba
+	}
+	texto := string(b)
+	for _, m := range marcasDelEsqueleto {
+		if strings.Contains(texto, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // SonTodasBugs dice si un conjunto de historias va por el camino corto.
@@ -227,13 +334,14 @@ prd_version: %s
 relacionado_a: null         # el us-# original, cuando esto es un bug
 ---
 
-# %s — <título>
+# %s — %s
 
-Como **<quién>** quiero **<qué>** para **<por qué>**.
+Como **%s** quiero **%s** para **%s**.
 
 ## Criterios de aceptación
 - **CA-1** —
 
 ## Contexto
-`, id, prdHash, id)
+`, id, prdHash, id,
+		marcaTitulo, marcaQuien, marcaQue, marcaPorQue)
 }

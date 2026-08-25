@@ -609,3 +609,67 @@ func TestElSobreDistingueSinEmpezarDeTodoCommiteado(t *testing.T) {
 		t.Errorf("con todo commiteado no lo dijo:\n%s", texto)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El sobre del ⑨ — al ⑨ se entra dos veces, por motivos distintos
+// ────────────────────────────────────────────────────────────────────────────
+
+// Cuando lo que falta es completar lo que metió `sf new`, el sobre tiene que
+// decir CUÁL. Sin esto, el que va a pinponear un us-7 recibe el PRD entero y
+// ninguna pista — y con veinte historias ya escritas, "partí el PRD" es la
+// instrucción equivocada.
+func TestElSobreDelNueveNombraLoQueHayQueCompletar(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1", ConstitucionSellada: true,
+	}
+	p.archivo(docs.Historia("us-1"),
+		"---\nid: us-1\ntitulo: la primera\n---\n## Criterios\n- **CA-1** — algo\n")
+	p.archivo(docs.Historia("us-2"), "---\nid: us-2\ntitulo: \"\"\n---\n- **CA-1** —\n")
+
+	texto := p.texto()
+	if !strings.Contains(texto, "Lo que hay que completar") {
+		t.Errorf("el sobre no dice qué completar:\n%s", texto)
+	}
+	if !strings.Contains(texto, docs.Historia("us-2")) {
+		t.Errorf("no nombra us-2:\n%s", texto)
+	}
+	// Y no manda a rehacer la que ya está: es ruido y encima invita a tocarla.
+	if strings.Contains(texto, docs.Historia("us-1")) {
+		t.Errorf("nombra us-1, que ya está completa:\n%s", texto)
+	}
+}
+
+// Si el que entró es un BUG, va también la historia que rompió: `relacionado_a`
+// apunta al us-# original, y sin él el que pinponea no sabe qué comportamiento
+// se esperaba.
+func TestElSobreDelNueveTraeLaHistoriaQueElBugRompio(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1", ConstitucionSellada: true,
+	}
+	p.archivo(docs.Historia("us-1"),
+		"---\nid: us-1\ntitulo: el login\n---\n## Criterios\n- **CA-1** — entra\n")
+	p.archivo(docs.Historia("us-2"),
+		"---\nid: us-2\ntipo: bug\ntitulo: \"\"\nrelacionado_a: us-1\n---\n- **CA-1** —\n")
+
+	texto := p.texto()
+	for _, pedazo := range []string{docs.Historia("us-2"), docs.Historia("us-1")} {
+		if !strings.Contains(texto, pedazo) {
+			t.Errorf("el sobre no trae %s:\n%s", pedazo, texto)
+		}
+	}
+}
+
+// La primera vuelta no lleva la parte: ahí faltan TODAS, el PRD es todo el
+// insumo, y repetir la lista sería decir dos veces lo mismo.
+func TestElSobreDelNueveNoAgregaNadaEnLaPrimeraVuelta(t *testing.T) {
+	p := nuevo(t)
+	p.e.Producto = estado.Producto{
+		BriefSellado: "hacelo", PrdHash: "a3f9c1", ConstitucionSellada: true,
+	}
+
+	if texto := p.texto(); strings.Contains(texto, "Lo que hay que completar") {
+		t.Errorf("agregó la parte sin ninguna historia escrita:\n%s", texto)
+	}
+}

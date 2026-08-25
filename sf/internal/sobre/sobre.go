@@ -143,7 +143,7 @@ func motivoDeRechazo(e *estado.Estado) string {
 }
 
 func armar(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
-	if s, hay := deProducto(e); hay {
+	if s, hay := deProducto(raiz, e); hay {
 		return s, nil
 	}
 	return deFeature(raiz, e, r)
@@ -153,7 +153,7 @@ func armar(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
 // Producto
 // ────────────────────────────────────────────────────────────────────────────
 
-func deProducto(e *estado.Estado) (*Sobre, bool) {
+func deProducto(raiz string, e *estado.Estado) (*Sobre, bool) {
 	switch {
 	case e.Producto.BriefSellado == "":
 		// El brief es el único sobre VACÍO del flujo, y está bien que lo sea:
@@ -183,12 +183,60 @@ func deProducto(e *estado.Estado) (*Sobre, bool) {
 		}}, true
 
 	case !e.Producto.BacklogVisto:
-		return &Sobre{Estado: "backlog", Partes: []Parte{
+		partes := []Parte{
 			{Titulo: "Qué hay que partir en historias", Rutas: []string{docs.PRD}},
 			{Titulo: "Las reglas del proyecto", Rutas: []string{docs.Constitucion}},
-		}}, true
+		}
+		// Al ⑨ se entra dos veces por motivos distintos, y el sobre tiene que
+		// notarlo: la primera es partir el PRD, y las otras son completar lo
+		// que entró por `sf new`. Sin esto, el que va a pinponear un `us-7`
+		// recibe el PRD entero y ninguna pista de cuál es.
+		if p, hay := aPinponear(raiz); hay {
+			partes = append(partes, p)
+		}
+		return &Sobre{Estado: "backlog", Partes: partes}, true
 	}
 	return nil, false
+}
+
+// aPinponear arma la parte del ⑨ cuando lo que falta es completar, no partir.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// AL ⑨ SE ENTRA DOS VECES, Y POR MOTIVOS DISTINTOS
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	la primera   partir el PRD en historias        → el PRD alcanza
+//	las otras    completar lo que metió `sf new`   → hace falta CUÁL
+//
+// Sin esto, el que va a pinponear un `us-7` recibe el PRD entero y ninguna
+// pista de cuál es la historia nueva. Y en un producto con veinte historias,
+// "partí el PRD" es la instrucción equivocada: lo que falta es una.
+//
+// Va vacío cuando faltan TODAS —ahí sí es la primera vuelta y el PRD es todo el
+// insumo— para no repetir en el sobre lo que ya dice el título de arriba.
+func aPinponear(raiz string) (Parte, bool) {
+	faltan := historia.SinPinponear(raiz)
+	if len(faltan) == 0 || len(faltan) == len(historia.Ids(raiz)) {
+		return Parte{}, false
+	}
+
+	rutas := rutasDeHistorias(faltan)
+
+	// Y si alguna es un bug, la historia que rompió va con ella: `relacionado_a`
+	// apunta al us-# original, y sin él el que pinponea el bug no sabe qué
+	// comportamiento se esperaba. Es el mismo dato que después usa el sobre del
+	// implementador para traer la spec archivada.
+	for _, id := range faltan {
+		h, err := historia.Leer(raiz, id)
+		if err != nil || h.RelacionadoA == "" {
+			continue
+		}
+		if r := docs.Historia(h.RelacionadoA); !slices.Contains(rutas, r) {
+			rutas = append(rutas, r)
+		}
+	}
+
+	return Parte{Titulo: "Lo que hay que completar", Rutas: rutas}, true
 }
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -58,6 +58,18 @@ func (p *proyecto) conArchivo(rel string) *proyecto {
 	return p
 }
 
+// conHistoria escribe un us-# COMPLETO: con título y criterios con texto.
+//
+// Existe porque `conArchivo` deja el archivo vacío, y desde que el checkpoint
+// del ⑨ pregunta "¿qué falta completar?" en vez de "¿hay algo?", un us-# vacío
+// ya no es una historia — es un esqueleto que manda a `sfp-backlog`.
+func (p *proyecto) conHistoria(id string) *proyecto {
+	p.t.Helper()
+	return p.conArchivoConTexto(docs.Historia(id),
+		"---\nid: "+id+"\ntitulo: la historia "+id+"\n---\n"+
+			"## Criterios de aceptación\n- **CA-1** — hace lo que tiene que hacer\n")
+}
+
 // conRoadmap escribe un roadmap de dos features y lo deja cargado.
 func (p *proyecto) conRoadmap() *proyecto {
 	p.t.Helper()
@@ -160,8 +172,8 @@ func TestElOrdenDeLosCincoDeProducto(t *testing.T) {
 		t.Fatalf("con la constitución sellada: %q, quería backlog", i.Estado)
 	}
 
-	// ⑨ con historias: ⏸, la parada barata.
-	p.conArchivo(".docs/backlog/us-1.md")
+	// ⑨ con historias COMPLETAS: ⏸, la parada barata.
+	p.conHistoria("us-1")
 	if i := p.next(); i.Tipo != Barata {
 		t.Fatalf("con us-1.md: tipo %v, quería Barata (la ⏸ del ⑨)", i.Tipo)
 	}
@@ -178,7 +190,7 @@ func TestElOrdenDeLosCincoDeProducto(t *testing.T) {
 func TestLaParadaBaratasDelBacklogNoSeCuelga(t *testing.T) {
 	p := nuevo(t)
 	p.e.Producto = estado.Producto{BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true}
-	p.conArchivo(".docs/backlog/us-1.md")
+	p.conHistoria("us-1")
 
 	if i := p.next(); i.Tipo != Barata {
 		t.Fatalf("tipo %v, quería Barata", i.Tipo)

@@ -270,9 +270,22 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *g
 
 	// ⑨ backlog. Acá el patrón cambia: la parada es ⏸ y no 🛑, y necesita el
 	// campo BacklogVisto porque un enter no deja rastro (ver estado.go).
+	//
+	// Y el checkpoint pregunta QUÉ FALTA, no si hay algo. "¿Hay historias?"
+	// funciona una sola vez —la primera—, y después `sf new` reabre esta ⏸ para
+	// que se pinponee lo que entró: con el producto en marcha la respuesta es
+	// siempre sí, así que la ⏸ salía en vez del trabajo y lo que quedaba para
+	// aprobar era el esqueleto vacío. Es la misma forma que ya usa el ⑩ con
+	// `huerfanas`.
 	if !e.Producto.BacklogVisto {
-		if !hayHistorias(raiz) {
-			return trabajar("backlog", "", "el ⑨ parte el PRD en historias", g), true
+		// Sin ninguna historia también hay trabajo, y no lo dice SinPinponear:
+		// una lista vacía no tiene nada incompleto. Es el mismo error que el de
+		// los lotes —"ninguno" no es "todos"— y por eso los dos casos se
+		// preguntan por separado.
+		ids := historia.Ids(raiz)
+		faltan := historia.SinPinponear(raiz)
+		if len(ids) == 0 || len(faltan) > 0 {
+			return trabajar("backlog", "", mensajeDelNueve(ids, faltan), g), true
 		}
 		return Instruccion{
 			Tipo:     Barata,
@@ -709,7 +722,18 @@ func existe(raiz, rel string) bool {
 //
 // Un glob y no un contador: no importa cuántas hay, importa si hay. El conteo
 // de criterios lo hace `sf done`, que es quien tiene que frenar.
-func hayHistorias(raiz string) bool {
-	m, err := filepath.Glob(filepath.Join(raiz, docs.Backlog, "us-*.md"))
-	return err == nil && len(m) > 0
+// mensajeDelNueve distingue las dos veces que se entra al ⑨.
+//
+// La primera es partir el PRD y no hay nada escrito. Las otras son completar lo
+// que entró por `sf new`, y ahí decir "el ⑨ parte el PRD en historias" mandaría
+// a rehacer el backlog entero: lo que falta es UNA historia, y nombrarla es la
+// diferencia entre una instrucción y una consigna.
+//
+// El corte es "¿falta alguna, o faltan todas?". Con todas incompletas todavía
+// no hay backlog del cual completar nada, así que sigue siendo partir el PRD.
+func mensajeDelNueve(ids, faltan []string) string {
+	if len(faltan) == len(ids) {
+		return "el ⑨ parte el PRD en historias"
+	}
+	return "completá: " + strings.Join(faltan, " · ")
 }
