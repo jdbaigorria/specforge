@@ -198,11 +198,24 @@ func esqueletoConstitucion(s Stack) string {
 		aviso = "   # ⚠ no reconocí el proyecto: completá esto o el ⑧ no sella"
 	}
 
+	// El comentario de `mutacion:` nombra la herramienta del lenguaje cuando la
+	// hay, y no dice "o vacío".
+	//
+	// Decirlo era el bug: la casilla venía completada con `""` y al lado un
+	// comentario declarando que esa respuesta era válida, así que el ⑧ la leía
+	// como ya resuelta y seguía de largo. Nadie elegía — elegía el formulario.
+	// Que vacío sea aceptable lo sabe la compuerta, que avisa y no frena; el
+	// esqueleto no tiene por qué invitar.
+	deMutacion := "   # ⚠ la herramienta del ㉒ — elegila en el ⑧"
+	if h := constitucion.HerramientaSugerida(s.Lenguaje); h != "" {
+		deMutacion = "   # ⚠ para " + s.Lenguaje + " existe " + h + " — elegila en el ⑧"
+	}
+
 	return fmt.Sprintf(`---
 lenguaje: %s
 manifiesto: %s
 test_cmd: %s%s
-mutacion: ""
+mutacion: ""%s
 dependencias_aprobadas: []
 git:
   branch_por_feature: true
@@ -225,5 +238,5 @@ git:
 ## Estructura de carpetas
 
 ## Reglas de trabajo
-`, s.Lenguaje, s.Manifiesto, s.TestCmd, aviso, constitucion.MarcaSinEscribir)
+`, s.Lenguaje, s.Manifiesto, s.TestCmd, aviso, deMutacion, constitucion.MarcaSinEscribir)
 }

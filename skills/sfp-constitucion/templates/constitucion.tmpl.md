@@ -2,7 +2,7 @@
 lenguaje: go                      # lo llenó sf init (detectStack)
 manifiesto: go.mod                # lo llenó sf init
 test_cmd: go test ./...           # lo llenó sf init — SIN ESTO sf no sella
-mutacion: ""                      # la herramienta del ㉒, o vacío
+mutacion: "gremlins"              # la del ㉒ — sf init deja un ⚠ con la de tu stack
 dependencias_aprobadas: []        # arranca vacía y crece con cada aprobación
 git:
   branch_por_feature: true

@@ -50,22 +50,70 @@ a benefit of the doubt.
 
 A green suite proves the tests pass. It does not prove they would **catch anything**.
 
-- **If the constitution names a `mutacion` tool**, its run is already in your envelope. Read the
-  score and the survivors: a surviving mutant is a change to the code that **no test noticed**.
-- **If it does not** (the field is empty), do it by reading: pick the load-bearing assertions and
-  ask what you could break without any test going red. Empty is not an error — the tool is an
-  improvement, not a requirement.
+There are **two sources, and they do not do the same job.** Use both.
 
-Record the number, not the patches:
+### Source 1 — the tool, if the constitution names one
+
+Its run is already in your envelope. Read the score and the survivors: a surviving mutant is a
+change to the code that **no test noticed**.
+
+A tool mutates *syntax*: it flips a `>`, deletes a line, negates an `if`. Cheap, broad, and
+identical every run over the same code — which is why you do not save its mutants. It will
+regenerate them.
+
+**If the field is empty, that is not an error** — the tool is an improvement, not a requirement.
+You just do not have source 1 this round.
+
+### Source 2 — yours, always, tool or no tool
+
+A tool cannot think of *"and what if it starts two timers"*, or *"and what if it never stops it
+on the way out"*. Those are mutations of **intent**, not syntax — the plausible-but-wrong
+implementation a person would actually write. A model thinks of those or nobody does.
+
+So write them yourself: pick the load-bearing assertions and ask what you could break without a
+single test going red.
+
+**Save them.** One file per mutant in `.docs/<feature>/mutantes/`, from
+`templates/mutante.tmpl.md`. The folder is archived with the feature, so they travel with it.
+
+The format is fixed for one reason: **the next round has to be able to re-run them.** `historial`
+is append-only — one line per round, never rewritten — so the file itself carries whether this
+mutant used to die.
+
+> **Why saving them is the whole point.** Your mutants are a different set every round — 56 one
+> time, 82 the next — so `73% → 85%` across them is **not an improvement, it is a different exam
+> with different questions.** Saving them turns the number into a fact: next round runs *the same
+> mutants*.
+
+### On a later round, re-run the saved ones first
+
+Four outcomes, and they are not worth the same:
+
+| Before | Now | What it means |
+|---|---|---|
+| survived | survives | known debt, still open |
+| survived | dies | progress — this is what you are trying to buy |
+| **died** | **lives** | 🔴 **regression: a test used to catch this and no longer does** |
+| — | does not apply | the code it patched changed. Retire it; not a failure |
+
+**Every resurrection is a finding, with no exceptions and no benefit of the doubt.** A survivor
+is a hole that was never covered; a resurrection is a hole that *was* covered and got uncovered —
+somebody softened a test. `sf` counts them: report resurrections with no `origen: 22` finding and
+the gate refuses.
+
+### Record it
 
 ```json
-"mutantes": {"herramienta": "gremlins", "score": 71.0, "sobrevivieron": 4}
+"mutantes": {
+  "herramienta": "gremlins", "score": 71.0, "sobrevivieron": 4,
+  "propios": {"corridos": 18, "sobrevivieron": 3, "resucitados": 1, "viejos": 2}
+}
 ```
 
-> **Why the score and not the patches.** The mutants come from a different model each run — they
-> are neither reproducible nor stable — and once a test is fixed the patch is never applied
-> again. What is worth keeping is the number, because it is **comparable between rounds**:
-> `71% (round 1) → 88% (round 2)`.
+`herramienta` empty and the three numbers at zero is the honest first round of a stack with no
+tool. **What is never acceptable is inventing a percentage** for a run that did not happen: a
+number invites comparison, and comparing two hand-made estimates is how a feature spends three
+rounds chasing a figure that measured nothing.
 
 ## Findings
 

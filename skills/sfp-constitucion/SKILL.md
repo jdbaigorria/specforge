@@ -91,12 +91,29 @@ dependencias_aprobadas: []
 > **Start the list empty.** It is not written up front — it builds itself, one approval at a
 > time, exactly like the model map.
 
+### `mutacion` — you have to choose, and the skeleton will not choose for you
+
 ```yaml
-mutacion: ""      # the ㉒ tool, or empty
+mutacion: "npx stryker run"       # or gremlins · cargo-mutants · mutmut · mutant · PIT
 ```
 
-> Empty is not an error. If the stack has no good mutation tool, the ㉒ falls back to the model
-> alone. The tool is an **improvement, not a requirement**.
+**Go look for the tool for this stack.** `sf init` leaves the line with a `⚠` naming the one it
+knows about for your language; if it does, that is the fact, not a suggestion to skim past.
+
+**Empty is a legitimate answer, and it is the one thing you may not leave by default.** If you
+decide there is no good tool, say so in the body and say why:
+
+```markdown
+## Reglas de trabajo
+No hay herramienta de mutación: <razón>. El ㉒ lo hace el revisor leyendo,
+y sus mutantes se guardan en `.docs/<feature>/mutantes/`.
+```
+
+> **Why this is not a formality.** With a tool, the ㉒ mutates the same code the same way every
+> round and the score is comparable. Without one, the reviewer writes the mutants by hand and the
+> set is different every round — 56 one time, 82 the next — so `73% → 85%` looks like progress
+> and is a different exam. That is why the empty case has to be a decision on the record and not
+> a field nobody read: whoever reviews needs to know which of the two numbers they are holding.
 
 ## Step 3: Write it, then stop — the ⑧ is Javier's
 

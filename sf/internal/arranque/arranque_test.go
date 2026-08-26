@@ -87,6 +87,41 @@ func TestLaCabeceraQueEscribeSeParsea(t *testing.T) {
 	}
 }
 
+// El esqueleto NO puede declarar que vacío está bien.
+//
+// Ése era el bug: `mutacion: ""` con un comentario al lado diciendo "o vacío".
+// El ⑧ leía una casilla ya completada con una respuesta legítima y seguía de
+// largo, así que la herramienta no se elegía nunca y el ㉒ corría a mano con un
+// set de mutantes distinto cada vuelta.
+func TestElEsqueletoNombraLaHerramientaYNoBendiceElVacio(t *testing.T) {
+	raiz := t.TempDir()
+	conArchivo(t, raiz, "package.json", "{}\n")
+
+	if _, err := Iniciar(raiz); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(raiz, ".docs", "constitucion.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var linea string
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(l, "mutacion:") {
+			linea = l
+		}
+	}
+	if linea == "" {
+		t.Fatalf("no hay línea `mutacion:` en el esqueleto:\n%s", b)
+	}
+	if !strings.Contains(linea, "Stryker") {
+		t.Errorf("el proyecto es node y la línea no nombra la herramienta: %q", linea)
+	}
+	if strings.Contains(linea, "o vacío") {
+		t.Errorf("el esqueleto sigue invitando a dejarlo vacío: %q", linea)
+	}
+}
+
 func TestNoPisaUnProyectoYaIniciado(t *testing.T) {
 	raiz := t.TempDir()
 	if _, err := Iniciar(raiz); err != nil {

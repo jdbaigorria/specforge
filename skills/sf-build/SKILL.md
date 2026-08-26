@@ -85,6 +85,32 @@ Compose **`sfx-tdd`**. The cycle is unchanged: one test, one implementation, one
 impossible, that is a finding — say it in your closing message. Do not quietly rename it, and do
 not quietly write a different one: `sf` is checking for those names.
 
+### The plan's list is the floor, not the ceiling
+
+**Write those, and then write every other test this batch needs.** The planner named the tests
+it could see from outside; you are the one reading the code. Whatever you can see from here that
+it could not, write it.
+
+Ask the ⑲ version of the planner's question, now that the code is in front of you:
+
+> **What could be wrong in this implementation and still pass the tests I have?**
+
+Two timers instead of one. Something started and never stopped. State that survives a call it
+should not. If you can answer that question, the answer is a test you are missing.
+
+> **Why this is not optional.** The tool that would catch it — the ㉒ mutation run — happens
+> after the whole feature is built, and every gap it finds sends the feature back here. A test
+> you write now costs one line. The same test, found at the ㉒, costs a whole round.
+
+**The planner's tests still come first and are not negotiable**, and the reason is not seniority:
+they were chosen by someone who could not see your implementation, so they cannot be shaped to
+fit it. Yours are the ones at risk of being written to pass. Add to the list; never trade one of
+theirs for one of yours.
+
+**All of them go in before `sf lote start`.** Not because more is better, but because `sf done`
+compares the test files between the red and the green — a test written afterwards looks exactly
+like a test that was softened to pass.
+
 **Cover every criterion in your tasks' `satisface`.** They are in your envelope for this reason.
 
 ### Real code, not scaffolding
@@ -145,7 +171,8 @@ if a batch is left, it launches a fresh you with a fresh context. That is the wh
 ## Rules
 
 - Tests first, then `sf lote start`, then code. Never the other way round.
-- Write the tests the plan named, by their exact names.
+- Write the tests the plan named, by their exact names — and every other one the batch needs.
+- All the tests before `sf lote start`. One written later is indistinguishable from one softened.
 - Never create the branch yourself. `sf lote start` does it.
 - No conventions of your own. The constitution has them.
 - No dependency outside `dependencias_aprobadas` without saying so.

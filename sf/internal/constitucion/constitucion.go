@@ -64,11 +64,42 @@ type Constitucion struct {
 	// Vacío no es un error: si el stack no tiene una herramienta buena, queda
 	// sólo el modelo. La herramienta es una MEJORA, no un requisito — igual que
 	// los subagentes.
+	//
+	// Lo que sí es un error es que quede vacío SIN QUE NADIE LO HAYA ELEGIDO,
+	// que es lo que pasaba cuando el esqueleto lo dejaba escrito en `""` y el
+	// comentario de al lado decía que vacío estaba bien: el ⑧ leía una casilla
+	// ya completada con una respuesta válida y seguía de largo. Nadie eligió —
+	// eligió el formulario. De eso se ocupan HerramientaSugerida y el aviso de
+	// la compuerta del ⑧.
 	Mutacion string `yaml:"mutacion"`
 
 	DependenciasAprobadas []string `yaml:"dependencias_aprobadas"`
 
 	Git Git `yaml:"git"`
+}
+
+// herramientasDeMutacion es qué usa cada lenguaje que sf sabe detectar.
+//
+// No pretende ser exhaustiva ni recomendar la mejor: alcanza con que exista una
+// para poder decir "tu stack tiene una y no declaraste ninguna", que es un
+// HECHO y no una opinión. Cuál usar lo decide el ⑧.
+var herramientasDeMutacion = map[string]string{
+	"go":     "gremlins",
+	"rust":   "cargo-mutants",
+	"python": "mutmut",
+	"node":   "Stryker",
+	"ruby":   "mutant",
+	"java":   "PIT (pitest)",
+}
+
+// HerramientaSugerida devuelve la herramienta de mutación conocida para un
+// lenguaje, o vacío si no hay ninguna en la tabla.
+//
+// Existe para que el aviso del ⑧ pueda nombrarla. Un aviso que dice "declará
+// una herramienta" manda a buscar; uno que dice "para node existe Stryker"
+// se resuelve en el momento.
+func HerramientaSugerida(lenguaje string) string {
+	return herramientasDeMutacion[strings.ToLower(strings.TrimSpace(lenguaje))]
 }
 
 // Git son las reglas de Javier, que son las mismas en todos sus proyectos.

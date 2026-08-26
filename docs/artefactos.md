@@ -94,7 +94,7 @@ envejece y contradice al código.**
 lenguaje: go                      # lo llenó sf init
 manifiesto: go.mod                # lo llenó sf init
 test_cmd: go test ./...           # lo llenó sf init — SIN ESTO no sella
-mutacion: ""                      # la herramienta del ㉒, o vacío
+mutacion: "gremlins"              # la del ㉒ — sf init deja un ⚠ con la de tu stack
 dependencias_aprobadas: []        # arranca vacía y CRECE con cada aprobación
 git:
   branch_por_feature: true
@@ -118,8 +118,19 @@ git:
 El cuerpo es técnico: *Arquitectura · Stack y por qué · Convenciones de código · Estructura de
 carpetas · Reglas de trabajo*. **Cero principios abstractos.**
 
-`mutacion:` vacío **no es un error**: si tu stack no tiene una herramienta buena, el ㉒ lo hace el
-modelo leyendo el código. Es una **mejora, no un requisito**.
+`mutacion:` vacío **no es un error**, pero tiene que ser una **decisión**: si tu stack no tiene
+una herramienta buena, el ㉒ lo hace el modelo leyendo el código, y la constitución dice por qué.
+
+La diferencia importa porque cambia lo que significa el número del ㉒. Con herramienta, la corrida
+muta el mismo código igual todas las vueltas y el score se compara. Sin ella, el revisor escribe
+los mutantes a mano y el set es distinto cada vez — 56 una vuelta, 82 la siguiente — así que
+`73% → 85%` parece progreso y es **otro examen**. Por eso los mutantes del modelo se guardan
+(`.docs/<feature>/mutantes/`) y la vuelta siguiente corre los mismos.
+
+> Antes esta línea venía escrita en `""` con un comentario al lado que decía *"o vacío"*. El ⑧
+> leía una casilla ya completada con una respuesta válida y seguía de largo: nadie elegía nunca.
+> Hoy `sf init` deja un `⚠` nombrando la herramienta de tu lenguaje, y la compuerta del ⑧ **avisa**
+> —no frena— si quedó vacía en un stack que tiene una.
 
 ## `us-#.md` — las historias
 
@@ -248,7 +259,10 @@ start` va a exigir en rojo, **por nombre**.
 {
   "feature": "f-1", "vuelta": 1, "veredicto": "con-hallazgos",
   "criterios": {"us-3/CA-1": "cumple", "us-3/CA-2": "no-cumple"},
-  "mutantes": {"herramienta": "gremlins", "score": 71.0, "sobrevivieron": 4},
+  "mutantes": {
+    "herramienta": "gremlins", "score": 71.0, "sobrevivieron": 4,
+    "propios": {"corridos": 18, "sobrevivieron": 3, "resucitados": 1, "viejos": 2}
+  },
   "hallazgos": [
     {"id": "h-1", "origen": 21, "criterio": "us-3/CA-2", "estado": "abierto",
      "detalle": "el camino de error no tiene ningún test que lo ejerza"}
@@ -262,9 +276,28 @@ markdown, marcarlo exigiría un modelo que reescriba prosa — y ahí se corromp
 
 **`criterios` es un mapa** porque la pregunta real siempre es *"¿opinó sobre ESTE?"*.
 
-**De los mutantes se guarda el resultado, no los parches:** los genera un modelo distinto cada vez
-—no son reproducibles— y una vez arreglado el test, el parche no se aplica nunca más. Lo que sí
-importa es el **score**, porque es comparable entre vueltas: `71% → 88%`.
+**El ㉒ tiene dos fuentes y no hacen lo mismo.** Una herramienta muta *sintaxis* —da vuelta un
+`>`, borra una línea, niega un `if`—: es barata, amplia, y genera lo mismo siempre sobre el mismo
+código. Lo que no se le ocurre es *"y si arranca dos timers"*, *"y si nunca lo apaga al salir"*:
+eso es mutar la **intención**, y lo piensa un modelo o no lo piensa nadie.
+
+**Los de la herramienta no se guardan; los del modelo sí**, y es la misma razón leída de los dos
+lados. La herramienta se regenera igual sola. El modelo genera un set distinto cada vuelta, y ahí
+el score deja de ser comparable aunque parezca un número:
+
+```
+73% → 85%   sobre exámenes distintos NO es una mejora, es otra pregunta
+```
+
+Guardarlos en `.docs/<feature>/mutantes/` —una carpeta que se archiva con la feature— es lo que
+convierte el número en un hecho: la vuelta siguiente corre **los mismos**.
+
+**Y ahí aparece el caso que sin esto no ve nadie.** Un mutante que **murió** en una vuelta y
+**vive** en ésta significa que había un test que lo agarraba y ya no: una regresión de cobertura.
+Un sobreviviente es un agujero que nunca se tapó; un resucitado es uno que se tapó y se destapó.
+Es lo mismo que `sf done` vigila comparando los archivos de test entre el rojo y el verde, pero
+DENTRO de un lote — esto lo ve entre vueltas y entre lotes. **Cada resurrección es un hallazgo**,
+y `sf` frena si se reportan resurrecciones sin ningún hallazgo del ㉒.
 
 **Sólo hay dos estados de hallazgo**, `abierto` y `descartado`. No existe `arreglado`: la revisión
 se rehace entera, y **no reaparecer** *es* estar arreglado.

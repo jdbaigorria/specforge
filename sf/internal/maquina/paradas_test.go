@@ -438,7 +438,7 @@ func (p *proyecto) conPlanCompleto() *proyecto {
 	p.conArchivoConTexto(filepath.Join(carpeta, docs.Spec), "# spec\n")
 	p.conArchivoConTexto(filepath.Join(carpeta, "tareas.json"),
 		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],
-		  "tests":["a_test.go::TestX"]}]}`)
+		  "tests":["a_test.go::TestX","a_test.go::TestY"]}]}`)
 	return p
 }
 

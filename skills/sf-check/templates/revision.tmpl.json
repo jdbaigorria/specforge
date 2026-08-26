@@ -1,6 +1,6 @@
 {
   "feature": "f-1",
-  "vuelta": 1,
+  "vuelta": 2,
   "veredicto": "con-hallazgos",
   "criterios": {
     "us-3/CA-1": "cumple",
@@ -11,7 +11,13 @@
   "mutantes": {
     "herramienta": "gremlins",
     "score": 71.0,
-    "sobrevivieron": 4
+    "sobrevivieron": 4,
+    "propios": {
+      "corridos": 18,
+      "sobrevivieron": 3,
+      "resucitados": 1,
+      "viejos": 2
+    }
   },
   "hallazgos": [
     {
@@ -27,6 +33,13 @@
       "criterio": "",
       "estado": "abierto",
       "detalle": "sobrevive el mutante que invierte la condición de suite.go:118 — ningún test distingue archivo-inexistente de archivo-vacío"
+    },
+    {
+      "id": "h-3",
+      "origen": 22,
+      "criterio": "",
+      "estado": "abierto",
+      "detalle": "REGRESIÓN: el mutante m-04 (borra el defer de suite.go:71) murió en la vuelta 1 y ahora sobrevive — el test que lo agarraba dejó de comprobar el cierre"
     }
   ]
 }

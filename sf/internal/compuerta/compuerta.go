@@ -44,6 +44,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/frontmatter"
@@ -140,7 +141,9 @@ func Constitucion(raiz string) Resultado {
 	var r Resultado
 
 	var fm struct {
-		TestCmd string `yaml:"test_cmd"`
+		TestCmd  string `yaml:"test_cmd"`
+		Lenguaje string `yaml:"lenguaje"`
+		Mutacion string `yaml:"mutacion"`
 	}
 	if !leerCabecera(raiz, docs.Constitucion, &fm, &r) {
 		return r
@@ -151,6 +154,17 @@ func Constitucion(raiz string) Resultado {
 	// frontmatter que se exige.
 	if fm.TestCmd == "" {
 		r.falla("la constitución no tiene `test_cmd:` — sin eso sf no puede correr los tests")
+	}
+
+	// `mutacion` vacío puede ser la respuesta correcta, así que esto AVISA y no
+	// frena: si el stack no tiene herramienta, el ㉒ lo hace el modelo y está
+	// bien. Lo que sf sí puede afirmar es el hecho de al lado —"para node
+	// existe Stryker"—, y decirlo acá cuesta una línea y ahorra una feature
+	// entera de mutantes hechos a mano que no se pueden comparar entre vueltas.
+	if strings.TrimSpace(fm.Mutacion) == "" {
+		if h := constitucion.HerramientaSugerida(fm.Lenguaje); h != "" {
+			r.avisa("`mutacion:` está vacío y para %s existe %s. Vacío es válido, pero que sea una decisión.", fm.Lenguaje, h)
+		}
 	}
 	return r
 }
@@ -294,7 +308,36 @@ func Planificacion(raiz string, f roadmap.Feature) Resultado {
 		}
 	}
 
-	// ④ cada criterio de las historias está cubierto por alguna tarea
+	// ④ cada tarea nombra al menos un test por criterio que promete
+	//
+	// La ③ pide UN test por lote, y un piso de uno se vuelve techo de uno: la
+	// tarea nombra el camino feliz y todo lo demás aparece tres vueltas de
+	// revisión después, cuando el ㉒ lo encuentra. Contra eso alcanza con
+	// contar, que es lo único que una máquina puede hacer acá.
+	//
+	// NO dice nada sobre la calidad del test —sf no lo puede leer—, y no
+	// pretende: dice que una tarea que promete cuatro criterios y nombra un
+	// test nace corta, y lo dice ANTES de que se escriba una línea de código,
+	// igual que la ⑤.
+	//
+	// Se cuenta por TAREA y no por lote a propósito. Por lote el mensaje sería
+	// "al lote 2 le faltan tests" y habría que ir a buscar cuál; por tarea el
+	// que lo lee ya sabe dónde tocar. Y el lote no es la unidad honesta acá:
+	// una tarea generosa taparía a una tacaña de al lado.
+	//
+	// Si un test cubre de verdad dos criterios, el plan nombra dos y lo parte.
+	// Un test que prueba dos cosas tiene dos motivos para ponerse rojo, y
+	// cuando se pone no dice cuál de los dos fue.
+	for _, t := range p.Tareas {
+		criterios := len(unicos(t.Satisface))
+		tests := len(unicos(t.Tests))
+		if criterios > 0 && tests < criterios {
+			r.falla("la tarea %s: %d criterios y %d tests — falta al menos un test por criterio",
+				t.ID, criterios, tests)
+		}
+	}
+
+	// ⑤ cada criterio de las historias está cubierto por alguna tarea
 	//
 	// Acá empieza a morir el #7, y ANTES de escribir una línea de código: si
 	// una historia tiene 9 criterios y las tareas cubren 7, la feature ya nace
@@ -317,7 +360,7 @@ func Planificacion(raiz string, f roadmap.Feature) Resultado {
 			len(deLasHistorias), len(deLasHistorias)-len(sinCubrir), strings.Join(sinCubrir, " · "))
 	}
 
-	// ⑤ tareas que apuntan a criterios que no existen
+	// ⑥ tareas que apuntan a criterios que no existen
 	//
 	// El espejo de la anterior, y atrapa el error opuesto: una tarea que dice
 	// satisfacer us-7/CA-9 cuando us-7 tiene tres criterios está mintiendo, y
@@ -379,6 +422,18 @@ func Revision(raiz string, f roadmap.Feature) Resultado {
 		r.falla("hay %d hallazgos abiertos: %s", len(abiertos), strings.Join(abiertos, " · "))
 	}
 
+	// Un mutante que murió en una vuelta y vive en ésta es una regresión de
+	// cobertura: había un test que lo agarraba y ya no. Reportarlo y no abrir
+	// nada es la única forma de que se pierda, así que se cuenta.
+	//
+	// No juzga la revisión —sf no sabe si el hallazgo es bueno— y por eso pide
+	// UNO y no uno por resucitado: dos resurrecciones pueden ser el mismo test
+	// aflojado, y exigir dos hallazgos fabricaría el segundo.
+	if rev.Mutantes.Propios.Resucitados > 0 && !hayHallazgoDelVeintidos(rev) {
+		r.falla("%d mutantes resucitaron —murieron antes y viven ahora— y no hay ningún hallazgo del ㉒",
+			rev.Mutantes.Propios.Resucitados)
+	}
+
 	// Y `vuelta:` es el mismo truco que `intentos_fallidos`: si el ㉑ va por la
 	// cuarta, eso no es ruido — es que la planificación se quedó corta.
 	if rev.Vuelta >= 3 {
@@ -386,6 +441,19 @@ func Revision(raiz string, f roadmap.Feature) Resultado {
 	}
 
 	return r
+}
+
+// hayHallazgoDelVeintidos dice si el informe abrió algo desde los mutantes.
+//
+// Cuenta los descartados también: `descartado` es una decisión de Javier con
+// motivo escrito (R3), y eso no es lo mismo que no haber mirado.
+func hayHallazgoDelVeintidos(rev *revision.Revision) bool {
+	for _, h := range rev.Hallazgos {
+		if h.Origen == 22 {
+			return true
+		}
+	}
+	return false
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -415,6 +483,21 @@ func Cierre(raiz string, f roadmap.Feature) Resultado {
 	for _, n := range []string{docs.Doc, docs.Journal} {
 		if _, err := os.Stat(filepath.Join(raiz, carpeta, n)); err != nil {
 			r.falla("falta %s", filepath.Join(carpeta, n))
+		}
+	}
+	return r
+}
+
+// unicos saca los repetidos sin ordenar.
+//
+// Sin esto, una tarea que nombra el mismo test dos veces pasaría la ④ contando
+// dos, que es exactamente la forma de cumplir una regla de contar sin cumplir
+// la regla.
+func unicos(xs []string) []string {
+	var r []string
+	for _, x := range xs {
+		if !slices.Contains(r, x) {
+			r = append(r, x)
 		}
 	}
 	return r

@@ -8,7 +8,9 @@
       "satisface": ["us-3/CA-1", "us-3/CA-2"],
       "tests": [
         "internal/docs/brief_test.go::TestParseFrontmatter",
-        "internal/docs/brief_test.go::TestVeredictoInvalido"
+        "internal/docs/brief_test.go::TestVeredictoInvalido",
+        "internal/docs/brief_test.go::TestFrontmatterVacio",
+        "internal/docs/brief_test.go::TestSinElSegundoDelimitador"
       ]
     },
     {
@@ -16,14 +18,20 @@
       "lote": 1,
       "descripcion": "propagar el error cuando el archivo no existe",
       "satisface": ["us-3/CA-3"],
-      "tests": ["internal/docs/brief_test.go::TestSinArchivo"]
+      "tests": [
+        "internal/docs/brief_test.go::TestSinArchivo",
+        "internal/docs/brief_test.go::TestSinPermisoNoEsSinArchivo"
+      ]
     },
     {
       "id": "t-3",
       "lote": 2,
       "descripcion": "exponer el veredicto por la CLI con --json",
       "satisface": ["us-4/CA-1"],
-      "tests": ["cmd/sf/main_test.go::TestBriefJSON"]
+      "tests": [
+        "cmd/sf/main_test.go::TestBriefJSON",
+        "cmd/sf/main_test.go::TestBriefJSONNoImprimeNadaMas"
+      ]
     }
   ]
 }

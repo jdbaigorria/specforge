@@ -71,19 +71,65 @@ type Revision struct {
 	Hallazgos []Hallazgo `json:"hallazgos"`
 }
 
-// Mutantes es el resultado del ㉒: el número, no los parches.
+// Mutantes es el resultado del ㉒, y tiene DOS fuentes que no hacen lo mismo.
 //
-// De los mutantes se guarda el RESULTADO y no los parches, y hay razón: los
-// genera un modelo distinto cada vez —no son reproducibles ni estables— y una
-// vez arreglado el test, el parche no se vuelve a aplicar nunca.
+// ────────────────────────────────────────────────────────────────────────────
+// LA HERRAMIENTA MUTA SINTAXIS · EL MODELO MUTA INTENCIÓN
+// ────────────────────────────────────────────────────────────────────────────
 //
-// Lo que sí importa es el score, porque es un número comparable entre vueltas:
+// Una herramienta da vuelta un `>`, borra una línea, niega un `if`: es barata,
+// amplia, y siempre genera lo mismo sobre el mismo código. Lo que NO se le
+// ocurre es "y si arranca dos timers", "y si nunca lo apaga al salir" — la
+// implementación plausible-pero-mal que una persona sí escribiría.
 //
-//	mutation score 71% (vuelta 1) → 88% (vuelta 2)
+// Eso lo piensa un modelo o no lo piensa nadie, y por eso las dos fuentes
+// conviven en vez de excluirse: la herramienta pone el piso reproducible, el
+// modelo pone los casos que importan.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// LOS DEL MODELO SE GUARDAN. LOS DE LA HERRAMIENTA NO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Y es la misma razón leída de los dos lados. La herramienta se regenera igual
+// sola, así que guardarla no agrega nada. El modelo genera un set distinto cada
+// vuelta —56 mutantes una vez, 82 la siguiente— y ahí el score deja de ser
+// comparable aunque parezca un número:
+//
+//	73% → 85%   sobre exámenes distintos NO es una mejora, es otra pregunta
+//
+// Guardar los del modelo en `.docs/<feature>/mutantes/` es lo que convierte ese
+// número en un hecho: la vuelta siguiente corre LOS MISMOS.
 type Mutantes struct {
+	// Herramienta es la de la constitución, o vacío si el stack no tiene.
 	Herramienta   string  `json:"herramienta"`
 	Score         float64 `json:"score"`
 	Sobrevivieron int     `json:"sobrevivieron"`
+
+	// Propios es la corrida sobre los mutantes guardados del modelo.
+	Propios Propios `json:"propios"`
+}
+
+// Propios es el resultado de re-correr los mutantes guardados de la feature.
+//
+// El campo que justifica todo esto es Resucitados, y es una clase de error que
+// hoy no ve nadie: un mutante que MURIÓ en una vuelta y VIVE en la siguiente
+// significa que había un test que lo agarraba y ya no lo agarra.
+//
+// Un sobreviviente es un agujero que nunca se tapó. Un resucitado es uno que se
+// tapó y se destapó — o sea, alguien aflojó un test. Es exactamente lo que `sf
+// done` vigila comparando los archivos de test entre el rojo y el verde, pero
+// DENTRO de un lote; esto lo ve entre vueltas y entre lotes, que es donde hoy
+// no lo ve nadie.
+type Propios struct {
+	Corridos      int `json:"corridos"`
+	Sobrevivieron int `json:"sobrevivieron"`
+
+	// Resucitados murieron antes y viven ahora: una regresión de cobertura.
+	Resucitados int `json:"resucitados"`
+
+	// Viejos ya no aplican: el código que parcheaban cambió. No es una falla,
+	// es un mutante que se retira.
+	Viejos int `json:"viejos"`
 }
 
 // Hallazgo es algo que el revisor encontró.

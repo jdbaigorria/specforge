@@ -112,6 +112,50 @@ there is nothing to demand.
 Name tests that do not exist yet. That is the point: the ⑲ writes them, `sf` checks they showed
 up and that they **failed first**.
 
+### One test per criterion, minimum — and `sf` counts it
+
+A task that claims to satisfy four criteria and names one test does not pass the ⑰:
+
+```
+✗ la tarea t-3 dice satisfacer 4 criterios y nombra 1 test
+```
+
+The count is not a judgment about quality — `sf` cannot read a test. It is the cheapest possible
+floor against the failure that actually happens: **one happy-path test per task, and everything
+else discovered three review rounds later.**
+
+If one test genuinely covers two criteria, name two anyway and split it. A test that proves two
+different things has two reasons to fail, and when it goes red you do not know which.
+
+### How to find the tests that are missing: ask what would still pass
+
+Naming one test per criterion is the floor. This is how you get past it — and it is one question,
+not a taxonomy to fill in:
+
+> **What could be wrong in the implementation and still pass this test?**
+
+Worked through:
+
+```
+criterion   "the counter starts when you enter the screen"
+
+the obvious test      enter → the counter started                    ✓
+now the question      what broken implementation passes that too?
+                        → one that starts TWO timers
+                        → one that never stops it on the way out
+                        → one that restarts it on every render
+```
+
+Those three answers are three tests, and they are the ones nobody writes.
+
+**Do not reach for a checklist of test categories** — "one happy path, one edge, one invariant".
+A category gives you the tests the category asks for. The question gives you the tests *this
+criterion* needs, and for some criteria the answer is one test and for others it is five.
+
+> **This is the ㉒ asked early.** The mutation run at the end of the feature asks exactly this
+> question against the finished code, and everything it finds sends the feature back to
+> `implementar`. Asking it here costs a line in a JSON file. Asking it there costs a round.
+
 ### Every criterion gets a task
 
 `satisface` uses `us-<n>/CA-<n>`. `sf` counts both directions and both are real errors:
@@ -175,5 +219,7 @@ anything else** — you are a fresh subagent and without it you will propose the
 - Anti-N/A: a section only if it changes a decision.
 - The batch is a commit you would want to read. Not a topological layer.
 - Every batch names its tests, by exact name, before they exist.
+- At least one test per criterion the task claims. `sf` counts it at the ⑰.
+- For each criterion: what could be wrong and still pass? Those answers are tests too.
 - Every criterion has a task; every task points at a criterion that exists.
 - `decision.md` is not for the implementer. Do not restate the rejected options in the spec.

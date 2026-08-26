@@ -47,7 +47,8 @@ func (p *proyecto) planCompleto() *proyecto {
 		archivo(carpetaF1+"/decision.md", "## A — una\n## B — otra\n## C — la tercera\n").
 		archivo(carpetaF1+"/spec-design.md", "# spec\n").
 		archivo(carpetaF1+"/tareas.json", `{"tareas":[
-			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],"tests":["a_test.go::TestX"]}
+			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],
+			 "tests":["a_test.go::TestX","a_test.go::TestY"]}
 		]}`)
 }
 
@@ -90,6 +91,42 @@ func TestConstitucionExigeTestCmd(t *testing.T) {
 	p = nuevo(t).archivo(".docs/constitucion.md", "---\nlenguaje: go\ntest_cmd: go test ./...\n---\n# ok\n")
 	if !Constitucion(p.raiz).Pasa() {
 		t.Error("con test_cmd no pasó")
+	}
+}
+
+// `mutacion:` vacío puede ser la respuesta correcta —hay stacks sin herramienta
+// buena— así que esto avisa y NO frena. Lo que sf sí puede afirmar es el hecho
+// de al lado: para este lenguaje existe una.
+func TestConstitucionAvisaSiFaltaLaHerramientaDeMutacion(t *testing.T) {
+	p := nuevo(t).archivo(".docs/constitucion.md",
+		"---\nlenguaje: node\ntest_cmd: npm test\nmutacion: \"\"\n---\n# reglas\n")
+
+	r := Constitucion(p.raiz)
+	if !r.Pasa() {
+		t.Fatalf("frenó, y sólo tiene que avisar: %v", r.Fallas)
+	}
+	if !strings.Contains(strings.Join(r.Avisos, ""), "Stryker") {
+		t.Errorf("el aviso tiene que nombrar la herramienta: %v", r.Avisos)
+	}
+}
+
+func TestConstitucionNoAvisaSiLaHerramientaEstaDeclarada(t *testing.T) {
+	p := nuevo(t).archivo(".docs/constitucion.md",
+		"---\nlenguaje: node\ntest_cmd: npm test\nmutacion: \"npx stryker run\"\n---\n# reglas\n")
+
+	if r := Constitucion(p.raiz); len(r.Avisos) > 0 {
+		t.Errorf("la declaró y avisó igual: %v", r.Avisos)
+	}
+}
+
+// Un lenguaje que sf no tiene en la tabla no genera ruido: no sabe si existe
+// una herramienta, y un aviso que no se puede accionar se deja de leer.
+func TestConstitucionNoAvisaDeUnLenguajeQueNoConoce(t *testing.T) {
+	p := nuevo(t).archivo(".docs/constitucion.md",
+		"---\nlenguaje: cobol\ntest_cmd: hacelo\nmutacion: \"\"\n---\n# reglas\n")
+
+	if r := Constitucion(p.raiz); len(r.Avisos) > 0 {
+		t.Errorf("avisó de un lenguaje que no conoce: %v", r.Avisos)
 	}
 }
 
@@ -163,11 +200,50 @@ func TestPlanificacionExigeTresOpciones(t *testing.T) {
 func TestPlanificacionExigeTestsEnCadaLote(t *testing.T) {
 	p := nuevo(t).planCompleto().
 		archivo(carpetaF1+"/tareas.json", `{"tareas":[
-			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],"tests":["a_test.go::TestX"]},
+			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],
+			 "tests":["a_test.go::TestX","a_test.go::TestY"]},
 			{"id":"t-2","lote":2,"satisface":["us-1/CA-1"]}
 		]}`)
 
 	exige(t, Planificacion(p.raiz, featureF1), "lote 2 no tiene ningún test")
+}
+
+// Un piso de un test por LOTE se vuelve techo de un test: la tarea nombra el
+// camino feliz, y todo lo demás aparece tres vueltas de revisión más tarde,
+// cuando el ㉒ lo encuentra. Contar por tarea es lo más barato que lo frena.
+func TestPlanificacionExigeUnTestPorCriterio(t *testing.T) {
+	p := nuevo(t).planCompleto().
+		archivo(carpetaF1+"/tareas.json", `{"tareas":[
+			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],"tests":["a_test.go::TestX"]}
+		]}`)
+
+	r := Planificacion(p.raiz, featureF1)
+	exige(t, r, "la tarea t-1")
+	if !strings.Contains(strings.Join(r.Fallas, ""), "2 criterios y 1 tests") {
+		t.Errorf("el mensaje tiene que decir los dos números: %v", r.Fallas)
+	}
+}
+
+// Repetir el mismo nombre de test es la forma obvia de cumplir una regla de
+// contar sin cumplir la regla.
+func TestPlanificacionNoCuentaDosVecesElMismoTest(t *testing.T) {
+	p := nuevo(t).planCompleto().
+		archivo(carpetaF1+"/tareas.json", `{"tareas":[
+			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],
+			 "tests":["a_test.go::TestX","a_test.go::TestX"]}
+		]}`)
+
+	exige(t, Planificacion(p.raiz, featureF1), "la tarea t-1")
+}
+
+// Y el espejo: dos criterios con dos tests distintos pasa. Sin esto, los dos
+// de arriba pasarían igual con una compuerta que rechace todo.
+func TestPlanificacionPasaConUnTestPorCriterio(t *testing.T) {
+	p := nuevo(t).planCompleto()
+
+	if r := Planificacion(p.raiz, featureF1); !r.Pasa() {
+		t.Fatalf("dos criterios con dos tests tiene que pasar: %v", r.Fallas)
+	}
 }
 
 // Acá empieza a morir el dolor #7, y ANTES de escribir una línea de código: si
@@ -239,6 +315,41 @@ func TestRevisionDejaPasarLosDescartados(t *testing.T) {
 	if r := Revision(p.raiz, featureF1); !r.Pasa() {
 		t.Errorf("un hallazgo descartado frenó: %v", r.Fallas)
 	}
+}
+
+// Un mutante que murió antes y vive ahora es una regresión de cobertura: había
+// un test que lo agarraba y ya no. Reportarlo sin abrir nada lo pierde.
+func TestRevisionFrenaSiUnMutanteResucitaYNadieAbreNada(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":2,
+		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"mutantes":{"propios":{"corridos":18,"sobrevivieron":0,"resucitados":2}}}`)
+
+	exige(t, Revision(p.raiz, featureF1), "resucitaron")
+}
+
+// Con el hallazgo del ㉒ abierto sí avanza... hasta la compuerta de los
+// hallazgos abiertos, que es la que lo manda de vuelta. Se prueba con uno
+// descartado para aislar ESTA compuerta de aquélla.
+func TestRevisionPasaSiLaResurreccionTieneHallazgo(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":2,
+		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"mutantes":{"propios":{"corridos":18,"resucitados":2}},
+		"hallazgos":[{"id":"h-1","origen":22,"estado":"descartado","motivo":"el test se borró a propósito"}]}`)
+
+	if r := Revision(p.raiz, featureF1); !r.Pasa() {
+		t.Errorf("la resurrección tenía su hallazgo y frenó igual: %v", r.Fallas)
+	}
+}
+
+// Un hallazgo del ㉑ no cubre una resurrección: son dos preguntas distintas, y
+// sin esto la compuerta se cumpliría con cualquier hallazgo de cualquier lado.
+func TestRevisionNoAceptaUnHallazgoDelVeintiunoPorUnaResurreccion(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":2,
+		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"mutantes":{"propios":{"resucitados":1}},
+		"hallazgos":[{"id":"h-1","origen":21,"estado":"descartado","motivo":"x"}]}`)
+
+	exige(t, Revision(p.raiz, featureF1), "resucitaron")
 }
 
 // Si el ㉑ va por la cuarta vuelta, eso no es ruido: es que la planificación se

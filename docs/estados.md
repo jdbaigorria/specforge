@@ -212,15 +212,24 @@ parada   🛑 el ⑰ · con TRES puertas
 final.** No se parte, y el argumento es concreto: el ⑬ aprovecha acordarse de las dos opciones que
 el ⑫ descartó.
 
-**La compuerta son cinco chequeos, y ninguno es una opinión:**
+**La compuerta son seis chequeos, y ninguno es una opinión:**
 
 ```
 ① los tres archivos existen
 ② decision.md tiene EXACTAMENTE 3 opciones      (## A — … / ## B — … / ## C — …)
 ③ cada lote tiene al menos un test planificado
-④ cada criterio de las historias está cubierto por alguna tarea
-⑤ ninguna tarea dice satisfacer un criterio que no existe
+④ cada tarea nombra al menos un test POR CRITERIO que promete
+⑤ cada criterio de las historias está cubierto por alguna tarea
+⑥ ninguna tarea dice satisfacer un criterio que no existe
 ```
+
+**El ④ existe porque un piso se vuelve techo.** Con sólo el ③, la tarea nombraba el camino feliz
+y nada más; todo lo demás aparecía tres vueltas de revisión después, cuando el ㉒ lo encontraba.
+No dice nada sobre la calidad del test —`sf` no lo puede leer— pero una tarea que promete cuatro
+criterios y nombra un test nace corta, y eso sí se cuenta.
+
+Se cuenta **por tarea** y no por lote: el mensaje dice cuál, y una tarea generosa no puede tapar
+a la tacaña de al lado.
 
 **El ② es el anti-alucinación más barato del flujo:** una sola opción escrita como si fuera una
 comparación es la forma que toma una corazonada segura de sí misma. No puede contar como tres si
@@ -296,6 +305,7 @@ parada   ninguna — vuelve a implementar si hay hallazgos
 ```
 ✓ CADA criterio tiene un veredicto en el informe
 ✓ CERO hallazgos abiertos
+✓ si algún mutante resucitó, hay al menos un hallazgo del ㉒
 ⚠ si es la vuelta 3 o más: "la planificación se quedó corta"
 ```
 

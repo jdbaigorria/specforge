@@ -263,12 +263,13 @@ andá a planificar otra primero"*.
 
 ### Qué comprobó `sf` antes de dejarte llegar acá
 
-Cinco cosas, **y ninguna es una opinión**:
+Seis cosas, **y ninguna es una opinión**:
 
 ```
 ✓ los tres archivos están
 ✓ decision.md tiene exactamente 3 opciones
 ✓ cada lote tiene al menos un test planificado
+✓ cada tarea nombra al menos un test por criterio que promete
 ✓ los 9 criterios de las historias están cubiertos por alguna tarea
 ✓ ninguna tarea dice satisfacer un criterio que no existe
 ```
