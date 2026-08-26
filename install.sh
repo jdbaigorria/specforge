@@ -49,6 +49,17 @@ muero() {
 hay() { command -v "$1" >/dev/null 2>&1; }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# El temporal, uno solo
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Antes cada funcion armaba el suyo con su propio `trap ... EXIT`. Un shell
+# tiene UN trap de EXIT: el segundo pisa al primero, asi que cuando la descarga
+# fallaba y se caia a compilar, el temporal de la descarga quedaba en /tmp para
+# siempre. Y ese es justamente el camino normal mientras no haya releases.
+TMP=""
+limpiar() { [ -n "$TMP" ] && rm -rf "$TMP"; }
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Qué máquina es ésta
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -138,8 +149,7 @@ compilar() {
   paso "el proxy de módulos no lo tiene todavía; clonando"
   hay git || muero "necesito git para clonar. O instalá Go y esperá al primer release."
 
-  tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' EXIT INT TERM
+  tmp="$TMP"
 
   rama="${SF_VERSION:-}"
   if [ -n "$rama" ]; then
@@ -180,12 +190,21 @@ desde_release() {
   nombre="sf_${tag}_${PLATAFORMA}.${EXT}"
   base="https://github.com/$REPO/releases/download/$tag"
 
-  tmp=$(mktemp -d)
-  # El trap corre igual si algo falla en el medio: nada de dejar basura en /tmp.
-  trap 'rm -rf "$tmp"' EXIT INT TERM
+  tmp="$TMP"
 
+  # El 2>/dev/null va ACA y no envolviendo a la funcion entera.
+  #
+  # `curl -fsSL` lleva -S —show errors—, asi que grita cuando el release no
+  # existe para esta plataforma. Ese grito hay que taparlo: no encontrar el
+  # release es normal y el que sigue es el plan B.
+  #
+  # Pero cuando el silencio envolvia a toda la funcion se llevaba puesto TODO
+  # lo que `muero` tiene para decir aca adentro —el checksum que no da, el
+  # release sin ejecutable, el unzip que falta—, y como `muero` ademas hace
+  # exit, el que instalaba veia "bajando ..." y despues nada. Codigo 1, cero
+  # explicacion, sobre el unico chequeo de seguridad del script.
   paso "bajando $nombre"
-  bajar_a_archivo "$base/$nombre" "$tmp/$nombre" || return 1
+  bajar_a_archivo "$base/$nombre" "$tmp/$nombre" 2>/dev/null || return 1
 
   bajar_a_archivo "$base/SHA256SUMS" "$tmp/SHA256SUMS" 2>/dev/null || true
   verificar_suma "$tmp/$nombre" "$tmp/SHA256SUMS" "$nombre"
@@ -249,13 +268,16 @@ avisar_del_viejo() {
 main() {
   detectar_plataforma
 
+  TMP=$(mktemp -d)
+  trap limpiar EXIT INT TERM
+
   tag="${SF_VERSION:-}"
   if [ -z "$tag" ]; then
     paso "buscando la última versión"
     tag=$(ultima_version 2>/dev/null) || true
   fi
 
-  if [ -n "${tag:-}" ] && desde_release "$tag" 2>/dev/null; then
+  if [ -n "${tag:-}" ] && desde_release "$tag"; then
     ok "sf $tag → $BIN_DIR/sf$SUFIJO"
   else
     compilar

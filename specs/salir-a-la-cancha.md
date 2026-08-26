@@ -1,6 +1,6 @@
 # Salir a la cancha — lo que falta para una corrida de verdad
 
-**Fecha:** 2026-08-25 · **Branch:** `refundation` · **Commit:** `b850cce`
+**Fecha:** 2026-08-26 · **Branch:** `refundation` · **Commit:** `c0d37e3`
 
 > **Estado: PENDIENTE.** La máquina está entera y auditada, el instalador está construido, y en
 > esta máquina todo funciona. Lo que falta no es código: es **publicar** y **correr el bucle con
@@ -38,6 +38,9 @@ No es una lista de intenciones: cada línea se comprobó corriendo algo.
 | `install.sh` | corrida real: detectó la plataforma, no encontró release, clonó, compiló, instaló |
 | `sf doctor` | detecta el binario sombra (`exit=2`) y el skill desalineado (`exit=2`), en vivo |
 | instalación limpia en proyecto nuevo | `sf install` → `sf init` → `sf doctor` → `sf next`, los cuatro `exit=0` |
+| `release.yml`, sin publicar nada | se corrió el bucle entero a mano: las 5 plataformas compilan, empaquetan, y `sf version` dice el tag |
+| el camino de release de `install.sh` | corrido contra un `dist/` local por `file://` — nombre del asset, descarga, **checksum**, extracción, `mv` |
+| las 3 ramas de `install.sh` | camino feliz · tarball adulterado (aborta y explica) · sin release (cae al plan B sin ruido) |
 
 **Y lo que está instalado en la máquina de Javier hoy:** el binario en `~/.local/bin/sf`
 (`v2.0.0-dev`), y los 18 skills como **symlinks individuales** al repo.
@@ -188,10 +191,22 @@ git tag v2.0.0 && git push origin v2.0.0
 El workflow corre `vet`, los tests, el e2e, compila las cinco plataformas, comprueba que
 `sf version` diga el tag, y publica con checksums.
 
-**Después del primer release, verificar el camino que hoy no se puede:** en una máquina limpia (o
-un contenedor), `curl … | sh` tiene que bajar el binario **del release** y no caer al plan B de
-compilar. Si compila, el nombre del asset y el que `install.sh` busca no coinciden — hay un
-chequeo de CI que los compara, pero sólo compara los **patrones**, no un release de verdad.
+**Lo que ya no hace falta averiguar publicando.** El 26/08 se ejecutó todo el workflow a mano
+—las cinco plataformas, el empaquetado, los checksums, la aserción de que `sf version` dice el
+tag— y después se corrió `install.sh` contra ese `dist/` local por `file://`. Ahí aparecieron
+**los dos bugs que sólo se ven ejecutando**, los dos en `install.sh` y los dos arreglados:
+
+- un `2>/dev/null` que envolvía a `desde_release` entera se tragaba **todos** sus diagnósticos.
+  Un checksum que no daba salía como `· bajando …` y después nada, código 1, sin una palabra —
+  sobre el único chequeo de seguridad del script;
+- `desde_release` y `compilar` armaban cada uno su `trap … EXIT`, y el segundo pisaba al primero:
+  cada caída al plan B —que **es** el camino normal mientras no haya releases— dejaba un temporal
+  para siempre. Medido A/B: la versión vieja fuga uno por corrida, la nueva cero.
+
+**Lo que sigue sin poder probarse sin publicar** es lo que depende de GitHub y nada más: que la
+API de releases conteste lo que `ultima_version` espera, y que el asset suba y baje por HTTPS con
+el nombre exacto. El nombre lo cruza un chequeo de CI, pero compara **patrones**, no un release
+de verdad.
 
 ---
 
