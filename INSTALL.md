@@ -12,26 +12,32 @@ Son **tres cosas** y sólo la primera se hace una vez en la vida:
 
 ## ① El binario
 
-SpecForge es un solo ejecutable, sin runtime ni dependencias del sistema. Se compila con Go 1.22
-o más nuevo.
+Una línea:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jdbaigorria/specforge/main/install.sh | sh
+```
+
+Baja el binario de tu plataforma, lo verifica contra el checksum del release y lo deja en
+`~/.local/bin`. Si no hay release para tu máquina pero tenés Go, compila. Dos variables si querés
+mandar vos:
+
+```bash
+SF_VERSION=v2.0.0 SF_BIN_DIR=/usr/local/bin sh install.sh
+```
+
+Y avisa de las dos cosas que se rompen en silencio: que el directorio no esté en tu `PATH`, y que
+haya **otro `sf` adelante** que le gane al recién instalado.
+
+> **Por qué esto es un shell script y no un comando de `sf`.** Porque `sf` no puede instalar a
+> `sf`: lo que ponga el binario tiene que correr *antes* de que el binario exista.
+
+### A mano, desde el código
 
 ```bash
 git clone https://github.com/jdbaigorria/specforge
 cd specforge/sf
-go build -o ~/go/bin/sf ./cmd/sf
-```
-
-Comprobá que quedó en el `PATH`:
-
-```bash
-sf help
-```
-
-Si dice *"command not found"*, `~/go/bin` no está en tu `PATH`. Agregalo a tu `~/.zshrc` o
-`~/.bashrc`:
-
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
+go build -o ~/.local/bin/sf ./cmd/sf
 ```
 
 > **Una sola dependencia.** El binario usa `gopkg.in/yaml.v3` y nada más. Todo lo demás es
@@ -55,15 +61,22 @@ copiándolos a donde tu harness los busque.
 
 ### Claude Code
 
-```bash
-cp -r skills/* ~/.claude/skills/
+```
+/plugin marketplace add jdbaigorria/specforge
+/plugin install specforge
 ```
 
-O, si preferís no duplicar, un symlink al repo:
+El plugin trae los 18 y sabe actualizarlos. Es el camino recomendado.
+
+Si preferís no pasar por el marketplace —porque estás editándolos, por ejemplo— un symlink por
+skill al repo:
 
 ```bash
-ln -s "$PWD/skills" ~/.claude/skills/specforge
+for d in "$PWD"/skills/*/; do ln -s "${d%/}" ~/.claude/skills/"$(basename "$d")"; done
 ```
+
+> **Uno por skill, no uno a la carpeta.** Un symlink único a `skills/` deja cada `SKILL.md` un
+> nivel más abajo de donde el harness los busca, y no aparece ninguno.
 
 ### Otro harness
 
@@ -190,6 +203,49 @@ Este proyecto ya está iniciado.
 ## Verificar que quedó bien
 
 ```bash
+sf doctor
+```
+
+Contesta por las tres cosas que se rompen en silencio, y por eso existe:
+
+```
+binario   v2.0.0
+          ~/.local/bin/sf
+
+harness   claude-code
+
+skills    9/9 de la máquina
+       ✓  sfp-scout          ~/.claude/skills/sfp-scout
+       ✓  sfp-po             ~/.claude/skills/sfp-po
+       …
+
+proyecto  ~/proyectos/lo-que-sea
+          .docs/ está — `sf status` dice dónde va
+```
+
+Y cuando algo falta, dice **cómo se arregla** en vez de mandarte al README:
+
+```
+✗ el `sf` del PATH no es éste: el agente va a correr /usr/local/bin/sf
+✗ faltan instalar 9 skills: sfp-scout · sfp-po · …
+
+cómo se arregla:
+  el binario   curl -fsSL https://raw.githubusercontent.com/…/install.sh | sh
+  los skills   /plugin marketplace add jdbaigorria/specforge
+               /plugin install specforge
+```
+
+> **Las tres que agarra son las tres que le pasaron a este proyecto.** La instalación se hace en
+> dos mitades —el binario por un lado, los skills por otro— y las dos pueden quedar bien *cada
+> una por su lado* mientras no se ven entre ellas. El doctor no compara versiones: pregunta si
+> los comandos que los skills instalados nombran existen en **este** binario, que es un hecho, no
+> un parecido.
+
+El código de salida es el de siempre: `0` anda, `2` hay algo que arreglar.
+
+Después, el bucle:
+
+```bash
 sf next
 ```
 
@@ -230,11 +286,21 @@ conversación.
 
 ## Actualizar
 
+El binario:
+
 ```bash
-cd specforge && git pull
-cd sf && go build -o ~/go/bin/sf ./cmd/sf
-cp -r ../skills/* ~/.claude/skills/       # si no usaste symlink
+curl -fsSL https://raw.githubusercontent.com/jdbaigorria/specforge/main/install.sh | sh
 ```
+
+Los skills, si los instalaste por el plugin:
+
+```
+/plugin update specforge
+```
+
+**Actualizá los dos juntos.** Es el escenario para el que existe `sf doctor`: un skill nuevo que
+le pide al binario viejo algo que todavía no sabe hacer traba el bucle, y el que se lo encuentra
+es un agente a mitad de camino.
 
 Y en cada proyecto, si cambió el orquestador:
 

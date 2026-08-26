@@ -444,3 +444,55 @@ cabecera llena y el `estado.json` vacío.
 
 **Nunca toca `~/.specforge/`** —tus modelos son de la máquina, no del proyecto— ni `.docs/`, que
 es tu trabajo.
+
+## `sf doctor`
+
+**¿Esta instalación sirve?** Es el único comando que no mira el proyecto sino **tu máquina**.
+
+```
+binario   v2.0.0
+          ~/.local/bin/sf
+
+harness   claude-code
+
+skills    9/9 de la máquina
+       ✓  sfp-scout          ~/.claude/skills/sfp-scout
+       …
+
+proyecto  ~/proyectos/lo-que-sea
+          .docs/ está — `sf status` dice dónde va
+```
+
+Sale `0` si anda y `2` si hay algo que arreglar — y cuando hay algo, dice **cómo**.
+
+### Qué mira, y por qué esas tres cosas
+
+SpecForge se instala en dos mitades: el binario por un lado (`install.sh`), los 18 skills por
+otro (el plugin del harness). No es un defecto del instalador — son cosas distintas, y un
+ejecutable compilado no entra en un plugin de Markdown. El precio es que **las dos mitades pueden
+quedar bien cada una por su lado y no verse entre ellas**, que es una familia de error sin
+archivo donde leerla.
+
+| Mira | Porque |
+|---|---|
+| **el `sf` del PATH** | si hay otro adelante, el agente va a correr ése y no el que instalaste |
+| **los 9 skills de la máquina** | `sf next` devuelve un nombre; si el harness no lo encuentra, el bucle se termina ahí |
+| **los comandos que esos skills nombran** | un skill más nuevo que el binario le pide algo que no existe, y traba el bucle |
+
+**El tercero no compara versiones, y es a propósito.** Dos versiones distintas no prueban que
+algo esté roto: el que trabaja desde el repo no tiene versión, y el que edita un skill a mano
+tampoco. Un aviso que se dispara con los que más lo usan se aprende a ignorar. Lo que sí es un
+hecho es *"este skill nombra `sf loquesea` y este binario no lo tiene"* — y eso **va a** trabar el
+bucle. Es la misma regla que las compuertas: se frena sobre un hecho, no sobre un parecido (R3).
+
+## `sf version`
+
+**La versión, en una línea y nada más.** Existe para que un script pueda leerla; el informe para
+humanos es `sf doctor`.
+
+```
+v2.0.0
+```
+
+Compilado desde el repo dice `sin-versión (compilado del repo)`, que es la verdad: la versión la
+pone el linker en el release.

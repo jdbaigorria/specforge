@@ -41,8 +41,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/jdbaigorria/specforge/sf/internal/comandos"
 )
 
 // Los cuatro exit codes son la interfaz. Se repiten acá con su nombre para que
@@ -714,3 +717,65 @@ func (p *proyecto) existe(rel string) bool {
 	_, err := os.Stat(filepath.Join(p.raiz, rel))
 	return err == nil
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El inventario de comandos y el `switch` que despacha
+// ────────────────────────────────────────────────────────────────────────────
+
+// TestElInventarioDeComandosNoMiente comprueba que la lista y el despacho digan
+// lo mismo.
+//
+// `comandos.Todos` existe porque la lista hacía falta en tres lugares y estaba
+// escrita en dos. Pero eliminar la tercera copia —el `switch` de main.go— no se
+// puede sin convertir el despacho en un mapa de funciones, que es peor: se
+// pierde el orden de lectura y la firma de cada comando.
+//
+// Lo que sí se puede es comprobar que las dos coincidan, y eso sólo se ve desde
+// afuera: por adentro, la lista es un slice de strings que compila igual esté
+// bien o mal. Acá se le pasa cada nombre al binario de verdad y se mira que no
+// conteste "todavía no está construido".
+//
+// El día que alguien agregue un comando al switch y se olvide de la lista, el
+// que se entera es `sf doctor`, que va a acusar a un skill correcto de nombrar
+// un comando inexistente. Este test lo agarra antes.
+func TestElInventarioDeComandosNoMiente(t *testing.T) {
+	p := nuevoProyecto(t)
+
+	for _, c := range comandos.Todos {
+		// Se parte en palabras porque `lote start` es de dos y el binario las
+		// lee como dos argumentos.
+		_, out := p.sf(strings.Fields(c)...)
+
+		if strings.Contains(out, "todavía no está construido") {
+			t.Errorf("`sf %s` está en comandos.Todos y el switch de main.go no lo atiende:\n%s",
+				c, sangrar(out))
+		}
+	}
+}
+
+// TestNingunComandoDelSwitchFaltaEnElInventario es el espejo del anterior.
+//
+// El agujero que cubre es el que importa para el doctor: un comando que existe
+// y NO está en la lista hace que `comandos.Existe` diga que no, y el doctor
+// acusa a un skill correcto de nombrar algo inexistente. Es un falso positivo
+// que hace ignorar el chequeo entero.
+//
+// La ayuda es la fuente: `sf help` los enumera para un humano, y si un comando
+// no está ahí tampoco está documentado.
+func TestNingunComandoDelSwitchFaltaEnElInventario(t *testing.T) {
+	p := nuevoProyecto(t)
+	_, ayuda := p.sf("help")
+
+	for _, l := range strings.Split(ayuda, "\n") {
+		m := reAyuda.FindStringSubmatch(l)
+		if m == nil {
+			continue
+		}
+		if !comandos.Existe(m[1]) {
+			t.Errorf("`sf %s` sale en la ayuda y no está en comandos.Todos:\n  %s", m[1], l)
+		}
+	}
+}
+
+// reAyuda caza los comandos de la ayuda: dos espacios, `sf`, el nombre.
+var reAyuda = regexp.MustCompile(`^\s+sf (lote start|[a-z]+)`)

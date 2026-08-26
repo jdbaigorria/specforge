@@ -152,7 +152,7 @@ Not by opinion — by arithmetic:
 ## Layout
 
 ```
-sf/          the binary — 18 packages, 277 tests, one dependency
+sf/          the binary — 20 packages, 288 tests, one dependency
 skills/      18 skills: 9 for the states (sfp-* · sf-*) + 9 utilities (sfx-*)
 specs/       the design, and why each decision is the way it is
 ```

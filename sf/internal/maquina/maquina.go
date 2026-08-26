@@ -188,6 +188,23 @@ var skills = map[string]string{
 // `~/.specforge/` y la resuelve `via()`. Este mapa dice QUÉ hace falta; el otro
 // dice cómo se invoca en esta máquina. Ninguno de los dos sabe lo del otro, y
 // por eso `sf next` es el único que puede contestar la pregunta entera.
+// SkillsDeEstado son los nueve, ordenados como los recorre la máquina.
+//
+// Existe para que `sf doctor` pueda comprobar que están instalados sin escribir
+// la lista una segunda vez: el mapa de arriba es la única copia, y una lista
+// suelta en el doctor se desincronizaría el día que un estado cambie de skill.
+func SkillsDeEstado() []string {
+	orden := []string{
+		"brief", "prd", "constitucion", "backlog", "roadmap",
+		estado.Planificacion, estado.Implementar, estado.Revision, estado.Cierre,
+	}
+	var s []string
+	for _, e := range orden {
+		s = append(s, skills[e])
+	}
+	return s
+}
+
 var modeloPorEstado = map[string]string{
 	estado.Planificacion: "opus",
 	estado.Revision:      "opus",

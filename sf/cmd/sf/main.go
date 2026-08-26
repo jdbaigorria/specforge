@@ -29,6 +29,8 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/andamio"
 	"github.com/jdbaigorria/specforge/sf/internal/arranque"
 	"github.com/jdbaigorria/specforge/sf/internal/auditoria"
+	"github.com/jdbaigorria/specforge/sf/internal/comandos"
+	"github.com/jdbaigorria/specforge/sf/internal/doctor"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
@@ -43,6 +45,14 @@ import (
 // Un CLI que siempre devuelve 0 obliga a parsear texto para saber qué pasó, y
 // acá el que lee suele ser un agente. Con esto, "¿hay trabajo?" es un if en
 // cualquier shell y en cualquier harness.
+// version la pone el linker en el release:
+//
+//	go build -ldflags "-X main.version=v2.0.1"
+//
+// El default dice la verdad y no una versión inventada: quien compiló desde el
+// repo NO tiene versión, y decir "v0.0.0" sería peor que decirlo.
+var version = "sin-versión (compilado del repo)"
+
 const (
 	salidaTrabajo = 0 // hay algo que hacer
 	salidaError   = 1 // algo se rompió de verdad
@@ -71,6 +81,13 @@ func main() {
 		os.Exit(estadoActual())
 	case "audit":
 		os.Exit(auditar(os.Args[2:]))
+	case "doctor":
+		os.Exit(revisar())
+	case "version", "--version":
+		// Una sola línea y nada más: `install.sh` la lee para comprobar que
+		// instaló lo que creía. El informe para humanos es `sf doctor`.
+		fmt.Println(version)
+		os.Exit(salidaTrabajo)
 	case "install":
 		os.Exit(instalar(os.Args[2:]))
 	case "uninstall":
@@ -94,7 +111,7 @@ func main() {
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
-		fmt.Fprintln(os.Stderr, "    Todos: init · install · next · audit · context · done · lote start · new · status · approve · reject · take · model · dismiss")
+		fmt.Fprintln(os.Stderr, "    Todos: "+comandos.Lista())
 		os.Exit(salidaError)
 	}
 }
@@ -440,6 +457,30 @@ func instalar(args []string) int {
 	return salidaTrabajo
 }
 
+// revisar es `sf doctor`: ¿esta instalación sirve?
+//
+// Como `sf install`, no es de la máquina: no mira el estado ni lo mueve. Mira
+// la MÁQUINA DE JAVIER, que es lo único que ningún test del repo puede ver.
+//
+// El código de salida sigue la misma convención que todo lo demás, y por eso
+// devuelve `salidaParada` y no `salidaError` cuando encuentra algo: no se rompió
+// nada, hace falta que alguien intervenga. Un `sf doctor && ...` en un script de
+// instalación distingue los tres casos sin parsear texto.
+func revisar() int {
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	i := doctor.Revisar(raiz, version)
+	fmt.Print(i.Texto())
+	if !i.Sano() {
+		return salidaParada
+	}
+	return salidaTrabajo
+}
+
 // desinstalar es `sf uninstall`: saca el orquestador y NO toca ~/.specforge/.
 func desinstalar() int {
 	raiz, err := os.Getwd()
@@ -694,6 +735,8 @@ func uso() {
   sf new "…"      mete una feature o un bug al backlog (entradas B y C)
   sf status       dónde está todo — el único para vos, no para el agente
   sf audit [f-#…]  el punta a punta: varias features contra sus historias
+  sf doctor       ¿esta instalación sirve? binario · skills · harness
+  sf version      la versión, en una línea
 
 las cinco respuestas a una parada:
   sf approve              sella lo que estés mirando

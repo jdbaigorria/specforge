@@ -65,14 +65,15 @@ jobs:
       # Este chequeo es el único del proyecto que cruza el .md con el binario —
       # ninguna compuerta lo hace, y por eso quedaron once punteros colgados a
       # comandos borrados hasta que se buscaron a mano.
-      - name: Ningun skill nombra un comando que no existe
-        run: |
-          set -euo pipefail
-          muertos='sf (coverage|doctor|verify|delta|gate|mutation|save|trace|question|metrics|domain|events|report|graph|onboard|stale|arch|evidence|migrate|check run|journal add)'
-          if grep -rnE "$muertos" skills/; then
-            echo "↑ comandos que sf no tiene"
-            exit 1
-          fi
+      # Este chequeo era una lista negra de los comandos del producto viejo,
+      # mantenida a mano. Envejecio como envejecen las listas a mano: `sf
+      # doctor` figuraba como muerto el dia que se construyo de verdad.
+      #
+      # Lo reemplaza `TestLosSkillsDelRepoEstanAlineados`, que pregunta lo
+      # contrario y no hay que mantener: en vez de enumerar lo que NO existe,
+      # compara contra `comandos.Todos`, que es lo que si existe. Corre en el
+      # paso "Ningun skill del repo nombra un comando que este binario no
+      # tiene", mas abajo.
 
       # Los dos numeros del README envejecen callados: nadie los mira al agregar
       # un paquete o un test, y quedaron mintiendo por 7 paquetes y 66 tests
@@ -97,3 +98,46 @@ jobs:
             echo "↑ la ruta es .docs/"
             exit 1
           fi
+
+      # ────────────────────────────────────────────────────────────────────
+      # El instalador
+      # ────────────────────────────────────────────────────────────────────
+
+      - name: install.sh es POSIX valido
+        run: sh -n install.sh
+
+      # `install.sh` arma el nombre del archivo que baja, y `release.yml` arma
+      # el nombre del archivo que publica. Son dos lenguajes distintos en dos
+      # maquinas distintas, asi que no hay forma de derivar uno del otro — pero
+      # si no coinciden, el instalador cae al plan B (compilar) EN SILENCIO y
+      # nadie se entera de que los releases no se usan.
+      - name: El nombre del release es el que install.sh busca
+        run: |
+          set -euo pipefail
+          # -F: son cadenas literales llenas de $ y {}, no patrones.
+          grep -qF 'sf_${tag}_${PLATAFORMA}.${EXT}' install.sh || {
+            echo "install.sh cambio como arma el nombre del archivo"; exit 1; }
+          grep -qF 'sf_${TAG}_${p}.tar.gz' .github/workflows/release.yml || {
+            echo "release.yml cambio como arma el nombre del tarball"; exit 1; }
+          grep -qF 'sf_${TAG}_${p}.zip' .github/workflows/release.yml || {
+            echo "release.yml cambio como arma el nombre del zip"; exit 1; }
+
+      # Las cinco plataformas que publica el release tienen que ser las mismas
+      # que `install.sh` sabe detectar. Una de menos y alguien recibe "no tengo
+      # binario para tu maquina" cuando en realidad si lo hay.
+      - name: Las plataformas del release y las que detecta install.sh coinciden
+        run: |
+          set -euo pipefail
+          for p in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64; do
+            grep -q "$p" .github/workflows/release.yml || {
+              echo "release.yml no publica $p"; exit 1; }
+          done
+
+      # El doctor le pregunta a los skills instalados que comandos nombran, y
+      # compara contra `comandos.Todos`. Aca se hace lo mismo contra los skills
+      # DEL REPO: es el chequeo que le faltaba al CI cuando sfp-scout se
+      # contradijo — se validaban los nombres y los comandos muertos, nunca lo
+      # que el skill produce contra lo que la maquina acepta.
+      - name: Ningun skill del repo nombra un comando que este binario no tiene
+        working-directory: sf
+        run: go test ./internal/doctor/ -run TestLosSkillsDelRepoEstanAlineados -count=1 -v

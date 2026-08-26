@@ -1,0 +1,147 @@
+name: release
+
+# Se dispara con un tag `v*` y publica los binarios que `install.sh` baja.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# UN SOLO JOB Y NO UNA MATRIZ DE CINCO
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Go cruza-compila sin toolchain: un runner de Linux produce el binario de macOS
+# igual de bien que un runner de macOS. Una matriz de cinco runners tardaria mas,
+# costaria mas, y traeria de regalo el problema de juntar los artefactos de cinco
+# jobs para poder firmar UN archivo de checksums.
+#
+# El dia que haga falta CGO esto cambia. Hoy la unica dependencia es yaml.v3.
+on:
+  push:
+    tags:
+      - "v*"
+
+# El job crea un release, y para eso necesita poder escribir en el repo.
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # El checkout por defecto es shallow, y `git describe --tags` no vería
+          # el tag anterior: el link de "qué cambió" saldría siempre vacío.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.x"
+
+      # La compuerta. Publicar es irreversible —la gente lo baja— asi que los
+      # tests van antes, igual que `sf approve` corre la compuerta antes de
+      # archivar.
+      - name: Vet
+        working-directory: sf
+        run: go vet ./...
+
+      - name: Test
+        working-directory: sf
+        run: go test ./...
+
+      - name: El guion de humo, punta a punta
+        working-directory: sf
+        run: go test -tags e2e ./cmd/sf/
+
+      # `install.sh` arma el nombre del archivo por su cuenta:
+      #
+      #     sf_${tag}_${os}_${arch}.tar.gz
+      #
+      # O sea que este paso y el script tienen que coincidir. No hay forma de
+      # derivar uno del otro —viven en lenguajes distintos y corren en maquinas
+      # distintas—, y por eso hay un chequeo en ci que compara los dos.
+      - name: Compilar las cinco plataformas
+        working-directory: sf
+        run: |
+          set -eu
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p ../dist
+
+          for p in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64 windows_amd64; do
+            os="${p%_*}"
+            arch="${p#*_}"
+            # if/then y no `[ ... ] && x`: bajo `set -e`, un && cuyo test da
+            # falso devuelve 1 y corta el script. La compilacion de Linux es la
+            # primera del bucle, o sea que el workflow moriria SIEMPRE.
+            bin=sf
+            if [ "$os" = windows ]; then bin=sf.exe; fi
+
+            # -s -w saca la tabla de simbolos y la info de debug: el binario baja
+            # a la mitad y nadie va a correr un debugger sobre el release.
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+              go build -trimpath -ldflags "-s -w -X main.version=$TAG" -o "../dist/$bin" ./cmd/sf
+
+            if [ "$os" = windows ]; then
+              (cd ../dist && zip -q "sf_${TAG}_${p}.zip" "$bin" && rm "$bin")
+            else
+              (cd ../dist && tar -czf "sf_${TAG}_${p}.tar.gz" "$bin" && rm "$bin")
+            fi
+          done
+
+          # `sf_*` y no `./*`: sha256sum escribe el nombre tal como se lo
+          # pasaron, y con `./` adelante el grep de install.sh —que busca
+          # " <nombre>$"— no encontraria ninguna linea y saltearia la
+          # verificacion en silencio.
+          cd ../dist && sha256sum sf_* > SHA256SUMS
+          ls -la
+
+      # `sf version` tiene que decir el tag. Si el -ldflags se rompe, el binario
+      # sale diciendo "sin-version" y nadie se entera hasta que alguien lo
+      # instala — que es tarde, porque un release no se edita.
+      - name: El binario dice su version
+        run: |
+          set -eu
+          tar -xzf dist/sf_"${GITHUB_REF_NAME}"_linux_amd64.tar.gz -C /tmp
+          v=$(/tmp/sf version)
+          [ "$v" = "${GITHUB_REF_NAME}" ] || {
+            echo "sf version dice '$v' y el tag es '${GITHUB_REF_NAME}'"
+            exit 1
+          }
+          echo "sf version → $v"
+
+      # Las notas se escriben acá y no con --generate-notes: los dos no se
+      # combinan de forma predecible, y lo que tiene que salir sí o sí es cómo
+      # se instala. El changelog está a un click, en el link de abajo.
+      - name: Publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
+          # Las notas van a un archivo y no en el argumento: adentro de un
+          # bloque `run: |` toda linea tiene que ir indentada, y un cuerpo de
+          # Markdown con bloques de codigo pegados al margen rompe el YAML —
+          # que es exactamente lo que paso la primera vez que se escribio esto.
+          {
+            echo "## Instalar"
+            echo
+            echo '```bash'
+            echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | sh"
+            echo '```'
+            echo
+            echo "Y la otra mitad — los 18 skills — en Claude Code:"
+            echo
+            echo '```'
+            echo "/plugin marketplace add ${GITHUB_REPOSITORY}"
+            echo "/plugin install specforge"
+            echo '```'
+            echo
+            echo 'Despues, `sf doctor` comprueba que las dos mitades se vean.'
+          } > notas.md
+
+          ANTERIOR=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          if [ -n "$ANTERIOR" ]; then
+            echo >> notas.md
+            echo "[Todo lo que cambio desde ${ANTERIOR}](https://github.com/${GITHUB_REPOSITORY}/compare/${ANTERIOR}...${GITHUB_REF_NAME})" >> notas.md
+          fi
+
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file notas.md
