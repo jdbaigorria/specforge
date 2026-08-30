@@ -29,6 +29,20 @@ func (i Informe) Texto() string {
 
 	fmt.Fprintf(&b, "\nharness   %s\n", i.Harness)
 
+	// Los perfiles van pegados al harness porque son la misma pregunta: el
+	// catálogo está indexado por harness, así que "razonar" declarado no quiere
+	// decir nada sin saber para cuál.
+	for _, p := range i.Perfiles {
+		switch {
+		case !p.Declarado:
+			fmt.Fprintf(&b, "       ✗  %-10s sin declarar\n", p.Nombre)
+		case p.SinPortamodelo:
+			fmt.Fprintf(&b, "       ✗  %-10s %s · le falta el archivo de agente\n", p.Nombre, p.Alias)
+		default:
+			fmt.Fprintf(&b, "       ✓  %-10s %s\n", p.Nombre, p.Alias)
+		}
+	}
+
 	var faltan int
 	for _, s := range i.Skills {
 		if !s.Instalado() {

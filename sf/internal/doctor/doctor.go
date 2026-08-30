@@ -61,6 +61,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jdbaigorria/specforge/sf/internal/andamio"
 	"github.com/jdbaigorria/specforge/sf/internal/comandos"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
@@ -76,6 +77,7 @@ type Informe struct {
 	Binario  Binario
 	Skills   []Skill
 	Harness  string
+	Perfiles []Perfil
 	Proyecto Proyecto
 
 	// Fallas son las que impiden usar sf. Avisos, las que no.
@@ -138,7 +140,18 @@ var reComando = regexp.MustCompile(`\bsf ([a-z][a-z-]*)`)
 func Revisar(raiz, version string) Informe {
 	var i Informe
 	i.Binario = revisarBinario(version)
-	i.Harness = global.DetectarHarness()
+
+	// El harness sale del catálogo ESCRITO y no de la detección, porque eso es
+	// lo que va a usar `sf next` para resolver el modelo. Detectarlo acá y
+	// reportar otra cosa sería mostrar un diagnóstico que no describe al binario
+	// que corre. La detección queda como último recurso, para el caso de que
+	// nadie haya corrido `sf install` todavía.
+	g, errCat := global.LeerPara(raiz)
+	if errCat == nil && g.Harness != "" {
+		i.Harness = g.Harness
+	} else {
+		i.Harness = global.DetectarHarness()
+	}
 	i.Skills = revisarSkills(raiz)
 	i.Proyecto = revisarProyecto(raiz)
 
@@ -169,9 +182,32 @@ func Revisar(raiz, version string) Informe {
 			"faltan instalar "+plural(len(faltan))+": "+strings.Join(faltan, " · "))
 	}
 
-	if i.Harness == "desconocido" {
-		i.Avisos = append(i.Avisos,
-			"no reconocí el harness. `sf install --harness=<nombre>` lo fija.")
+	// El harness desconocido pasó de ⚠ a ✗, y el motivo es que dejó de ser
+	// cosmético: desde H2 el catálogo está INDEXADO POR HARNESS, así que sin
+	// saber cuál es no hay perfil que resolver y `sf next` no puede contestar
+	// con qué se lanza nada.
+	if i.Harness == "desconocido" || i.Harness == "" {
+		i.Fallas = append(i.Fallas,
+			"no sé en qué harness estás, y sin eso no puedo resolver ningún modelo. "+
+				"`sf install --harness=<"+strings.Join(global.Harness, "|")+">` lo fija.")
+	}
+
+	// Los perfiles que la máquina PIDE tienen que estar declarados. Sin esto, el
+	// primer `sf next` para — y enterarse acá es más barato que enterarse
+	// cuando el orquestador ya arrancó el bucle.
+	if errCat == nil {
+		i.Perfiles = revisarPerfiles(raiz, g)
+		for _, p := range i.Perfiles {
+			if !p.Declarado {
+				i.Fallas = append(i.Fallas, "el perfil `"+p.Nombre+"` no está declarado para "+
+					i.Harness+": `sf model "+p.Nombre+" --alias <corto> --id <id> --via subagente`")
+				continue
+			}
+			if p.SinPortamodelo {
+				i.Fallas = append(i.Fallas, "el alias `"+p.Alias+"` no tiene su archivo de agente: "+
+					"`sf next` va a devolver un `agente:` que "+i.Harness+" no conoce. Corré `sf install`")
+			}
+		}
 	}
 	if !i.Proyecto.Andamiado {
 		i.Avisos = append(i.Avisos,
@@ -212,15 +248,66 @@ func revisarBinario(version string) Binario {
 	return b
 }
 
+// Perfil es el diagnóstico de UN perfil que la máquina pide.
+type Perfil struct {
+	Nombre string
+
+	// Declarado es si el harness activo tiene algún modelo para este perfil.
+	Declarado bool
+
+	// Alias es el default del perfil, si hay.
+	Alias string
+
+	// SinPortamodelo es que el alias está declarado pero su archivo de agente
+	// no existe — o sea que `sf next` va a nombrar un agente que el harness no
+	// conoce, y eso falla en el momento más caro: cuando ya lanzó.
+	SinPortamodelo bool
+}
+
+// revisarPerfiles mira sólo los que la MÁQUINA pide.
+//
+// `mecanico` no está y no es un olvido: ningún estado lo devuelve —lo nombran
+// los sfx-*, que están fuera de los nueve— así que exigirlo sería frenar por
+// algo que el bucle no va a necesitar nunca.
+func revisarPerfiles(raiz string, g *global.Config) []Perfil {
+	pedidos := []string{global.Razonar, global.Construir}
+	faltantes := andamio.PortamodelosQueFaltan(raiz, g)
+
+	var ps []Perfil
+	for _, n := range pedidos {
+		p := Perfil{Nombre: n}
+		if m, hay := g.Default(n); hay {
+			p.Declarado, p.Alias = true, m.Alias
+			p.SinPortamodelo = slices.Contains(faltantes, m.Alias)
+		}
+		ps = append(ps, p)
+	}
+	return ps
+}
+
 // raicesDeSkills son los lugares donde un harness deja los skills.
 //
-// Son cuatro y ninguno es adivinado: los tres primeros salen de mirar una
-// instalación real de Claude Code, y el cuarto es el proyecto.
+// Ninguno es adivinado. Los cuatro de Claude Code salen de mirar una instalación
+// real; los de los otros dos salen de MEDIRLOS (sonda del 29/08, con dos skills
+// de sonda y tokens aleatorios):
 //
-//	~/.claude/skills/<n>/                                    a mano o symlink
-//	~/.claude/plugins/cache/*/*/*/skills/<n>/                el plugin instalado
-//	~/.claude/plugins/marketplaces/*/skills/<n>/             el repo clonado
-//	<proyecto>/.claude/skills/<n>/                           del proyecto
+//	~/.claude/skills/<n>/                        claude-code · opencode ✅
+//	~/.claude/plugins/cache/*/*/*/skills/<n>/    el plugin instalado
+//	~/.claude/plugins/marketplaces/*/skills/<n>/ el repo clonado
+//	<proyecto>/.claude/skills/<n>/               del proyecto
+//	~/.config/opencode/skills/<n>/               opencode, global
+//	<proyecto>/.opencode/skills/<n>/             opencode, del proyecto
+//	~/.commandcode/skills/<n>/                   commandcode, global
+//	<proyecto>/.commandcode/skills/<n>/          commandcode, del proyecto
+//	~/.agents/skills/ y <proyecto>/.agents/skills/   opencode Y commandcode ✅
+//
+// EL DATO QUE IMPORTA, y que sólo se supo ejecutando: **Command Code NO lee
+// `~/.claude/skills/`.** Los 18 skills instalados como symlinks ahí —que es la
+// instalación real de hoy— son invisibles para él, y por eso `sf install` le
+// escribe la ruta en su `settings.json` (ver andamio/harness.go).
+//
+// No existe una raíz que lean los tres: `.agents/skills/` cubre opencode y
+// Command Code, `~/.claude/skills/` cubre Claude Code y opencode.
 //
 // Se busca en todos y se reporta el PRIMERO que aparece, con su ruta. Que la
 // ruta se muestre no es adorno: la mitad de los problemas de instalación se
@@ -232,9 +319,17 @@ func raicesDeSkills(raiz string) []string {
 			filepath.Join(h, ".claude", "skills", "*"),
 			filepath.Join(h, ".claude", "plugins", "cache", "*", "*", "*", "skills", "*"),
 			filepath.Join(h, ".claude", "plugins", "marketplaces", "*", "skills", "*"),
+			filepath.Join(h, ".config", "opencode", "skills", "*"),
+			filepath.Join(h, ".commandcode", "skills", "*"),
+			filepath.Join(h, ".agents", "skills", "*"),
 		)
 	}
-	return append(r, filepath.Join(raiz, ".claude", "skills", "*"))
+	return append(r,
+		filepath.Join(raiz, ".claude", "skills", "*"),
+		filepath.Join(raiz, ".opencode", "skills", "*"),
+		filepath.Join(raiz, ".commandcode", "skills", "*"),
+		filepath.Join(raiz, ".agents", "skills", "*"),
+	)
 }
 
 func revisarSkills(raiz string) []Skill {

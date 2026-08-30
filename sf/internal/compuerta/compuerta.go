@@ -337,6 +337,20 @@ func Planificacion(raiz string, f roadmap.Feature) Resultado {
 		}
 	}
 
+	// ④ bis — la ruta del test es la del TEST, no la del sujeto
+	//
+	// Sale de la primera corrida real: el plan nombró los tests dentro del `.sql`
+	// que probaban, `sf lote start` los reportó todos como faltantes, y la
+	// compuerta del ⑰ no lo había mirado porque cuenta tests pero no mira DÓNDE
+	// dicen que van a estar. Ver rutas_de_test.go.
+	{
+		conTests := make([]tareaConTests, 0, len(p.Tareas))
+		for _, t := range p.Tareas {
+			conTests = append(conTests, tareaConTests{ID: t.ID, Tests: t.Tests})
+		}
+		revisarRutasDeTest(raiz, conTests, &r)
+	}
+
 	// ⑤ cada criterio de las historias está cubierto por alguna tarea
 	//
 	// Acá empieza a morir el #7, y ANTES de escribir una línea de código: si
