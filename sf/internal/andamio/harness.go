@@ -160,25 +160,45 @@ func escribirPermisos(raiz, harness string, forzar bool, r *Resultado) error {
 // skill. El día que alguien le agregue "y acordate de correr sf context", este
 // archivo pasa a ser una fuente que hay que mantener sincronizada con
 // `skills/`, y ahí empieza el problema que evitamos.
-func Portamodelo(m global.Modelo) string {
+func Portamodelo(m global.Modelo, harness string) string {
 	// La descripción tampoco explica cuándo usarlo, y eso es deliberado: el
 	// orquestador NO elige este agente por su descripción, lo recibe por nombre
 	// exacto. Una descripción que explicara el método sería método adentro del
 	// archivo, que es justo lo que no puede haber.
+	//
+	// El esfuerzo se emite con el nombre que usa CADA harness, y sólo si está
+	// declarado. sf no inventa un default: vacío significa "el que traiga el
+	// modelo", que es una respuesta distinta de "bajo".
+	esfuerzo := ""
+	if m.Esfuerzo != "" {
+		if clave, hay := claveDeEsfuerzo[harness]; hay {
+			esfuerzo = fmt.Sprintf("%s: %s\n", clave, m.Esfuerzo)
+		}
+	}
 	return fmt.Sprintf(`---
 name: %s
 description: SpecForge — un modelo. Se invoca por nombre exacto, nunca por descripción.
 mode: subagent
 tools: "*"
 model: %s
----
+%s---
 
 Seguí exactamente las instrucciones que te dé quien te invocó. No pidas
 confirmación y no cambies de tema.
 
 Este archivo no aporta método: lo único que aporta es el modelo. Todo lo demás
 llega en el prompt.
-`, global.NombreDeAgente(m.Alias), m.ID)
+`, global.NombreDeAgente(m.Alias), m.ID, esfuerzo)
+}
+
+// claveDeEsfuerzo es cómo se llama el esfuerzo en el frontmatter de cada harness.
+//
+// opencode NO está, y no es un olvido: su frontmatter de agente no expone un
+// campo de esfuerzo —lo expresa con opciones del proveedor, que son distintas
+// para cada uno— y sf no va a inventar una traducción. Ahí el esfuerzo viaja por
+// la línea de comandos cuando se lanza headless, o no viaja.
+var claveDeEsfuerzo = map[string]string{
+	"commandcode": "reasoningEffort",
 }
 
 // escribirPortamodelos genera uno por alias declarado.
@@ -209,7 +229,7 @@ func escribirPortamodelos(raiz string, g *global.Config, r *Resultado) error {
 		}
 		nombre := global.NombreDeAgente(m.Alias) + ".md"
 		ruta := filepath.Join(raiz, dir, nombre)
-		if err := os.WriteFile(ruta, []byte(Portamodelo(m)), 0o644); err != nil {
+		if err := os.WriteFile(ruta, []byte(Portamodelo(m, g.Harness)), 0o644); err != nil {
 			return fmt.Errorf("escribiendo %s: %w", nombre, err)
 		}
 		r.Escritos = append(r.Escritos, filepath.Join(dir, nombre))

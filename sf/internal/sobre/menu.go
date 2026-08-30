@@ -78,11 +78,21 @@ func menu(g *global.Config) Parte {
 			if i == 0 {
 				marca = "→"
 			}
-			cap := ""
+			// La capacidad y el esfuerzo van juntos porque son la misma
+			// pregunta vista de dos lados: cuánto puede pensar este alias, y
+			// cuánto se le pidió que piense. Un alias no es un modelo — es una
+			// forma de correr un modelo.
+			como := ""
 			if m.Capacidad > 0 {
-				cap = fmt.Sprintf("capacidad %d", m.Capacidad)
+				como = fmt.Sprintf("capacidad %d", m.Capacidad)
 			}
-			fmt.Fprintf(&b, "   %s %-12s %-13s %s\n", marca, m.Alias, cap, m.Para)
+			if m.Esfuerzo != "" {
+				if como != "" {
+					como += " · "
+				}
+				como += "esfuerzo " + m.Esfuerzo
+			}
+			fmt.Fprintf(&b, "   %s %-12s %-24s %s\n", marca, m.Alias, como, m.Para)
 		}
 		b.WriteString("\n")
 	}

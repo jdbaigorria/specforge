@@ -306,12 +306,12 @@ func parada(cmd string, args []string) int {
 	case "take":
 		ef = maquina.Tomar(e, r, arg(0))
 	case "model":
-		nombre, alias, id, via, comando, err := flagsDeModelo(args)
+		fm, err := flagsDeModelo(args)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "sf model:", err)
 			return salidaError
 		}
-		ef = maquina.Modelo(e, g, nombre, alias, id, via, comando)
+		ef = maquina.Modelo(e, g, maquina.Declaracion(fm))
 	case "dismiss":
 		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
 	case "lote start":
@@ -386,11 +386,14 @@ func parada(cmd string, args []string) int {
 // este parser no sabe de perfiles ni de alias, sólo parte la línea. Meterle la
 // lógica acá la pondría fuera del alcance de los tests de la máquina, que es
 // donde tiene que estar.
-func flagsDeModelo(args []string) (nombre, alias, id, via, comando string, err error) {
-	fallo := func(f string, a ...any) (string, string, string, string, string, error) {
-		return "", "", "", "", "", fmt.Errorf(f, a...)
+func flagsDeModelo(args []string) (f flagsModelo, err error) {
+	fallo := func(s string, a ...any) (flagsModelo, error) {
+		return flagsModelo{}, fmt.Errorf(s, a...)
 	}
-	destinos := map[string]*string{"--alias": &alias, "--id": &id, "--via": &via, "--comando": &comando}
+	destinos := map[string]*string{
+		"--alias": &f.Alias, "--id": &f.ID, "--via": &f.Via,
+		"--comando": &f.Comando, "--esfuerzo": &f.Esfuerzo,
+	}
 
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -410,14 +413,23 @@ func flagsDeModelo(args []string) (nombre, alias, id, via, comando string, err e
 			}
 		}
 		if strings.HasPrefix(a, "-") {
-			return fallo("no conozco %q. Son --alias, --id, --via y --comando", a)
+			return fallo("no conozco %q. Son --alias, --id, --via, --comando y --esfuerzo", a)
 		}
-		if nombre != "" {
-			return fallo("dos nombres: %q y %q", nombre, a)
+		if f.Nombre != "" {
+			return fallo("dos nombres: %q y %q", f.Nombre, a)
 		}
-		nombre = a
+		f.Nombre = a
 	}
-	return nombre, alias, id, via, comando, nil
+	return f, nil
+}
+
+// flagsModelo son los cinco de `sf model`, juntos.
+//
+// Se agrupan en un struct y no en cinco retornos porque cinco strings en fila
+// son cinco oportunidades de invertir dos al llamar, y el compilador no ayuda:
+// son todos del mismo tipo.
+type flagsModelo struct {
+	Nombre, Alias, ID, Via, Comando, Esfuerzo string
 }
 
 // instalar es `sf install`: el andamio.
@@ -728,6 +740,9 @@ func mostrar(i maquina.Instruccion) string {
 		// y no se podían distinguir al leer el log.
 		campo("perfil", i.Perfil)
 		campo("modelo", i.Modelo)
+		// El esfuerzo sólo aparece si el alias lo declara: vacío significa "el
+		// que traiga el modelo", que no es lo mismo que "bajo".
+		campo("esfuerzo", i.Esfuerzo)
 		// El agente sólo aparece donde hace falta: en Claude Code el modelo va
 		// como parámetro de la llamada y este renglón sería ruido.
 		campo("agente", i.Agente)

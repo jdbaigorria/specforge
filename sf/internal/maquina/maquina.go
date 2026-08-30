@@ -113,7 +113,14 @@ type Instruccion struct {
 	Skill  string
 	Perfil string
 	Modelo string
-	Via    string
+
+	// Esfuerzo es cuánto tiene que pensar, si el alias lo declara.
+	//
+	// Vacío es "el que traiga el modelo por default", que NO es lo mismo que
+	// "bajo": sf no elige un esfuerzo igual que no elige un modelo.
+	Esfuerzo string
+
+	Via string
 
 	// Agente es A QUIÉN invocar para conseguir ese modelo, y viene vacío en
 	// Claude Code.
@@ -515,6 +522,7 @@ func tomarLaProxima(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global
 		Skill:    skills[estado.Planificacion],
 		Perfil:   base,
 		Modelo:   m.ID,
+		Esfuerzo: m.Esfuerzo,
 		Via:      m.Via,
 		Comando:  m.Comando,
 		Agente:   agenteDe(m, g),
@@ -677,6 +685,7 @@ func trabajar(est, feature, mensaje string, g *global.Config) Instruccion {
 		Skill:    skills[est],
 		Perfil:   base,
 		Modelo:   m.ID,
+		Esfuerzo: m.Esfuerzo,
 		Via:      m.Via,
 		Comando:  m.Comando,
 		Agente:   agenteDe(m, g),
@@ -719,6 +728,7 @@ func trabajarEnFeature(raiz, est string, fr roadmap.Feature, f *estado.Feature,
 		Skill:    skills[est],
 		Perfil:   base,
 		Modelo:   m.ID,
+		Esfuerzo: m.Esfuerzo,
 		Via:      m.Via,
 		Comando:  m.Comando,
 		Agente:   agenteDe(m, g),

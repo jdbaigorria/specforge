@@ -549,7 +549,16 @@ func capacidadDe(string) int { return 0 }
 // crearía un estado intermedio —declarado pero nunca usado— que no le sirve a
 // nadie. Es el mismo mecanismo que `dependencias_aprobadas`: la lista no se
 // escribe de antemano, se construye con cada aprobación.
-func Modelo(e *estado.Estado, g *global.Config, nombre, alias, id, via, comando string) Efecto {
+// Declaracion son los datos de `sf model`, tal como los tipeó Javier.
+//
+// Es un struct y no seis parámetros porque son todos strings: en fila, invertir
+// dos es un error que el compilador no puede ver.
+type Declaracion struct {
+	Nombre, Alias, ID, Via, Comando, Esfuerzo string
+}
+
+func Modelo(e *estado.Estado, g *global.Config, d Declaracion) Efecto {
+	nombre, alias, id, via, comando := d.Nombre, d.Alias, d.ID, d.Via, d.Comando
 	var ef Efecto
 	if nombre == "" {
 		ef.falla("falta qué: `sf model <perfil|alias>`")
@@ -596,7 +605,8 @@ func Modelo(e *estado.Estado, g *global.Config, nombre, alias, id, via, comando 
 			via = global.Subagente
 		}
 		nuevo, err := g.Declarar(nombre, global.Modelo{
-			Alias: alias, ID: id, Via: via, Comando: comando, Capacidad: capacidadDe(nombre), Para: "",
+			Alias: alias, ID: id, Via: via, Comando: comando,
+			Esfuerzo: d.Esfuerzo, Capacidad: capacidadDe(nombre), Para: "",
 		})
 		if err != nil {
 			ef.falla("%s", err)
@@ -627,7 +637,7 @@ func Modelo(e *estado.Estado, g *global.Config, nombre, alias, id, via, comando 
 		if id == "" {
 			id = nombre
 		}
-		g.DeclararSuelto(nombre, global.Modelo{ID: id, Via: via, Comando: comando})
+		g.DeclararSuelto(nombre, global.Modelo{ID: id, Via: via, Comando: comando, Esfuerzo: d.Esfuerzo})
 		ef.Global = true
 		ef.Mensaje += fmt.Sprintf("%q declarado como suelto", nombre)
 		return ef

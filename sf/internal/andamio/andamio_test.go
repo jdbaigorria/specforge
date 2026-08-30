@@ -161,7 +161,7 @@ func TestLosPortamodeloSoloSeGeneranDondeHacenFalta(t *testing.T) {
 // lleva método adentro. El día que alguien le meta "acordate de correr sf
 // context", pasa a ser una fuente que hay que mantener sincronizada.
 func TestElPortamodeloNoLlevaMetodoAdentro(t *testing.T) {
-	texto := Portamodelo(global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente})
+	texto := Portamodelo(global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente}, "opencode")
 	for _, prohibido := range []string{"sf context", "sf done", "sf next", "sf-build", "lote"} {
 		if strings.Contains(texto, prohibido) {
 			t.Errorf("el portamodelo menciona %q: dejó de ser sólo un modelo", prohibido)
@@ -381,5 +381,27 @@ func TestDesinstalarNoTocaElMapaGlobal(t *testing.T) {
 
 	if _, err := global.Leer(); err != nil {
 		t.Errorf("desinstalar se llevó ~/.specforge/: %v", err)
+	}
+}
+
+// El esfuerzo es parte de "cómo se corre este alias", así que viaja en el
+// portamodelo — con el nombre que usa cada harness, y sólo si está declarado.
+func TestElPortamodeloLlevaElEsfuerzoConElNombreDeCadaHarness(t *testing.T) {
+	m := global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente, Esfuerzo: "high"}
+
+	if txt := Portamodelo(m, "commandcode"); !strings.Contains(txt, "reasoningEffort: high") {
+		t.Errorf("commandcode no llevó el esfuerzo:\n%s", txt)
+	}
+	// opencode no expone un campo de esfuerzo en el frontmatter del agente: lo
+	// expresa con opciones del proveedor, distintas para cada uno. sf no inventa
+	// una traducción — ahí el esfuerzo viaja por la línea de comandos, o no viaja.
+	if txt := Portamodelo(m, "opencode"); strings.Contains(txt, "high") {
+		t.Errorf("opencode inventó un campo de esfuerzo:\n%s", txt)
+	}
+	// Y sin esfuerzo declarado no se emite nada: vacío significa "el que traiga
+	// el modelo", que NO es lo mismo que un valor bajo.
+	sin := global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente}
+	if txt := Portamodelo(sin, "commandcode"); strings.Contains(txt, "reasoningEffort") {
+		t.Errorf("emitió un esfuerzo que nadie declaró:\n%s", txt)
 	}
 }

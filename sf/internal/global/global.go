@@ -12,6 +12,16 @@
 //	alias     vocabulario de Javier    acá Y en tareas.json    laguna
 //	id        vocabulario del harness  SÓLO acá                laguna/s2.1
 //
+// UN ALIAS NO ES UN MODELO: ES UNA FORMA DE CORRER UN MODELO. O sea el par
+// (id, esfuerzo), y a veces más. Por eso `laguna` y `laguna-pensando` pueden ser
+// dos aliases sobre el mismo id, y por eso sigue habiendo UN archivo de agente
+// por alias en vez de alias × esfuerzo.
+//
+// Y el esfuerzo vive en el alias y no en el perfil aunque conceptualmente sea el
+// paso el que lo pide, porque el alias se declara ADENTRO de un perfil: el mismo
+// id puede aparecer en `construir` con esfuerzo bajo y en `razonar` con esfuerzo
+// alto, y son dos aliases distintos porque son dos formas distintas de correrlo.
+//
 // El alias es la capa que hace que todo cierre. El ⑯ escribe un ALIAS y nunca un
 // id: un id en tareas.json sería un dato de la máquina de Javier metido en un
 // archivo versionado que otro harness va a leer. El alias no — está definido en
@@ -125,6 +135,17 @@ type Modelo struct {
 	// el prompt atrás, y un `{prompt}` sería un formato más que documentar para no
 	// ganar nada.
 	Comando string `yaml:"comando,omitempty"`
+
+	// Esfuerzo es cuánto tiene que pensar, y lo entiende el harness, no sf.
+	//
+	// Los tres lo exponen: Command Code con `--effort` y con `reasoningEffort:`
+	// en el frontmatter del agente, los otros con sus propios nombres. sf lo
+	// TRANSPORTA — no valida los valores, porque cuáles son válidos depende del
+	// modelo y del proveedor, y una lista blanca acá sería una tabla que se
+	// pudre igual que la de los ids.
+	//
+	// Vacío es lo normal: significa "el que traiga el modelo por default".
+	Esfuerzo string `yaml:"esfuerzo,omitempty"`
 
 	// Capacidad y Para son PARA LOS OJOS DEL ⑯, no campos de cómputo.
 	//

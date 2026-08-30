@@ -235,7 +235,7 @@ func TestModelResetaElContador(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ef := Modelo(p.e, g, "el-nuevo", "", "", "", "")
+	ef := Modelo(p.e, g, Declaracion{Nombre: "el-nuevo"})
 	if !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
@@ -257,7 +257,7 @@ func TestDeclararUnPerfilNoNecesitaFeature(t *testing.T) {
 	e := &estado.Estado{Features: map[string]*estado.Feature{}}
 	g := global.Semilla("opencode")
 
-	ef := Modelo(e, g, global.Razonar, "grande", "prov/grande", global.Subagente, "")
+	ef := Modelo(e, g, Declaracion{Nombre: global.Razonar, Alias: "grande", ID: "prov/grande", Via: global.Subagente})
 	if !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
@@ -282,8 +282,8 @@ func TestRedeclararNoPideReiniciar(t *testing.T) {
 	e := &estado.Estado{Features: map[string]*estado.Feature{}}
 	g := global.Semilla("opencode")
 
-	Modelo(e, g, global.Razonar, "grande", "v1", global.Subagente, "")
-	ef := Modelo(e, g, global.Razonar, "grande", "v2", global.Subagente, "")
+	Modelo(e, g, Declaracion{Nombre: global.Razonar, Alias: "grande", ID: "v1", Via: global.Subagente})
+	ef := Modelo(e, g, Declaracion{Nombre: global.Razonar, Alias: "grande", ID: "v2", Via: global.Subagente})
 	if ef.Portamodelo {
 		t.Error("redeclarar no agrega ningún portamodelo")
 	}
@@ -296,7 +296,9 @@ func TestRedeclararNoPideReiniciar(t *testing.T) {
 // tareas.json, y sin él no hay forma de nombrar el modelo desde el plan.
 func TestDeclararSinAliasSeRechaza(t *testing.T) {
 	e := &estado.Estado{Features: map[string]*estado.Feature{}}
-	ef := Modelo(e, global.Semilla("opencode"), global.Razonar, "", "prov/x", global.Subagente, "")
+	ef := Modelo(e, global.Semilla("opencode"), Declaracion{
+		Nombre: global.Razonar, ID: "prov/x", Via: global.Subagente,
+	})
 	if ef.Pasa() {
 		t.Fatal("dejó declarar un modelo sin alias")
 	}
