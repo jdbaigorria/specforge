@@ -46,6 +46,7 @@ import (
 	"testing"
 
 	"github.com/jdbaigorria/specforge/sf/internal/comandos"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 )
 
 // Los cuatro exit codes son la interfaz. Se repiten acá con su nombre para que
@@ -62,10 +63,11 @@ const (
 // ────────────────────────────────────────────────────────────────────────────
 
 type proyecto struct {
-	t    *testing.T
-	raiz string
-	bin  string
-	home string // SPECFORGE_HOME, para no tocar el home de verdad
+	t       *testing.T
+	raiz    string
+	bin     string
+	home    string // SPECFORGE_HOME, para no tocar el home de verdad
+	harness string // en cuál está parado: lo lee sf por SPECFORGE_HARNESS
 }
 
 // nuevoProyecto compila el binario y arma un repo de juguete con un commit.
@@ -99,6 +101,10 @@ func nuevoProyecto(t *testing.T) *proyecto {
 	p.git("add", "-A")
 	p.git("commit", "-m", "init")
 
+	// Todos los guiones arrancan parados en claude-code salvo que digan otra
+	// cosa. Fijarlo importa: sin esto heredarían el arnés de quien corre la
+	// suite, y el guion probaría algo distinto en la máquina de cada uno.
+	p.harness = "claude-code"
 	return p
 }
 
@@ -153,6 +159,15 @@ func (p *proyecto) escribir(rel, texto string) {
 //
 // stdout y stderr van juntos a propósito: el que lee esto es un agente que ve
 // una sola corriente, y separar acá probaría algo que nadie ve.
+// enArnes cambia en cuál está parado el proyecto de prueba.
+//
+// Es lo que hace posible probar SECCIONAR: el mismo repo, comandos corridos
+// desde arneses distintos, y `sf` resolviendo los modelos del que está parado.
+func (p *proyecto) enArnes(harness string) *proyecto {
+	p.harness = harness
+	return p
+}
+
 func (p *proyecto) sf(args ...string) (int, string) {
 	p.t.Helper()
 
@@ -160,7 +175,16 @@ func (p *proyecto) sf(args ...string) (int, string) {
 	cmd.Dir = p.raiz
 	// SPECFORGE_HOME existe justamente para esto: `sf install` escribe el mapa
 	// de modelos, y un test que toca ~/.specforge/ del que lo corre está mal.
-	cmd.Env = append(os.Environ(), "SPECFORGE_HOME="+p.home)
+	env := append(os.Environ(), "SPECFORGE_HOME="+p.home)
+	// Las de detección se limpian SIEMPRE: la suite corre adentro de un arnés y
+	// sin esto el binario bajo prueba heredaría el de quien la lanzó.
+	for _, v := range global.VarsDeHarness {
+		env = append(env, v+"=")
+	}
+	if p.harness != "" {
+		env = append(env, global.VarHarness+"="+p.harness)
+	}
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -818,3 +842,66 @@ func TestNingunComandoDelSwitchFaltaEnElInventario(t *testing.T) {
 
 // reAyuda caza los comandos de la ayuda: dos espacios, `sf`, el nombre.
 var reAyuda = regexp.MustCompile(`^\s+sf (lote start|[a-z]+)`)
+
+// ────────────────────────────────────────────────────────────────────────────
+// SECCIONAR — un arnés planifica, otro implementa, sobre el mismo repo
+// ────────────────────────────────────────────────────────────────────────────
+
+// EL GUION QUE PRUEBA LA IDEA ENTERA.
+//
+// Javier planifica en Claude Code con el modelo de su suscripción, cierra, y
+// abre Command Code —donde tiene otro modelo, gratis por unos días— en el mismo
+// repo. `sf next` le contesta lo mismo, porque el estado está en disco, PERO
+// con los modelos del arnés donde está parado.
+//
+// Esto no funcionaba mientras el puntero de harness era un campo escrito: al
+// abrir el segundo arnés, sf resolvía los ids del primero — que ahí no existen.
+func TestSeccionar_UnArnesPlanificaYOtroImplementa(t *testing.T) {
+	p := nuevoProyecto(t)
+
+	// ── En Claude Code: el producto entero, y una feature f-2 sin empezar ───
+	p.enArnes("claude-code")
+	p.productoListo() // declara sus perfiles con ids `prov/<perfil>`
+	p.escribir(".docs/roadmap.json", `{"features":[
+		{"id":"f-1","slug":"suma","nombre":"la suma","orden":1,"historias":["us-1"]},
+		{"id":"f-2","slug":"otra","nombre":"otra","orden":2,"historias":["us-1"]}]}`)
+	p.enEstado("f-2", "planificacion", "")
+
+	out := p.paso("planificar corre con el modelo de claude-code", hayTrabajo, "next")
+	p.dice(out, "prov/razonar", "el id sale del bloque de claude-code")
+	p.noDice(out, "agente:", "en claude-code el modelo va en la llamada, no en un archivo")
+
+	// ── Se muda a Command Code. MISMO REPO, sin tocar un solo archivo ───────
+	p.enArnes("commandcode")
+
+	out = p.paso("el otro arnés no hereda los modelos del primero", esParada, "next")
+	p.dice(out, "PARÁ", "sin modelos declarados acá, sf tiene que frenar")
+	p.dice(out, "commandcode", "y decir en qué arnés falta")
+	p.noDice(out, "prov/razonar", "NO puede ofrecer un id que en este arnés no existe")
+	p.dice(out, "reiniciá", "y avisar que los agentes se leen al arrancar")
+
+	p.paso("el modelo gratis del otro arnés", hayTrabajo,
+		"model", "razonar", "--alias", "el-gratis", "--id", "prov/gratis",
+		"--via", "subagente", "--esfuerzo", "high")
+
+	out = p.paso("y ahora resuelve con el suyo", hayTrabajo, "next")
+	p.dice(out, "prov/gratis", "el id sale del bloque de commandcode")
+	p.dice(out, "high", "y el esfuerzo con el que se declaró")
+	p.dice(out, "sf-el-gratis", "acá SÍ hace falta portamodelo: el modelo va en el archivo")
+
+	// Y el portamodelo quedó escrito de verdad, con su esfuerzo.
+	b, err := os.ReadFile(filepath.Join(p.raiz, ".commandcode", "agents", "sf-el-gratis.md"))
+	if err != nil {
+		t.Fatalf("no escribió el portamodelo: %v", err)
+	}
+	if !strings.Contains(string(b), "model: prov/gratis") ||
+		!strings.Contains(string(b), "reasoningEffort: high") {
+		t.Errorf("el portamodelo no lleva modelo y esfuerzo:\n%s", b)
+	}
+
+	// ── Y volver al primero no perdió nada ──────────────────────────────────
+	p.enArnes("claude-code")
+	out = p.paso("volver a claude-code encuentra su bloque intacto", hayTrabajo, "next")
+	p.dice(out, "prov/razonar", "el bloque del primero sobrevivió a la mudanza")
+	p.noDice(out, "el-gratis", "y no se cruzó con el del otro")
+}

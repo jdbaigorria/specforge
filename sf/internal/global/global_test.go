@@ -17,6 +17,30 @@ func enUnHomeFalso(t *testing.T) string {
 	return dir
 }
 
+// varsDeHarness son todas las que mira DetectarHarness.
+var varsDeHarness = []string{
+	"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT",
+	"OPENCODE", "OPENCODE_BIN_PATH",
+	"COMMANDCODE", "COMMAND_CODE_ENTRYPOINT",
+	VarHarness,
+}
+
+// parandoEn dice en qué harness está corriendo el test.
+//
+// Hace falta desde que el puntero se DETECTA: esta suite corre adentro de algún
+// arnés —hoy Claude Code, mañana otro—, así que sin limpiar las variables cada
+// test heredaría el arnés de quien lo lanzó y probaría cualquier cosa. Que haga
+// falta es, de hecho, la prueba de que el mecanismo funciona.
+func parandoEn(t *testing.T, harness string) {
+	t.Helper()
+	for _, v := range varsDeHarness {
+		t.Setenv(v, "")
+	}
+	if harness != "" {
+		t.Setenv(VarHarness, harness)
+	}
+}
+
 func TestSinInstalarNoHayCatalogo(t *testing.T) {
 	enUnHomeFalso(t)
 	if _, err := Leer(); !errors.Is(err, ErrNoHay) {
@@ -77,21 +101,93 @@ func TestDeclararYResolverPorPerfilYPorAlias(t *testing.T) {
 // El mismo alias en dos harness da ids distintos. Es la prueba de que el plan
 // sobrevive al cambio de harness, que es todo el punto del alias.
 func TestElMismoAliasDaIdsDistintosSegunElHarness(t *testing.T) {
+	parandoEn(t, "opencode")
 	c := Semilla("opencode")
-	if _, err := c.Declarar(Razonar, Modelo{Alias: "opus", ID: "anthropic/claude-opus", Via: Subagente}); err != nil {
-		t.Fatal(err)
-	}
-	c.Harness = "claude-code"
-	if _, err := c.Declarar(Razonar, Modelo{Alias: "opus", ID: "opus", Via: Subagente}); err != nil {
+	if _, err := c.Declarar(Razonar, Modelo{Alias: "grande", ID: "prov/grande-4", Via: Subagente}); err != nil {
 		t.Fatal(err)
 	}
 
-	if m, _ := c.Resolver("opus"); m.ID != "opus" {
-		t.Errorf("en claude-code opus = %q", m.ID)
+	// Me mudo de arnés SIN tocar el archivo: sólo cambia dónde estoy parado.
+	parandoEn(t, "claude-code")
+	if _, err := c.Declarar(Razonar, Modelo{Alias: "grande", ID: "el-alias-nativo", Via: Subagente}); err != nil {
+		t.Fatal(err)
 	}
-	c.Harness = "opencode"
-	if m, _ := c.Resolver("opus"); m.ID != "anthropic/claude-opus" {
-		t.Errorf("en opencode opus = %q", m.ID)
+	if m, _ := c.Resolver("grande"); m.ID != "el-alias-nativo" {
+		t.Errorf("en claude-code grande = %q", m.ID)
+	}
+
+	parandoEn(t, "opencode")
+	if m, _ := c.Resolver("grande"); m.ID != "prov/grande-4" {
+		t.Errorf("en opencode grande = %q", m.ID)
+	}
+}
+
+// EL TEST DE SECCIONAR. Javier planifica en un arnés, cierra, abre otro en el
+// mismo repo. El estado está en disco así que eso ya funcionaba; lo que faltaba
+// era que sf resolviera los modelos DEL ARNÉS DONDE ESTÁ PARADO.
+func TestAbrirOtroArnesEnElMismoRepoCambiaLosModelos(t *testing.T) {
+	enUnHomeFalso(t)
+
+	parandoEn(t, "claude-code")
+	c := Semilla("claude-code")
+	if _, err := c.Declarar(Construir, Modelo{Alias: "el-de-siempre", ID: "nativo", Via: Subagente}); err != nil {
+		t.Fatal(err)
+	}
+	parandoEn(t, "commandcode")
+	if _, err := c.Declarar(Construir, Modelo{Alias: "gratis", ID: "prov/gratis", Via: Subagente}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Guardar(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Mismo archivo, leído desde cada arnés.
+	parandoEn(t, "claude-code")
+	v, _ := Leer()
+	if m, hay := v.Default(Construir); !hay || m.ID != "nativo" {
+		t.Errorf("en claude-code el default es %+v", m)
+	}
+	parandoEn(t, "commandcode")
+	w, _ := Leer()
+	if m, hay := w.Default(Construir); !hay || m.ID != "prov/gratis" {
+		t.Errorf("en commandcode el default es %+v", m)
+	}
+}
+
+// Y si el arnés donde estás parado NO tiene bloque, la respuesta correcta es
+// "no hay nada declarado acá" — no los ids del otro, que en éste no existen.
+func TestUnArnesSinBloqueNoHeredaLosModelosDelOtro(t *testing.T) {
+	parandoEn(t, "claude-code")
+	c := Semilla("claude-code")
+	if _, err := c.Declarar(Construir, Modelo{Alias: "x", ID: "nativo", Via: Subagente}); err != nil {
+		t.Fatal(err)
+	}
+
+	parandoEn(t, "opencode")
+	if m, hay := c.Default(Construir); hay {
+		t.Errorf("opencode heredó %+v, y ese id no existe ahí", m)
+	}
+}
+
+// El orden de la certeza: la variable explícita le gana a la detección, y la
+// detección le gana a lo que quedó escrito.
+func TestElOrdenDeLaCerteza(t *testing.T) {
+	c := &Config{Harness: "el-escrito"}
+
+	parandoEn(t, "")
+	if h := c.EnUso(); h != "el-escrito" {
+		t.Errorf("sin nada = %q, quería el escrito", h)
+	}
+
+	parandoEn(t, "")
+	t.Setenv("OPENCODE", "1")
+	if h := c.EnUso(); h != "opencode" {
+		t.Errorf("con detección = %q, quería opencode", h)
+	}
+
+	t.Setenv(VarHarness, "commandcode")
+	if h := c.EnUso(); h != "commandcode" {
+		t.Errorf("con la variable explícita = %q", h)
 	}
 }
 

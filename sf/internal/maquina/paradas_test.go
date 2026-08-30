@@ -225,6 +225,7 @@ func TestTakeAvisaSiDejasAlgoAMedias(t *testing.T) {
 // Cambiar de modelo resetea el contador: es empezar de nuevo, no seguir
 // acumulando los fracasos del modelo anterior.
 func TestModelResetaElContador(t *testing.T) {
+	parandoEn(t, "claude-code")
 	p := nuevo(t).productoListo()
 	p.e.FeatureActual = "f-1"
 	p.e.Features["f-1"] = &estado.Feature{
@@ -254,6 +255,7 @@ func TestModelResetaElContador(t *testing.T) {
 // en cualquiera de los cinco estados de producto, donde no hay ninguna.
 // Exigirla ahí dejaría la parada sin salida.
 func TestDeclararUnPerfilNoNecesitaFeature(t *testing.T) {
+	parandoEn(t, "opencode")
 	e := &estado.Estado{Features: map[string]*estado.Feature{}}
 	g := global.Semilla("opencode")
 
@@ -279,6 +281,7 @@ func TestDeclararUnPerfilNoNecesitaFeature(t *testing.T) {
 // Y redeclarar el mismo alias NO pide reiniciar: no aparece ningún archivo
 // nuevo, y avisar cuando no hace falta enseña a ignorar el aviso.
 func TestRedeclararNoPideReiniciar(t *testing.T) {
+	parandoEn(t, "opencode")
 	e := &estado.Estado{Features: map[string]*estado.Feature{}}
 	g := global.Semilla("opencode")
 
@@ -295,6 +298,7 @@ func TestRedeclararNoPideReiniciar(t *testing.T) {
 // Declarar sin --alias se rechaza: el alias es lo que va a escribir el ⑯ en
 // tareas.json, y sin él no hay forma de nombrar el modelo desde el plan.
 func TestDeclararSinAliasSeRechaza(t *testing.T) {
+	parandoEn(t, "opencode")
 	e := &estado.Estado{Features: map[string]*estado.Feature{}}
 	ef := Modelo(e, global.Semilla("opencode"), Declaracion{
 		Nombre: global.Razonar, ID: "prov/x", Via: global.Subagente,

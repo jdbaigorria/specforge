@@ -127,6 +127,7 @@ func TestLosPortamodeloSoloSeGeneranDondeHacenFalta(t *testing.T) {
 	} {
 		t.Run(c.harness, func(t *testing.T) {
 			enUnHomeDePrueba(t)
+			parandoEn(t, c.harness)
 			g := global.Semilla(c.harness)
 			if _, err := g.Declarar(global.Construir, global.Modelo{
 				Alias: "barato", ID: "prov/barato", Via: global.Subagente,
@@ -176,6 +177,7 @@ func TestElPortamodeloNoLlevaMetodoAdentro(t *testing.T) {
 // lo lanza, así que un portamodelo suyo sería un archivo que nadie invoca.
 func TestUnModeloDeConsolaNoLlevaPortamodelo(t *testing.T) {
 	enUnHomeDePrueba(t)
+	parandoEn(t, "opencode")
 	g := global.Semilla("opencode")
 	if _, err := g.Declarar(global.Razonar, global.Modelo{
 		Alias: "ajeno", ID: "ajeno-1", Via: global.Consola, Comando: "ajeno exec",
@@ -403,5 +405,20 @@ func TestElPortamodeloLlevaElEsfuerzoConElNombreDeCadaHarness(t *testing.T) {
 	sin := global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente}
 	if txt := Portamodelo(sin, "commandcode"); strings.Contains(txt, "reasoningEffort") {
 		t.Errorf("emitió un esfuerzo que nadie declaró:\n%s", txt)
+	}
+}
+
+// parandoEn dice en qué harness está corriendo el test.
+//
+// Hace falta desde que el puntero de harness se DETECTA: esta suite corre
+// adentro de algún arnés, así que sin limpiar las variables cada test heredaría
+// el de quien lo lanzó. Que haga falta es la prueba de que el mecanismo anda.
+func parandoEn(t *testing.T, harness string) {
+	t.Helper()
+	for _, v := range global.VarsDeHarness {
+		t.Setenv(v, "")
+	}
+	if harness != "" {
+		t.Setenv(global.VarHarness, harness)
 	}
 }

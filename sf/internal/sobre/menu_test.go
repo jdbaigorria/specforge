@@ -130,3 +130,18 @@ func TestConCatalogoVacioElMenuAvisa(t *testing.T) {
 		t.Errorf("no avisó que el catálogo está vacío:\n%s", txt)
 	}
 }
+
+// parandoEn dice en qué harness está corriendo el test.
+//
+// Hace falta desde que el puntero de harness se DETECTA: esta suite corre
+// adentro de algún arnés, así que sin limpiar las variables cada test heredaría
+// el de quien lo lanzó. Que haga falta es la prueba de que el mecanismo anda.
+func parandoEn(t *testing.T, harness string) {
+	t.Helper()
+	for _, v := range global.VarsDeHarness {
+		t.Setenv(v, "")
+	}
+	if harness != "" {
+		t.Setenv(global.VarHarness, harness)
+	}
+}

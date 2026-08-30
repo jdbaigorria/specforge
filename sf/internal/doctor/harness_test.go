@@ -16,6 +16,7 @@ import (
 // corren los demás.
 func conCatalogo(t *testing.T, c *global.Config) string {
 	t.Helper()
+	parandoEn(t, c.Harness)
 	raiz := t.TempDir()
 	if err := c.GuardarEn(global.RutaDeProyecto(raiz)); err != nil {
 		t.Fatal(err)
@@ -58,6 +59,7 @@ func TestElHarnessSaleDelCatalogoYNoDeLaDeteccion(t *testing.T) {
 // es más barato que enterarse cuando el orquestador ya arrancó el bucle.
 func TestUnPerfilSinDeclararEsFalla(t *testing.T) {
 	t.Setenv("SPECFORGE_HOME", t.TempDir())
+	parandoEn(t, "opencode")
 	raiz := conCatalogo(t, global.Semilla("opencode"))
 
 	i := Revisar(raiz, "v0")
@@ -80,6 +82,7 @@ func TestUnPerfilSinDeclararEsFalla(t *testing.T) {
 // agente que el harness no conoce — y eso falla cuando el orquestador ya lanzó.
 func TestUnAliasSinPortamodeloEsFalla(t *testing.T) {
 	t.Setenv("SPECFORGE_HOME", t.TempDir())
+	parandoEn(t, "opencode")
 	c := global.Semilla("opencode")
 	for _, p := range []string{global.Razonar, global.Construir} {
 		if _, err := c.Declarar(p, global.Modelo{
@@ -114,6 +117,7 @@ func TestUnAliasSinPortamodeloEsFalla(t *testing.T) {
 // de la llamada.
 func TestEnClaudeCodeNoSeExigePortamodelo(t *testing.T) {
 	t.Setenv("SPECFORGE_HOME", t.TempDir())
+	parandoEn(t, "claude-code")
 	c := global.Semilla("claude-code")
 	for _, p := range []string{global.Razonar, global.Construir} {
 		if _, err := c.Declarar(p, global.Modelo{Alias: "a-" + p, ID: p, Via: global.Subagente}); err != nil {
@@ -136,5 +140,20 @@ func TestElDoctorMiraLasRaicesDeLosTresHarness(t *testing.T) {
 		if !strings.Contains(patrones, r) {
 			t.Errorf("no mira %s: %s", r, patrones)
 		}
+	}
+}
+
+// parandoEn dice en qué harness está corriendo el test.
+//
+// Hace falta desde que el puntero de harness se DETECTA: esta suite corre
+// adentro de algún arnés, así que sin limpiar las variables cada test heredaría
+// el de quien lo lanzó. Que haga falta es la prueba de que el mecanismo anda.
+func parandoEn(t *testing.T, harness string) {
+	t.Helper()
+	for _, v := range global.VarsDeHarness {
+		t.Setenv(v, "")
+	}
+	if harness != "" {
+		t.Setenv(global.VarHarness, harness)
 	}
 }

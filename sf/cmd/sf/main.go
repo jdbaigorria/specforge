@@ -141,7 +141,7 @@ func next() int {
 	// El mapa de modelos puede no existir —nadie corrió `sf install`— y eso NO
 	// impide trabajar: `via()` cae a subagente. Lo único que no se puede
 	// resolver sin él es `consola`.
-	g, _ := global.Leer()
+	g, _ := global.LeerPara(raiz)
 
 	i := maquina.Siguiente(raiz, e, r, g)
 	fmt.Print(mostrar(i))
@@ -292,10 +292,13 @@ func parada(cmd string, args []string) int {
 		return ""
 	}
 
-	// El mapa global sólo lo toca `sf model`, y sólo cuando trae `--via`. Se lee
-	// igual para todos porque leerlo es barato y el error de "no está" ya está
-	// contemplado: g queda nil y Modelo() lo maneja.
-	g, _ := global.Leer()
+	// El catálogo sólo lo toca `sf model`. Se lee igual para todos porque leerlo
+	// es barato y el error de "no está" ya está contemplado: g queda nil y
+	// Modelo() lo maneja.
+	//
+	// LeerPara y no Leer: tiene que escribir en el MISMO archivo que después va
+	// a leer `sf next`, y el del proyecto le gana al global.
+	g, _ := global.LeerPara(raiz)
 
 	var ef maquina.Efecto
 	switch cmd {
@@ -637,7 +640,7 @@ func iniciar() int {
 	// hace fallar el ⑲ de todos los lotes, siempre.
 	if r.Stack.Reconocido() {
 		if g, err := global.LeerPara(raiz); err == nil {
-			if ruta, toco, err := andamio.PermitirComando(raiz, g.Harness, r.Stack.TestCmd); err == nil && toco {
+			if ruta, toco, err := andamio.PermitirComando(raiz, g.EnUso(), r.Stack.TestCmd); err == nil && toco {
 				fmt.Printf("+ %s (permití `%s`)\n", ruta, strings.Fields(r.Stack.TestCmd)[0])
 			}
 		}
@@ -754,15 +757,23 @@ func mostrar(i maquina.Instruccion) string {
 
 		// Los avisos van ANTES del mensaje: son lo que puede cambiar cómo se
 		// hace el trabajo, y el mensaje es sólo qué toca hacer.
-		for _, a := range i.Avisos {
-			fmt.Fprintf(&b, "\n⚠ %s\n", a)
-		}
+		avisar(&b, i.Avisos)
 
 		if i.Mensaje != "" {
 			fmt.Fprintf(&b, "\n%s\n", i.Mensaje)
 		}
-	} else if i.Mensaje != "" {
-		fmt.Fprintf(&b, "%s\n", i.Mensaje)
+	} else {
+		if i.Mensaje != "" {
+			fmt.Fprintf(&b, "%s\n", i.Mensaje)
+		}
+		// Una PARADA también avisa, y antes esto se tragaba: los avisos sólo se
+		// imprimían en la rama de `Trabajar`.
+		//
+		// El caso que lo destapó es el más caro de todos: la 🛑 de un perfil sin
+		// declarar trae "reiniciá tu harness, los agentes se leen al arrancar".
+		// Sin ese renglón, Javier declara los modelos, no reinicia, y el siguiente
+		// intento falla por un motivo que sf ya sabía y no dijo.
+		avisar(&b, i.Avisos)
 	}
 
 	if len(i.Sugerido) > 0 {
@@ -772,6 +783,17 @@ func mostrar(i maquina.Instruccion) string {
 		}
 	}
 	return b.String()
+}
+
+// avisar imprime los ⚠ de una instrucción, si los hay.
+//
+// Existe para que las dos ramas —trabajo y parada— no puedan divergir otra vez:
+// tenerlo escrito dos veces fue exactamente cómo una de las dos se quedó sin
+// avisos y nadie lo notó.
+func avisar(b *strings.Builder, avisos []string) {
+	for _, a := range avisos {
+		fmt.Fprintf(b, "\n⚠ %s\n", a)
+	}
 }
 
 func uso() {

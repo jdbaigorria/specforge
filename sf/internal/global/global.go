@@ -165,11 +165,29 @@ type Catalogo map[string][]Modelo
 
 // Config es el archivo entero.
 type Config struct {
-	// Harness es cuál está activo. Lo mueve `sf install --harness=…`.
+	// Harness es el ÚLTIMO que instaló `sf install --harness=…`, y es un
+	// FALLBACK, no la respuesta.
 	//
-	// No se detecta en cada corrida a propósito: la detección es una PISTA (una
-	// variable de entorno que puede estar o no), y una pista que se re-evalúa
-	// daría respuestas distintas según desde dónde se invoque.
+	// ────────────────────────────────────────────────────────────────────
+	// ACÁ HAY DOS PREGUNTAS Y ANTES ERAN UNA SOLA
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// La primera versión de este campo decía: "no se detecta en cada corrida a
+	// propósito; la detección es una PISTA, y una pista que se re-evalúa daría
+	// respuestas distintas según desde dónde se invoque".
+	//
+	// El argumento no estaba mal — estaba mezclando dos preguntas distintas:
+	//
+	//	qué arneses tenés y qué id es cada modelo ahí   CONFIGURACIÓN → escrito
+	//	en cuál estás corriendo AHORA MISMO             HECHO DEL PROCESO → detectado
+	//
+	// Y "respuestas distintas según desde dónde se invoque" es exactamente lo
+	// que hace falta: Javier planifica en un arnés, cierra, abre otro en el
+	// mismo repo y sigue. El estado está en disco, así que eso funciona solo —
+	// pero un puntero escrito le haría resolver los modelos del arnés viejo,
+	// cuyos ids no existen donde está parado.
+	//
+	// Así que el BLOQUE se queda escrito y el PUNTERO se detecta. Ver EnUso().
 	Harness string `yaml:"harness"`
 
 	// Harnesses es harness → su catálogo.
@@ -180,6 +198,25 @@ type Config struct {
 	// Es donde vive un `sf model deepseek --via consola`: un modelo ajeno que
 	// Javier invoca a mano en el ⑳.
 	Modelos map[string]Modelo `yaml:"modelos,omitempty"`
+
+	// origen es de qué carpeta se leyó, para poder guardarlo ahí.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// UN CATÁLOGO SE GUARDA DONDE SE LEYÓ
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Sin esto, Guardar() escribía SIEMPRE en el global. Y como LeerPara
+	// prefiere el del proyecto, cualquier ciclo leer-modificar-guardar mudaba el
+	// catálogo de lugar sin decir nada: `sf model` declaraba en el global y
+	// `sf next` seguía leyendo el del proyecto, que no tenía el modelo nuevo.
+	//
+	// El síntoma era silencioso y caro: declarabas un modelo, sf contestaba que
+	// sí, y el paso siguiente te pedía el mismo modelo otra vez.
+	//
+	// No se serializa —arranca en minúscula— porque es de ESTA lectura y no del
+	// archivo: dos procesos que leen el mismo archivo desde carpetas distintas
+	// tienen orígenes distintos y los dos tienen razón.
+	origen string
 }
 
 // ErrNoHay es que todavía no se corrió `sf install`.
@@ -249,6 +286,7 @@ func leerDe(dir string) (*Config, error) {
 	if err := yaml.Unmarshal(b, &c); err != nil {
 		return nil, fmt.Errorf("%s: %w", Archivo, err)
 	}
+	c.origen = dir
 	if c.Harnesses == nil {
 		c.Harnesses = map[string]Catalogo{}
 	}
@@ -259,8 +297,14 @@ func leerDe(dir string) (*Config, error) {
 	return &c, nil
 }
 
-// Guardar escribe el catálogo global.
+// Guardar escribe el catálogo DONDE SE LEYÓ.
+//
+// Si no se leyó de ningún lado —lo armó Semilla— va al global, que es el único
+// destino con sentido para algo que todavía no vivía en ningún archivo.
 func (c *Config) Guardar() error {
+	if c.origen != "" {
+		return c.GuardarEn(c.origen)
+	}
 	dir, err := Ruta()
 	if err != nil {
 		return err
@@ -270,6 +314,7 @@ func (c *Config) Guardar() error {
 
 // GuardarEn escribe el catálogo en una carpeta concreta.
 func (c *Config) GuardarEn(dir string) error {
+	c.origen = dir
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creando %s: %w", dir, err)
 	}
@@ -294,6 +339,42 @@ func (c *Config) GuardarEn(dir string) error {
 // Resolución
 // ────────────────────────────────────────────────────────────────────────────
 
+// VarHarness deja pisar la detección desde el entorno.
+//
+// Existe para dos cosas concretas: los tests, y `sf lanzar` — cuando sf spawnea
+// un arnés headless, el hijo tiene que saber en cuál está corriendo, y su
+// variable de entorno propia puede no estar puesta en un proceso hijo.
+const VarHarness = "SPECFORGE_HARNESS"
+
+// EnUso es en qué harness está corriendo ESTE proceso.
+//
+// Es la respuesta a "¿dónde estoy?", que NO es lo mismo que "¿qué instalaste la
+// última vez?". Todo lo que resuelve modelos pasa por acá.
+//
+// El orden es el de la certeza, de más a menos:
+//
+//	SPECFORGE_HARNESS   te lo dijeron explícito
+//	la detección        estás adentro de uno y dejó su variable
+//	c.Harness           lo último que instalaste (una terminal pelada, un cron)
+//
+// LA DETECCIÓN LE GANA AL ESCRITO AUNQUE EL DETECTADO NO TENGA BLOQUE, y eso es
+// deliberado: si abrís opencode en un repo donde sólo declaraste modelos de
+// Claude Code, lo correcto es que `sf next` PARE y te pida declararlos acá — no
+// que resuelva ids que en opencode no existen y lance un subagente con un modelo
+// que no anda.
+func (c *Config) EnUso() string {
+	if h := os.Getenv(VarHarness); h != "" {
+		return h
+	}
+	if h := DetectarHarness(); h != "desconocido" {
+		return h
+	}
+	if c != nil && c.Harness != "" {
+		return c.Harness
+	}
+	return "desconocido"
+}
+
 // Activo es el catálogo del harness que está activo.
 //
 // Devuelve un catálogo vacío y no nil cuando el harness no tiene bloque: quien
@@ -303,7 +384,7 @@ func (c *Config) Activo() Catalogo {
 	if c == nil || c.Harnesses == nil {
 		return Catalogo{}
 	}
-	if cat, hay := c.Harnesses[c.Harness]; hay && cat != nil {
+	if cat, hay := c.Harnesses[c.EnUso()]; hay && cat != nil {
 		return cat
 	}
 	return Catalogo{}
@@ -369,14 +450,18 @@ func (c *Config) Declarar(perfil string, m Modelo) (nuevo bool, err error) {
 	if EsPerfil(m.Alias) {
 		return false, fmt.Errorf("el alias %q se llama igual que un perfil: elegí otro", m.Alias)
 	}
+	// Se declara en el que está EN USO, no en el que quedó escrito: si estás
+	// parado en opencode, un `sf model` tiene que quedar en el bloque de
+	// opencode aunque `sf install` haya sido para otro.
+	h := c.EnUso()
 	if c.Harnesses == nil {
 		c.Harnesses = map[string]Catalogo{}
 	}
-	if c.Harnesses[c.Harness] == nil {
-		c.Harnesses[c.Harness] = Catalogo{}
+	if c.Harnesses[h] == nil {
+		c.Harnesses[h] = Catalogo{}
 	}
 
-	cat := c.Harnesses[c.Harness]
+	cat := c.Harnesses[h]
 	for i, y := range cat[perfil] {
 		if y.Alias == m.Alias {
 			cat[perfil][i] = m // redeclarar es actualizar, no duplicar
@@ -400,11 +485,22 @@ func (c *Config) DeclararSuelto(nombre string, m Modelo) {
 //
 // Es lo que `sf install` recorre para generar los portamodelo, y lo que
 // `sf doctor` recorre para comprobar que no falte ninguno.
-func (c *Config) Alias() []Modelo {
+func (c *Config) Alias() []Modelo { return c.AliasDe(c.EnUso()) }
+
+// AliasDe son los alias de UN harness nombrado.
+//
+// Existe porque instalar y resolver son actos distintos: `sf install
+// --harness=opencode` genera los portamodelo de opencode aunque lo corras desde
+// otro lado, mientras que resolver un modelo siempre mira dónde estás parado.
+func (c *Config) AliasDe(harness string) []Modelo {
+	if c == nil {
+		return nil
+	}
+	cat := c.Harnesses[harness]
 	var todos []Modelo
 	visto := map[string]bool{}
 	for _, perfil := range PerfilesConocidos() {
-		for _, m := range c.Activo()[perfil] {
+		for _, m := range cat[perfil] {
 			if !visto[m.Alias] {
 				visto[m.Alias] = true
 				todos = append(todos, m)
@@ -462,7 +558,27 @@ var Harness = []string{"claude-code", "opencode", "commandcode"}
 // ser otro harness, o el mismo invocado de otra forma. Por eso el que llama tiene
 // que poder pisarlo (`sf install --harness=…`) y por eso el resultado se ESCRIBE
 // en vez de recalcularse en cada corrida.
+// VarsDeHarness son las variables que mira DetectarHarness.
+//
+// Se exporta para los tests de los otros paquetes, y hace falta desde que el
+// puntero se detecta: una suite que corre ADENTRO de un arnés hereda el suyo, y
+// un test que no las limpia prueba cualquier cosa. Es data y no comportamiento,
+// así que exponerla no agranda la superficie de nadie.
+var VarsDeHarness = []string{
+	"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT",
+	"OPENCODE", "OPENCODE_BIN_PATH",
+	"COMMANDCODE", "COMMAND_CODE_ENTRYPOINT",
+	VarHarness,
+}
+
 func DetectarHarness() string {
+	// La variable explícita gana también acá, y no sólo en EnUso(). Si no, un
+	// `sf install` con SPECFORGE_HARNESS puesto escribiría "desconocido" — o
+	// sea que la única forma de decirle a sf dónde estás no serviría para el
+	// comando que existe para configurarlo.
+	if h := os.Getenv(VarHarness); h != "" {
+		return h
+	}
 	switch {
 	case os.Getenv("CLAUDECODE") != "", os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "":
 		return "claude-code"

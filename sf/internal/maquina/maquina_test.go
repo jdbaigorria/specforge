@@ -119,6 +119,7 @@ func (p *proyecto) next() Instruccion {
 // se corrió sf install" — y tiene que seguir funcionando: no tener el catálogo no
 // puede impedir trabajar.
 func (p *proyecto) conCatalogo(h string, cat global.Catalogo) *proyecto {
+	parandoEn(p.t, h)
 	p.g = &global.Config{Harness: h, Harnesses: map[string]global.Catalogo{h: cat}}
 	return p
 }
@@ -956,8 +957,8 @@ func TestElAgenteSoloApareceDondeHaceFalta(t *testing.T) {
 		t.Run(harness, func(t *testing.T) {
 			p := nuevo(t).productoListo().
 				enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`).conTresPerfiles()
-			p.g.Harness = harness
 			p.g.Harnesses[harness] = p.g.Harnesses["claude-code"]
+			parandoEn(t, harness)
 
 			if i := p.next(); i.Agente != quiero {
 				t.Errorf("agente %q, quería %q", i.Agente, quiero)
@@ -988,5 +989,20 @@ func TestMeTrabeDiceConQueModeloSeTrabo(t *testing.T) {
 	}
 	if strings.Contains(i.Mensaje, "con .") {
 		t.Errorf("el nombre del modelo salió vacío: %q", i.Mensaje)
+	}
+}
+
+// parandoEn dice en qué harness está corriendo el test.
+//
+// Hace falta desde que el puntero de harness se DETECTA: esta suite corre
+// adentro de algún arnés, así que sin limpiar las variables cada test heredaría
+// el de quien lo lanzó. Que haga falta es la prueba de que el mecanismo anda.
+func parandoEn(t *testing.T, harness string) {
+	t.Helper()
+	for _, v := range global.VarsDeHarness {
+		t.Setenv(v, "")
+	}
+	if harness != "" {
+		t.Setenv(global.VarHarness, harness)
 	}
 }

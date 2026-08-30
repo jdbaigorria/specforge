@@ -156,7 +156,7 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 	if err := escribirPermisos(raiz, g.Harness, o.Forzar, r); err != nil {
 		return nil, err
 	}
-	if err := escribirPortamodelos(raiz, g, r); err != nil {
+	if err := escribirPortamodelos(raiz, g, g.Harness, r); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -168,8 +168,15 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 // aparecer en el momento, aunque la sesión viva no lo vaya a ver hasta que se
 // reinicie —que es justo lo que el aviso de `sf model` dice—.
 func Regenerar(raiz string, g *global.Config) (*Resultado, error) {
-	r := &Resultado{Harness: g.Harness, Modelos: len(g.Alias())}
-	if err := escribirPortamodelos(raiz, g, r); err != nil {
+	// Acá va el que está EN USO y no el escrito, y la distinción es la misma
+	// que separa instalar de resolver: `sf model` declara donde estás PARADO,
+	// así que el portamodelo tiene que aparecer en ese mismo arnés. Con el
+	// escrito, declarar en Command Code mientras `sf install` había sido para
+	// Claude Code dejaba el modelo en el catálogo y el archivo sin escribir —
+	// y el próximo `sf next` nombraba un agente que no existía.
+	h := g.EnUso()
+	r := &Resultado{Harness: h, Modelos: len(g.AliasDe(h))}
+	if err := escribirPortamodelos(raiz, g, h, r); err != nil {
 		return nil, err
 	}
 	return r, nil

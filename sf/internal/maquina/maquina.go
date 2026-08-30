@@ -542,6 +542,17 @@ func tomarLaProxima(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global
 func planificando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global.Config) Instruccion {
 	id := fr.ID
 	i := trabajarEnFeature(raiz, estado.Planificacion, fr, f, "", g)
+	if i.Tipo != Trabajar {
+		// El modelo que hace falta no está declarado para este harness. El
+		// guard existía en `implementando` y faltaba acá, y el síntoma era
+		// silencioso: la 🛑 salía con sus comandos sugeridos pero con el mensaje
+		// del ⑫ pisado encima —"arrancá de cero: las 3 opciones"—, así que quien
+		// la leía veía dos cosas que no tienen nada que ver.
+		//
+		// Lo encontró el guion de seccionar: abrir otro arnés en el mismo repo
+		// es la primera vez que esta parada salta en `planificacion`.
+		return i
+	}
 
 	// La carpeta sale del roadmap (id + slug). Si la feature no está en el
 	// roadmap, fr viene en cero y Carpeta() daría una ruta rara: en ese caso no
@@ -829,7 +840,7 @@ func lanzar(est, pedido, base string, g *global.Config) (global.Modelo, string, 
 			return m, fmt.Sprintf(
 				"el plan pide %q y el harness %q no lo tiene declarado — va con %q, el default de %s. "+
 					"Declaralo con: sf model %s --alias %s --id … --via subagente",
-				pedido, g.Harness, m.Alias, base, base, pedido), true
+				pedido, g.EnUso(), m.Alias, base, base, pedido), true
 		}
 	}
 	return global.Modelo{}, "", false
@@ -844,7 +855,7 @@ func agenteDe(m global.Modelo, g *global.Config) string {
 	if g == nil || m.Via != global.Subagente || m.Alias == "" {
 		return ""
 	}
-	if !global.NecesitaPortamodelo(g.Harness) {
+	if !global.NecesitaPortamodelo(g.EnUso()) {
 		return ""
 	}
 	return global.NombreDeAgente(m.Alias)
@@ -893,8 +904,8 @@ func avisos(a string) []string {
 // y no tienen que costar una búsqueda.
 func sinDeclarar(est, feature, pedido string, g *global.Config) Instruccion {
 	harness := "este harness"
-	if g != nil && g.Harness != "" {
-		harness = g.Harness
+	if g != nil && g.EnUso() != "" {
+		harness = g.EnUso()
 	}
 	i := Instruccion{
 		Tipo:    Para,

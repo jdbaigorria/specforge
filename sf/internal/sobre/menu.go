@@ -60,7 +60,7 @@ func menu(g *global.Config) Parte {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Estos son los modelos declarados en esta máquina para el harness `%s`.\n", g.Harness)
+	fmt.Fprintf(&b, "Estos son los modelos declarados en esta máquina para el harness `%s`.\n", g.EnUso())
 	b.WriteString("Elegí POR LOTE: no todos los lotes de una feature necesitan lo mismo.\n\n")
 
 	hubo := false

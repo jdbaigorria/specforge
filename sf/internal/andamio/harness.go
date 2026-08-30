@@ -208,12 +208,16 @@ var claveDeEsfuerzo = map[string]string{
 // Si el catálogo dice que `laguna` es otro id, el archivo tiene que decir lo
 // mismo — respetarle una edición manual sería dejar que el subagente corra con
 // un modelo que el catálogo ya no declara.
-func escribirPortamodelos(raiz string, g *global.Config, r *Resultado) error {
-	dir, hay := agentes[g.Harness]
-	if !hay || !global.NecesitaPortamodelo(g.Harness) {
+// El harness va EXPLÍCITO y no sale de `EnUso()`, y es la distinción que
+// justifica el parámetro: `sf install --harness=opencode` instala PARA opencode
+// aunque lo estés corriendo desde Claude Code. Instalar es un acto sobre un
+// arnés que nombrás; resolver un modelo es un hecho sobre dónde estás parado.
+func escribirPortamodelos(raiz string, g *global.Config, harness string, r *Resultado) error {
+	dir, hay := agentes[harness]
+	if !hay || !global.NecesitaPortamodelo(harness) {
 		return nil
 	}
-	alias := g.Alias()
+	alias := g.AliasDe(harness)
 	if len(alias) == 0 {
 		return nil
 	}
@@ -229,7 +233,7 @@ func escribirPortamodelos(raiz string, g *global.Config, r *Resultado) error {
 		}
 		nombre := global.NombreDeAgente(m.Alias) + ".md"
 		ruta := filepath.Join(raiz, dir, nombre)
-		if err := os.WriteFile(ruta, []byte(Portamodelo(m, g.Harness)), 0o644); err != nil {
+		if err := os.WriteFile(ruta, []byte(Portamodelo(m, harness)), 0o644); err != nil {
 			return fmt.Errorf("escribiendo %s: %w", nombre, err)
 		}
 		r.Escritos = append(r.Escritos, filepath.Join(dir, nombre))
@@ -243,8 +247,8 @@ func escribirPortamodelos(raiz string, g *global.Config, r *Resultado) error {
 // un `agente:` que el harness no conoce, y eso falla en el momento más caro —
 // cuando el orquestador ya lanzó.
 func PortamodelosQueFaltan(raiz string, g *global.Config) []string {
-	dir, hay := agentes[g.Harness]
-	if !hay || !global.NecesitaPortamodelo(g.Harness) {
+	dir, hay := agentes[g.EnUso()]
+	if !hay || !global.NecesitaPortamodelo(g.EnUso()) {
 		return nil
 	}
 	var faltan []string

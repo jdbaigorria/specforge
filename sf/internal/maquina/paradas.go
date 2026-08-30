@@ -614,8 +614,8 @@ func Modelo(e *estado.Estado, g *global.Config, d Declaracion) Efecto {
 		}
 		ef.Global = true
 		ef.Portamodelo = nuevo
-		ef.Mensaje += fmt.Sprintf("%q declarado en %s · perfil %s", alias, g.Harness, nombre)
-		if nuevo && global.NecesitaPortamodelo(g.Harness) {
+		ef.Mensaje += fmt.Sprintf("%q declarado en %s · perfil %s", alias, g.EnUso(), nombre)
+		if nuevo && global.NecesitaPortamodelo(g.EnUso()) {
 			// Medido: los agentes se leen al arrancar. Si esto no se dice acá, se
 			// descubre fallando — que es la peor forma de enterarse de algo que
 			// ya se sabía.
@@ -654,7 +654,7 @@ func Modelo(e *estado.Estado, g *global.Config, d Declaracion) Efecto {
 	// a nada, y el próximo `sf next` pararía igual. Decirlo acá ahorra esa vuelta.
 	if g != nil {
 		if _, declarado := g.Resolver(nombre); !declarado {
-			ef.falla("%q no está declarado en %s. Declaralo primero: `sf model <perfil> --alias %s --id … --via subagente`.", nombre, g.Harness, nombre)
+			ef.falla("%q no está declarado en %s. Declaralo primero: `sf model <perfil> --alias %s --id … --via subagente`.", nombre, g.EnUso(), nombre)
 			return ef
 		}
 	}
