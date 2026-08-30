@@ -48,10 +48,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 )
 
 // Resultado es qué hizo el arranque, para poder contárselo a quien lo corrió.
@@ -90,6 +92,60 @@ var ErrYaIniciado = errors.New("este proyecto ya está iniciado")
 // devuelve ErrYaIniciado. Pisar el estado sería borrar todo lo aprobado —los
 // sellos del ⑥ y del ⑧, los lotes cerrados— y ninguno de esos datos se puede
 // reconstruir mirando los archivos: por eso viven ahí (maquina-estados.md §9).
+// sembrarCatalogo copia el catálogo global al proyecto y lo gitignorea.
+//
+// Si ya hay uno en el proyecto NO se toca: ahí viven las decisiones que Javier
+// tomó para ESTE repo, y re-sembrarlas sería pisarlas con las de la máquina.
+//
+// Y si no hay global tampoco pasa nada: `sf install` todavía no corrió, y el
+// primer `sf next` va a parar y pedir los perfiles igual. No tener catálogo no
+// puede impedir iniciar un proyecto.
+func sembrarCatalogo(raiz string, r *Resultado) error {
+	destino := global.RutaDeProyecto(raiz)
+	if _, err := os.Stat(filepath.Join(destino, global.Archivo)); err == nil {
+		return nil
+	}
+	g, err := global.Leer()
+	if err != nil {
+		return nil //nolint:nilerr // sin catálogo global no hay nada que sembrar, y no es un error
+	}
+	if err := g.GuardarEn(destino); err != nil {
+		return err
+	}
+	r.Creados = append(r.Creados, global.Carpeta+"/"+global.Archivo)
+
+	if err := gitignorar(raiz, global.Carpeta+"/"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// gitignorar agrega una línea al .gitignore si no está.
+//
+// Se agrega al final y no se ordena nada: el .gitignore de un proyecto tiene un
+// orden que alguien eligió, y reordenarlo para meter una línea es tocar más de
+// lo que hace falta.
+func gitignorar(raiz, patron string) error {
+	ruta := filepath.Join(raiz, ".gitignore")
+	b, err := os.ReadFile(ruta)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.TrimSpace(l) == strings.TrimSuffix(patron, "/") ||
+			strings.TrimSpace(l) == patron {
+			return nil
+		}
+	}
+
+	texto := string(b)
+	if texto != "" && !strings.HasSuffix(texto, "\n") {
+		texto += "\n"
+	}
+	texto += "\n# el catálogo de modelos es de ESTA máquina: sus ids no existen en otra\n" + patron + "\n"
+	return os.WriteFile(ruta, []byte(texto), 0o644)
+}
+
 func Iniciar(raiz string) (*Resultado, error) {
 	var r Resultado
 
@@ -125,7 +181,32 @@ func Iniciar(raiz string) (*Resultado, error) {
 		r.Creados = append(r.Creados, docs.Constitucion)
 	}
 
-	// ③ el estado vacío
+	// ③ el catálogo DEL PROYECTO, sembrado del global y gitignoreado
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// POR QUÉ HAY DOS CATÁLOGOS Y NO UNO
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Porque el archivo hace dos trabajos y sólo uno es del proyecto:
+	//
+	//	qué modelos TENÉS y su id por harness   de la máquina — depende de tus
+	//	                                        keys y tu suscripción
+	//	qué modelo QUIERE este proyecto         del proyecto — un repo de CRUD y
+	//	                                        uno de concurrencia no quieren
+	//	                                        lo mismo
+	//
+	// Se resuelve con el del proyecto ganándole al global, sembrado de él para
+	// no volver a contestar las mismas preguntas en el repo número diecisiete.
+	//
+	// Y VA GITIGNOREADO, que es lo que lo hace seguro: contiene ids que sólo
+	// existen en esta máquina, así que versionarlo le rompería el clon a
+	// cualquier otro. Lo que sí viaja versionado es el ALIAS en tareas.json, que
+	// es vocabulario de Javier y no un id.
+	if err := sembrarCatalogo(raiz, &r); err != nil {
+		return nil, err
+	}
+
+	// ④ el estado vacío
 	//
 	// Va ÚLTIMO a propósito: es lo que hace que `sf next` deje de decir "corré
 	// sf init". Si algo falla antes, el proyecto sigue sin iniciar y volver a

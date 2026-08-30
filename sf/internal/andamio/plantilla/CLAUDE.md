@@ -13,6 +13,17 @@ Este proyecto trabaja con `sf`. **No te sepas el flujo: preguntáselo.**
       via: consola    → salís por CLI con el `comando:` que te dio, y le
                         prestás las manos: corrés vos `sf context` y `sf done`
 
+    Con `via: subagente`, cómo se elige el modelo depende de tu harness, y
+    `sf next` ya te lo resolvió:
+
+      viene `agente:`  → invocá ESE subagente por nombre. El modelo va adentro
+                         de su archivo, que es la única forma que tienen
+                         opencode y Command Code de elegirlo.
+      no viene         → tu harness acepta el modelo en la llamada: usá
+                         `modelo:` directo. (Es el caso de Claude Code.)
+
+    En los dos casos el skill va en el PROMPT, no en el agente.
+
 3.  Cuando vuelva el control, corré `sf next` otra vez.
     NO leas lo que devolvió el que trabajó — el estado es la verdad.
 
@@ -56,15 +67,27 @@ sf init      # el andamio: 2 directorios, detecta el stack, el estado vacío
 sf next      # y de acá en adelante, el bucle
 ```
 
-## Si `sf` pide un modelo que no conoce
+## Si `sf` pide un perfil que no está declarado
 
-Para y te pregunta — **no elige el reemplazo solo**, porque eso sería opinar sobre qué modelo se
-parece a cuál. La respuesta lo declara para siempre, en todos tus proyectos:
+`sf` nombra **perfiles** —`razonar`, `construir`, `mecanico`— y no modelos. Qué modelo es cada uno
+en esta máquina lo decidís vos, una vez por harness:
+
+```bash
+sf model razonar   --alias grande --id <el-id-de-tu-harness> --via subagente
+sf model construir --alias medio  --id <el-id-de-tu-harness> --via subagente
+```
+
+`sf` **no elige el reemplazo solo**, porque eso sería opinar sobre qué modelo se parece a cuál.
+Para y pregunta, y tu respuesta queda para siempre, en todos tus proyectos.
+
+Un modelo de otro proveedor, que no puede ser subagente de nadie, sale por consola:
 
 ```bash
 sf model deepseek --via consola --comando "deepseek exec"
-sf model o3 --via subagente
 ```
+
+> **Después de declarar uno nuevo, reiniciá el harness.** Los archivos de agente se leen al
+> arrancar: la sesión que está corriendo no va a ver el que acabás de crear.
 
 **La lista no se escribe de antemano: crece con cada aprobación.**
 
