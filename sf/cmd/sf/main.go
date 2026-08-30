@@ -191,7 +191,11 @@ func contexto(args []string) int {
 		return salidaError
 	}
 
-	s, err := sobre.Armar(raiz, e, r)
+	// El catálogo entra al sobre porque el ⑫ tiene que ver el menú de modelos.
+	// Que no esté NO es un error: el sobre lo dice con `Falta` y se sigue.
+	gCat, _ := global.LeerPara(raiz)
+
+	s, err := sobre.Armar(raiz, e, r, gCat)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sf:", err)
 		return salidaError

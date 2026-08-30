@@ -59,6 +59,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
@@ -118,11 +119,11 @@ func rechazo(motivo string) (Parte, bool) {
 // Recibe todo ya leído —estado y roadmap— en vez de leerlo: así los tests no
 // necesitan escribir un estado.json para probar cada sobre, y este paquete no
 // duplica el manejo de "no hay archivo" que ya está resuelto en los otros.
-func Armar(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
+func Armar(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) (*Sobre, error) {
 	// Los cinco de producto no dependen de ninguna feature, así que se
 	// resuelven mirando sólo los sellos. El orden es el mismo que el de
 	// maquina.Siguiente, y por la misma razón: es el orden del flujo.
-	s, err := armar(raiz, e, r)
+	s, err := armar(raiz, e, r, g)
 	if err != nil {
 		return nil, err
 	}
@@ -142,11 +143,11 @@ func motivoDeRechazo(e *estado.Estado) string {
 	return e.Producto.Rechazo
 }
 
-func armar(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
+func armar(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) (*Sobre, error) {
 	if s, hay := deProducto(raiz, e); hay {
 		return s, nil
 	}
-	return deFeature(raiz, e, r)
+	return deFeature(raiz, e, r, g)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -243,7 +244,7 @@ func aPinponear(raiz string) (Parte, bool) {
 // Feature
 // ────────────────────────────────────────────────────────────────────────────
 
-func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error) {
+func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) (*Sobre, error) {
 	// El ⑩ es el último de producto pero necesita el backlog entero, así que
 	// se resuelve acá donde ya hay glob a mano.
 	if r == nil {
@@ -280,6 +281,9 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap) (*Sobre, error
 			{Titulo: "El manual del proyecto", Rutas: []string{docs.Constitucion}},
 			{Titulo: "Qué hay que resolver", Rutas: rutasDeHistorias(fr.Historias)},
 			aprendizajes(raiz),
+			// El ⑯ decide con qué se implementa cada lote, y hasta acá lo hacía
+			// sin ver el catálogo. Ver menu.go.
+			menu(g),
 		}
 
 	case estado.Implementar:

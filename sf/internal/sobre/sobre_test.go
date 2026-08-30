@@ -8,12 +8,14 @@ import (
 
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 )
 
 const carpetaF1 = ".docs/features/f-1-nucleo"
 
 type proyecto struct {
+	g    *global.Config
 	raiz string
 	e    *estado.Estado
 	r    *roadmap.Roadmap
@@ -66,7 +68,7 @@ func (p *proyecto) enFeature(est string) *proyecto {
 // texto arma el sobre y lo renderiza, que es lo que ve el que trabaja.
 func (p *proyecto) texto() string {
 	p.t.Helper()
-	s, err := Armar(p.raiz, p.e, p.r)
+	s, err := Armar(p.raiz, p.e, p.r, p.g)
 	if err != nil {
 		p.t.Fatalf("Armar: %v", err)
 	}
@@ -292,7 +294,7 @@ func TestCompletoEmbebeElContenido(t *testing.T) {
 	p.e.Producto.BriefSellado = "hacelo"
 	p.archivo(".docs/brief.md", "el contenido del brief")
 
-	s, err := Armar(p.raiz, p.e, p.r)
+	s, err := Armar(p.raiz, p.e, p.r, p.g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +311,7 @@ func TestCompletoAvisaSiUnArchivoNoEstá(t *testing.T) {
 	p := nuevo(t)
 	p.e.Producto.BriefSellado = "hacelo" // el sobre pide brief.md, que no existe
 
-	s, err := Armar(p.raiz, p.e, p.r)
+	s, err := Armar(p.raiz, p.e, p.r, p.g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +330,7 @@ func TestSinFeatureEnCursoDaError(t *testing.T) {
 		BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true, BacklogVisto: true,
 	}
 
-	_, err := Armar(p.raiz, p.e, p.r)
+	_, err := Armar(p.raiz, p.e, p.r, p.g)
 	if err == nil {
 		t.Fatal("sin feature en curso no dio error")
 	}
@@ -560,7 +562,7 @@ func TestElSobreDeUnBugEnPlanificacionEsElDeImplementar(t *testing.T) {
 	p.archivo(docs.Historia("us-3"), "---\ntipo: bug\nid: us-3\n---\n- **CA-1** — y\n")
 	p.archivo(carpetaF1+"/"+docs.Spec, "# spec\n")
 
-	s, err := Armar(p.raiz, p.e, p.r)
+	s, err := Armar(p.raiz, p.e, p.r, p.g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +580,7 @@ func TestElSobreDeUnaUsEnPlanificacionNoSeSaltea(t *testing.T) {
 	p.archivo(docs.Historia("us-1"), "---\ntipo: us\nid: us-1\n---\n- **CA-1** — x\n")
 	p.archivo(docs.Historia("us-3"), "---\ntipo: us\nid: us-3\n---\n- **CA-1** — y\n")
 
-	s, err := Armar(p.raiz, p.e, p.r)
+	s, err := Armar(p.raiz, p.e, p.r, p.g)
 	if err != nil {
 		t.Fatal(err)
 	}
