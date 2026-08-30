@@ -18,12 +18,7 @@ func enUnHomeFalso(t *testing.T) string {
 }
 
 // varsDeHarness son todas las que mira DetectarHarness.
-var varsDeHarness = []string{
-	"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT",
-	"OPENCODE", "OPENCODE_BIN_PATH",
-	"COMMANDCODE", "COMMAND_CODE_ENTRYPOINT",
-	VarHarness,
-}
+var varsDeHarness = VarsDeHarness
 
 // parandoEn dice en qué harness está corriendo el test.
 //
@@ -362,10 +357,10 @@ func TestDetectarHarness(t *testing.T) {
 	for _, c := range []struct{ env, esperado string }{
 		{"CLAUDECODE", "claude-code"},
 		{"OPENCODE", "opencode"},
-		{"COMMANDCODE", "commandcode"},
+		{"COMMANDCODE_SCRATCHPAD", "commandcode"},
 	} {
 		t.Run(c.esperado, func(t *testing.T) {
-			for _, v := range []string{"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "OPENCODE", "OPENCODE_BIN_PATH", "COMMANDCODE", "COMMAND_CODE_ENTRYPOINT"} {
+			for _, v := range VarsDeHarness {
 				t.Setenv(v, "")
 			}
 			t.Setenv(c.env, "1")
@@ -392,5 +387,36 @@ func TestElPaqueteNoNombraNingunModelo(t *testing.T) {
 		if strings.Contains(codigo, prohibido) {
 			t.Errorf("el código nombra %q — la siembra volvió", prohibido)
 		}
+	}
+}
+
+// UN ARNÉS ADENTRO DE OTRO. Medido: un `opencode run` lanzado desde Claude Code
+// trae las variables de LOS DOS. Sin este orden, sf contestaba "claude-code"
+// estando parado en opencode, y resolvía ids que ahí no existen.
+func TestElArnesDeAdentroLeGanaAlDeAfuera(t *testing.T) {
+	for _, c := range []struct{ v, quiero string }{
+		{"OPENCODE", "opencode"},
+		{"COMMANDCODE_SCRATCHPAD", "commandcode"},
+	} {
+		t.Run(c.quiero, func(t *testing.T) {
+			parandoEn(t, "")
+			t.Setenv("CLAUDECODE", "1") // el de AFUERA
+			t.Setenv(c.v, "1")          // el de ADENTRO
+			if h := DetectarHarness(); h != c.quiero {
+				t.Errorf("= %q, quería %q: el de adentro es el que corre", h, c.quiero)
+			}
+		})
+	}
+}
+
+// Y la variable explícita le gana a cualquier heurística: es lo que `sf lanzar`
+// le va a poner a cada hijo, donde no hay nada que adivinar.
+func TestLaVariableExplicitaLeGanaALaHeuristica(t *testing.T) {
+	parandoEn(t, "")
+	t.Setenv("CLAUDECODE", "1")
+	t.Setenv("OPENCODE", "1")
+	t.Setenv(VarHarness, "commandcode")
+	if h := DetectarHarness(); h != "commandcode" {
+		t.Errorf("= %q, quería la explícita", h)
 	}
 }

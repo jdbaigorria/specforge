@@ -566,26 +566,51 @@ var Harness = []string{"claude-code", "opencode", "commandcode"}
 // así que exponerla no agranda la superficie de nadie.
 var VarsDeHarness = []string{
 	"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT",
-	"OPENCODE", "OPENCODE_BIN_PATH",
-	"COMMANDCODE", "COMMAND_CODE_ENTRYPOINT",
+	"OPENCODE", "OPENCODE_PID",
+	"COMMANDCODE_SCRATCHPAD", "COMMAND_CODE_RIPGREP_PATH",
 	VarHarness,
 }
 
 func DetectarHarness() string {
 	// La variable explícita gana también acá, y no sólo en EnUso(). Si no, un
-	// `sf install` con SPECFORGE_HARNESS puesto escribiría "desconocido" — o
-	// sea que la única forma de decirle a sf dónde estás no serviría para el
+	// `sf install` con SPECFORGE_HARNESS puesto escribiría "desconocido" — o sea
+	// que la única forma de decirle a sf dónde estás no serviría justo para el
 	// comando que existe para configurarlo.
 	if h := os.Getenv(VarHarness); h != "" {
 		return h
 	}
-	switch {
-	case os.Getenv("CLAUDECODE") != "", os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "":
-		return "claude-code"
-	case os.Getenv("OPENCODE") != "", os.Getenv("OPENCODE_BIN_PATH") != "":
-		return "opencode"
-	case os.Getenv("COMMANDCODE") != "", os.Getenv("COMMAND_CODE_ENTRYPOINT") != "":
-		return "commandcode"
+
+	// EL ORDEN NO ES ALFABÉTICO Y NO ES CASUAL: claude-code va ÚLTIMO.
+	//
+	// Un arnés lanzado desde adentro de otro hereda las variables del de afuera.
+	// Medido el 2026-08-30: un `opencode run` disparado desde Claude Code trae
+	// `CLAUDECODE=1` Y `OPENCODE=1` a la vez. Con Claude Code primero, sf
+	// contestaba "claude-code" adentro de opencode y resolvía los ids
+	// equivocados.
+	//
+	// No hay forma de saber cuál es el de ADENTRO mirando el entorno, así que se
+	// usa la heurística que corresponde al uso real: Claude Code es de dónde
+	// Javier orquesta, o sea el de afuera. Si están los dos, el otro es el de
+	// adentro.
+	//
+	// Para el caso en que la heurística no aplique está SPECFORGE_HARNESS, que
+	// es lo que `sf lanzar` va a ponerle a cada hijo — ahí no se adivina nada.
+	for _, c := range []struct {
+		harness string
+		vars    []string
+	}{
+		// Las de opencode y Command Code están MEDIDAS: se lanzó cada uno y se
+		// volcó su entorno. Las de Command Code que había adivinado —COMMANDCODE
+		// y COMMAND_CODE_ENTRYPOINT— no existen.
+		{"opencode", []string{"OPENCODE", "OPENCODE_PID"}},
+		{"commandcode", []string{"COMMANDCODE_SCRATCHPAD", "COMMAND_CODE_RIPGREP_PATH"}},
+		{"claude-code", []string{"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"}},
+	} {
+		for _, v := range c.vars {
+			if os.Getenv(v) != "" {
+				return c.harness
+			}
+		}
 	}
 	return "desconocido"
 }

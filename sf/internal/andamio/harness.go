@@ -32,6 +32,27 @@
 // `sf doctor` comprueba que siga estando.
 //
 // ────────────────────────────────────────────────────────────────────────────
+// Y LO QUE ESTA CONFIG NO ALCANZA A RESOLVER — medido el 2026-08-30
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Todo lo de arriba vale para una sesión INTERACTIVA. En modo `-p` (headless)
+// Command Code tiene una compuerta APARTE que ningún `defaultMode` levanta:
+//
+//	tool_hook_blocked: Tool "shell_command" requires permissions.
+//	Use --yolo (or --dangerously-skip-permissions) to enable file writes
+//	and shell commands in print mode.
+//
+// Se probó con `dont-ask`, con `auto-accept`, con `bypass` y con `--tools-all`:
+// ninguno lo levanta. Sólo `--yolo`.
+//
+// Eso NO cambia nada de lo que hay acá —esta config es para cuando Javier está
+// sentado adelante— pero sí decide algo del futuro `sf lanzar`: lanzar Command
+// Code headless exige `--yolo`, y su propia documentación dice "throwaway
+// environments only". O sea que no es una bandera que sf pueda poner sola: es
+// una decisión de Javier, y el día que se construya `sf lanzar` tiene que
+// pedirla explícita en vez de asumirla.
+//
+// ────────────────────────────────────────────────────────────────────────────
 // ② LOS SKILLS — Command Code no lee ~/.claude/skills/
 // ────────────────────────────────────────────────────────────────────────────
 //

@@ -146,17 +146,13 @@ func Revisar(raiz, version string) Informe {
 	var i Informe
 	i.Binario = revisarBinario(version)
 
-	// El harness sale del catálogo ESCRITO y no de la detección, porque eso es
-	// lo que va a usar `sf next` para resolver el modelo. Detectarlo acá y
-	// reportar otra cosa sería mostrar un diagnóstico que no describe al binario
-	// que corre. La detección queda como último recurso, para el caso de que
-	// nadie haya corrido `sf install` todavía.
+	// El harness es el que está EN USO, que es lo que `sf next` va a usar para
+	// resolver el modelo. Reportar otra cosa sería un diagnóstico que no
+	// describe al binario que corre — y es justo lo que hacía esta función
+	// antes: leía el puntero ESCRITO, así que adentro de opencode contestaba
+	// "claude-code" porque era lo último que habías instalado.
 	g, errCat := global.LeerPara(raiz)
-	if errCat == nil && g.Harness != "" {
-		i.Harness = g.Harness
-	} else {
-		i.Harness = global.DetectarHarness()
-	}
+	i.Harness = g.EnUso()
 	i.Skills = revisarSkills(raiz)
 	i.Proyecto = revisarProyecto(raiz)
 
