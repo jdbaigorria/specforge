@@ -2,7 +2,11 @@
 
 **Fecha:** 2026-08-29 · **Branch:** `refundation` · **Commit:** `2a44be3`
 
-> **Estado: PENDIENTE — diseño cerrado, con las siete preguntas de harness medidas.** Esta es la primera corrida del bucle con agentes de verdad
+> **Estado: IMPLEMENTADO** (2026-08-30, 5 commits sobre `refundation`, de `06b3eb1` a `94d9ea4`).
+> Los ocho hallazgos están arreglados, cada uno con tests que fallan sin el arreglo. **356 tests**
+> contra los 298 del día del diagnóstico, más los 5 e2e; `vet` y `gofmt` limpios. Lo que queda es
+> lo único que este repo no puede hacer solo: **volver a correr el bucle con agentes**, ahora en
+> los tres harness. Esta es la primera corrida del bucle con agentes de verdad
 > ([`salir-a-la-cancha.md`](salir-a-la-cancha.md) §③) y la primera fuera de Claude Code. Corrió en
 > **Command Code** sobre `crowd-qa-pro` (Vite + React + TS + Supabase + Vitest), feature `f-1`,
 > lote 1. No terminó, y lo que la frenó no fue la máquina: fue **la costura con el harness**.
