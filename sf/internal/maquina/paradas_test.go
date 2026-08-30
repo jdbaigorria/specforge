@@ -8,6 +8,7 @@ import (
 
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
+	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 )
 
@@ -227,21 +228,80 @@ func TestModelResetaElContador(t *testing.T) {
 	p := nuevo(t).productoListo()
 	p.e.FeatureActual = "f-1"
 	p.e.Features["f-1"] = &estado.Feature{
-		Estado: estado.Implementar, Modelo: "deepseek", IntentosFallidos: 3,
+		Estado: estado.Implementar, Modelo: "el-viejo", IntentosFallidos: 3,
+	}
+	g := global.Semilla("claude-code")
+	if _, err := g.Declarar(global.Construir, global.Modelo{Alias: "el-nuevo", ID: "x", Via: global.Subagente}); err != nil {
+		t.Fatal(err)
 	}
 
-	ef := Modelo(p.e, nil, "opus", "", "")
+	ef := Modelo(p.e, g, "el-nuevo", "", "", "", "")
 	if !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
-	if p.e.Features["f-1"].Modelo != "opus" {
+	if p.e.Features["f-1"].Modelo != "el-nuevo" {
 		t.Errorf("modelo = %q", p.e.Features["f-1"].Modelo)
 	}
 	if p.e.Features["f-1"].IntentosFallidos != 0 {
 		t.Errorf("intentos_fallidos = %d, quería 0", p.e.Features["f-1"].IntentosFallidos)
 	}
-	if !strings.Contains(ef.Mensaje, "deepseek") {
+	if !strings.Contains(ef.Mensaje, "el-viejo") {
 		t.Errorf("el mensaje no dice de qué modelo venía: %q", ef.Mensaje)
+	}
+}
+
+// Declarar un perfil NO exige que haya una feature en curso: la 🛑 puede saltar
+// en cualquiera de los cinco estados de producto, donde no hay ninguna.
+// Exigirla ahí dejaría la parada sin salida.
+func TestDeclararUnPerfilNoNecesitaFeature(t *testing.T) {
+	e := &estado.Estado{Features: map[string]*estado.Feature{}}
+	g := global.Semilla("opencode")
+
+	ef := Modelo(e, g, global.Razonar, "grande", "prov/grande", global.Subagente, "")
+	if !ef.Pasa() {
+		t.Fatalf("%v", ef.Fallas)
+	}
+	if m, hay := g.Default(global.Razonar); !hay || m.ID != "prov/grande" {
+		t.Fatalf("no lo declaró: %+v", m)
+	}
+	if !ef.Global {
+		t.Error("no marcó que hay que guardar el catálogo")
+	}
+	if !ef.Portamodelo {
+		t.Error("un alias nuevo tiene que pedir regenerar los portamodelo")
+	}
+	// Medido: los agentes se leen al arrancar.
+	if !strings.Contains(strings.Join(ef.Avisos, " "), "reiniciá") {
+		t.Errorf("no avisó del reinicio: %v", ef.Avisos)
+	}
+}
+
+// Y redeclarar el mismo alias NO pide reiniciar: no aparece ningún archivo
+// nuevo, y avisar cuando no hace falta enseña a ignorar el aviso.
+func TestRedeclararNoPideReiniciar(t *testing.T) {
+	e := &estado.Estado{Features: map[string]*estado.Feature{}}
+	g := global.Semilla("opencode")
+
+	Modelo(e, g, global.Razonar, "grande", "v1", global.Subagente, "")
+	ef := Modelo(e, g, global.Razonar, "grande", "v2", global.Subagente, "")
+	if ef.Portamodelo {
+		t.Error("redeclarar no agrega ningún portamodelo")
+	}
+	if strings.Contains(strings.Join(ef.Avisos, " "), "reiniciá") {
+		t.Errorf("avisó de un reinicio que no hace falta: %v", ef.Avisos)
+	}
+}
+
+// Declarar sin --alias se rechaza: el alias es lo que va a escribir el ⑯ en
+// tareas.json, y sin él no hay forma de nombrar el modelo desde el plan.
+func TestDeclararSinAliasSeRechaza(t *testing.T) {
+	e := &estado.Estado{Features: map[string]*estado.Feature{}}
+	ef := Modelo(e, global.Semilla("opencode"), global.Razonar, "", "prov/x", global.Subagente, "")
+	if ef.Pasa() {
+		t.Fatal("dejó declarar un modelo sin alias")
+	}
+	if !strings.Contains(strings.Join(ef.Fallas, " "), "--alias") {
+		t.Errorf("la falla no dice qué falta: %v", ef.Fallas)
 	}
 }
 

@@ -51,6 +51,14 @@ type Efecto struct {
 	// por feature para no cambiar nada.
 	Global bool
 
+	// Portamodelo es que se declaró un alias NUEVO y hay que regenerar los
+	// archivos de agente del harness.
+	//
+	// Está separado de Global porque redeclarar un alias que ya existía toca el
+	// catálogo pero no agrega ningún archivo — y avisar "reiniciá el harness"
+	// cuando no hace falta enseña a ignorar el aviso.
+	Portamodelo bool
+
 	// Cambio es que hay que guardar el estado AUNQUE el comando haya fallado.
 	//
 	// ────────────────────────────────────────────────────────────────────
@@ -504,6 +512,15 @@ func Tomar(e *estado.Estado, r *roadmap.Roadmap, id string) Efecto {
 	return ef
 }
 
+// capacidadDe deja el campo vacío a propósito.
+//
+// `capacidad` es opinión de Javier y sf no la puede inventar: inventarla sería
+// exactamente opinar sobre qué modelo se parece a cuál (R3). Se declara en cero,
+// que en el YAML se omite, y Javier la escribe a mano el día que quiera que el ⑯
+// la lea. Existe como función y no como un `0` suelto para que quede dicho POR
+// QUÉ está vacío, y nadie lo "arregle" más adelante.
+func capacidadDe(string) int { return 0 }
+
 // ────────────────────────────────────────────────────────────────────────────
 // sf model y sf dismiss — las dos salidas de ME TRABÉ
 // ────────────────────────────────────────────────────────────────────────────
@@ -532,14 +549,14 @@ func Tomar(e *estado.Estado, r *roadmap.Roadmap, id string) Efecto {
 // crearía un estado intermedio —declarado pero nunca usado— que no le sirve a
 // nadie. Es el mismo mecanismo que `dependencias_aprobadas`: la lista no se
 // escribe de antemano, se construye con cada aprobación.
-func Modelo(e *estado.Estado, g *global.Config, nombre, via, comando string) Efecto {
+func Modelo(e *estado.Estado, g *global.Config, nombre, alias, id, via, comando string) Efecto {
 	var ef Efecto
 	if nombre == "" {
-		ef.falla("falta el modelo: `sf model <nombre>`")
+		ef.falla("falta qué: `sf model <perfil|alias>`")
 		return ef
 	}
 
-	// La validación va ANTES de tocar el estado: un `--via consola` sin comando
+	// La validación va ANTES de tocar nada: un `--via consola` sin comando
 	// dejaría un modelo declarado que nadie puede invocar, y eso se descubriría
 	// recién cuando el orquestador lo intente.
 	if via != "" {
@@ -557,18 +574,77 @@ func Modelo(e *estado.Estado, g *global.Config, nombre, via, comando string) Efe
 		}
 	}
 
+	// ── ① declarar un modelo EN UN PERFIL ────────────────────────────────
+	//
+	// Es la respuesta a la 🛑, y NO exige que haya una feature en curso: la
+	// parada puede saltar en cualquiera de los cinco estados de producto, donde
+	// no hay ninguna. Exigirla ahí dejaría la 🛑 sin salida.
+	if global.EsPerfil(nombre) {
+		if id == "" {
+			ef.falla("declarar un perfil necesita `--id <el-id-de-tu-harness>`.")
+			return ef
+		}
+		if alias == "" {
+			ef.falla("declarar un modelo necesita `--alias <corto>`: es el nombre que va a escribir el ⑯ en tareas.json, y no puede ser el id.")
+			return ef
+		}
+		if g == nil {
+			ef.falla("no hay catálogo todavía: corré `sf install`.")
+			return ef
+		}
+		if via == "" {
+			via = global.Subagente
+		}
+		nuevo, err := g.Declarar(nombre, global.Modelo{
+			Alias: alias, ID: id, Via: via, Comando: comando, Capacidad: capacidadDe(nombre), Para: "",
+		})
+		if err != nil {
+			ef.falla("%s", err)
+			return ef
+		}
+		ef.Global = true
+		ef.Portamodelo = nuevo
+		ef.Mensaje += fmt.Sprintf("%q declarado en %s · perfil %s", alias, g.Harness, nombre)
+		if nuevo && global.NecesitaPortamodelo(g.Harness) {
+			// Medido: los agentes se leen al arrancar. Si esto no se dice acá, se
+			// descubre fallando — que es la peor forma de enterarse de algo que
+			// ya se sabía.
+			ef.Avisos = append(ef.Avisos,
+				"reiniciá tu harness: los agentes se leen al arrancar y esta sesión no va a ver el nuevo.")
+		}
+		return ef
+	}
+
+	// ── ② declarar un SUELTO ─────────────────────────────────────────────
+	//
+	// Un modelo que no compite en ningún perfil: el ajeno que sale por consola.
+	// No genera portamodelo —no lo lanza el harness— y por eso no avisa nada.
+	if via != "" && id != "" || via == global.Consola {
+		if g == nil {
+			ef.falla("no hay catálogo todavía: corré `sf install`.")
+			return ef
+		}
+		if id == "" {
+			id = nombre
+		}
+		g.DeclararSuelto(nombre, global.Modelo{ID: id, Via: via, Comando: comando})
+		ef.Global = true
+		ef.Mensaje += fmt.Sprintf("%q declarado como suelto", nombre)
+		return ef
+	}
+
+	// ── ③ el ⑳: usar algo ya declarado en la feature en curso ────────────
 	f, hay := e.Actual()
 	if !hay {
 		ef.falla("no hay feature en curso")
 		return ef
 	}
 
-	// Sin `--via`, el modelo tiene que estar declarado: cambiar a uno que sf no
-	// sabe invocar es cambiar a nada, y el próximo `sf next` pararía igual.
-	// Decirlo acá ahorra esa vuelta.
-	if via == "" && g != nil {
-		if _, declarado := g.Buscar(nombre); !declarado {
-			ef.falla("%q no está declarado. Decime cómo se lanza: `--via subagente` o `--via consola --comando \"…\"`.", nombre)
+	// Tiene que estar declarado: cambiar a uno que sf no sabe invocar es cambiar
+	// a nada, y el próximo `sf next` pararía igual. Decirlo acá ahorra esa vuelta.
+	if g != nil {
+		if _, declarado := g.Resolver(nombre); !declarado {
+			ef.falla("%q no está declarado en %s. Declaralo primero: `sf model <perfil> --alias %s --id … --via subagente`.", nombre, g.Harness, nombre)
 			return ef
 		}
 	}
@@ -576,11 +652,6 @@ func Modelo(e *estado.Estado, g *global.Config, nombre, via, comando string) Efe
 	anterior := f.Modelo
 	f.Modelo = nombre
 	f.IntentosFallidos = 0
-
-	if via != "" && g != nil {
-		g.Declarar(nombre, global.Modelo{Via: via, Comando: comando})
-		ef.Global = true
-	}
 
 	// El "a → b" sólo si de verdad cambió. El caso `a → a` es real y frecuente:
 	// el ⑯ recomendó un modelo, la 🛑 pidió declararlo, y `sf model` lo declara

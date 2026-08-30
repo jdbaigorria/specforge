@@ -47,8 +47,177 @@ func TestInstalarPoneElOrquestadorConLosDosNombres(t *testing.T) {
 	if r.Harness != "claude-code" {
 		t.Errorf("harness %q", r.Harness)
 	}
-	if r.Modelos == 0 {
-		t.Error("no sembró ningún modelo")
+	// Y NO siembra ningún modelo, que es el invariante de H2: un default de un
+	// proveedor copiado a un skill y de ahí a tareas.json es exactamente cómo
+	// nació el "siempre opus".
+	if r.Modelos != 0 {
+		t.Errorf("sembró %d modelos y no tiene que sembrar ninguno", r.Modelos)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// H3, H4 y H8 — lo que sf escribe PARA EL HARNESS
+// ────────────────────────────────────────────────────────────────────────────
+
+// Medido: sin settings.json, Command Code arranca en baseline `default` y
+// pregunta por todo. Y el modo tiene que ser `dont-ask` y no `auto-accept`,
+// que sigue preguntando por comandos de shell arbitrarios.
+func TestInstalarEscribeLosPermisosDelHarness(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	if _, err := Instalar(raiz, Opciones{Harness: "commandcode"}); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(raiz, ".commandcode", "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"dont-ask"`) {
+		t.Errorf("no puso dont-ask:\n%s", b)
+	}
+	if strings.Contains(string(b), "auto-accept") {
+		t.Errorf("puso auto-accept, que sigue preguntando por shell:\n%s", b)
+	}
+	// H4, medido: Command Code no lee ~/.claude/skills/. Sin esta línea los 18
+	// skills son invisibles para él.
+	if !strings.Contains(string(b), "~/.claude/skills") {
+		t.Errorf("no le dijo dónde están los skills:\n%s", b)
+	}
+}
+
+// La config de permisos de un proyecto tiene cosas de Javier igual que el
+// CLAUDE.md: no se pisa sin pedirlo.
+func TestNoPisaLaConfigDelHarnessQueYaExiste(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(raiz, ".commandcode"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ruta := filepath.Join(raiz, ".commandcode", "settings.json")
+	if err := os.WriteFile(ruta, []byte(`{"mio": true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Instalar(raiz, Opciones{Harness: "commandcode"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(ruta)
+	if string(b) != `{"mio": true}` {
+		t.Errorf("pisó la config de Javier: %s", b)
+	}
+	if !strings.Contains(strings.Join(r.Salteados, " "), "settings.json") {
+		t.Errorf("la salteó sin decirlo: %v", r.Salteados)
+	}
+}
+
+// H8: el portamodelo existe porque en opencode y Command Code el modelo sale
+// del archivo del agente y no se puede pisar al invocar. En Claude Code sí se
+// puede, así que ahí no se genera ninguno.
+func TestLosPortamodeloSoloSeGeneranDondeHacenFalta(t *testing.T) {
+	for _, c := range []struct {
+		harness string
+		dir     string
+		quiero  bool
+	}{
+		{"opencode", filepath.Join(".opencode", "agents"), true},
+		{"commandcode", filepath.Join(".commandcode", "agents"), true},
+		{"claude-code", filepath.Join(".claude", "agents"), false},
+	} {
+		t.Run(c.harness, func(t *testing.T) {
+			enUnHomeDePrueba(t)
+			g := global.Semilla(c.harness)
+			if _, err := g.Declarar(global.Construir, global.Modelo{
+				Alias: "barato", ID: "prov/barato", Via: global.Subagente,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if err := g.Guardar(); err != nil {
+				t.Fatal(err)
+			}
+
+			raiz := t.TempDir()
+			if _, err := Instalar(raiz, Opciones{Harness: c.harness}); err != nil {
+				t.Fatal(err)
+			}
+
+			b, err := os.ReadFile(filepath.Join(raiz, c.dir, "sf-barato.md"))
+			if c.quiero {
+				if err != nil {
+					t.Fatalf("no generó el portamodelo: %v", err)
+				}
+				if !strings.Contains(string(b), "model: prov/barato") {
+					t.Errorf("no pineó el id:\n%s", b)
+				}
+			} else if err == nil {
+				t.Error("generó un portamodelo donde el modelo va en la llamada")
+			}
+		})
+	}
+}
+
+// Lo que hace que el portamodelo NO sea una cuarta copia de cada skill: no
+// lleva método adentro. El día que alguien le meta "acordate de correr sf
+// context", pasa a ser una fuente que hay que mantener sincronizada.
+func TestElPortamodeloNoLlevaMetodoAdentro(t *testing.T) {
+	texto := Portamodelo(global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente})
+	for _, prohibido := range []string{"sf context", "sf done", "sf next", "sf-build", "lote"} {
+		if strings.Contains(texto, prohibido) {
+			t.Errorf("el portamodelo menciona %q: dejó de ser sólo un modelo", prohibido)
+		}
+	}
+	if !strings.Contains(texto, "model: prov/x") {
+		t.Errorf("no pineó el modelo:\n%s", texto)
+	}
+}
+
+// Un `via: consola` lo ejecuta el orquestador con sus manos: el harness nunca
+// lo lanza, así que un portamodelo suyo sería un archivo que nadie invoca.
+func TestUnModeloDeConsolaNoLlevaPortamodelo(t *testing.T) {
+	enUnHomeDePrueba(t)
+	g := global.Semilla("opencode")
+	if _, err := g.Declarar(global.Razonar, global.Modelo{
+		Alias: "ajeno", ID: "ajeno-1", Via: global.Consola, Comando: "ajeno exec",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.Guardar(); err != nil {
+		t.Fatal(err)
+	}
+
+	raiz := t.TempDir()
+	if _, err := Instalar(raiz, Opciones{Harness: "opencode"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(raiz, ".opencode", "agents", "sf-ajeno.md")); err == nil {
+		t.Error("generó un portamodelo para un modelo que sale por consola")
+	}
+	if f := PortamodelosQueFaltan(raiz, g); len(f) != 0 {
+		t.Errorf("lo reportó como faltante: %v", f)
+	}
+}
+
+// `dont-ask` deniega lo que no está en la lista, así que un test_cmd afuera
+// hace fallar el ⑲ de TODOS los lotes. Por eso `sf init` la completa.
+func TestPermitirComandoAgregaElTestCmd(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	if _, err := Instalar(raiz, Opciones{Harness: "commandcode"}); err != nil {
+		t.Fatal(err)
+	}
+
+	ruta, toco, err := PermitirComando(raiz, "commandcode", "npm test")
+	if err != nil || !toco {
+		t.Fatalf("no agregó el comando: toco=%v err=%v", toco, err)
+	}
+	b, _ := os.ReadFile(filepath.Join(raiz, ruta))
+	if !strings.Contains(string(b), `"Shell(npm:*)"`) {
+		t.Errorf("no quedó la regla:\n%s", b)
+	}
+	// Y lo que ya está no se duplica: `sf init` corre más de una vez.
+	if _, toco, _ := PermitirComando(raiz, "commandcode", "npm test"); toco {
+		t.Error("duplicó una regla que ya estaba")
 	}
 }
 
@@ -109,7 +278,7 @@ func TestNoResiembraElMapaDeModelos(t *testing.T) {
 	enUnHomeDePrueba(t)
 
 	c := global.Semilla("claude-code")
-	c.Declarar("deepseek", global.Modelo{Via: global.Consola, Comando: "deepseek exec"})
+	c.DeclararSuelto("deepseek", global.Modelo{ID: "ds", Via: global.Consola, Comando: "deepseek exec"})
 	if err := c.Guardar(); err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +291,7 @@ func TestNoResiembraElMapaDeModelos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, hay := leido.Buscar("deepseek"); !hay {
+	if _, hay := leido.Resolver("deepseek"); !hay {
 		t.Error("sf install borró un modelo aprobado")
 	}
 }

@@ -96,13 +96,34 @@ type Instruccion struct {
 	// Lote y DeLotes arman el "lote 2 de 4" de `implementar`. Cero = no aplica.
 	Lote, DeLotes int
 
-	// Skill, Modelo y Via son la mitad del hallazgo H1: si sf no los devuelve,
-	// la tabla estado→skill→modelo vive en CLAUDE.md y hay que mantener una
-	// copia por harness. Devolviéndolos, CLAUDE.md queda en cuatro líneas y
-	// AGENTS.md es el mismo texto.
+	// Skill, Perfil, Modelo, Agente y Via son la mitad del hallazgo H1: si sf no
+	// los devuelve, la tabla estado→skill→modelo vive en CLAUDE.md y hay que
+	// mantener una copia por harness. Devolviéndolos, CLAUDE.md queda en cuatro
+	// líneas y AGENTS.md es el mismo texto.
+	//
+	// Perfil y Modelo son dos cosas distintas y viajan juntas a propósito:
+	//
+	//	Perfil   qué PIDE el paso          razonar          vocabulario de sf
+	//	Modelo   qué se le da en ESTA máquina  laguna/s2.1  vocabulario del harness
+	//
+	// Que viajen juntas es lo que hace que un `sf next` sirva de log: dentro de
+	// tres meses se puede ver qué pedía el paso y qué se le dio. Con una sola
+	// palabra —como era antes— las dos preguntas tenían la misma respuesta y no
+	// se podían distinguir.
 	Skill  string
+	Perfil string
 	Modelo string
 	Via    string
+
+	// Agente es A QUIÉN invocar para conseguir ese modelo, y viene vacío en
+	// Claude Code.
+	//
+	// Es la otra mitad de H1b, la que sólo sf puede contestar. En Claude Code la
+	// herramienta de subagente acepta el modelo como parámetro, así que alcanza
+	// con `Modelo`. En opencode y Command Code NO —medido: el `model:` sale del
+	// archivo del agente y no se puede pisar al invocar—, así que sf genera un
+	// portamodelo por alias y acá devuelve su nombre.
+	Agente string
 
 	// Comando es con qué se sale por consola, y sólo viene con `via: consola`.
 	//
@@ -205,12 +226,23 @@ func SkillsDeEstado() []string {
 	return s
 }
 
-var modeloPorEstado = map[string]string{
-	estado.Planificacion: "opus",
-	estado.Revision:      "opus",
+// perfilPorEstado es qué PIDE cada paso, y es el piso de la cadena.
+//
+// Dice un ROL y no un modelo, y ésa es la corrección entera de H2: "opus" no es
+// una necesidad, es una respuesta — y una respuesta que sólo vale en un harness.
+// Los dos que están acá son los que JUZGAN: el ⑫ compara tres opciones y elige,
+// el ㉑ tiene que encontrar lo que no está. El resto escribe código contra un
+// plan que ya existe, y para eso está el default.
+//
+// `mecanico` no aparece a propósito: ningún estado lo pide. Lo nombran los sfx-*,
+// que están fuera de los nueve, y por eso su entrada en el catálogo es opcional
+// y no frena.
+var perfilPorEstado = map[string]string{
+	estado.Planificacion: global.Razonar,
+	estado.Revision:      global.Razonar,
 }
 
-const modeloPorDefecto = "sonnet"
+const perfilPorDefecto = global.Construir
 
 // Siguiente decide qué sigue. Es toda la lógica de `sf next`.
 //
@@ -364,8 +396,8 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 			Mensaje: fmt.Sprintf("⚠ ME TRABÉ. %s falló %d veces seguidas con %s.\n"+
 				"   ¿Subo el modelo, o entrás vos?",
 				e.FeatureActual, f.IntentosFallidos,
-				modeloDeFeature(raiz, fr, f, f.Estado)),
-			Sugerido: []string{"sf model <nombre>", "sf dismiss <h-#> \"motivo\""},
+				conQueSeTrabo(raiz, fr, f, g)),
+			Sugerido: []string{"sf model <alias>", "sf dismiss <h-#> \"motivo\""},
 		}
 	}
 
@@ -466,13 +498,14 @@ func tomarLaProxima(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global
 	// "otra feature" del ⑰— y traer un `sf model` de una vuelta anterior.
 	// Anticipar el default cuando el real es otro es la misma desinformación
 	// que el `via`, un renglón más abajo.
-	m := modelo(estado.Planificacion)
+	base := perfil(estado.Planificacion)
+	pedido := base
 	if f, hay := e.Features[prox.ID]; hay {
-		m = modeloDeFeature(raiz, prox, f, estado.Planificacion)
+		pedido = pedidoDeFeature(raiz, prox, f, estado.Planificacion)
 	}
-	v, cmd, declarado := via(estado.Planificacion, m, g)
+	m, aviso, declarado := lanzar(estado.Planificacion, pedido, base, g)
 	if !declarado {
-		return sinDeclarar(estado.Planificacion, prox.ID, m)
+		return sinDeclarar(estado.Planificacion, prox.ID, pedido, g)
 	}
 
 	return Instruccion{
@@ -480,9 +513,12 @@ func tomarLaProxima(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global
 		Estado:   estado.Planificacion,
 		Feature:  prox.ID,
 		Skill:    skills[estado.Planificacion],
-		Modelo:   m,
-		Via:      v,
-		Comando:  cmd,
+		Perfil:   base,
+		Modelo:   m.ID,
+		Via:      m.Via,
+		Comando:  m.Comando,
+		Agente:   agenteDe(m, g),
+		Avisos:   avisos(aviso),
 		Mensaje:  fmt.Sprintf("Sigue %s — %s (%d historias).", prox.ID, prox.Nombre, len(prox.Historias)),
 		Sugerido: []string{"sf take " + prox.ID},
 	}
@@ -629,19 +665,22 @@ func implementando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 // feature, y acá no hay ninguna. Los cuatro del ciclo usan
 // `trabajarEnFeature`, que sí los aplica.
 func trabajar(est, feature, mensaje string, g *global.Config) Instruccion {
-	m := modelo(est)
-	v, cmd, hay := via(est, m, g)
+	base := perfil(est)
+	m, aviso, hay := lanzar(est, base, base, g)
 	if !hay {
-		return sinDeclarar(est, feature, m)
+		return sinDeclarar(est, feature, base, g)
 	}
 	return Instruccion{
 		Tipo:     Trabajar,
 		Estado:   est,
 		Feature:  feature,
 		Skill:    skills[est],
-		Modelo:   m,
-		Via:      v,
-		Comando:  cmd,
+		Perfil:   base,
+		Modelo:   m.ID,
+		Via:      m.Via,
+		Comando:  m.Comando,
+		Agente:   agenteDe(m, g),
+		Avisos:   avisos(aviso),
 		Mensaje:  mensaje,
 		Sugerido: []string{"sf context", "sf done"},
 	}
@@ -667,106 +706,208 @@ func trabajar(est, feature, mensaje string, g *global.Config) Instruccion {
 func trabajarEnFeature(raiz, est string, fr roadmap.Feature, f *estado.Feature,
 	mensaje string, g *global.Config,
 ) Instruccion {
-	m := modeloDeFeature(raiz, fr, f, est)
-	v, cmd, hay := via(est, m, g)
+	base := perfil(est)
+	pedido := pedidoDeFeature(raiz, fr, f, est)
+	m, aviso, hay := lanzar(est, pedido, base, g)
 	if !hay {
-		return sinDeclarar(est, fr.ID, m)
+		return sinDeclarar(est, fr.ID, pedido, g)
 	}
 	return Instruccion{
 		Tipo:     Trabajar,
 		Estado:   est,
 		Feature:  fr.ID,
 		Skill:    skills[est],
-		Modelo:   m,
-		Via:      v,
-		Comando:  cmd,
+		Perfil:   base,
+		Modelo:   m.ID,
+		Via:      m.Via,
+		Comando:  m.Comando,
+		Agente:   agenteDe(m, g),
+		Avisos:   avisos(aviso),
 		Mensaje:  mensaje,
 		Sugerido: []string{"sf context", "sf done"},
 	}
 }
 
-func modelo(est string) string {
-	if m, hay := modeloPorEstado[est]; hay {
-		return m
+// perfil es qué pide un estado cuando nadie pidió otra cosa.
+func perfil(est string) string {
+	if p, hay := perfilPorEstado[est]; hay {
+		return p
 	}
-	return modeloPorDefecto
+	return perfilPorDefecto
 }
 
-// modeloDeFeature resuelve la cadena de precedencia de tres niveles.
+// pedidoDeFeature resuelve la cadena de precedencia. Devuelve un PEDIDO —un
+// perfil o un alias—, no un modelo: traducirlo es trabajo de `lanzar`.
 //
-//  1. estado.json     `sf model <nombre>` — la decisión de Javier, en runtime
-//  2. tareas.json     el ⑯ — "esta feature necesita uno más grande"
-//  3. el default del estado
+//  1. estado.json            `sf model <x>` — la decisión de Javier, en runtime
+//  2. tareas.json, del lote   el ⑯ — "el lote 3 necesita otro"
+//  3. tareas.json, de la feature   el ⑯ — "toda esta feature necesita otro"
+//  4. perfilPorEstado         el criterio del diseño
 //
-// El nivel 1 es el lazo del ⑳: cuando Javier sube el modelo porque el bucle
-// está patinando, esa decisión no está escrita en ningún archivo del plan y
-// tiene que ganarle a todo — incluso a lo que el ⑯ recomendó, que se escribió
-// antes de ver fallar nada.
+// Los niveles 2 y 3 son UN SOLO rung partido en dos, no uno nuevo: los dos son
+// "lo que el ⑯ recomendó", con lo más específico arriba. La regla de siempre
+// —cada nivel sabe menos que el de arriba— se mantiene.
 //
-// El nivel 2 es el ⑯, y es un campo y no un comando (regla 1.1): lo escribe el
-// mismo que planificó, en el mismo archivo, en la misma pasada.
+// El nivel 1 es el lazo del ⑳: cuando Javier sube el modelo porque el bucle está
+// patinando, esa decisión no está escrita en ningún archivo del plan y tiene que
+// ganarle a todo — incluso a lo que el ⑯ recomendó, que se escribió antes de ver
+// fallar nada.
 //
-// Un tareas.json ilegible NO es un error acá: quien se queja de eso es la
-// compuerta del ⑰, que corre antes. Si llegamos hasta acá con el archivo roto,
-// caer al default es mejor que no poder decir qué sigue.
-func modeloDeFeature(raiz string, fr roadmap.Feature, f *estado.Feature, est string) string {
+// El nivel 2 nació de que el menú existe. `tareas.go` argumentaba que un modelo
+// por lote "sería un campo repetido con el mismo valor", y razonaba bien desde lo
+// que sabía: con UN modelo por perfil, sí. Con varios los valores son DISTINTOS
+// —el lote de plomería va con el barato y el de concurrencia no— y esa diferencia
+// es el feature entero.
+//
+// Un tareas.json ilegible NO es un error acá: de eso se queja la compuerta del
+// ⑰, que corre antes. Si llegamos hasta acá con el archivo roto, caer al default
+// es mejor que no poder decir qué sigue.
+func pedidoDeFeature(raiz string, fr roadmap.Feature, f *estado.Feature, est string) string {
 	if f.Modelo != "" {
 		return f.Modelo
 	}
-	if p, err := tareas.Leer(raiz, fr.Carpeta()); err == nil && p.Modelo != "" {
-		return p.Modelo
+	if p, err := tareas.Leer(raiz, fr.Carpeta()); err == nil {
+		// El del lote primero: es el más específico de los dos que escribió el ⑯.
+		if est == estado.Implementar {
+			if l, hay := f.LoteActual(); hay {
+				if a := p.ModeloDeLote(l.Lote); a != "" {
+					return a
+				}
+			}
+		}
+		if p.Modelo != "" {
+			return p.Modelo
+		}
 	}
-	return modelo(est)
+	return perfil(est)
 }
 
-// via es quién hace el trabajo, y tiene tres valores (H17).
+// lanzar traduce un pedido al modelo concreto de ESTA máquina.
 //
-// `brief` es el único que conversa: ①–⑤ es un pinponeo con Javier, y un
-// subagente arranca, trabaja y muere — NO TE HABLA. El resto sale del mapa.
+// `brief` es el único que conversa: ①–⑤ es un pinponeo con Javier, y un subagente
+// arranca, trabaja y muere — NO TE HABLA.
 //
-// El segundo retorno es la parada: `false` significa que el modelo que hace
-// falta NO ESTÁ DECLARADO, y ahí sf no elige un reemplazo (eso sería opinar
-// sobre qué modelo se parece a cuál, y R3 lo prohíbe): para y pregunta.
+// El tercer retorno es la parada: `false` significa que el perfil que hace falta
+// NO ESTÁ DECLARADO para este harness, y ahí sf no elige un reemplazo —eso sería
+// opinar sobre qué modelo se parece a cuál, y R3 lo prohíbe—: para y pregunta.
+//
+// El segundo es un AVISO, y la asimetría con la parada es deliberada:
+//
+//	perfil sin declarar  →  🛑   no hay con qué lanzar nada, no hay salida
+//	alias que falta      →  ⚠   sí la hay: el default del perfil, que es el
+//	                            PRIMERO de su lista, o sea el más capaz
+//
+// Un alias faltante cae para el lado seguro —el peor caso es gastar de más— y
+// frenar el bucle por una preferencia sería frenar sobre una opinión.
 //
 // Con `g == nil` —todavía no se corrió `sf install`— se cae a `subagente`. Es a
-// propósito: no tener el mapa no puede impedir trabajar, sólo impide resolver
-// `consola`. La máquina funcionaba así antes de que el mapa existiera y sigue
-// funcionando igual.
-func via(est, modelo string, g *global.Config) (string, string, bool) {
+// propósito: no tener el catálogo no puede impedir trabajar, sólo impide resolver
+// `consola`. La máquina funcionaba así antes de que el catálogo existiera.
+func lanzar(est, pedido, base string, g *global.Config) (global.Modelo, string, bool) {
 	if est == "brief" {
-		return global.Vos, "", true
+		return global.Modelo{Via: global.Vos}, "", true
 	}
 	if g == nil {
-		return global.Subagente, "", true
+		return global.Modelo{Via: global.Subagente}, "", true
 	}
-	m, hay := g.Buscar(modelo)
-	if !hay {
-		return "", "", false
+	if m, hay := g.Resolver(pedido); hay {
+		return m, "", true
 	}
-	return m.Via, m.Comando, true
+	// El pedido era un alias que acá no está declarado.
+	if !global.EsPerfil(pedido) {
+		if m, hay := g.Default(base); hay {
+			return m, fmt.Sprintf(
+				"el plan pide %q y el harness %q no lo tiene declarado — va con %q, el default de %s. "+
+					"Declaralo con: sf model %s --alias %s --id … --via subagente",
+				pedido, g.Harness, m.Alias, base, base, pedido), true
+		}
+	}
+	return global.Modelo{}, "", false
 }
 
-// sinDeclarar es la 🛑 de un modelo que no está en el mapa.
+// agenteDe es a quién invocar para conseguir este modelo, o "" si no hace falta.
 //
-// Las tres salidas son las del diseño, y las tres declaran: contestar es lo que
-// construye la lista. Es el mismo mecanismo que `dependencias_aprobadas`
-// —comparar contra una lista que se llena con cada aprobación— aplicado a otra
-// cosa. Un patrón ya firmado, no uno nuevo.
-func sinDeclarar(est, feature, modelo string) Instruccion {
-	return Instruccion{
+// Vacío en Claude Code —ahí el modelo va como parámetro de la llamada— y vacío
+// también cuando el trabajo no va por subagente: un `via: consola` lo ejecuta el
+// orquestador con sus manos, y un `via: vos` lo hace Javier.
+func agenteDe(m global.Modelo, g *global.Config) string {
+	if g == nil || m.Via != global.Subagente || m.Alias == "" {
+		return ""
+	}
+	if !global.NecesitaPortamodelo(g.Harness) {
+		return ""
+	}
+	return global.NombreDeAgente(m.Alias)
+}
+
+// conQueSeTrabo nombra el modelo que estuvo fallando, para poder contestarle.
+//
+// Dice el pedido Y el alias que salió de él, porque desde que hay catálogo no
+// son lo mismo: "falló con construir" no alcanza para decidir si conviene
+// subirlo —hay varios modelos en construir— y saber cuál estuvo fallando es
+// justo la mitad del dato que falta.
+//
+// Cuando los dos coinciden —el pedido ya era un alias— se dice uno solo: repetir
+// la misma palabra dos veces es ruido.
+func conQueSeTrabo(raiz string, fr roadmap.Feature, f *estado.Feature, g *global.Config) string {
+	pedido := pedidoDeFeature(raiz, fr, f, f.Estado)
+	m, hay := g.Resolver(pedido)
+	if !hay || m.Alias == "" || m.Alias == pedido {
+		return pedido
+	}
+	return fmt.Sprintf("%s (%s)", m.Alias, pedido)
+}
+
+// avisos envuelve un aviso que puede estar vacío.
+//
+// Existe para que los tres sitios que arman una Instruccion no repitan el mismo
+// `if aviso != ""`: un aviso vacío tiene que dar una lista vacía y no una lista
+// con un string vacío adentro, que es lo que se imprimiría como un renglón en
+// blanco.
+func avisos(a string) []string {
+	if a == "" {
+		return nil
+	}
+	return []string{a}
+}
+
+// sinDeclarar es la 🛑 de un perfil que este harness no tiene declarado.
+//
+// Las salidas declaran: contestar es lo que construye el catálogo. Es el mismo
+// mecanismo que `dependencias_aprobadas` —comparar contra una lista que se llena
+// con cada aprobación— aplicado a otra cosa. Un patrón ya firmado, no uno nuevo.
+//
+// El mensaje nombra el perfil Y el harness, y dice CÓMO averiguar los ids en ese
+// harness. Una parada que te deja sin saber qué contestar es una parada mal
+// escrita: son dos preguntas que se contestan una vez en la vida de la máquina,
+// y no tienen que costar una búsqueda.
+func sinDeclarar(est, feature, pedido string, g *global.Config) Instruccion {
+	harness := "este harness"
+	if g != nil && g.Harness != "" {
+		harness = g.Harness
+	}
+	i := Instruccion{
 		Tipo:    Para,
 		Estado:  est,
 		Feature: feature,
-		Modelo:  modelo,
+		Perfil:  pedido,
 		Mensaje: fmt.Sprintf(
-			"🛑 PARÁ. Hace falta %q y no está declarado en ~/.specforge/modelos.yaml.\n"+
-				"   sf no elige el reemplazo: decime vos cómo se lanza acá.", modelo),
+			"🛑 PARÁ. El paso pide el perfil %q y el harness %s no lo tiene declarado.\n"+
+				"   sf no elige el modelo: decime vos cuál es acá.\n"+
+				"   (los ids de tu harness: `opencode models` · `/model` en Claude Code y Command Code)",
+			pedido, harness),
 		Sugerido: []string{
-			fmt.Sprintf("sf model %s --via subagente", modelo),
-			fmt.Sprintf("sf model %s --via consola --comando \"…\"", modelo),
-			"sf model <otro>",
+			fmt.Sprintf("sf model %s --alias <corto> --id <id-del-harness> --via subagente", pedido),
+			fmt.Sprintf("sf model %s --alias <corto> --id <id> --via consola --comando \"…\"", pedido),
 		},
 	}
+	if global.NecesitaPortamodelo(harness) {
+		// Medido: los agentes se leen al arrancar. Si no se dice acá, se descubre
+		// fallando, que es la peor forma de enterarse de algo que ya se sabía.
+		i.Avisos = append(i.Avisos,
+			"después de declararlos, reiniciá tu harness: los agentes se leen al arrancar.")
+	}
+	return i
 }
 
 // existe pregunta por un archivo relativo a la raíz.

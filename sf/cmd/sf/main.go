@@ -302,12 +302,12 @@ func parada(cmd string, args []string) int {
 	case "take":
 		ef = maquina.Tomar(e, r, arg(0))
 	case "model":
-		nombre, via, comando, err := flagsDeModelo(args)
+		nombre, alias, id, via, comando, err := flagsDeModelo(args)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "sf model:", err)
 			return salidaError
 		}
-		ef = maquina.Modelo(e, g, nombre, via, comando)
+		ef = maquina.Modelo(e, g, nombre, alias, id, via, comando)
 	case "dismiss":
 		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
 	case "lote start":
@@ -316,6 +316,17 @@ func parada(cmd string, args []string) int {
 		// Todo lo que venga después del comando es el texto, no flags: `sf new
 		// que sf soporte brownfield` tiene que funcionar sin comillas.
 		ef = maquina.Nueva(raiz, e, strings.Join(args, " "))
+	}
+
+	// Un alias nuevo necesita su portamodelo AHORA. La sesión viva no lo va a
+	// ver —los agentes se leen al arrancar, y por eso `sf model` avisa que hay
+	// que reiniciar— pero el archivo tiene que quedar escrito igual: si se
+	// dejara para el próximo `sf install`, reiniciar no alcanzaría.
+	if ef.Portamodelo && g != nil {
+		if _, err := andamio.Regenerar(raiz, g); err != nil {
+			fmt.Fprintln(os.Stderr, "sf model: no pude escribir el portamodelo:", err)
+			return salidaError
+		}
 	}
 
 	// El estado se guarda si el comando funcionó. Un `sf take f-99` que falla no
@@ -361,48 +372,48 @@ func parada(cmd string, args []string) int {
 	return salidaError
 }
 
-// flagsDeModelo parte `sf model <nombre> [--via …] [--comando "…"]`.
+// flagsDeModelo parte `sf model <perfil|alias> [--alias …] [--id …] [--via …] [--comando "…"]`.
 //
-// Los dos flags son cómo se DECLARA un modelo nuevo, y por eso van acá y no en
-// un `sf model add` aparte: aprobar es declarar (ver maquina.Modelo).
-func flagsDeModelo(args []string) (nombre, via, comando string, err error) {
+// Los flags son cómo se DECLARA un modelo, y por eso van acá y no en un
+// `sf model add` aparte: aprobar es declarar (ver maquina.Modelo). Sin flags, el
+// mismo comando es el ⑳ — "usá este de acá en adelante".
+//
+// Los cuatro se parsean juntos y el que decide qué significan es maquina.Modelo:
+// este parser no sabe de perfiles ni de alias, sólo parte la línea. Meterle la
+// lógica acá la pondría fuera del alcance de los tests de la máquina, que es
+// donde tiene que estar.
+func flagsDeModelo(args []string) (nombre, alias, id, via, comando string, err error) {
+	fallo := func(f string, a ...any) (string, string, string, string, string, error) {
+		return "", "", "", "", "", fmt.Errorf(f, a...)
+	}
+	destinos := map[string]*string{"--alias": &alias, "--id": &id, "--via": &via, "--comando": &comando}
+
 	for i := 0; i < len(args); i++ {
 		a := args[i]
-		siguiente := func() (string, bool) {
-			if i+1 < len(args) {
-				i++
-				return args[i], true
-			}
-			return "", false
-		}
 
-		switch {
-		case a == "--via":
-			v, ok := siguiente()
-			if !ok {
-				return "", "", "", errors.New("`--via` sin valor. Es `subagente` o `consola`.")
+		if d, hay := destinos[a]; hay {
+			if i+1 >= len(args) {
+				return fallo("`%s` sin valor", a)
 			}
-			via = v
-		case strings.HasPrefix(a, "--via="):
-			via = strings.TrimPrefix(a, "--via=")
-		case a == "--comando":
-			c, ok := siguiente()
-			if !ok {
-				return "", "", "", errors.New("`--comando` sin valor")
-			}
-			comando = c
-		case strings.HasPrefix(a, "--comando="):
-			comando = strings.TrimPrefix(a, "--comando=")
-		case strings.HasPrefix(a, "-"):
-			return "", "", "", fmt.Errorf("no conozco %q. Sólo --via y --comando", a)
-		default:
-			if nombre != "" {
-				return "", "", "", fmt.Errorf("dos modelos: %q y %q", nombre, a)
-			}
-			nombre = a
+			i++
+			*d = args[i]
+			continue
 		}
+		if k, v, corta := strings.Cut(a, "="); corta {
+			if d, hay := destinos[k]; hay {
+				*d = v
+				continue
+			}
+		}
+		if strings.HasPrefix(a, "-") {
+			return fallo("no conozco %q. Son --alias, --id, --via y --comando", a)
+		}
+		if nombre != "" {
+			return fallo("dos nombres: %q y %q", nombre, a)
+		}
+		nombre = a
 	}
-	return nombre, via, comando, nil
+	return nombre, alias, id, via, comando, nil
 }
 
 // instalar es `sf install`: el andamio.
@@ -692,7 +703,15 @@ func mostrar(i maquina.Instruccion) string {
 		}
 		campo("feature", feature)
 		campo("skill", i.Skill)
+		// Perfil y modelo son dos preguntas distintas y por eso son dos
+		// renglones: qué PIDE el paso, y qué se le da en esta máquina. Con una
+		// sola palabra —como era antes de H2— las dos tenían la misma respuesta
+		// y no se podían distinguir al leer el log.
+		campo("perfil", i.Perfil)
 		campo("modelo", i.Modelo)
+		// El agente sólo aparece donde hace falta: en Claude Code el modelo va
+		// como parámetro de la llamada y este renglón sería ruido.
+		campo("agente", i.Agente)
 		campo("via", i.Via)
 		// El comando sólo aparece con `via: consola`, y es lo que el
 		// orquestador tiene que tipear. Sin esta línea, "consola" sería una
@@ -742,7 +761,7 @@ las cinco respuestas a una parada:
   sf approve              sella lo que estés mirando
   sf reject "motivo"      no sella, y el motivo viaja en el sobre
   sf take <feature>       el ⑪: elige de la cola
-  sf model <nombre>       sube el modelo        \
+  sf model <alias>        sube el modelo        \
   sf dismiss <h-#> "…"    descarta un hallazgo  /  las salidas de ME TRABÉ
 
 salidas:

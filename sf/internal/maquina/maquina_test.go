@@ -113,14 +113,27 @@ func (p *proyecto) next() Instruccion {
 	return Siguiente(p.raiz, p.e, p.r, p.g)
 }
 
-// conModelos declara un mapa de modelos para este proyecto de prueba.
+// conCatalogo declara un catálogo para este proyecto de prueba.
 //
 // Los tests que NO lo llaman corren con g == nil, que es el caso de "todavía no
-// se corrió sf install" — y tiene que seguir funcionando: no tener el mapa no
+// se corrió sf install" — y tiene que seguir funcionando: no tener el catálogo no
 // puede impedir trabajar.
-func (p *proyecto) conModelos(m map[string]global.Modelo) *proyecto {
-	p.g = &global.Config{Harness: "claude-code", Modelos: m}
+func (p *proyecto) conCatalogo(h string, cat global.Catalogo) *proyecto {
+	p.g = &global.Config{Harness: h, Harnesses: map[string]global.Catalogo{h: cat}}
 	return p
+}
+
+// conTresPerfiles es el catálogo que usan casi todos los tests.
+//
+// Los alias son deliberadamente genéricos —`caro`, `medio`, `barato`— y no
+// nombres de modelos reales. Es el mismo invariante que en `global`: si un test
+// dijera `opus`, el día que alguien lo lea creería que sf conoce ese nombre.
+func (p *proyecto) conTresPerfiles() *proyecto {
+	return p.conCatalogo("claude-code", global.Catalogo{
+		global.Razonar: {{Alias: "caro", ID: "id-de-caro", Via: global.Subagente}},
+		global.Construir: {{Alias: "medio", ID: "id-de-medio", Via: global.Subagente},
+			{Alias: "barato", ID: "id-de-barato", Via: global.Subagente}},
+	})
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -409,11 +422,17 @@ func TestConTodosLosLotesCommiteadosFaltaCerrar(t *testing.T) {
 // El modelo que Javier subió en el ⑳ tiene que ganarle al default del mapa: esa
 // decisión no está escrita en ningún archivo.
 func TestElModeloDelEstadoPisaAlDefault(t *testing.T) {
-	p := implementando1(t, []estado.Lote{{Lote: 1, Rojo: true}})
-	p.e.Features["f-1"].Modelo = "opus"
+	p := implementando1(t, []estado.Lote{{Lote: 1, Rojo: true}}).conTresPerfiles()
+	p.e.Features["f-1"].Modelo = "caro"
 
-	if i := p.next(); i.Modelo != "opus" {
-		t.Errorf("modelo %q, quería opus (el que Javier subió)", i.Modelo)
+	i := p.next()
+	if i.Modelo != "id-de-caro" {
+		t.Errorf("modelo %q, quería el id de caro (el que Javier subió)", i.Modelo)
+	}
+	// Y el perfil sigue diciendo lo que el PASO pide, que no es lo mismo que lo
+	// que se le dio. Las dos cosas viajan juntas a propósito.
+	if i.Perfil != global.Construir {
+		t.Errorf("perfil %q, quería construir: el ⑳ cambia el modelo, no lo que el paso pide", i.Perfil)
 	}
 }
 
@@ -438,7 +457,7 @@ func TestMeTrabeGanaSobreElEstado(t *testing.T) {
 	}
 	// Las tres salidas: subir el modelo, descartar un hallazgo, o entrar vos
 	// (que no necesita comando).
-	if !slices.Contains(i.Sugerido, "sf model <nombre>") {
+	if !slices.Contains(i.Sugerido, "sf model <alias>") {
 		t.Errorf("sugirió %v, quería sf model", i.Sugerido)
 	}
 }
@@ -480,8 +499,8 @@ func TestRevisionVaConModeloGrande(t *testing.T) {
 	p.e.FeatureActual = "f-1"
 	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Revision}
 
-	if i := p.next(); i.Modelo != "opus" {
-		t.Errorf("modelo %q, quería opus", i.Modelo)
+	if i := p.conTresPerfiles().next(); i.Perfil != global.Razonar {
+		t.Errorf("perfil %q, quería razonar: el ㉑ tiene que encontrar lo que no está", i.Perfil)
 	}
 }
 
@@ -507,13 +526,13 @@ func TestTodoTrabajoTraeSkillYModelo(t *testing.T) {
 			if skills[est] == "" {
 				t.Errorf("el estado %q no tiene skill en el mapa", est)
 			}
-			if modelo(est) == "" {
-				t.Errorf("el estado %q no resuelve modelo", est)
+			if perfil(est) == "" {
+				t.Errorf("el estado %q no resuelve perfil", est)
 			}
-			// Sin mapa (nadie corrió sf install) el via igual resuelve: es
+			// Sin catálogo (nadie corrió sf install) el via igual resuelve: es
 			// lo que permite trabajar antes de instalar nada.
-			if v, _, hay := via(est, modelo(est), nil); !hay || v == "" {
-				t.Errorf("el estado %q no resuelve via sin mapa", est)
+			if m, _, hay := lanzar(est, perfil(est), perfil(est), nil); !hay || m.Via == "" {
+				t.Errorf("el estado %q no resuelve via sin catálogo", est)
 			}
 		})
 	}
@@ -621,13 +640,20 @@ func (p *proyecto) enImplementar(tareasJSON string) *proyecto {
 	return p
 }
 
-// La cadena de precedencia es de tres niveles y cada uno sabe MENOS que el de
+// La cadena de precedencia tiene cuatro niveles y cada uno sabe MENOS que el de
 // arriba. Este test la recorre entera, y es el que se rompe si alguien invierte
 // dos.
+//
+// Los niveles 2 y 3 —el lote y la feature— son el ⑯ partido en dos: los dos son
+// "lo que recomendó el que planificó", con lo más específico arriba.
 func TestLaPrecedenciaDelModelo(t *testing.T) {
-	const conModelo = `{"feature":"f-1","modelo":"opus","tareas":[
-		{"id":"t-1","lote":1,"descripcion":"x","satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`
 	const sinModelo = `{"feature":"f-1","tareas":[
+		{"id":"t-1","lote":1,"descripcion":"x","satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`
+
+	const porLote = `{"feature":"f-1","modelo":"medio","modelo_por_lote":{"1":"barato"},"tareas":[
+		{"id":"t-1","lote":1,"descripcion":"x","satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`
+
+	const conModelo = `{"feature":"f-1","modelo":"caro","tareas":[
 		{"id":"t-1","lote":1,"descripcion":"x","satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`
 
 	casos := []struct {
@@ -636,20 +662,24 @@ func TestLaPrecedenciaDelModelo(t *testing.T) {
 		deSf   string // lo que puso `sf model`
 		quiero string
 	}{
-		{"sin nada: el default del estado", sinModelo, "", modeloPorDefecto},
-		{"el ⑯ le gana al default", conModelo, "", "opus"},
-		{"sf model le gana al ⑯", conModelo, "haiku", "haiku"},
-		{"sf model manda aunque no haya ⑯", sinModelo, "haiku", "haiku"},
+		{"sin nada: el default del perfil del estado", sinModelo, "", "id-de-medio"},
+		{"el ⑯ de la feature le gana al default", conModelo, "", "id-de-caro"},
+		{"el ⑯ del LOTE le gana al de la feature", porLote, "", "id-de-barato"},
+		{"sf model le gana al ⑯", conModelo, "barato", "id-de-barato"},
+		{"sf model manda aunque no haya ⑯", sinModelo, "barato", "id-de-barato"},
 		// El plan roto no puede impedir que sf conteste qué sigue: de eso se
 		// queja la compuerta del ⑰, que corre antes.
-		{"un tareas.json ilegible cae al default", `{roto`, "", modeloPorDefecto},
-		{"sin tareas.json cae al default", "", "", modeloPorDefecto},
+		{"un tareas.json ilegible cae al default", `{roto`, "", "id-de-medio"},
+		{"sin tareas.json cae al default", "", "", "id-de-medio"},
 	}
 
 	for _, c := range casos {
 		t.Run(c.nombre, func(t *testing.T) {
-			p := nuevo(t).enImplementar(c.tareas)
+			p := nuevo(t).enImplementar(c.tareas).conTresPerfiles()
 			p.e.Features["f-1"].Modelo = c.deSf
+			// El nivel del LOTE sólo existe si hay un lote en curso: los lotes
+			// se siembran en el primer `sf lote start`.
+			p.e.Features["f-1"].Lotes = []estado.Lote{{Lote: 1, Rojo: true}}
 
 			if m := p.next().Modelo; m != c.quiero {
 				t.Errorf("modelo %q, quería %q", m, c.quiero)
@@ -675,10 +705,8 @@ func (p *proyecto) enImplementarCon(modelo string) *proyecto {
 // llamada con otro `via:`, y el comando viene con ella — sin eso, "consola"
 // sería una instrucción que el orquestador no puede ejecutar.
 func TestUnModeloDeOtroProveedorSalePorConsola(t *testing.T) {
-	p := nuevo(t).enImplementarCon("deepseek").conModelos(map[string]global.Modelo{
-		"sonnet":   {Via: global.Subagente},
-		"deepseek": {Via: global.Consola, Comando: "deepseek exec"},
-	})
+	p := nuevo(t).enImplementarCon("ajeno").conTresPerfiles()
+	p.g.DeclararSuelto("ajeno", global.Modelo{ID: "ajeno-r1", Via: global.Consola, Comando: "ajeno exec"})
 
 	i := p.next()
 	if i.Tipo != Trabajar {
@@ -687,8 +715,13 @@ func TestUnModeloDeOtroProveedorSalePorConsola(t *testing.T) {
 	if i.Via != global.Consola {
 		t.Errorf("via %q, quería consola", i.Via)
 	}
-	if i.Comando != "deepseek exec" {
-		t.Errorf("comando %q, quería el del mapa", i.Comando)
+	if i.Comando != "ajeno exec" {
+		t.Errorf("comando %q, quería el del catálogo", i.Comando)
+	}
+	// Y NO lleva agente: un `via: consola` lo ejecuta el orquestador con sus
+	// manos, así que no hay portamodelo que invocar.
+	if i.Agente != "" {
+		t.Errorf("agente %q — consola no se lanza como subagente", i.Agente)
 	}
 	// Y el skill es EL MISMO: lo único que cambia es cómo se lanza.
 	if i.Skill != skills[estado.Implementar] {
@@ -698,30 +731,53 @@ func TestUnModeloDeOtroProveedorSalePorConsola(t *testing.T) {
 
 // Un modelo que no está en el mapa PARA, y sf no elige el reemplazo: eso sería
 // opinar sobre qué modelo se parece a cuál, y R3 lo prohíbe.
-func TestUnModeloSinDeclararPara(t *testing.T) {
-	p := nuevo(t).enImplementarCon("grok").conModelos(map[string]global.Modelo{
-		"sonnet": {Via: global.Subagente},
-	})
+// Un perfil que el harness no tiene declarado PARA, y sf no elige el reemplazo:
+// eso sería opinar sobre qué modelo se parece a cuál, y R3 lo prohíbe.
+func TestUnPerfilSinDeclararPara(t *testing.T) {
+	p := nuevo(t).enImplementarCon("").conCatalogo("opencode", global.Catalogo{})
 
 	i := p.next()
 	if i.Tipo != Para {
 		t.Fatalf("tipo %v, quería Para", i.Tipo)
 	}
-	if !strings.Contains(i.Mensaje, "grok") {
-		t.Errorf("no dijo cuál falta: %q", i.Mensaje)
+	// El mensaje nombra el perfil Y el harness: sin las dos cosas, quien lo lee
+	// no sabe qué contestar ni dónde.
+	if !strings.Contains(i.Mensaje, global.Construir) {
+		t.Errorf("no dijo qué perfil falta: %q", i.Mensaje)
 	}
-	// Las tres salidas son las del diseño, y las tres declaran.
-	if len(i.Sugerido) != 3 {
-		t.Errorf("sugirió %v, querían ser tres salidas", i.Sugerido)
+	if !strings.Contains(i.Mensaje, "opencode") {
+		t.Errorf("no dijo en qué harness falta: %q", i.Mensaje)
 	}
-	if !strings.Contains(strings.Join(i.Sugerido, " "), "--via consola") {
-		t.Errorf("no ofreció la salida por consola: %v", i.Sugerido)
+	if !strings.Contains(strings.Join(i.Sugerido, " "), "--alias") {
+		t.Errorf("no ofreció declarar con alias: %v", i.Sugerido)
+	}
+	// Medido: los agentes se leen al arrancar, así que declarar no alcanza.
+	if !strings.Contains(strings.Join(i.Avisos, " "), "reiniciá") {
+		t.Errorf("no avisó que hay que reiniciar el harness: %v", i.Avisos)
+	}
+}
+
+// Un ALIAS que falta NO para: cae al default del perfil y avisa. La asimetría es
+// deliberada — un perfil sin declarar no tiene salida, un alias faltante sí, y
+// además cae para el lado seguro (el default es el primero de su lista).
+func TestUnAliasQueFaltaAvisaYNoPara(t *testing.T) {
+	p := nuevo(t).enImplementarCon("el-que-no-esta").conTresPerfiles()
+
+	i := p.next()
+	if i.Tipo != Trabajar {
+		t.Fatalf("tipo %v: un alias que falta no puede frenar el bucle", i.Tipo)
+	}
+	if i.Modelo != "id-de-medio" {
+		t.Errorf("modelo %q, quería el default de construir", i.Modelo)
+	}
+	if !strings.Contains(strings.Join(i.Avisos, " "), "el-que-no-esta") {
+		t.Errorf("cayó al default sin decirlo: %v", i.Avisos)
 	}
 }
 
 // Sin mapa —nadie corrió `sf install`— la máquina sigue funcionando. No tener
 // el mapa no puede impedir trabajar: sólo impide resolver `consola`.
-func TestSinMapaCaeASubagente(t *testing.T) {
+func TestSinCatalogoCaeASubagente(t *testing.T) {
 	i := nuevo(t).enImplementarCon("loquesea").next()
 
 	if i.Tipo != Trabajar {
@@ -735,9 +791,7 @@ func TestSinMapaCaeASubagente(t *testing.T) {
 // El brief es el único que conversa, y eso NO depende del mapa: un subagente
 // arranca, trabaja y muere — no te habla.
 func TestElBriefSiempreEsVos(t *testing.T) {
-	p := nuevo(t).conModelos(map[string]global.Modelo{
-		"sonnet": {Via: global.Consola, Comando: "lo que sea"},
-	})
+	p := nuevo(t).conTresPerfiles()
 
 	if i := p.next(); i.Via != global.Vos {
 		t.Errorf("el brief salió con via %q", i.Via)
@@ -836,11 +890,12 @@ func TestElModeloDeJavierGanaEnLosCuatroEstadosDeFeature(t *testing.T) {
 		t.Run(est, func(t *testing.T) {
 			p := nuevo(t).productoListo().enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`)
 			p.e.Features["f-1"].Estado = est
-			p.e.Features["f-1"].Modelo = "gpt5"
-			p.conModelos(map[string]global.Modelo{"gpt5": {Via: global.Consola, Comando: "codex exec"}})
+			p.e.Features["f-1"].Modelo = "ajeno"
+			p.conTresPerfiles()
+			p.g.DeclararSuelto("ajeno", global.Modelo{ID: "ajeno-x", Via: global.Consola, Comando: "ajeno exec"})
 
-			if i := p.next(); i.Modelo != "gpt5" {
-				t.Errorf("modelo %q, quería gpt5: lo puso `sf model`", i.Modelo)
+			if i := p.next(); i.Modelo != "ajeno-x" {
+				t.Errorf("modelo %q, quería el de `sf model`", i.Modelo)
 			}
 		})
 	}
@@ -851,34 +906,63 @@ func TestElModeloDeJavierGanaEnLosCuatroEstadosDeFeature(t *testing.T) {
 // pierde contra `sf model`.
 func TestElModeloDelPlanGanaAlDefaultDelEstado(t *testing.T) {
 	p := nuevo(t).productoListo().
-		enImplementar(`{"modelo":"opus","tareas":[{"id":"t-1","lote":1}]}`)
+		enImplementar(`{"modelo":"caro","tareas":[{"id":"t-1","lote":1}]}`).conTresPerfiles()
 	p.e.Features["f-1"].Estado = estado.Cierre
-	p.conModelos(map[string]global.Modelo{"opus": {Via: global.Subagente}})
 
-	// El default de `cierre` es sonnet, y el plan pide opus.
-	if i := p.next(); i.Modelo != "opus" {
-		t.Errorf("modelo %q, quería opus: lo pidió el ⑯", i.Modelo)
+	// El default de `cierre` es el de construir, y el plan pide `caro`.
+	if i := p.next(); i.Modelo != "id-de-caro" {
+		t.Errorf("modelo %q, quería el de caro: lo pidió el ⑯", i.Modelo)
 	}
 
 	// Y `sf model` le gana igual, porque Javier decide en runtime y el ⑯ se
 	// escribió antes de ver fallar nada.
-	p.e.Features["f-1"].Modelo = "haiku"
-	p.conModelos(map[string]global.Modelo{
-		"opus": {Via: global.Subagente}, "haiku": {Via: global.Subagente},
-	})
-	if i := p.next(); i.Modelo != "haiku" {
-		t.Errorf("modelo %q, quería haiku: le gana la decisión de runtime", i.Modelo)
+	p.e.Features["f-1"].Modelo = "barato"
+	if i := p.next(); i.Modelo != "id-de-barato" {
+		t.Errorf("modelo %q, quería el de barato: le gana la decisión de runtime", i.Modelo)
 	}
 }
 
-// Y sin nada declarado sigue el default del estado: `revision` pide opus porque
-// juzgar es donde el contexto grande paga.
-func TestSinDecidirNadaMandaElDefaultDelEstado(t *testing.T) {
-	p := nuevo(t).productoListo().enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`)
+// Y sin nada pedido manda el perfil del estado: `revision` pide `razonar` porque
+// juzgar es donde el modelo que piensa paga.
+func TestSinDecidirNadaMandaElPerfilDelEstado(t *testing.T) {
+	p := nuevo(t).productoListo().
+		enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`).conTresPerfiles()
 	p.e.Features["f-1"].Estado = estado.Revision
 
-	if i := p.next(); i.Modelo != "opus" {
-		t.Errorf("modelo %q, quería opus: es el default de revision", i.Modelo)
+	i := p.next()
+	if i.Perfil != global.Razonar {
+		t.Errorf("perfil %q, quería razonar", i.Perfil)
+	}
+	if i.Modelo != "id-de-caro" {
+		t.Errorf("modelo %q, quería el default de razonar", i.Modelo)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// H8 — el portamodelo
+// ────────────────────────────────────────────────────────────────────────────
+
+// En Claude Code el modelo va como parámetro de la llamada, así que NO hace
+// falta portamodelo y `agente:` viene vacío. En los otros dos el `model:` sale
+// del archivo del agente y no se puede pisar al invocar (medido), así que sf
+// tiene que decir a quién invocar.
+func TestElAgenteSoloApareceDondeHaceFalta(t *testing.T) {
+	casos := map[string]string{
+		"claude-code": "",
+		"opencode":    "sf-medio",
+		"commandcode": "sf-medio",
+	}
+	for harness, quiero := range casos {
+		t.Run(harness, func(t *testing.T) {
+			p := nuevo(t).productoListo().
+				enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`).conTresPerfiles()
+			p.g.Harness = harness
+			p.g.Harnesses[harness] = p.g.Harnesses["claude-code"]
+
+			if i := p.next(); i.Agente != quiero {
+				t.Errorf("agente %q, quería %q", i.Agente, quiero)
+			}
+		})
 	}
 }
 
@@ -889,14 +973,17 @@ func TestSinDecidirNadaMandaElDefaultDelEstado(t *testing.T) {
 // Es la mitad del dato que hace falta para contestarle: "¿subo el modelo?" no
 // se puede decidir sin saber cuál está fallando.
 func TestMeTrabeDiceConQueModeloSeTrabo(t *testing.T) {
-	p := nuevo(t).productoListo().enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`)
+	p := nuevo(t).productoListo().
+		enImplementar(`{"tareas":[{"id":"t-1","lote":1}]}`).conTresPerfiles()
 	p.e.Features["f-1"].IntentosFallidos = TopeIntentos
 
 	i := p.next()
 	if i.Tipo != MeTrabe {
 		t.Fatalf("tipo %v, quería MeTrabe", i.Tipo)
 	}
-	if !strings.Contains(i.Mensaje, "sonnet") {
+	// El ALIAS y no sólo el perfil: "falló con construir" no alcanza para
+	// decidir si subirlo, porque en construir hay varios.
+	if !strings.Contains(i.Mensaje, "medio") {
 		t.Errorf("no dijo con qué modelo se trabó: %q", i.Mensaje)
 	}
 	if strings.Contains(i.Mensaje, "con .") {

@@ -45,6 +45,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 )
 
 // Archivo es el nombre dentro de la carpeta de la feature.
@@ -77,9 +78,55 @@ type Plan struct {
 	//
 	// Le gana el `sf model` de Javier (estado.json), porque una decisión suya en
 	// runtime siempre le gana a una recomendación escrita antes.
+	//
+	// Y lo que lleva es un ALIAS del catálogo o un perfil — NUNCA un id de
+	// modelo. Un id acá sería un dato de la máquina de Javier metido en un
+	// archivo versionado que otro harness va a leer, que es exactamente H2.
 	Modelo string `json:"modelo,omitempty"`
 
+	// ModeloPorLote es el ⑯ afinando: "el lote 1 es plomería, va con el barato".
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// EL ARGUMENTO DE ARRIBA ERA CORRECTO, Y SU PREMISA YA NO ES CIERTA
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Este campo contradice lo que dice el comentario de `Modelo`, y hay que
+	// leerlo entero antes de creerle a cualquiera de los dos. Aquél decía:
+	//
+	//	"Y por lote tampoco, porque el que decide el lote es el mismo que
+	//	 decidiría el modelo y lo haría en la misma pasada: sería un campo
+	//	 repetido con el mismo valor."
+	//
+	// Razonaba bien desde lo que sabía. "El mismo valor" es cierto cuando hay UN
+	// modelo por perfil: ahí repetirlo por lote es ruido y nada más.
+	//
+	// Lo que cambió es que el catálogo pasó a tener VARIOS modelos por perfil y
+	// el sobre del ⑫ pasó a llevar el menú. Con eso los valores son DISTINTOS
+	// —el lote de plomería con el barato, el de concurrencia con el que razona—
+	// y esa diferencia no es un detalle: es el feature.
+	//
+	// `Modelo` NO se va: sigue siendo cómo se dice "toda esta feature es más
+	// difícil de lo normal" sin repetirlo tres veces. Queda debajo del lote y
+	// arriba del default.
+	//
+	// La clave es el número de lote como string, porque JSON no tiene claves
+	// numéricas: {"1": "laguna", "3": "opus"}.
+	ModeloPorLote map[string]string `json:"modelo_por_lote,omitempty"`
+
 	Tareas []Tarea `json:"tareas"`
+}
+
+// ModeloDeLote es qué pidió el ⑯ para ESTE lote, o "" si no pidió nada.
+//
+// Devuelve string y no (string, bool) a propósito: "no pidió nada" y "pidió una
+// cadena vacía" llevan al mismo lado —caer al nivel de abajo de la cadena— y
+// distinguirlos obligaría a todos los que llaman a escribir un `if` que no
+// cambia nada.
+func (p *Plan) ModeloDeLote(lote int) string {
+	if p == nil || p.ModeloPorLote == nil {
+		return ""
+	}
+	return p.ModeloPorLote[strconv.Itoa(lote)]
 }
 
 // Tarea es una unidad de trabajo con sus tests ya nombrados.

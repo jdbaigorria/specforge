@@ -149,7 +149,29 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 	}
 
 	r.Harness = g.Harness
-	r.Modelos = len(g.Modelos)
+	r.Modelos = len(g.Alias())
+
+	// ③ lo que necesita EL HARNESS: permisos, dónde están los skills, y los
+	// portamodelo. Las tres salieron de medir, no de leer — ver harness.go.
+	if err := escribirPermisos(raiz, g.Harness, o.Forzar, r); err != nil {
+		return nil, err
+	}
+	if err := escribirPortamodelos(raiz, g, r); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+// Regenerar reescribe los portamodelo sin tocar nada más.
+//
+// Lo llama `sf model` cuando declara un alias nuevo: el archivo tiene que
+// aparecer en el momento, aunque la sesión viva no lo vaya a ver hasta que se
+// reinicie —que es justo lo que el aviso de `sf model` dice—.
+func Regenerar(raiz string, g *global.Config) (*Resultado, error) {
+	r := &Resultado{Harness: g.Harness, Modelos: len(g.Alias())}
+	if err := escribirPortamodelos(raiz, g, r); err != nil {
+		return nil, err
+	}
 	return r, nil
 }
 
