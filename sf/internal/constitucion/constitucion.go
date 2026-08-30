@@ -59,6 +59,27 @@ type Constitucion struct {
 	// —detectStack() lo llena solo— pero si falta hay que decirlo fuerte.
 	TestCmd string `yaml:"test_cmd"`
 
+	// TestRequiere es QUÉ HACE FALTA para que `test_cmd` pueda correr.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// EL test_cmd A VECES ES LA PUNTA DE UN SERVICIO
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Sale de la primera corrida real: el lote tenía tests de schema y RLS, y
+	// correrlos de verdad pedía un Postgres. No había ninguno en la máquina —ni
+	// psql, ni el servicio— y el plan se había escrito sin saberlo. Se terminó
+	// parseando el `.sql` como texto: funciona, pero no es lo que el plan quiso.
+	//
+	// sf NO LO RESUELVE. No levanta contenedores y no debería: eso es
+	// infraestructura del proyecto y no de la máquina de estados. Lo que hace es
+	// MOSTRARLO — entra en el sobre del ⑫, así el que planifica lo lee antes de
+	// cortar los lotes.
+	//
+	//	la vara es que el que planifica SEPA, no que la herramienta PROVEA.
+	//
+	// Vacío es lo normal: la mayoría de los `test_cmd` no necesitan nada.
+	TestRequiere []string `yaml:"test_requiere,omitempty"`
+
 	// Mutacion es la herramienta del ㉒, o vacío.
 	//
 	// Vacío no es un error: si el stack no tiene una herramienta buena, queda

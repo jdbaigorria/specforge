@@ -616,6 +616,21 @@ func iniciar() int {
 	}
 	fmt.Println()
 
+	// El test_cmd entra a la allowlist del harness ACÁ y no en `sf install`,
+	// y el motivo es que `sf install` corre antes: en ese momento no hay
+	// constitución de donde leerlo.
+	//
+	// Y desde que el modo de Command Code es `dont-ask`, esto dejó de ser un
+	// lujo: lo que no está en la lista no pregunta, FALLA. Un `test_cmd` afuera
+	// hace fallar el ⑲ de todos los lotes, siempre.
+	if r.Stack.Reconocido() {
+		if g, err := global.LeerPara(raiz); err == nil {
+			if ruta, toco, err := andamio.PermitirComando(raiz, g.Harness, r.Stack.TestCmd); err == nil && toco {
+				fmt.Printf("+ %s (permití `%s`)\n", ruta, strings.Fields(r.Stack.TestCmd)[0])
+			}
+		}
+	}
+
 	if r.Stack.Reconocido() {
 		fmt.Printf("%s (%s) · test_cmd: %s\n", r.Stack.Lenguaje, r.Stack.Manifiesto, r.Stack.TestCmd)
 	} else {

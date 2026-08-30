@@ -102,6 +102,33 @@ func nuevoProyecto(t *testing.T) *proyecto {
 	return p
 }
 
+// conPerfiles declara los dos perfiles que la máquina pide.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// ESTO ES EL COSTO DE H2, Y ESTÁ ACÁ PARA QUE SE VEA
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Antes el e2e no lo necesitaba, porque `sf install` sembraba tres modelos con
+// nombres de Anthropic. Ya no siembra ninguno —para nadie, tampoco para Claude
+// Code— así que el primer `sf next` de un proyecto nuevo PARA y los pide.
+//
+// Que el guion de humo tenga que hacer esto no es un defecto del guion: es el
+// paso real que Javier va a dar una vez por harness, y tenerlo escrito acá es la
+// única forma de que un cambio que lo rompa se note.
+//
+// Los alias son genéricos a propósito: si acá dijera un nombre de proveedor, el
+// chequeo de CI que prohíbe justamente eso lo cazaría — y tendría razón.
+func (p *proyecto) conPerfiles() *proyecto {
+	p.t.Helper()
+	for _, perfil := range []string{"razonar", "construir"} {
+		if c, out := p.sf("model", perfil, "--alias", "a-"+perfil,
+			"--id", "prov/"+perfil, "--via", "subagente"); c != 0 {
+			p.t.Fatalf("sf model %s → exit %d\n%s", perfil, c, out)
+		}
+	}
+	return p
+}
+
 func (p *proyecto) git(args ...string) {
 	p.t.Helper()
 	cmd := exec.Command("git", args...)
@@ -200,6 +227,11 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 		hayTrabajo, "install")
 	p.paso("init arma .docs/ y detecta el stack", hayTrabajo, "init")
 
+	// Los perfiles se declaran una vez por harness. Antes de H2 esto no hacía
+	// falta porque `sf install` sembraba tres modelos con nombres de Anthropic;
+	// ahora no siembra ninguno y el primer `sf next` de trabajo los pide.
+	p.conPerfiles()
+
 	out := p.paso("el primer next arranca en el brief, y es el único via: vos",
 		hayTrabajo, "next")
 	p.dice(out, "sfp-scout", "el ⑥ lo hace sfp-scout")
@@ -268,9 +300,11 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 
 	// ── ⑫–⑯ la planificación ────────────────────────────────────────────────
 	p.paso("tomar la feature es del ⑪", hayTrabajo, "take", "f-1")
-	out = p.paso("planificar pide el modelo grande", hayTrabajo, "next")
+	out = p.paso("planificar pide el perfil que razona", hayTrabajo, "next")
 	p.dice(out, "sf-plan", "el ⑫ lo hace sf-plan")
-	p.dice(out, "opus", "planificar es donde el contexto grande es un activo")
+	p.dice(out, "razonar", "planificar es donde el modelo que piensa paga")
+	// Y el modelo concreto sale del catálogo de ESTA máquina, no del binario.
+	p.dice(out, "prov/razonar", "el id lo pone el catálogo, no sf")
 
 	p.plan(`{"tareas":[
 		{"id":"t-1","lote":1,"descripcion":"Suma","satisface":["us-1/CA-1"],
@@ -537,19 +571,23 @@ func TestElModeloDeJavierMandaEnLosCuatroEstados(t *testing.T) {
 	// Sin `t.Run`: el andamio guarda el `*testing.T` del padre, y un Fatal
 	// desde adentro de un subtest sobre ese t es un Goexit en el hilo
 	// equivocado. El estado ya va nombrado en cada aserción.
-	for _, caso := range []struct{ estado, defecto string }{
-		{"planificacion", "opus"},
-		{"implementar", "sonnet"},
-		{"revision", "opus"},
-		{"cierre", "sonnet"},
+	// Los dos perfiles que la máquina pide, y qué estado pide cada uno. Es el
+	// mapa de `perfilPorEstado` visto desde afuera del binario.
+	for _, caso := range []struct{ estado, perfil string }{
+		{"planificacion", "razonar"},
+		{"implementar", "construir"},
+		{"revision", "razonar"},
+		{"cierre", "construir"},
 	} {
 		p.enEstado("f-2", caso.estado, "")
-		out := p.paso("el default de "+caso.estado, hayTrabajo, "next")
-		p.dice(out, caso.defecto, "el default de "+caso.estado+" es "+caso.defecto)
+		out := p.paso("el perfil de "+caso.estado, hayTrabajo, "next")
+		p.dice(out, caso.perfil, "el perfil de "+caso.estado+" es "+caso.perfil)
 
-		p.enEstado("f-2", caso.estado, "haiku")
+		// A8 · la decisión de runtime le gana a todo, en los cuatro estados. Y
+		// ahora se pide por ALIAS, que es el vocabulario de Javier.
+		p.enEstado("f-2", caso.estado, "a-construir")
 		out = p.paso("A8 · sf model en "+caso.estado, hayTrabajo, "next")
-		p.dice(out, "haiku", "A8 · la decisión de runtime le gana a todo, en "+caso.estado)
+		p.dice(out, "prov/construir", "A8 · la decisión de runtime le gana a todo, en "+caso.estado)
 	}
 }
 
@@ -601,6 +639,7 @@ func (p *proyecto) productoListo() {
 
 	mustSf("install")
 	mustSf("init")
+	p.conPerfiles()
 	p.escribir(".docs/brief.md", "---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n")
 	mustSf("approve")
 	p.escribir(".docs/prd.md", "# PRD\nSumar.\n")

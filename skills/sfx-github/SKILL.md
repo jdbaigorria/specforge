@@ -10,7 +10,7 @@ description: >
 
 # github
 
-Execute git operations. Return clean summary. Model: haiku.
+Execute git operations. Return clean summary. Profile: `mecanico` — a procedure with no decisions in it.
 
 ## Workflows
 

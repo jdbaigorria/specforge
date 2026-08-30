@@ -50,6 +50,25 @@ and it is not pedantry: three gates hang off being able to run the tests — the
 green of the ⑳, and the count that kills "all green" with no tests. If `detectStack()` guessed
 wrong, fix it now.
 
+### Then ask the two questions that `detectStack()` cannot answer
+
+Both of these come from a real run where the loop stalled, and both are one line each.
+
+**`test_requiere` — what does `test_cmd` need in order to run at all?** A suite that talks to
+Postgres, spins a container, or needs Redis is not the same as one that runs on a bare machine.
+`sf` will not provide it — it does not start containers, and it should not — but the ⑫ reads this
+before cutting batches, and a planner who knows there is no database will not plan a batch that
+needs one. Empty is the normal answer; do not fill it because the field exists.
+
+**And whatever the runner needs that nobody would guess** goes in the body, in the conventions
+section. The real case: a `vitest` project on `environment: jsdom` where any test touching
+`node:fs` must be marked `// @vitest-environment node`. That was already the house style and
+nobody had written it down — so the implementer met it as a failure instead of as a rule.
+
+> If the runner needs a pragma, an environment, a build tag or an env var to run a given kind of
+> test, **it goes here.** The implementer arrives cold and will not guess it; they will fight it,
+> and the fight will look like a broken test.
+
 ## Step 1: Interview Javier — this state talks to him directly
 
 Cover, in this order, and **skip nothing silently**:

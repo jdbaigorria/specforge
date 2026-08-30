@@ -63,6 +63,7 @@ import (
 
 	"github.com/jdbaigorria/specforge/sf/internal/andamio"
 	"github.com/jdbaigorria/specforge/sf/internal/comandos"
+	"github.com/jdbaigorria/specforge/sf/internal/constitucion"
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
@@ -127,6 +128,10 @@ type Proyecto struct {
 	// contesta acá: eso es `sf status`, y derivarlo de nuevo sería una segunda
 	// copia de la lógica del ⑥–⑩ (R6).
 	Roto string
+
+	// TestRequiere es lo que la constitución declara que el `test_cmd` necesita
+	// para poder correr: postgres, docker, redis. Vacío es lo normal.
+	TestRequiere []string
 }
 
 // reComando caza los `sf <algo>` que un skill nombra.
@@ -215,6 +220,19 @@ func Revisar(raiz, version string) Informe {
 	}
 	if i.Proyecto.Roto != "" {
 		i.Fallas = append(i.Fallas, "el estado no se puede leer: "+i.Proyecto.Roto)
+	}
+
+	// H6: lo que el `test_cmd` necesita para poder correr.
+	//
+	// Es AVISO y no falla, y la distinción importa: `test_requiere: [postgres]`
+	// puede estar declarado porque el CI lo levanta, y frenar el doctor de
+	// Javier por algo que su CI resuelve sería frenar sobre una suposición. sf
+	// no lo resuelve —no levanta contenedores— sólo dice lo que ve.
+	for _, req := range i.Proyecto.TestRequiere {
+		if _, err := exec.LookPath(req); err != nil {
+			i.Avisos = append(i.Avisos, "la constitución declara `test_requiere: "+req+
+				"` y no lo encuentro en el PATH. Los lotes que lo necesiten van a fallar acá.")
+		}
 	}
 	return i
 }
@@ -470,6 +488,11 @@ func revisarProyecto(raiz string) Proyecto {
 	if p.Andamiado {
 		if _, err := estado.Leer(raiz); err != nil && !errors.Is(err, estado.ErrNoHay) {
 			p.Roto = err.Error()
+		}
+		// Una constitución que todavía no existe no es un problema acá: el ⑧ la
+		// escribe, y quejarse antes sería quejarse del orden del flujo.
+		if c, err := constitucion.Leer(raiz); err == nil {
+			p.TestRequiere = c.TestRequiere
 		}
 	}
 	return p

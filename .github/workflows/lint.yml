@@ -50,6 +50,49 @@ jobs:
             test -f "skills/$s/SKILL.md" || { echo "falta skills/$s/SKILL.md"; exit 1; }
           done
 
+      # NINGÚN nombre de modelo concreto puede vivir donde un MODELO lo lea.
+      #
+      # Es el invariante de H2, y es el chequeo más barato que existe contra la
+      # forma exacta en que nació el "siempre opus": el ⑯ escribía `"modelo":
+      # "opus"` porque era el ÚNICO ejemplo que veía en su propio skill. Un
+      # default de un proveedor copiado a un skill, y de ahí a tareas.json, y de
+      # ahí ejecutado en un harness que no lo entiende.
+      #
+      # Se mira en dos lugares y con dos varas distintas, y la diferencia es
+      # quién es el lector:
+      #
+      #   skills/**.md   los lee un MODELO, que copia lo que ve   → cero tolerancia
+      #   sf/**.go       fuera de los comentarios                 → cero tolerancia
+      #
+      # Los comentarios de Go quedan afuera a propósito: ahí es donde este
+      # proyecto EXPLICA por qué ya no siembra nombres, y borrar esa explicación
+      # para pasar un grep sería tirar la única memoria de por qué existe la
+      # regla. Un comentario no lo lee el ⑯: lo lee quien vaya a tocar el código.
+      - name: Ni un nombre de modelo donde un modelo lo lea
+        run: |
+          set -euo pipefail
+          patron='\b(opus|sonnet|haiku|gpt-[0-9]|gemini|grok|deepseek-)'
+          malo=0
+
+          if grep -rniE "$patron" skills/ --include='*.md'; then
+            echo "✗ Un SKILL.md nombra un modelo concreto. Eso es lo que el ⑯ copia."
+            malo=1
+          fi
+
+          # En Go, sólo las líneas que NO son comentario.
+          for f in $(find sf -name '*.go' ! -name '*_test.go' ! -path '*/migracion.go'); do
+            if grep -vE '^\s*//' "$f" | grep -niE "$patron" | sed "s|^|$f:|" | grep .; then
+              malo=1
+            fi
+          done
+
+          if [ "$malo" -ne 0 ]; then
+            echo
+            echo "sf nombra PERFILES (razonar/construir/mecanico)."
+            echo "Los nombres de modelo son de la máquina de Javier y viven sólo en su catálogo."
+            exit 1
+          fi
+
       # Y el `name:` del frontmatter tiene que coincidir con la carpeta: un
       # skill que se llama distinto de su directorio no lo encuentra nadie.
       - name: El name de cada skill coincide con su carpeta

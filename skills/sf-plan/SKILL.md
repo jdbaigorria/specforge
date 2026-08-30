@@ -166,30 +166,50 @@ criterion* needs, and for some criteria the answer is one test and for others it
 
 **This is where "done" with half the story starts dying — at planning time.**
 
-## Step ⑯: Say which model this needs
+## Step ⑯: Choose the model for each batch
 
-If this feature needs a bigger model than the default to implement, say so — it is one field at
-the top of `tareas.json`:
+`sf context` handed you a **menu of the models declared on this machine** — aliases, capacities,
+and one line each on what they are good for. Read it. This step is where you use it.
 
 ```json
-{"feature": "f-1", "modelo": "opus", "tareas": [ … ]}
+{"feature": "f-1",
+ "modelo": "medio",
+ "modelo_por_lote": {"1": "barato", "3": "grande"},
+ "tareas": [ … ]}
 ```
 
-**Leave it out otherwise.** The default is the default because it is right almost always; a
-`"modelo"` on every feature is noise, and noise here means every batch gets launched on a bigger
-model than it needed.
+`modelo` is the feature-wide choice; `modelo_por_lote` overrides it for one batch. **Both take an
+ALIAS from the menu — never a model id.** An id is a fact about Javier's machine, and `tareas.json`
+is versioned and will be read by another harness where that id does not exist. The menu
+deliberately does not show you ids, so you cannot copy one by accident.
 
-It is a **recommendation, not an order.** The chain that resolves it has three levels, and yours
-is the middle one:
+### Leaving it out is the normal answer
+
+The default of each profile is the default because it is right almost always. A `modelo` on every
+feature is noise, and noise here means every batch gets launched on a bigger model than it needed.
+
+**Choose only where the difference is real.** A batch that wires up CRUD, moves plumbing or does a
+mechanical refactor can run on the cheap one. A batch that decides something — a concurrency
+boundary, a data model, an error contract — cannot. If you cannot name what makes this batch
+different, say nothing.
+
+### It is a recommendation, not an order
+
+The chain that resolves it has four levels and yours are the middle two:
 
 ```
-sf model <nombre>   Javier, in runtime, watching the loop struggle   ← wins
-tareas.json         you, here, before anything has failed
-the state default
+sf model <alias>       Javier, in runtime, watching the loop struggle   ← wins
+tareas.json, batch     you, here — "batch 3 is the hard one"
+tareas.json, feature   you, here — "all of this one is hard"
+the profile of the state
 ```
 
-You know more than the default (you just planned this feature) and less than Javier (you have
-not seen it fail yet). That is exactly where you sit.
+You know more than the default (you just planned this feature) and less than Javier (you have not
+seen it fail yet). That is exactly where you sit.
+
+> **If the menu was empty or missing**, say nothing at all: `sf next` will stop and ask Javier to
+> declare the profiles before it launches anyone. Guessing a name would produce a plan that stops
+> the loop.
 
 ## Step ⑰: Stop. This is one of Javier's three decisions
 
