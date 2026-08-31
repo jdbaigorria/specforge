@@ -422,3 +422,72 @@ func parandoEn(t *testing.T, harness string) {
 		t.Setenv(global.VarHarness, harness)
 	}
 }
+
+// Instalar arma el andamio de DONDE ESTÁS, no el del último que instalaste.
+//
+// El puntero escrito es memoria de la instalación anterior: con él, un
+// `sf install` desde Claude Code sobre un catálogo que decía "opencode" armaba
+// .opencode/ y dejaba a Claude Code sin su settings.json.
+func TestInstalarSigueAlHarnessEnUsoYNoAlPunteroEscrito(t *testing.T) {
+	enUnHomeDePrueba(t)
+	parandoEn(t, "claude-code")
+	if err := global.Semilla("opencode").Guardar(); err != nil {
+		t.Fatal(err)
+	}
+
+	raiz := t.TempDir()
+	r, err := Instalar(raiz, Opciones{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.Harness != "claude-code" {
+		t.Errorf("instaló para %q, quería claude-code", r.Harness)
+	}
+	if _, err := os.Stat(filepath.Join(raiz, ".claude", "settings.json")); err != nil {
+		t.Error("no escribió los permisos de claude-code")
+	}
+	if _, err := os.Stat(filepath.Join(raiz, ".opencode")); err == nil {
+		t.Error("armó el andamio de opencode, que es el harness viejo")
+	}
+
+	leido, err := global.Leer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if leido.Harness != "claude-code" {
+		t.Errorf("el puntero escrito quedó en %q", leido.Harness)
+	}
+}
+
+// El flag le gana a la detección: es "preparame el OTRO harness".
+func TestElFlagDeHarnessLeGanaADondeEstasParado(t *testing.T) {
+	enUnHomeDePrueba(t)
+	parandoEn(t, "claude-code")
+
+	raiz := t.TempDir()
+	r, err := Instalar(raiz, Opciones{Harness: "opencode"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Harness != "opencode" {
+		t.Errorf("instaló para %q, quería opencode", r.Harness)
+	}
+}
+
+// Sin detección y sin flag, el puntero escrito NO se pisa con "desconocido".
+func TestSinDeteccionElPunteroEscritoSobrevive(t *testing.T) {
+	enUnHomeDePrueba(t)
+	parandoEn(t, "")
+	if err := global.Semilla("opencode").Guardar(); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Instalar(t.TempDir(), Opciones{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Harness != "opencode" {
+		t.Errorf("instaló para %q, quería que sobreviviera opencode", r.Harness)
+	}
+}

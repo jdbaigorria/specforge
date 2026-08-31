@@ -87,6 +87,27 @@ type Opciones struct {
 // ErrSinProyecto es que no se puede instalar el orquestador acá.
 var ErrSinProyecto = errors.New("no encuentro el proyecto")
 
+// harnessDeLaInstalacion es para cuál harness se está instalando.
+//
+// `EnUso()` y no `g.Harness` por el mismo motivo que en Regenerar: el puntero
+// escrito es el último que se instaló, no dónde estás parado ahora. Con el
+// escrito, un `sf install` desde Claude Code sobre un catálogo que decía
+// "opencode" armaba el andamio de opencode —.opencode/, sus portamodelo— y no
+// escribía nada de lo que el harness de verdad necesitaba.
+//
+// El flag sigue ganando: `sf install --harness=opencode` corrido desde otro
+// lado es un acto deliberado —"preparame el otro"— y es la única forma de
+// corregir una detección que salió mal.
+//
+// Bajar a "desconocido" no es un riesgo: EnUso() cae en el escrito antes de
+// devolverlo, así que un catálogo con harness y sin detección se queda como está.
+func harnessDeLaInstalacion(o Opciones, g *global.Config) string {
+	if o.Harness != "" {
+		return o.Harness
+	}
+	return g.EnUso()
+}
+
 // Instalar pone el orquestador en el proyecto y arma ~/.specforge/.
 //
 // Las dos mitades son independientes a propósito: se puede correr en una
@@ -120,11 +141,7 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 	g, err := global.Leer()
 	switch {
 	case errors.Is(err, global.ErrNoHay):
-		harness := o.Harness
-		if harness == "" {
-			harness = global.DetectarHarness()
-		}
-		g = global.Semilla(harness)
+		g = global.Semilla(harnessDeLaInstalacion(o, nil))
 		if err := g.Guardar(); err != nil {
 			return nil, err
 		}
@@ -134,22 +151,27 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 		return nil, err
 
 	default:
-		// Ya existía. Lo único que se actualiza es el harness, y sólo si lo
-		// pidieron explícito: es el caso de "me mudé de harness", y es la única
-		// forma de corregir una detección que salió mal.
-		if o.Harness != "" && o.Harness != g.Harness {
-			g.Harness = o.Harness
+		// Ya existía. Lo único que se actualiza es el harness, y se actualiza
+		// solo: instalar ES decir "dejámelo listo ACÁ", así que el puntero
+		// escrito queda apuntando adonde se instaló.
+		if h := harnessDeLaInstalacion(o, g); h != g.Harness {
+			g.Harness = h
 			if err := g.Guardar(); err != nil {
 				return nil, err
 			}
-			r.Escritos = append(r.Escritos, "~/.specforge/"+global.Archivo+" (harness → "+o.Harness+")")
+			r.Escritos = append(r.Escritos, "~/.specforge/"+global.Archivo+" (harness → "+h+")")
 		} else {
 			r.Salteados = append(r.Salteados, "~/.specforge/"+global.Archivo+" (ya existe — tus modelos quedan)")
 		}
 	}
 
+	// Después del switch g.Harness YA es el de esta instalación en las tres
+	// ramas, y de ahí en adelante hay uno solo. El conteo va por él y no por
+	// `Alias()` —que mira el EN USO— porque con `--harness` los dos difieren, y
+	// mezclarlos imprimía un encabezado que hablaba de dos harness a la vez:
+	// "harness: opencode · 0 modelos declarados", donde el cero era el de otro.
 	r.Harness = g.Harness
-	r.Modelos = len(g.Alias())
+	r.Modelos = len(g.AliasDe(g.Harness))
 
 	// ③ lo que necesita EL HARNESS: permisos, dónde están los skills, y los
 	// portamodelo. Las tres salieron de medir, no de leer — ver harness.go.
