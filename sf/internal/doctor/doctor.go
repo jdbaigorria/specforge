@@ -206,7 +206,12 @@ func Revisar(raiz, version string) Informe {
 			}
 			if p.SinPortamodelo {
 				i.Fallas = append(i.Fallas, "el alias `"+p.Alias+"` no tiene su archivo de agente: "+
-					"`sf next` va a devolver un `agente:` que "+i.Harness+" no conoce. Corré `sf install`")
+					"`sf next` va a devolver un `agente:` que "+i.Harness+" no conoce. "+
+					// Con el arnés puesto y no `sf install` pelado: el pelado arma el
+					// andamio de DONDE ESTÁS, y esto se suele leer en una ventana y
+					// arreglar en otra. Nombrarlo saca la ambigüedad, y de paso es la
+					// forma que se puede copiar a un script.
+					"Corré `sf install --harness="+i.Harness+"`")
 			}
 		}
 	}

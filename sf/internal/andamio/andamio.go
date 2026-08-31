@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/jdbaigorria/specforge/sf/internal/global"
 )
@@ -72,17 +73,39 @@ type Resultado struct {
 	// da por sentadas.
 	Viejos []string
 
-	// Harness es dónde se detectó (o lo que se pidió con --harness).
-	Harness string
+	// Para son los arneses para los que se armó el andamio, en orden.
+	//
+	// Era uno solo (`Harness string`) hasta que `sf install --harness=a,b,c`
+	// dejó de ser una instalación por arnés. El cambio no es de comodidad: los
+	// portamodelo de los tres quedan escritos ANTES de que abras ninguno, y como
+	// las definiciones de agente se leen al arrancar (sonda 1), ahí se muere el
+	// "reiniciá tu harness" — el paso no se acorta, desaparece.
+	Para []string
 
-	// Modelos es cuántos quedaron declarados.
-	Modelos int
+	// Modelos es cuántos alias declarados tiene cada uno de Para.
+	//
+	// Por arnés y no un total: con tres instalados, un número solo mezclaría
+	// catálogos distintos y diría algo que no es cierto de ninguno.
+	Modelos map[string]int
+
+	// Puntero es el que quedó escrito en el catálogo como fallback de EnUso().
+	//
+	// Es UNO aunque se instalen tres, y no es lo mismo que Para: Para es para
+	// quiénes se armó el andamio, Puntero es a quién le resuelve los modelos `sf`
+	// cuando no hay ni variable ni detección — una terminal pelada, un cron.
+	Puntero string
 }
 
 // Opciones son las del comando.
 type Opciones struct {
-	// Harness pisa la detección. Vacío = detectar.
-	Harness string
+	// Harness son los arneses para los que instalar. Vacío = detectar UNO.
+	//
+	// Vacío NO significa "todos los que estén instalados", y esa distinción es la
+	// que sostiene la no regresión: `sf install` pelado es lo que corre el
+	// orquestador y lo que corre `install.sh`, y tiene que seguir armando el
+	// andamio de donde estás y nada más. `andamio.Instalados()` alimenta el MENÚ
+	// de la pregunta interactiva, que es otra cosa.
+	Harness []string
 
 	// Forzar pisa los archivos del proyecto que ya existan.
 	//
@@ -150,10 +173,31 @@ func OrquestadoresViejos(raiz string) []string {
 // Bajar a "desconocido" no es un riesgo: EnUso() cae en el escrito antes de
 // devolverlo, así que un catálogo con harness y sin detección se queda como está.
 func harnessDeLaInstalacion(o Opciones, g *global.Config) string {
-	if o.Harness != "" {
-		return o.Harness
+	if len(o.Harness) > 0 {
+		return puntero(o.Harness, g)
 	}
 	return g.EnUso()
+}
+
+// paraCuales son los arneses para los que hay que armar el andamio.
+func paraCuales(o Opciones, g *global.Config) []string {
+	if len(o.Harness) > 0 {
+		return o.Harness
+	}
+	return []string{g.EnUso()}
+}
+
+// puntero elige cuál de los pedidos queda escrito en el catálogo.
+//
+// Gana DONDE ESTÁS PARADO si está entre los pedidos: es el único de la lista
+// sobre el que hay un hecho, y no una preferencia. Si no está —instalaste desde
+// Claude Code para dejar listos opencode y Command Code—, cae al primero que
+// nombró Javier. No se inventa nada y no se ordena por gusto de sf.
+func puntero(pedidos []string, g *global.Config) string {
+	if h := g.EnUso(); slices.Contains(pedidos, h) {
+		return h
+	}
+	return pedidos[0]
 }
 
 // Instalar pone el orquestador en el proyecto y arma ~/.specforge/.
@@ -162,7 +206,7 @@ func harnessDeLaInstalacion(o Opciones, g *global.Config) string {
 // máquina nueva sobre un proyecto que ya tenía CLAUDE.md, o en un proyecto
 // nuevo con el ~/.specforge/ ya armado. Ninguna pisa lo que la otra hizo.
 func Instalar(raiz string, o Opciones) (*Resultado, error) {
-	r := &Resultado{}
+	r := &Resultado{Modelos: map[string]int{}}
 
 	// ① el orquestador, en los dos nombres
 	for _, nombre := range destinos {
@@ -233,16 +277,55 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 	// `Alias()` —que mira el EN USO— porque con `--harness` los dos difieren, y
 	// mezclarlos imprimía un encabezado que hablaba de dos harness a la vez:
 	// "harness: opencode · 0 modelos declarados", donde el cero era el de otro.
-	r.Harness = g.Harness
-	r.Modelos = len(g.AliasDe(g.Harness))
+	r.Puntero = g.Harness
+	r.Para = paraCuales(o, g)
 
-	// ③ lo que necesita EL HARNESS: permisos, dónde están los skills, y los
+	// ③ lo que necesita CADA ARNÉS: permisos, dónde están los skills, y los
 	// portamodelo. Las tres salieron de medir, no de leer — ver harness.go.
-	if err := escribirPermisos(raiz, g.Harness, o.Forzar, r); err != nil {
-		return nil, err
+	//
+	// Esto es lo único que se repite por arnés: el orquestador (①) y la semilla
+	// del catálogo (②) son del proyecto y de la máquina, no de quién los lee.
+	//
+	// Y EL CATÁLOGO QUE MANDA ACÁ ES EL DEL PROYECTO, no el global que se acaba
+	// de sembrar. `sf init` siembra uno por proyecto y desde ahí ÉSE rige —
+	// `LeerPara` lo prefiere y `sf model` escribe ahí—, así que armar el andamio
+	// con el global escribiría portamodelo de modelos que en este repo no son los
+	// que se usan.
+	//
+	// No se veía mientras `sf install` corría una sola vez y ANTES de `sf init`:
+	// no había catálogo de proyecto todavía. Se ve con `--harness=a,b,c`, que
+	// existe justamente para reinstalar sobre un proyecto que ya anda.
+	cat := g
+	if delProyecto, err := global.LeerPara(raiz); err == nil {
+		cat = delProyecto
 	}
-	if err := escribirPortamodelos(raiz, g, g.Harness, r); err != nil {
-		return nil, err
+
+	for _, h := range r.Para {
+		r.Modelos[h] = len(cat.AliasDe(h))
+
+		// UN NOMBRE QUE SF NO CONOCE SE ACEPTA, PERO NO SE CALLA.
+		//
+		// Aceptarlo es deliberado y viene de antes: `--harness=codex` escribe el
+		// puntero para un arnés que todavía no existe acá, y eso es R3 —sf
+		// transporta lo que Javier declara, no le pone una lista blanca—.
+		//
+		// Lo que estaba mal era el silencio. `escribirPermisos` y
+		// `escribirPortamodelos` NO HACEN NADA con un harness que no está en sus
+		// mapas, así que la instalación terminaba con un ✓ y el arnés sin
+		// permisos ni portamodelo. El bucle se traba después, en el primer
+		// subagente, que es el peor momento para enterarse.
+		if !SabePreparar(h) {
+			r.Salteados = append(r.Salteados,
+				h+" (no sé prepararlo: ni permisos ni portamodelo. El puntero sí quedó)")
+			continue
+		}
+
+		if err := escribirPermisos(raiz, h, o.Forzar, r); err != nil {
+			return nil, err
+		}
+		if err := escribirPortamodelos(raiz, cat, h, r); err != nil {
+			return nil, err
+		}
 	}
 	return r, nil
 }
@@ -260,7 +343,7 @@ func Regenerar(raiz string, g *global.Config) (*Resultado, error) {
 	// Claude Code dejaba el modelo en el catálogo y el archivo sin escribir —
 	// y el próximo `sf next` nombraba un agente que no existía.
 	h := g.EnUso()
-	r := &Resultado{Harness: h, Modelos: len(g.AliasDe(h))}
+	r := &Resultado{Para: []string{h}, Puntero: h, Modelos: map[string]int{h: len(g.AliasDe(h))}}
 	if err := escribirPortamodelos(raiz, g, h, r); err != nil {
 		return nil, err
 	}
@@ -273,7 +356,7 @@ func Regenerar(raiz string, g *global.Config) (*Resultado, error) {
 // del proyecto. Sacar SpecForge de un repo no puede borrarle a Javier la lista
 // que fue construyendo en los otros quince.
 func Desinstalar(raiz string) (*Resultado, error) {
-	r := &Resultado{}
+	r := &Resultado{Modelos: map[string]int{}}
 	for _, nombre := range destinos {
 		ruta := filepath.Join(raiz, nombre)
 

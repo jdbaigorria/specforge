@@ -153,6 +153,21 @@ var agentes = map[string]string{
 // configuración de otra herramienta es cómo se le rompe la suya a alguien. Si el
 // archivo existe, se saltea y se dice — que es la misma regla que ya rige para
 // `CLAUDE.md`.
+// SabePreparar dice si sf sabe armarle el andamio a ese arnés.
+//
+// NO es lo mismo que `Hay()`: aquélla pregunta si el arnés está instalado en
+// esta máquina, y ésta si sf sabe qué escribirle. Un arnés puede estar instalado
+// y sf no saber prepararlo —uno nuevo—, y al revés —los tres que conoce, en una
+// máquina donde no están—.
+//
+// La respuesta sale de `permisos` y no de una lista aparte: el archivo de
+// permisos es lo mínimo que hace falta para que el bucle no se trabe en el
+// primer subagente, así que no tenerlo ES no saber prepararlo.
+func SabePreparar(harness string) bool {
+	_, hay := permisos[harness]
+	return hay
+}
+
 func escribirPermisos(raiz, harness string, forzar bool, r *Resultado) error {
 	p, hay := permisos[harness]
 	if !hay {

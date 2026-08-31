@@ -2,9 +2,13 @@
 
 **Fecha:** 2026-08-31 · **Branch:** `refundation` · **Commit:** `1aa81dd`
 
-> **Estado: SIN IMPLEMENTAR.** Spec de diseño. Lo que sí está hecho es la **medición**: el TTY, los
-> tres listados de modelos y las dependencias de `sf` se comprobaron ejecutando el 2026-08-31, y
-> están abajo con su salida. Nada acá es supuesto.
+> **Estado: DOS DE TRES IMPLEMENTADOS** (2026-08-31). El ② (`sf models`) y el ① (`sf install
+> --harness=a,b,c`, más la detección de instalados) están construidos y corriendo — el detalle al
+> final, en **Lo que se implementó**. Falta el ③, la pregunta, que es el único que necesitaba las
+> otras dos hechas.
+>
+> El resto sigue siendo spec de diseño, y la **medición** —el TTY, los tres listados de modelos y
+> las dependencias de `sf`— se comprobó ejecutando el 2026-08-31. Nada acá es supuesto.
 >
 > **No depende de [`headless.md`](headless.md), pero headless depende de ésta.** Sirve hoy, con el
 > modo orquestado que ya existe, y después pasa a ser **de dónde `sf lanzar` saca el arnés, el
@@ -181,12 +185,15 @@ Hoy `Opciones.Harness` es un string y `Instalar` arma el andamio de uno. Pasa a 
 **No hay cambio de esquema en el catálogo**: `harnesses:` ya está indexado por arnés desde H2. Es lo
 que menos toca de los tres.
 
-> **El hueco que hay que tapar acá.** `global.Config.Harness` —el singular— está documentado como
+> **El hueco, y cómo quedó tapado.** `global.Config.Harness` —el singular— está documentado como
 > *"el ÚLTIMO que instaló `sf install --harness=…`"*, y es el fallback de `EnUso()` cuando no hay
 > variable de entorno ni detección: una terminal pelada, un cron. Instalando tres de una, **"el
-> último" deja de significar algo**. Hay que decidirlo explícitamente, no dejarlo salir de en qué
-> orden se recorrió la lista. Lo más defendible es escribir **el que se detectó al instalar**, y si
-> no se detectó ninguno, el primero de la lista — pero eso hay que escribirlo, no deducirlo.
+> último" deja de significar algo**.
+>
+> **Decidido (Javier, 2026-08-31): gana donde estás parado**, si está entre los pedidos — es el
+> único de la lista sobre el que hay un hecho y no una preferencia. Si no está —instalás desde
+> Claude Code para dejar listos los otros dos—, cae al **primero que nombró Javier**. No se ordena
+> por gusto de `sf`. Está en `andamio.puntero()` y lo fijan dos tests.
 
 ### ② `sf models [--harness=X]`
 
@@ -308,8 +315,12 @@ te muestro la lista numerada  →  escribís un número, o un texto para filtrar
 
 Con eso alcanza `bufio.Scanner`, cero dependencias, y **funciona igual por un pipe**, que es lo que
 la prueba 1 de §10 exige. La pantalla viva es más linda; la pantalla numerada es la que cabe en las
-reglas que esta misma spec se puso. **Hay que elegir una y escribirla**, porque hoy el documento
-promete una cosa en el dibujo y la contraria en el argumento.
+reglas que esta misma spec se puso.
+
+> **Decidido (Javier, 2026-08-31): la numerada.** La diferencia real de experiencia es una tecla
+> —el enter después del filtro— y lo que se compra es que haya UN SOLO camino: el mismo código
+> atiende a una persona y a un pipe. El dibujo de §4 hay que leerlo como el contenido de la
+> pregunta, no como su forma.
 
 ---
 
@@ -334,3 +345,93 @@ Y las cuatro pruebas que cierran el diseño:
 
 > **La prueba de que quedó bien no es que la pantalla sea linda: es el punto 3.** Ocho comandos, dos
 > reinicios y un ida y vuelta entre ventanas tienen que quedar en uno.
+
+---
+
+## 11. Lo que se implementó
+
+**2026-08-31.** Dos de los tres pedazos de §5, más la detección que pidió Javier. 403 tests contra
+los 380 del día anterior, más los 7 e2e; `gofmt`, `vet` y `build` limpios.
+
+### ② `sf models` — commit `23bfa52`
+
+Paquete nuevo `sf/internal/modelos`. Un parser por arnés porque los formatos son distintos, y los
+dos verificados **contra la salida real y no contra un fixture**: opencode 397 ids, Command Code
+61 — y su propio encabezado dice "61 models".
+
+Tres decisiones que quedaron en el código, con su motivo:
+
+- **Sin tabla de modelos para Claude Code.** Son cuatro alias y era tentador escribirlos. Es la
+  tabla que se pudre que `global.Modelo` ya se prohíbe. Devuelve `ErrSinListado` y ofrece pegar el id.
+- **Dos errores distintos**, y la distinción salió corriendo el binario, no leyéndolo: la primera
+  versión le contestaba *"buscá el id a mano"* a un `--harness=emacs`, que es un consejo inútil para
+  un typo. Ahora `ErrSinListado` sale con 2 y el camino manual, y `ErrArnesDesconocido` con 1 y la
+  lista de los que hay.
+- **`Listar` prefiere fallar a devolver una lista dudosa.** Cero modelos no es un listado vacío
+  —los dos que listan tienen cientos—: es que el formato cambió.
+
+De paso quedó medido que **el listado cambia solo**: Command Code se autoactualizó `1.38.2 → 1.39.2`
+durante las pruebas y pasó de 63 modelos a 61. Es el argumento de §8, ahora con un caso.
+
+### ① `sf install --harness=a,b,c` + la detección
+
+`Opciones.Harness` pasó a ser una lista; el orquestador (①) y la semilla del catálogo (②) siguen
+corriendo **una vez**, y sólo el andamio por arnés (③) se repite. `Resultado` cambió de
+`Harness string` + `Modelos int` a `Para []string` + `Modelos map[string]int` + `Puntero string`,
+que es la distinción que el comando ahora necesita nombrar.
+
+`--harness` acepta coma y además es repetible, porque las dos formas aparecen solas: una la tipeás
+y la otra sale de un script que arma la lista en un bucle.
+
+**`andamio.Instalados()`** mira el PATH y le pregunta a cada binario quién es. Y ahí apareció una
+asimetría que hubo que medir: **sólo Claude Code se identifica en `--version`.**
+
+```
+claude --version     "2.1.252 (Claude Code)"    dice su nombre
+cmd --help           "Command Code v1.39.2"     dice su nombre, pero en --help
+opencode --version   "1.18.25"                  NO dice su nombre
+```
+
+Por eso la confirmación de opencode es más floja —que el comando ande— y no una marca en la salida.
+Inventarle una marca que no emite sería adivinar. El que justifica que haya confirmación es Command
+Code: su binario se llama `cmd`, que en Windows es la shell.
+
+Hoy la detección se usa en un solo lugar y ya paga: `sf install` pelado te dice qué otros arneses
+tenés y te da el comando exacto.
+
+```
+También tenés opencode y commandcode en esta máquina.
+    sf install --harness=claude-code,opencode,commandcode
+```
+
+**No se instalan solos**, y eso es §7: sin flags, `sf install` sigue armando el andamio de UNO. Es
+lo que corre el orquestador y lo que corre `install.sh`, y un test de no regresión lo fija.
+
+### Dos cosas que aparecieron construyendo, y ninguna se buscó
+
+**Un arnés que `sf` no sabe preparar se aceptaba en silencio.** `--harness=codex` es deliberado
+—`sf` transporta lo que Javier declara y no le pone una lista blanca (R3)— pero `escribirPermisos` y
+`escribirPortamodelos` **no hacen nada** con un nombre que no está en sus mapas: la instalación
+terminaba con un ✓ y el arnés sin permisos, y el bucle se trababa después, en el primer subagente.
+Se aceptó igual, pero ahora lo dice. Casi se arregla rompiéndolo —rechazándolo—, y lo frenó un test
+que ya existía y decía que aceptarlo era a propósito.
+
+**El andamio salía del catálogo equivocado, y eso rompía la promesa de §6.** `Instalar` leía siempre
+el catálogo GLOBAL, pero `sf init` siembra uno **por proyecto** y desde ahí ése es el que rige
+(`LeerPara` lo prefiere, `sf model` escribe ahí). No se veía mientras `sf install` corría una vez y
+antes de `sf init`. Se ve con `--harness=a,b,c`, que existe justamente para **reinstalar** sobre un
+proyecto que ya anda: escribía cero portamodelo y decía "0 modelos declarados" mientras el proyecto
+tenía los suyos. O sea que el "se muere el reinicio" no pasaba, y no pasaba en silencio.
+
+> Se encontró corriendo el binario contra un proyecto de verdad, no en la suite. Es el mismo tipo de
+> hallazgo que `arreglos.md` §A2, y la misma lección: la costura entre comandos no se ve desde
+> adentro de un paquete.
+
+Con las dos arregladas, la prueba 3 de §9 **pasa de verdad**: desde una sesión de Claude Code, un
+solo comando dejó escritos los permisos de opencode y de Command Code y sus tres portamodelo, sin
+abrir ninguno de los dos.
+
+### Lo que falta
+
+El ③, la pregunta. Ahora sí tiene con qué: `sf models` para el menú y `--harness=a,b,c` para
+escribir.

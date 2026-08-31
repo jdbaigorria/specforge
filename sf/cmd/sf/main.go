@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/andamio"
@@ -450,11 +451,15 @@ func instalar(args []string) int {
 		switch {
 		case a == "--forzar" || a == "--force":
 			o.Forzar = true
+		// --harness acepta coma y además es repetible. Las dos formas porque las
+		// dos aparecen solas: `--harness=a,b,c` es lo que uno tipea, y
+		// `--harness a --harness b` es lo que sale de un script que arma la lista
+		// en un bucle. Sostener las dos cuesta una línea.
 		case a == "--harness" && i+1 < len(args):
 			i++
-			o.Harness = args[i]
+			o.Harness = append(o.Harness, separarPorComa(args[i])...)
 		case strings.HasPrefix(a, "--harness="):
-			o.Harness = strings.TrimPrefix(a, "--harness=")
+			o.Harness = append(o.Harness, separarPorComa(strings.TrimPrefix(a, "--harness="))...)
 		default:
 			fmt.Fprintf(os.Stderr, "sf install: no conozco %q. Sólo --harness y --forzar.\n", a)
 			return salidaError
@@ -484,13 +489,64 @@ func instalar(args []string) int {
 	}
 
 	fmt.Println()
-	fmt.Printf("harness: %s · %d modelos declarados\n", r.Harness, r.Modelos)
-	if r.Harness == "desconocido" {
+	for _, h := range r.Para {
+		fmt.Printf("%-12s %d modelos declarados\n", h, r.Modelos[h])
+	}
+	// El puntero sólo se nombra cuando hay más de uno, que es cuando la pregunta
+	// "¿y cuál usa si no sabe dónde está?" se le puede ocurrir a alguien. Con uno
+	// solo, decirlo sería ruido: es obvio.
+	if len(r.Para) > 1 {
+		fmt.Printf("\npuntero: %s — el que resuelve modelos si no se detecta ninguno\n", r.Puntero)
+	}
+
+	if r.Puntero == "desconocido" {
 		// Se avisa fuerte porque el harness es la mitad de H1b: sin él, sf no
 		// puede decidir si un modelo va por subagente o por consola.
 		fmt.Println("⚠ No reconocí el harness. Corregilo con `sf install --harness=<nombre>`.")
+		return salidaTrabajo
+	}
+
+	// Y si hay OTROS arneses en esta máquina, se dicen. No se instalan: sólo se
+	// nombran, porque instalar para un arnés que no pediste sería decidir por
+	// Javier. Es el único uso de la detección hasta que exista la pregunta
+	// interactiva, y ya paga: hoy uno se entera de que le falta preparar un arnés
+	// cuando lo abre y el bucle se traba.
+	//
+	// Sólo con `sf install` pelado: si vino --harness, ya dijiste qué querías.
+	if len(o.Harness) == 0 {
+		if faltan := sinPreparar(r.Para); len(faltan) > 0 {
+			fmt.Println()
+			fmt.Printf("También tenés %s en esta máquina.\n", strings.Join(faltan, " y "))
+			fmt.Printf("    sf install --harness=%s\n", strings.Join(append(r.Para, faltan...), ","))
+		}
 	}
 	return salidaTrabajo
+}
+
+// separarPorComa parte "a,b,c" y descarta los vacíos de un "a,,b" o un "a,".
+func separarPorComa(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// sinPreparar son los arneses instalados en la máquina para los que NO se acaba
+// de armar el andamio.
+//
+// Cuesta ejecutar un binario por cada uno que falta, así que se pregunta sólo
+// por los que no están en `ya` — como mucho dos, y sólo en el `sf install` pelado.
+func sinPreparar(ya []string) []string {
+	var faltan []string
+	for _, h := range global.Harness {
+		if !slices.Contains(ya, h) && andamio.Hay(h) {
+			faltan = append(faltan, h)
+		}
+	}
+	return faltan
 }
 
 // listarModelos es `sf models`: los ids que el harness dice tener.

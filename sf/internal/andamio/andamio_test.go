@@ -24,7 +24,7 @@ func TestInstalarPoneElOrquestadorConLosDosNombres(t *testing.T) {
 	enUnHomeDePrueba(t)
 	raiz := t.TempDir()
 
-	r, err := Instalar(raiz, Opciones{Harness: "claude-code"})
+	r, err := Instalar(raiz, Opciones{Harness: []string{"claude-code"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,14 +45,14 @@ func TestInstalarPoneElOrquestadorConLosDosNombres(t *testing.T) {
 		t.Errorf("el orquestador no trae el bucle:\n%s", claude)
 	}
 
-	if r.Harness != "claude-code" {
-		t.Errorf("harness %q", r.Harness)
+	if r.Puntero != "claude-code" {
+		t.Errorf("harness %q", r.Puntero)
 	}
 	// Y NO siembra ningún modelo, que es el invariante de H2: un default de un
 	// proveedor copiado a un skill y de ahí a tareas.json es exactamente cómo
 	// nació el "siempre opus".
-	if r.Modelos != 0 {
-		t.Errorf("sembró %d modelos y no tiene que sembrar ninguno", r.Modelos)
+	if n := r.Modelos["claude-code"]; n != 0 {
+		t.Errorf("sembró %d modelos y no tiene que sembrar ninguno", n)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestInstalarPoneElOrquestadorConLosDosNombres(t *testing.T) {
 func TestInstalarEscribeLosPermisosDelHarness(t *testing.T) {
 	enUnHomeDePrueba(t)
 	raiz := t.TempDir()
-	if _, err := Instalar(raiz, Opciones{Harness: "commandcode"}); err != nil {
+	if _, err := Instalar(raiz, Opciones{Harness: []string{"commandcode"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -100,7 +100,7 @@ func TestNoPisaLaConfigDelHarnessQueYaExiste(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err := Instalar(raiz, Opciones{Harness: "commandcode"})
+	r, err := Instalar(raiz, Opciones{Harness: []string{"commandcode"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestLosPortamodeloSoloSeGeneranDondeHacenFalta(t *testing.T) {
 			}
 
 			raiz := t.TempDir()
-			if _, err := Instalar(raiz, Opciones{Harness: c.harness}); err != nil {
+			if _, err := Instalar(raiz, Opciones{Harness: []string{c.harness}}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -190,7 +190,7 @@ func TestUnModeloDeConsolaNoLlevaPortamodelo(t *testing.T) {
 	}
 
 	raiz := t.TempDir()
-	if _, err := Instalar(raiz, Opciones{Harness: "opencode"}); err != nil {
+	if _, err := Instalar(raiz, Opciones{Harness: []string{"opencode"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(raiz, ".opencode", "agents", "sf-ajeno.md")); err == nil {
@@ -206,7 +206,7 @@ func TestUnModeloDeConsolaNoLlevaPortamodelo(t *testing.T) {
 func TestPermitirComandoAgregaElTestCmd(t *testing.T) {
 	enUnHomeDePrueba(t)
 	raiz := t.TempDir()
-	if _, err := Instalar(raiz, Opciones{Harness: "commandcode"}); err != nil {
+	if _, err := Instalar(raiz, Opciones{Harness: []string{"commandcode"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -308,7 +308,7 @@ func TestHarnessExplicitoActualizaElMapaExistente(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Instalar(t.TempDir(), Opciones{Harness: "codex"}); err != nil {
+	if _, err := Instalar(t.TempDir(), Opciones{Harness: []string{"codex"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -443,8 +443,8 @@ func TestInstalarSigueAlHarnessEnUsoYNoAlPunteroEscrito(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if r.Harness != "claude-code" {
-		t.Errorf("instaló para %q, quería claude-code", r.Harness)
+	if r.Puntero != "claude-code" {
+		t.Errorf("instaló para %q, quería claude-code", r.Puntero)
 	}
 	if _, err := os.Stat(filepath.Join(raiz, ".claude", "settings.json")); err != nil {
 		t.Error("no escribió los permisos de claude-code")
@@ -468,12 +468,12 @@ func TestElFlagDeHarnessLeGanaADondeEstasParado(t *testing.T) {
 	parandoEn(t, "claude-code")
 
 	raiz := t.TempDir()
-	r, err := Instalar(raiz, Opciones{Harness: "opencode"})
+	r, err := Instalar(raiz, Opciones{Harness: []string{"opencode"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Harness != "opencode" {
-		t.Errorf("instaló para %q, quería opencode", r.Harness)
+	if r.Puntero != "opencode" {
+		t.Errorf("instaló para %q, quería opencode", r.Puntero)
 	}
 }
 
@@ -489,8 +489,8 @@ func TestSinDeteccionElPunteroEscritoSobrevive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Harness != "opencode" {
-		t.Errorf("instaló para %q, quería que sobreviviera opencode", r.Harness)
+	if r.Puntero != "opencode" {
+		t.Errorf("instaló para %q, quería que sobreviviera opencode", r.Puntero)
 	}
 }
 
