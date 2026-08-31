@@ -1,13 +1,15 @@
 # `sf install` interactivo — los arneses y los modelos, de una sola vez
 
-**Fecha:** 2026-08-31 · **Branch:** `refundation` · **Commit:** `b93fdc3`
+**Fecha:** 2026-08-31 · **Branch:** `refundation` · **Commit:** `1aa81dd`
 
 > **Estado: SIN IMPLEMENTAR.** Spec de diseño. Lo que sí está hecho es la **medición**: el TTY, los
 > tres listados de modelos y las dependencias de `sf` se comprobaron ejecutando el 2026-08-31, y
 > están abajo con su salida. Nada acá es supuesto.
 >
-> **No depende de [`headless.md`](headless.md).** Sirve hoy, con el modo orquestado que ya existe,
-> y sigue sirviendo después. Se puede hacer antes, después o en paralelo.
+> **No depende de [`headless.md`](headless.md), pero headless depende de ésta.** Sirve hoy, con el
+> modo orquestado que ya existe, y después pasa a ser **de dónde `sf lanzar` saca el arnés, el
+> modelo y el esfuerzo** — está en §7 y es de Javier. O sea que se puede hacer antes o en paralelo,
+> pero ya no después.
 
 ---
 
@@ -179,6 +181,13 @@ Hoy `Opciones.Harness` es un string y `Instalar` arma el andamio de uno. Pasa a 
 **No hay cambio de esquema en el catálogo**: `harnesses:` ya está indexado por arnés desde H2. Es lo
 que menos toca de los tres.
 
+> **El hueco que hay que tapar acá.** `global.Config.Harness` —el singular— está documentado como
+> *"el ÚLTIMO que instaló `sf install --harness=…`"*, y es el fallback de `EnUso()` cuando no hay
+> variable de entorno ni detección: una terminal pelada, un cron. Instalando tres de una, **"el
+> último" deja de significar algo**. Hay que decidirlo explícitamente, no dejarlo salir de en qué
+> orden se recorrió la lista. Lo más defendible es escribir **el que se detectó al instalar**, y si
+> no se detectó ninguno, el primero de la lista — pero eso hay que escribirlo, no deducirlo.
+
 ### ② `sf models [--harness=X]`
 
 Corre el listado del arnés y lo devuelve normalizado: `id`, y `descripción` si el arnés la da.
@@ -209,7 +218,52 @@ de que abras esos arneses**. Cuando los abrís, ya están cargados.
 
 ---
 
-## 7. Lo que NO cambia
+## 7. Para qué termina sirviendo — es el catálogo que `sf lanzar` va a leer
+
+**Lo agregó Javier el 2026-08-31, y le da a esta spec un consumidor que antes no tenía.**
+
+> *"el tema de arnés y modelos lo podemos resolver con el install: cuando instalás seleccionás los
+> arneses que vas a usar y los modelos que querés tener disponibles, entonces cuando el agente
+> principal lanza el headless vas a saber el arnés, el modelo y el effort que necesitás."*
+
+Hasta acá esta spec se defendía sola por comodidad: ocho comandos y dos reinicios pasan a ser uno.
+Es cierto y alcanza. Pero el motivo de fondo es otro y es más fuerte:
+
+```
+sf install   →  escribe el catálogo   →  sf lanzar lo lee
+(una vez, con Javier)                    (cada paso, sin preguntar nada)
+```
+
+En el modo headless ([`headless.md`](headless.md) §4), el arnés principal delega un paso diciendo
+apenas esto:
+
+```bash
+sf lanzar --harness=opencode --alias=ultra
+```
+
+y **no tiene que saber ningún id, ningún flag ni ninguna sintaxis**. El id, el esfuerzo y el `via`
+ya están escritos, y los escribió esta pantalla. Sin este paso, headless obliga a tipear un id de
+proveedor en cada delegación — que es el dolor de §1 mudado de lugar, no resuelto.
+
+**Tres consecuencias concretas:**
+
+1. **`sf models` (el ② de §5) sube de prioridad.** Deja de ser una comodidad para tipear menos y
+   pasa a ser **cómo se llena** lo que headless consume. Es la pieza que sobrevive intacta a los dos
+   escenarios, así que es por donde conviene empezar.
+2. **El esfuerzo deja de ser decorativo.** Hoy se escribe adentro del portamodelo con un nombre de
+   campo distinto por arnés; en headless es un flag (`--effort` en Claude Code y Command Code,
+   `--variant` en opencode). Preguntarlo acá es lo que hace que después se pueda pasar.
+3. **El catálogo no necesita campos nuevos.** `global.Modelo` ya guarda `id`, alias, `esfuerzo` y
+   `via`, indexado por arnés y por perfil. Es exactamente el juego de datos que hace falta. Lo único
+   que se agrega vive en `sf`, no en el catálogo: la tabla de cómo se escribe cada cosa en cada
+   arnés, que son tres líneas.
+
+> **Y esto no rompe la regla de §2.** `sf install` sigue sin ser de la máquina: escribe
+> **configuración**, no estado. Que headless la lea después no la convierte en un paso del bucle.
+
+---
+
+## 8. Lo que NO cambia
 
 - **`sf install` sigue sin ser de la máquina.** No mira el estado ni lo mueve.
 - **Los flags mandan.** Con `--harness=`, no pregunta, haya TTY o no.
@@ -221,7 +275,7 @@ de que abras esos arneses**. Cuando los abrís, ya están cargados.
 
 ---
 
-## 8. El riesgo, y cómo se acota
+## 9. El riesgo, y cómo se acota
 
 **Parsear una salida hecha para humanos es frágil.** `cmd --list-models` tiene encabezado,
 secciones por proveedor, dos columnas alineadas con espacios y un pie con un link. Ninguno de los
@@ -239,9 +293,27 @@ fallback vergonzante. Si `sf` queda inservible porque un arnés cambió una tabl
 > **Corolario para `sf doctor`:** que sepa decir "el listado de X no se pudo leer" como **aviso**,
 > nunca como falla. No poder mostrar un menú no impide trabajar.
 
+### Y el otro riesgo, que es de alcance y no de parseo
+
+El dibujo de §4 muestra casillitas `[x]` que se marcan y un *"escribí para filtrar"* sobre 397 ids.
+**Eso es una pantalla viva**, que reacciona tecla por tecla, y en Go eso pide **modo raw de
+terminal** — o sea `golang.org/x/term`, que es exactamente la dependencia que §2 se enorgullece de
+no agregar cuando justifica `hayPersona()` con la stdlib sola.
+
+No se puede tener las dos. Y la salida barata existe y no es fea:
+
+```
+te muestro la lista numerada  →  escribís un número, o un texto para filtrar  →  enter
+```
+
+Con eso alcanza `bufio.Scanner`, cero dependencias, y **funciona igual por un pipe**, que es lo que
+la prueba 1 de §10 exige. La pantalla viva es más linda; la pantalla numerada es la que cabe en las
+reglas que esta misma spec se puso. **Hay que elegir una y escribirla**, porque hoy el documento
+promete una cosa en el dibujo y la contraria en el argumento.
+
 ---
 
-## 9. Cómo se sabrá que quedó bien
+## 10. Cómo se sabrá que quedó bien
 
 ```bash
 # la instalación entera, en un solo comando y sin cambiar de ventana
