@@ -149,6 +149,14 @@ type Instruccion struct {
 	// salidas que tiene Javier.
 	Sugerido []string
 
+	// SiApruebas son los pasos que arrancan si Javier aprueba ESTA parada, y
+	// ProximaParada es dónde vuelve a tener el volante. Sólo en una parada.
+	//
+	// Van juntos porque contestan una sola pregunta partida en dos: "si digo que
+	// sí, ¿qué pasa, y hasta dónde llega?". Ver `horizonte`.
+	SiApruebas    []string
+	ProximaParada string
+
 	// Avisos son cosas que hay que saber y que NO frenan.
 	//
 	// La distinción es de diseño: sf frena sobre hechos y avisa sobre todo lo
@@ -216,18 +224,91 @@ var skills = map[string]string{
 // `~/.specforge/` y la resuelve `via()`. Este mapa dice QUÉ hace falta; el otro
 // dice cómo se invoca en esta máquina. Ninguno de los dos sabe lo del otro, y
 // por eso `sf next` es el único que puede contestar la pregunta entera.
+// ordenDeEstados son los nueve en el orden en que la máquina los recorre.
+//
+// Es UNA sola copia y la usan dos cosas: `SkillsDeEstado` —para que `sf doctor`
+// no escriba la lista de vuelta— y el horizonte de las paradas.
+var ordenDeEstados = []string{
+	"brief", "prd", "constitucion", "backlog", "roadmap",
+	estado.Planificacion, estado.Implementar, estado.Revision, estado.Cierre,
+}
+
+// paranAlFinal son los estados que, cuando terminan, devuelven el volante.
+//
+// El valor es cómo se le nombra esa parada a Javier. Un estado que NO está acá
+// encadena con el siguiente sin preguntar nada, y ésa es exactamente la sorpresa
+// que este mapa existe para poder anunciar: aprobar el ⑥ no corre "el PRD",
+// corre el PRD Y la constitución, porque entre los dos no hay nada que frene.
+var paranAlFinal = map[string]string{
+	"brief":              "el sello del ⑥",
+	"constitucion":       "el sello del ⑧",
+	"backlog":            "el ⏸ del ⑨",
+	estado.Planificacion: "el ⑰, tu visto bueno al plan",
+}
+
+// comoSeLlama es el nombre legible de cada estado. Lo único no derivable de los
+// tres mapas, y por eso hay un test que exige uno por cada estado del orden.
+var comoSeLlama = map[string]string{
+	"brief":              "⑤ el brief",
+	"prd":                "⑦ el PRD",
+	"constitucion":       "⑧ la constitución",
+	"backlog":            "⑨ el backlog",
+	"roadmap":            "⑩ el roadmap",
+	estado.Planificacion: "⑫–⑯ la planificación",
+	estado.Implementar:   "⑱–⑳ implementar",
+	estado.Revision:      "㉑㉒ la revisión",
+	estado.Cierre:        "㉓ el cierre",
+}
+
+// horizonte contesta las dos preguntas que una parada dejaba sin contestar: qué
+// arranca si apruebo, y dónde vuelvo a tener el volante.
+//
+// Nace de que `sf next` decía dónde estás pero nunca qué ibas a desencadenar. No
+// todos los pasos frenan, así que un `sf approve` no dispara UN paso: dispara
+// todos los que siguen hasta la próxima parada. Javier selló el brief y le
+// salieron el PRD y la constitución de una, sin manera de haberlo previsto.
+//
+// Se DERIVA de `ordenDeEstados` y `paranAlFinal` en vez de escribirse a mano en
+// cada parada: un texto por parada sería una segunda copia del flujo, y se
+// desincronizaría el día que alguien mueva un estado. `TestElHorizonteEsCierto`
+// camina la máquina de verdad y comprueba que lo anunciado sea lo que pasa.
+//
+// El estado que para TAMBIÉN corre —la constitución se escribe y recién después
+// se sella— así que va en la lista y además nombra la parada.
+func horizonte(desde string) (corren []string, parada string) {
+	i := -1
+	for n, e := range ordenDeEstados {
+		if e == desde {
+			i = n
+			break
+		}
+	}
+	if i < 0 {
+		return nil, ""
+	}
+	for _, e := range ordenDeEstados[i+1:] {
+		corren = append(corren, comoSeLlama[e])
+		if p, hay := paranAlFinal[e]; hay {
+			return corren, p
+		}
+	}
+	return corren, ""
+}
+
+// conHorizonte le cuelga a una parada lo que viene después de aprobarla.
+func conHorizonte(i Instruccion) Instruccion {
+	i.SiApruebas, i.ProximaParada = horizonte(i.Estado)
+	return i
+}
+
 // SkillsDeEstado son los nueve, ordenados como los recorre la máquina.
 //
 // Existe para que `sf doctor` pueda comprobar que están instalados sin escribir
 // la lista una segunda vez: el mapa de arriba es la única copia, y una lista
 // suelta en el doctor se desincronizaría el día que un estado cambie de skill.
 func SkillsDeEstado() []string {
-	orden := []string{
-		"brief", "prd", "constitucion", "backlog", "roadmap",
-		estado.Planificacion, estado.Implementar, estado.Revision, estado.Cierre,
-	}
 	var s []string
-	for _, e := range orden {
+	for _, e := range ordenDeEstados {
 		s = append(s, skills[e])
 	}
 	return s
@@ -278,12 +359,12 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *g
 		if !existe(raiz, docs.Brief) {
 			return trabajar("brief", "", "el ⑥ lo sellás vos cuando esté", g), true
 		}
-		return Instruccion{
+		return conHorizonte(Instruccion{
 			Tipo:     Para,
 			Estado:   "brief",
 			Mensaje:  "🛑 PARÁ. El brief está escrito y lo sellás vos (el ⑥).",
 			Sugerido: []string{"sf approve", "sf reject \"motivo\""},
-		}, true
+		}), true
 	}
 
 	// Si el veredicto no fue "hacelo", la máquina no sigue. Es la única vez que
@@ -316,12 +397,12 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *g
 		if !existe(raiz, docs.Constitucion) || constitucion.SinEscribir(raiz) {
 			return trabajar("constitucion", "", "el ⑧ lo sellás vos cuando esté", g), true
 		}
-		return Instruccion{
+		return conHorizonte(Instruccion{
 			Tipo:     Para,
 			Estado:   "constitucion",
 			Mensaje:  "🛑 PARÁ. La constitución está escrita y la sellás vos (el ⑧).",
 			Sugerido: []string{"sf approve", "sf reject \"motivo\""},
-		}, true
+		}), true
 	}
 
 	// ⑨ backlog. Acá el patrón cambia: la parada es ⏸ y no 🛑, y necesita el
@@ -343,12 +424,12 @@ func siguienteDeProducto(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *g
 		if len(ids) == 0 || len(faltan) > 0 {
 			return trabajar("backlog", "", mensajeDelNueve(ids, faltan), g), true
 		}
-		return Instruccion{
+		return conHorizonte(Instruccion{
 			Tipo:     Barata,
 			Estado:   "backlog",
 			Mensaje:  "⏸ Salieron las historias. Mirá si querés y seguí.",
 			Sugerido: []string{"sf approve"},
-		}, true
+		}), true
 	}
 
 	// ⑩ roadmap. Sin parada: agrupa y ordena, y de ahí arranca el ciclo.
@@ -585,6 +666,12 @@ func planificando(raiz string, fr roadmap.Feature, f *estado.Feature, g *global.
 				strings.Join(res.Fallas, "\n   ")
 			i.Sugerido = []string{"sf context", "sf done"}
 		} else {
+			// Sin horizonte, y a propósito. De acá para adelante el flujo
+			// deja de ser una fila: los lotes del ⑱–⑳ dan vueltas, y un
+			// finding del ㉑ manda la feature de vuelta a implementar. La
+			// derivación lineal de `horizonte` no modela ninguna de las dos,
+			// así que acá contestaría con seguridad algo falso — que es peor
+			// que no contestar.
 			return Instruccion{
 				Tipo:     Para,
 				Estado:   estado.Planificacion,

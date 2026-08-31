@@ -1047,3 +1047,104 @@ func parandoEn(t *testing.T, harness string) {
 		t.Setenv(global.VarHarness, harness)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El horizonte de las paradas
+// ────────────────────────────────────────────────────────────────────────────
+
+// Lo que una parada ANUNCIA tiene que ser lo que después PASA.
+//
+// Es el test que hace que el horizonte pueda vivir en dos mapas chicos en vez de
+// en un texto escrito a mano en cada parada: acá se camina la máquina de verdad
+// y se compara el anuncio contra el recorrido. Si alguien mueve un estado de
+// lugar y no toca los mapas, esto se rompe.
+func TestElHorizonteEsCierto(t *testing.T) {
+	p := nuevo(t).conTresPerfiles()
+
+	// ── el ⑥
+	p.conArchivo(".docs/brief.md")
+	i := p.next()
+	if i.Tipo != Para {
+		t.Fatalf("tipo %v, quería la 🛑 del ⑥", i.Tipo)
+	}
+	anunciados, parada := i.SiApruebas, i.ProximaParada
+	if len(anunciados) == 0 || parada == "" {
+		t.Fatalf("la 🛑 del ⑥ no anunció nada: corren=%v parada=%q", anunciados, parada)
+	}
+
+	// Apruebo y camino: cada paso anunciado tiene que ser el que sale.
+	p.e.Producto.BriefSellado = "hacelo"
+	if i := p.next(); comoSeLlama[i.Estado] != anunciados[0] {
+		t.Errorf("anunció %q y salió %q", anunciados[0], comoSeLlama[i.Estado])
+	}
+
+	p.conArchivo(".docs/prd.md")
+	p.e.Producto.PrdHash = "a3f9c1"
+	i = p.next()
+	if len(anunciados) < 2 {
+		t.Fatalf("anunció un solo paso: entre el ⑦ y el ⑧ no hay parada, tienen que ser dos")
+	}
+	if comoSeLlama[i.Estado] != anunciados[1] {
+		t.Errorf("anunció %q y salió %q", anunciados[1], comoSeLlama[i.Estado])
+	}
+
+	// Y ahí tiene que aparecer la parada anunciada.
+	p.conArchivo(".docs/constitucion.md")
+	i = p.next()
+	if i.Tipo != Para {
+		t.Fatalf("anunció parada en %q y no paró: tipo %v", parada, i.Tipo)
+	}
+	if i.Estado != "constitucion" {
+		t.Errorf("paró en %q, y había anunciado %q", i.Estado, parada)
+	}
+
+	// ── el ⑧: mismo contrato, un tramo más corto.
+	anunciados, parada = i.SiApruebas, i.ProximaParada
+	if len(anunciados) != 1 || parada == "" {
+		t.Fatalf("el ⑧ anunció corren=%v parada=%q, quería un solo paso", anunciados, parada)
+	}
+	p.e.Producto.ConstitucionSellada = true
+	if i := p.next(); comoSeLlama[i.Estado] != anunciados[0] {
+		t.Errorf("anunció %q y salió %q", anunciados[0], comoSeLlama[i.Estado])
+	}
+	p.conHistoria("us-1")
+	if i := p.next(); i.Tipo != Barata {
+		t.Fatalf("anunció parada en %q y no paró", parada)
+	}
+}
+
+// La ⏸ del ⑨ es la que más sorprende: aprobás y arrancan DOS pasos.
+func TestLaPausaDelNueveAvisaQueSonDos(t *testing.T) {
+	p := nuevo(t).conTresPerfiles()
+	p.e.Producto = estado.Producto{BriefSellado: "hacelo", PrdHash: "x", ConstitucionSellada: true}
+	p.conHistoria("us-1")
+
+	i := p.next()
+	if i.Tipo != Barata {
+		t.Fatalf("tipo %v, quería la ⏸", i.Tipo)
+	}
+	if len(i.SiApruebas) != 2 {
+		t.Errorf("anunció %v: entre el ⑩ y el ⑫ no hay parada, tienen que ser dos", i.SiApruebas)
+	}
+	if i.ProximaParada == "" {
+		t.Error("no dijo dónde se vuelve a parar")
+	}
+}
+
+// Todo estado del orden tiene nombre legible. Es lo único no derivable de los
+// mapas, así que es lo único que hay que acordarse de completar.
+func TestTodosLosEstadosTienenNombre(t *testing.T) {
+	for _, e := range ordenDeEstados {
+		if comoSeLlama[e] == "" {
+			t.Errorf("el estado %q no tiene nombre legible", e)
+		}
+	}
+}
+
+// Un estado que no está en el orden no inventa horizonte.
+func TestUnEstadoDesconocidoNoTieneHorizonte(t *testing.T) {
+	corren, parada := horizonte("no-existe")
+	if corren != nil || parada != "" {
+		t.Errorf("horizonte inventado: %v %q", corren, parada)
+	}
+}

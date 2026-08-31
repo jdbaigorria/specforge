@@ -777,6 +777,21 @@ func mostrar(i maquina.Instruccion) string {
 		// Sin ese renglón, Javier declara los modelos, no reinicia, y el siguiente
 		// intento falla por un motivo que sf ya sabía y no dijo.
 		avisar(&b, i.Avisos)
+
+		// El horizonte va DESPUÉS del mensaje y ANTES de los comandos, que es
+		// el orden en que se lee una parada: qué pasa, qué desencadena si digo
+		// que sí, y recién ahí con qué se dice.
+		//
+		// Existe porque `sf next` decía dónde estás y nunca qué ibas a
+		// disparar. No todos los pasos frenan, así que un `sf approve` arranca
+		// todos los que siguen hasta la próxima parada — y eso, sin anunciarlo,
+		// se siente como que la máquina se te escapó.
+		if len(i.SiApruebas) > 0 {
+			fmt.Fprintf(&b, "\n   si aprobás corre:  %s\n", strings.Join(i.SiApruebas, " → "))
+			if i.ProximaParada != "" {
+				fmt.Fprintf(&b, "   próxima parada:    %s\n", i.ProximaParada)
+			}
+		}
 	}
 
 	if len(i.Sugerido) > 0 {
