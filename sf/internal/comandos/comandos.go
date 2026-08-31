@@ -48,6 +48,7 @@ var Todos = []string{
 	"init",
 	"install",
 	"uninstall",
+	"models",
 	"next",
 	"context",
 	"done",

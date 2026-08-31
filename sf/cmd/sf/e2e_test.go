@@ -840,6 +840,42 @@ func TestNingunComandoDelSwitchFaltaEnElInventario(t *testing.T) {
 	}
 }
 
+// TestModelos_LosTresDesenlacesSeDistinguenDesdeAfuera
+//
+// `sf models` puede terminar de tres formas que se parecen y NO son lo mismo, y
+// el que las lee es alguien —o un agente— tratando de llenar el catálogo:
+//
+//	un arnés mal escrito   error de quien llama       exit 1
+//	un arnés que no lista  un hecho del mundo         exit 2 + cómo seguir a mano
+//	un arnés que lista     ids por stdout             exit 0
+//
+// Confundir las dos primeras es lo que hacía la primera versión: contestaba
+// "buscá el id a mano" ante un `--harness=emacs`, que es un consejo inútil para
+// un typo. El código de salida es la mitad de la interfaz (ver el bloque de
+// códigos en main.go), así que esto se prueba desde afuera y no leyendo texto.
+func TestModelos_LosTresDesenlacesSeDistinguenDesdeAfuera(t *testing.T) {
+	p := nuevoProyecto(t)
+
+	code, out := p.sf("models", "--harness=emacs")
+	if code != 1 {
+		t.Errorf("un arnés que no existe tiene que ser error (1), fue %d:\n%s", code, sangrar(out))
+	}
+	if strings.Contains(out, "a mano") {
+		t.Errorf("a un typo no se le ofrece el camino manual, se le dice cuáles hay:\n%s", sangrar(out))
+	}
+	if !strings.Contains(out, "claude-code") {
+		t.Errorf("el error tiene que nombrar los que sí existen:\n%s", sangrar(out))
+	}
+
+	code, out = p.sf("models", "--harness=claude-code")
+	if code != 2 {
+		t.Errorf("un arnés sin listado es parada (2), no error: fue %d\n%s", code, sangrar(out))
+	}
+	if !strings.Contains(out, "sf model ") {
+		t.Errorf("sin listado, la salida tiene que decir cómo declararlo igual:\n%s", sangrar(out))
+	}
+}
+
 // reAyuda caza los comandos de la ayuda: dos espacios, `sf`, el nombre.
 var reAyuda = regexp.MustCompile(`^\s+sf (lote start|[a-z]+)`)
 
