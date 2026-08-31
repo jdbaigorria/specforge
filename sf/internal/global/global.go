@@ -441,6 +441,20 @@ func (c *Config) Resolver(que string) (Modelo, bool) {
 // saber si tiene que avisar que hay que reiniciar el harness: los portamodelo se
 // leen al arrancar (medido), así que un alias nuevo a mitad de sesión no se ve.
 func (c *Config) Declarar(perfil string, m Modelo) (nuevo bool, err error) {
+	// Se declara en el que está EN USO, no en el que quedó escrito: si estás
+	// parado en opencode, un `sf model` tiene que quedar en el bloque de
+	// opencode aunque `sf install` haya sido para otro.
+	return c.DeclararEn(c.EnUso(), perfil, m)
+}
+
+// DeclararEn es Declarar sobre un harness NOMBRADO.
+//
+// Existe para la pregunta de `sf install`: ahí Javier declara los modelos de los
+// tres arneses de una sentada, parado en uno solo. `Declarar` no sirve porque
+// escribe siempre en el que está en uso, que es lo correcto para `sf model` —un
+// acto de "acá, ahora"— y justo lo que no se quiere cuando estás llenando el
+// catálogo de otro.
+func (c *Config) DeclararEn(h, perfil string, m Modelo) (nuevo bool, err error) {
 	if !EsPerfil(perfil) {
 		return false, fmt.Errorf("%q no es un perfil: son %v", perfil, PerfilesConocidos())
 	}
@@ -450,10 +464,9 @@ func (c *Config) Declarar(perfil string, m Modelo) (nuevo bool, err error) {
 	if EsPerfil(m.Alias) {
 		return false, fmt.Errorf("el alias %q se llama igual que un perfil: elegí otro", m.Alias)
 	}
-	// Se declara en el que está EN USO, no en el que quedó escrito: si estás
-	// parado en opencode, un `sf model` tiene que quedar en el bloque de
-	// opencode aunque `sf install` haya sido para otro.
-	h := c.EnUso()
+	if h == "" {
+		return false, errors.New("no sé en qué harness declararlo")
+	}
 	if c.Harnesses == nil {
 		c.Harnesses = map[string]Catalogo{}
 	}

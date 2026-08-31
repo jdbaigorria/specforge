@@ -2,13 +2,12 @@
 
 **Fecha:** 2026-08-31 · **Branch:** `refundation` · **Commit:** `1aa81dd`
 
-> **Estado: DOS DE TRES IMPLEMENTADOS** (2026-08-31). El ② (`sf models`) y el ① (`sf install
-> --harness=a,b,c`, más la detección de instalados) están construidos y corriendo — el detalle al
-> final, en **Lo que se implementó**. Falta el ③, la pregunta, que es el único que necesitaba las
-> otras dos hechas.
+> **Estado: IMPLEMENTADA** (2026-08-31). Los tres pedazos de §5 están construidos y corriendo — el
+> detalle al final, en **Lo que se implementó**. `sf install` pregunta, y la corrida entera se
+> verificó con una terminal de verdad y con los listados reales de los arneses.
 >
-> El resto sigue siendo spec de diseño, y la **medición** —el TTY, los tres listados de modelos y
-> las dependencias de `sf`— se comprobó ejecutando el 2026-08-31. Nada acá es supuesto.
+> **Con una corrección a esta misma spec**: el `hayPersona()` de §2 estaba mal y lo encontró un
+> test, no una lectura. Está contado en §11.
 >
 > **No depende de [`headless.md`](headless.md), pero headless depende de ésta.** Sirve hoy, con el
 > modo orquestado que ya existe, y después pasa a ser **de dónde `sf lanzar` saca el arnés, el
@@ -87,8 +86,31 @@ func hayPersona() bool {
 ```
 
 **Con la stdlib sola, y eso importa:** `sf` tiene hoy **una** dependencia (`gopkg.in/yaml.v3`).
-Meter `golang.org/x/term` para preguntar si hay una terminal la duplicaría. Probado en los dos
-sentidos y anda.
+Meter `golang.org/x/term` para preguntar si hay una terminal la duplicaría.
+
+> ### ⚠ Ese código está MAL, y así se implementó al final
+>
+> **`/dev/null` también es un dispositivo de caracteres.** Mirando sólo ese bit, un
+> `sf install < /dev/null` contesta *"hay alguien"* — que es **exactamente el caso que la prueba 1
+> de §10 nombra como el que no puede fallar**.
+>
+> Y no colgaba, que habría sido lo visible. Hacía algo peor y más callado: la pregunta se contestaba
+> sola con "enter" en todo, y enter en la primera es **todos los arneses**. Un `sf install`
+> desatendido pasaba de armar el andamio de uno a armar el de los tres, sin decir nada.
+>
+> Lo agarró el test, no la lectura. Lo que se implementó agrega una línea:
+>
+> ```go
+> if dn, err := os.Stat(os.DevNull); err == nil && os.SameFile(fi, dn) {
+> 	return false
+> }
+> ```
+>
+> `os.DevNull` vale también en Windows (`"NUL"`), así que sigue sin necesitar build tags ni
+> dependencia nueva. Lo que **no** cubre —dicho para que nadie lo descubra solo— es un dispositivo
+> de caracteres que no sea `/dev/null` ni una terminal, como `/dev/zero`. Cerrar eso pide un `ioctl`
+> por plataforma o `x/term`, y no paga: los tres casos reales son una terminal, un pipe y
+> `/dev/null`.
 
 | | quién lo corre | conversa |
 |---|---|---|
@@ -431,7 +453,37 @@ Con las dos arregladas, la prueba 3 de §9 **pasa de verdad**: desde una sesión
 solo comando dejó escritos los permisos de opencode y de Command Code y sus tres portamodelo, sin
 abrir ninguno de los dos.
 
-### Lo que falta
+### ③ La pregunta
 
-El ③, la pregunta. Ahora sí tiene con qué: `sf models` para el menú y `--harness=a,b,c` para
-escribir.
+Paquete nuevo `sf/internal/pregunta`, y **no escribe nada**: devuelve lo que Javier contestó y
+quien llama decide. Es lo que lo deja probar con un guion de respuestas y un buffer, sin tocar el
+disco ni ejecutar un arnés — once tests.
+
+Se pregunta **si y sólo si** se dan las dos condiciones: no vinieron flags y hay una persona. Con
+`--harness=` no se pregunta aunque haya alguien mirando, porque el flag **es** la respuesta y
+volver a pedirla sería no escuchar.
+
+Cuatro cosas que quedaron decididas en el código:
+
+- **Un solo lugar para saltear un perfil**, y es la pregunta del modelo. Una vez que elegiste
+  modelo el alias es obligatorio: sin él no se puede nombrar desde `tareas.json`, que es para lo
+  único que el alias existe. La primera versión tenía dos escapes y un enter de más tiraba la
+  elección recién hecha, en silencio. Lo marcó un test.
+- **Pegar un id funciona siempre**, y es §9 aplicada: un texto que no filtra nada se toma como id.
+  Un modelo que el arnés todavía no enumera se declara igual.
+- **El alias lo pone Javier.** Derivarlo del id —`nemotron-3-ultra-free` → `ultra`— sería `sf`
+  opinando sobre cómo se llaman las cosas de él.
+- **Quedarse sin entrada no es un error.** Un Ctrl-D o un pipe que se acabó devuelven lo contestado
+  hasta ahí. Tirar respuestas que ya costó dar sería lo peor que se puede hacer con ellas.
+
+**Verificado con una terminal de verdad** (`script`, que asigna un pty) y con los listados reales:
+de los 397 de opencode, se mostraron 12 con *"… 385 más"*, se filtró por `nemotron`, se eligió por
+número, y quedaron el catálogo y los dos portamodelo escritos. El mismo guion contra `claude-code`
+—que no lista— pasó por *"Pegá el id"* y terminó igual.
+
+### El estado final
+
+414 tests contra los 380 del día anterior · 9 e2e contra 6 · `gofmt`, `vet` y `build` limpios.
+
+Los tres pedazos están. Lo que la spec prometía —ocho comandos, dos reinicios y un ida y vuelta
+entre ventanas en **uno**— se cumple.

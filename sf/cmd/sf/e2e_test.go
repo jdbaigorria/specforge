@@ -876,6 +876,53 @@ func TestModelos_LosTresDesenlacesSeDistinguenDesdeAfuera(t *testing.T) {
 	}
 }
 
+// TestInstall_SinTTYNoPreguntaNiCuelga
+//
+// EL TEST QUE NO PUEDE FALLAR NUNCA.
+//
+// `sf install` es el único comando que conversa, y conversa sólo si hay una
+// persona: la shell de un agente no tiene TTY y la de una persona sí (medido).
+// Si esa condición se rompiera, un `sf install` corrido por el orquestador —lo
+// nombra en "Empezar de cero"— o por `install.sh` se quedaría esperando una
+// respuesta que nadie va a escribir, y el que se cuelga es el primer comando que
+// corre alguien que recién llega.
+//
+// Acá el binario corre con stdin conectado a un pipe, que es exactamente lo que
+// ve un agente. Que el test TERMINE ya es la mitad de la prueba.
+func TestInstall_SinTTYNoPreguntaNiCuelga(t *testing.T) {
+	p := nuevoProyecto(t)
+
+	code, out := p.sf("install")
+	if code != 0 {
+		t.Fatalf("exit %d:\n%s", code, sangrar(out))
+	}
+	if strings.Contains(out, "¿Qué arneses") {
+		t.Errorf("preguntó sin que hubiera nadie del otro lado:\n%s", sangrar(out))
+	}
+	if strings.Contains(out, "alias corto") {
+		t.Errorf("llegó a pedir un alias sin TTY:\n%s", sangrar(out))
+	}
+}
+
+// Y con flags tampoco pregunta, haya persona o no: pasar `--harness=` ES la
+// respuesta, y volver a preguntarla sería no escuchar.
+func TestInstall_ConFlagsNoPregunta(t *testing.T) {
+	p := nuevoProyecto(t)
+
+	code, out := p.sf("install", "--harness=opencode,commandcode")
+	if code != 0 {
+		t.Fatalf("exit %d:\n%s", code, sangrar(out))
+	}
+	if strings.Contains(out, "¿Qué arneses") {
+		t.Errorf("preguntó teniendo la respuesta en un flag:\n%s", sangrar(out))
+	}
+	for _, h := range []string{"opencode", "commandcode"} {
+		if !strings.Contains(out, h) {
+			t.Errorf("no instaló para %s:\n%s", h, sangrar(out))
+		}
+	}
+}
+
 // reAyuda caza los comandos de la ayuda: dos espacios, `sf`, el nombre.
 var reAyuda = regexp.MustCompile(`^\s+sf (lote start|[a-z]+)`)
 

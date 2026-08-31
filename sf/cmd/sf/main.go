@@ -37,6 +37,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/modelos"
+	"github.com/jdbaigorria/specforge/sf/internal/pregunta"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/sobre"
 	"github.com/jdbaigorria/specforge/sf/internal/vista"
@@ -472,10 +473,40 @@ func instalar(args []string) int {
 		return salidaError
 	}
 
+	// LA ÚNICA VEZ QUE SF CONVERSA, y sólo si se dan las dos condiciones.
+	//
+	// Con flags no se pregunta, haya persona o no: pasar `--harness=` ES la
+	// respuesta, y volver a preguntarla sería no escuchar. Y sin TTY tampoco,
+	// que es el caso que no puede fallar nunca — un `sf install` corrido por el
+	// orquestador o por `install.sh` colgaría esperando algo que nadie va a
+	// escribir.
+	var declaraciones []pregunta.Declaracion
+	if len(o.Harness) == 0 && hayPersona() {
+		resp, err := pregunta.Preguntar(os.Stdout, os.Stdin, andamio.Instalados(), modelos.Listar)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "sf:", err)
+			return salidaError
+		}
+		o.Harness = resp.Harnesses
+		declaraciones = resp.Declaraciones
+		fmt.Println()
+	}
+
 	r, err := andamio.Instalar(raiz, o)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sf:", err)
 		return salidaError
+	}
+
+	// Lo elegido se declara DESPUÉS de instalar, porque instalar es lo que
+	// siembra el catálogo — antes puede no haber ninguno donde escribir. Y por
+	// eso hay que regenerar los portamodelo: el andamio se armó cuando estos
+	// modelos todavía no existían.
+	if len(declaraciones) > 0 {
+		if err := declararYRegenerar(raiz, declaraciones, r); err != nil {
+			fmt.Fprintln(os.Stderr, "sf:", err)
+			return salidaError
+		}
 	}
 
 	for _, e := range r.Escritos {
@@ -547,6 +578,94 @@ func sinPreparar(ya []string) []string {
 		}
 	}
 	return faltan
+}
+
+// hayPersona dice si del otro lado hay alguien a quien preguntarle.
+//
+// MEDIDO el 2026-08-31: la shell de un agente NO tiene TTY y la de una persona
+// sí. Adentro de la herramienta Bash de Claude Code, stdin y stdout no son
+// terminales; en una terminal de verdad, stdin sí.
+//
+// Sale con la STDLIB SOLA, y eso importa: `sf` tiene hoy UNA dependencia
+// (`gopkg.in/yaml.v3`), y meter `golang.org/x/term` para preguntar si hay una
+// terminal la duplicaría. Es la misma cuenta que decidió que la pregunta sea una
+// lista numerada y no una pantalla con flechitas.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ NO ALCANZA CON ModeCharDevice, QUE ES LO QUE DECÍA LA SPEC
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Porque /dev/null TAMBIÉN es un dispositivo de caracteres. La versión de
+// `install-interactivo.md` §2 miraba sólo ese bit, y con eso un
+// `sf install < /dev/null` decía "hay alguien" — que es exactamente el caso que
+// la prueba 1 de esa misma spec nombra como el que no puede fallar.
+//
+// No colgaba, porque leer de /dev/null da EOF enseguida. Hacía algo peor y más
+// callado: la pregunta se contestaba sola con "enter" en todo, y "enter" en la
+// primera es TODOS LOS ARNESES. O sea que un `sf install` desatendido pasaba de
+// armar el andamio de uno a armar el de los tres, en silencio. Lo encontró
+// `TestInstall_SinTTYNoPreguntaNiCuelga`, no la lectura.
+//
+// Lo que NO cubre, dicho para que nadie lo descubra solo: un dispositivo de
+// caracteres que no sea /dev/null ni una terminal —/dev/zero, por ejemplo—
+// seguiría dando true. Cerrar eso de verdad pide un ioctl por plataforma o
+// `golang.org/x/term`, y ninguna de las dos paga para un caso que no existe: los
+// tres reales son una terminal, un pipe y /dev/null.
+func hayPersona() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	// Un pipe o un archivo redirigido: no hay nadie.
+	if fi.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	// Y /dev/null es un dispositivo de caracteres sin nadie atrás. `os.DevNull`
+	// vale también en Windows ("NUL"), así que esto no necesita build tags.
+	if dn, err := os.Stat(os.DevNull); err == nil && os.SameFile(fi, dn) {
+		return false
+	}
+	return true
+}
+
+// declararYRegenerar mete en el catálogo lo que Javier eligió y reescribe los
+// portamodelo de los arneses tocados.
+func declararYRegenerar(raiz string, ds []pregunta.Declaracion, r *andamio.Resultado) error {
+	// El del proyecto si existe, y si no el global: es el que rige acá, y es
+	// donde `sf model` escribiría si Javier lo declarara a mano.
+	g, err := global.LeerPara(raiz)
+	if err != nil {
+		return err
+	}
+
+	tocados := map[string]bool{}
+	for _, d := range ds {
+		if _, err := g.DeclararEn(d.Harness, d.Perfil, global.Modelo{
+			Alias: d.Alias, ID: d.ID, Via: global.Subagente, Esfuerzo: d.Esfuerzo,
+		}); err != nil {
+			return err
+		}
+		tocados[d.Harness] = true
+	}
+	if err := g.Guardar(); err != nil {
+		return err
+	}
+
+	var cuales []string
+	for _, h := range r.Para {
+		if tocados[h] {
+			cuales = append(cuales, h)
+		}
+	}
+	rr, err := andamio.RegenerarPara(raiz, g, cuales)
+	if err != nil {
+		return err
+	}
+	r.Escritos = append(r.Escritos, rr.Escritos...)
+	for h, n := range rr.Modelos {
+		r.Modelos[h] = n
+	}
+	return nil
 }
 
 // listarModelos es `sf models`: los ids que el harness dice tener.

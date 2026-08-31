@@ -343,9 +343,22 @@ func Regenerar(raiz string, g *global.Config) (*Resultado, error) {
 	// Claude Code dejaba el modelo en el catálogo y el archivo sin escribir —
 	// y el próximo `sf next` nombraba un agente que no existía.
 	h := g.EnUso()
-	r := &Resultado{Para: []string{h}, Puntero: h, Modelos: map[string]int{h: len(g.AliasDe(h))}}
-	if err := escribirPortamodelos(raiz, g, h, r); err != nil {
-		return nil, err
+	return RegenerarPara(raiz, g, []string{h})
+}
+
+// RegenerarPara reescribe los portamodelo de los arneses NOMBRADOS.
+//
+// Existe para la pregunta de `sf install`: ahí Javier declara los modelos de
+// varios arneses de una sentada, y los portamodelo de todos tienen que quedar
+// escritos ANTES de que abra ninguno — que es el punto entero
+// (install-interactivo.md §6).
+func RegenerarPara(raiz string, g *global.Config, harnesses []string) (*Resultado, error) {
+	r := &Resultado{Para: harnesses, Puntero: g.EnUso(), Modelos: map[string]int{}}
+	for _, h := range harnesses {
+		r.Modelos[h] = len(g.AliasDe(h))
+		if err := escribirPortamodelos(raiz, g, h, r); err != nil {
+			return nil, err
+		}
 	}
 	return r, nil
 }
