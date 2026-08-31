@@ -476,6 +476,9 @@ func instalar(args []string) int {
 	for _, s := range r.Salteados {
 		fmt.Println("·", s)
 	}
+	for _, v := range r.Viejos {
+		fmt.Printf("⚠ %s quedó de una versión anterior — `sf install --forzar` lo actualiza\n", v)
+	}
 
 	fmt.Println()
 	fmt.Printf("harness: %s · %d modelos declarados\n", r.Harness, r.Modelos)

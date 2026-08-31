@@ -1,6 +1,7 @@
 package andamio
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -260,7 +261,8 @@ func TestNoPisaUnClaudeMdQueYaExiste(t *testing.T) {
 func TestForzarSiPisa(t *testing.T) {
 	enUnHomeDePrueba(t)
 	raiz := t.TempDir()
-	if err := os.WriteFile(filepath.Join(raiz, "CLAUDE.md"), []byte("viejo\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(raiz, "CLAUDE.md"),
+		[]byte("# SpecForge\n\nviejo\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -489,5 +491,113 @@ func TestSinDeteccionElPunteroEscritoSobrevive(t *testing.T) {
 	}
 	if r.Harness != "opencode" {
 		t.Errorf("instaló para %q, quería que sobreviviera opencode", r.Harness)
+	}
+}
+
+// "Existe" y "está al día" son dos cosas distintas, y decir sólo la primera es
+// lo que dejó a trello con un orquestador que no sabía invocar el `agente:`.
+func TestUnOrquestadorViejoSeDelata(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	if err := os.WriteFile(filepath.Join(raiz, "CLAUDE.md"),
+		[]byte("# SpecForge\n\nde una versión anterior\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Instalar(raiz, Opciones{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r.Viejos) != 1 || r.Viejos[0] != "CLAUDE.md" {
+		t.Errorf("Viejos = %v, quería [CLAUDE.md]", r.Viejos)
+	}
+	for _, s := range r.Salteados {
+		if strings.Contains(s, "CLAUDE.md") {
+			t.Errorf("el viejo salió como salteado normal: %q", s)
+		}
+	}
+	if v := OrquestadoresViejos(raiz); len(v) != 1 {
+		t.Errorf("OrquestadoresViejos = %v", v)
+	}
+}
+
+// Uno al día se saltea sin ruido, y NO se reporta como viejo.
+func TestUnOrquestadorAlDiaNoMolesta(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	if _, err := Instalar(raiz, Opciones{}); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Instalar(raiz, Opciones{}) // segunda pasada: ya está todo
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Viejos) != 0 {
+		t.Errorf("marcó como viejo lo que acababa de escribir: %v", r.Viejos)
+	}
+	if v := OrquestadoresViejos(raiz); len(v) != 0 {
+		t.Errorf("OrquestadoresViejos = %v", v)
+	}
+}
+
+// Un proyecto SIN orquestador no tiene ninguno viejo: eso es otro problema.
+func TestSinOrquestadorNoHayNadaViejo(t *testing.T) {
+	if v := OrquestadoresViejos(t.TempDir()); len(v) != 0 {
+		t.Errorf("OrquestadoresViejos = %v", v)
+	}
+}
+
+// Y --forzar lo actualiza, que es la salida que el mensaje promete.
+func TestForzarActualizaElOrquestadorViejo(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	if err := os.WriteFile(filepath.Join(raiz, "CLAUDE.md"),
+		[]byte("# SpecForge\n\nviejo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Instalar(raiz, Opciones{Forzar: true}); err != nil {
+		t.Fatal(err)
+	}
+	if v := OrquestadoresViejos(raiz); len(v) != 0 {
+		t.Errorf("--forzar dejó uno viejo: %v", v)
+	}
+}
+
+// Un CLAUDE.md que escribió Javier NO es un orquestador viejo.
+//
+// Sin esta distinción `sf doctor` fallaría en cualquier repo con un CLAUDE.md a
+// mano, reclamando que actualice un archivo que sf nunca escribió.
+func TestUnClaudeMdPropioNoEsUnOrquestadorViejo(t *testing.T) {
+	enUnHomeDePrueba(t)
+	raiz := t.TempDir()
+	mio := "# Mi proyecto\n\nreglas mías.\n"
+	if err := os.WriteFile(filepath.Join(raiz, "CLAUDE.md"), []byte(mio), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Instalar(raiz, Opciones{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Viejos) != 0 {
+		t.Errorf("trató el CLAUDE.md de Javier como orquestador viejo: %v", r.Viejos)
+	}
+	if v := OrquestadoresViejos(raiz); len(v) != 0 {
+		t.Errorf("OrquestadoresViejos = %v", v)
+	}
+	b, _ := os.ReadFile(filepath.Join(raiz, "CLAUDE.md"))
+	if string(b) != mio {
+		t.Error("le pisó el archivo")
+	}
+}
+
+// Si alguien le cambia el título a la plantilla, la marca deja de reconocer sus
+// propios archivos y el chequeo se queda mudo para siempre. Que rompa acá.
+func TestLaPlantillaLlevaLaMarca(t *testing.T) {
+	if !bytes.HasPrefix(orquestador, marca) {
+		t.Fatalf("la plantilla ya no empieza con %q", marca)
 	}
 }

@@ -210,6 +210,14 @@ func Revisar(raiz, version string) Informe {
 			}
 		}
 	}
+	// El orquestador viejo es invisible por todos lados menos acá: el bucle
+	// sigue corriendo, y lo único que pasa es que ignora las instrucciones que
+	// sf agregó después. Es como se perdió una hora con el `agente:`.
+	for _, o := range andamio.OrquestadoresViejos(raiz) {
+		i.Fallas = append(i.Fallas, o+" es de una versión anterior de sf y no conoce "+
+			"todo lo que `sf next` contesta: `sf install --forzar` lo actualiza")
+	}
+
 	if !i.Proyecto.Andamiado {
 		i.Avisos = append(i.Avisos,
 			"acá no hay .docs/: es un proyecto sin `sf init`, y eso puede estar bien")

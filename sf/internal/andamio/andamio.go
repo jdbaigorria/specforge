@@ -30,6 +30,7 @@
 package andamio
 
 import (
+	"bytes"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -64,6 +65,13 @@ type Resultado struct {
 	// Salteados son los que ya existían y NO se pisaron, con su motivo.
 	Salteados []string
 
+	// Viejos son los orquestadores instalados que YA NO son la plantilla.
+	//
+	// Separado de Salteados porque no es lo mismo: saltear un archivo al día no
+	// cuesta nada, y saltear uno viejo deja al harness sin instrucciones que sf
+	// da por sentadas.
+	Viejos []string
+
 	// Harness es dónde se detectó (o lo que se pidió con --harness).
 	Harness string
 
@@ -86,6 +94,46 @@ type Opciones struct {
 
 // ErrSinProyecto es que no se puede instalar el orquestador acá.
 var ErrSinProyecto = errors.New("no encuentro el proyecto")
+
+// marca es cómo sf reconoce un archivo que escribió él.
+//
+// NO SE CAMBIA sin cambiar también a mano todo lo que ya está instalado en el
+// mundo: es la única forma de distinguir un orquestador viejo —que hay que
+// actualizar— del CLAUDE.md propio de Javier —que no se toca jamás—. Sin esta
+// distinción, `sf doctor` fallaría en cualquier repo con un CLAUDE.md a mano.
+//
+// `TestLaPlantillaLlevaLaMarca` rompe si alguien le cambia el título a la
+// plantilla, que es justo el descuido que dejaría el chequeo mudo para siempre.
+var marca = []byte("# SpecForge\n")
+
+// comoEsta mira un orquestador instalado: si está, si es nuestro, y si está al día.
+func comoEsta(ruta string) (hay, nuestro, igual bool) {
+	b, err := os.ReadFile(ruta)
+	if err != nil {
+		return false, false, false
+	}
+	return true, bytes.HasPrefix(b, marca), bytes.Equal(b, orquestador)
+}
+
+// OrquestadoresViejos son los CLAUDE.md/AGENTS.md que quedaron atrás.
+//
+// Lo usa `sf doctor`, y es FALLA y no aviso: el orquestador es un archivo que
+// genera sf, no de Javier, y el contrato entre `sf next` y él está versionado
+// por su contenido. Uno viejo no se rompe ruidosamente —sigue corriendo el
+// bucle— sino que ignora en silencio lo que no entiende, que es la forma más
+// cara de fallar. Un archivo que no existe no se cuenta acá —eso es un proyecto
+// sin `sf install`, y de eso avisa otro chequeo— y uno SIN LA MARCA tampoco: ése
+// es el CLAUDE.md propio de Javier, y reclamarle que se actualice sería
+// reclamarle por un archivo que sf nunca escribió.
+func OrquestadoresViejos(raiz string) []string {
+	var viejos []string
+	for _, nombre := range destinos {
+		if hay, nuestro, igual := comoEsta(filepath.Join(raiz, nombre)); hay && nuestro && !igual {
+			viejos = append(viejos, nombre)
+		}
+	}
+	return viejos
+}
 
 // harnessDeLaInstalacion es para cuál harness se está instalando.
 //
@@ -120,11 +168,26 @@ func Instalar(raiz string, o Opciones) (*Resultado, error) {
 	for _, nombre := range destinos {
 		ruta := filepath.Join(raiz, nombre)
 
-		if _, err := os.Stat(ruta); err == nil && !o.Forzar {
+		if hay, nuestro, igual := comoEsta(ruta); hay && !o.Forzar {
 			// NO se pisa, y no es timidez: el CLAUDE.md de un proyecto suele
 			// tener instrucciones propias de Javier. Pisarlo sin avisar sería
 			// borrarle trabajo para poner cuatro líneas.
-			r.Salteados = append(r.Salteados, nombre+" (ya existe — `--forzar` lo pisa)")
+			//
+			// Pero "existe" y "está al día" son dos cosas distintas, y decir
+			// sólo la primera es lo que le costó una hora a Javier: reinstaló
+			// todo en un proyecto viejo, el renglón dijo "ya existe" —que se lee
+			// como "no hay nada que hacer"— y se quedó con un orquestador que no
+			// sabía invocar el `agente:`. opencode hizo el PRD con el modelo
+			// principal y nadie tenía cómo enterarse.
+			switch {
+			case igual:
+				r.Salteados = append(r.Salteados, nombre+" (ya está al día)")
+			case nuestro:
+				r.Viejos = append(r.Viejos, nombre)
+			default:
+				// El de Javier. Ni se pisa ni se le reclama nada.
+				r.Salteados = append(r.Salteados, nombre+" (ya existe — `--forzar` lo pisa)")
+			}
 			continue
 		}
 
