@@ -148,83 +148,100 @@ de Javier no se puede delegar **a nadie**, ni a un subagente ni a un proceso.
 
 ## 5. El prompt — la parte que no es un flag
 
-Acá está el trabajo de verdad, y es lo que hay que diseñar con cuidado.
+Ésta parecía la parte difícil. **Resultó ser la más barata**, y esta sección es sobre todo el
+registro de por qué.
 
-Hoy el arnés carga la skill: `sf next` dice `skill: sfp-po` y el orquestador la encuentra en
-`~/.claude/skills/` (o donde sea que ese arnés busque). Eso **ya trajo problemas medidos**: Command
-Code no lee `~/.claude/skills/`, y hubo que escribirle `settings.skills` en `sf install`.
+Hoy el arnés carga la skill: `sf next` dice `skill: sfp-po` y el orquestador la encuentra donde ese
+arnés busque. En headless no hay orquestador, así que la pregunta era **qué manda `sf` en el
+prompt** — y en particular si tenía que mandar el método entero, resuelto por su cuenta.
 
-En headless no hay orquestador que busque nada. **`sf` tiene que mandar el prompt entero**:
+La respuesta corta, medida: **no**. Alcanza con nombrar la skill.
 
 ```
-prompt = el texto de la skill
-       + el sobre (lo que hoy devuelve `sf context`)
-       + qué se espera de vuelta
+prompt = "Usá la skill sfp-po." + el sobre (lo que hoy devuelve `sf context`)
 ```
 
-Y ahí desaparece otra clase entera de problemas: **el descubrimiento de skills deja de importar.**
-No hace falta que el arnés encuentre `sfp-po`; `sf` la lee del disco y la manda. Se cae también la
-mitad de `sf doctor` que hoy cuenta 9/9.
+### La duda que había acá, y por qué se cayó
 
-### El problema, dicho preciso: la skill es un menú, no la comida
+> **Corrección del 2026-08-31.** Esta sección decía que `sf` tenía que **pegar** el texto de la
+> skill en el prompt, y que apuntarle al modelo dónde está exigía escalar permisos. **Estaba mal, y
+> lo marcó Javier**: *"a opencode le podés decir que use la skill x cuando usás headless y deberá
+> leerla"*. Mi prueba había apuntado a una **ruta absoluta suelta**, que es lo que opencode bloquea;
+> el mecanismo de skills del propio arnés es otra cosa y funciona. Queda escrito el error porque el
+> razonamiento que llevó a él —"si una lectura externa se rechaza, todas se rechazan"— es el que
+> hay que no repetir.
 
-Una skill no contiene el método entero. Contiene **punteros**:
+Una skill no contiene el método entero: contiene **punteros**.
 
 ```
 sf-build/SKILL.md:82        Compose **sfx-tdd**. The cycle is unchanged: …
 sfp-constitucion/SKILL.md   **Working rules** — see `references/reglas-de-trabajo.md`
 ```
 
-Hoy eso funciona porque el que lee está **adentro de un arnés y puede abrir archivos**: ve el
-puntero y va a buscarlo. En headless no hay quien lo resuelva, y **el que falla no avisa**: un
-modelo que lee "Compose sfx-tdd" y no puede traerlo va a inventar algo parecido a TDD y devolver un
-artefacto que parece bien. Es la misma familia de todo lo que mordió el 2026-08-31: silencioso.
+La preocupación era que en headless nadie los resolviera, y que **fallara en silencio**: un modelo
+que lee "Compose sfx-tdd" y no puede traerlo inventa algo parecido a TDD y devuelve un artefacto que
+parece bien.
 
-### Medido el 2026-08-31 — el grafo es chico y no hay recursión
+**No pasa. Los arneses resuelven los punteros solos, headless, sin escalar nada.**
 
-| | |
-|---|---|
-| skills que componen | 5 de 9 — `sfp-scout`, `sfp-backlog`, `sf-plan`, `sf-build`, `sf-cierre` |
-| profundidad | **un nivel**: ninguna `sfx-` compone otra |
-| archivos `references/` | 16, nombrados 17 veces, de 1,5 a 4,4 KB |
-| el prompt más grande | `sf-build` = 9.036 B + 8.157 B compuestas ≈ **4.300 tokens** |
+### Lo que se midió — la cadena entera
 
-**El tamaño no es el problema.** Entra sobrado.
-
-### Y "apuntar en vez de pegar" NO es una alternativa
-
-La salida fácil sería no pegar nada: decirle al modelo *"la skill está en tal ruta, leela"*. Se
-probó, y opencode la cierra:
+Con dos skills de sonda, `sf-sonda-comp` → compone `sf-sonda-ref` → que manda a su
+`references/reglas.md` con un token único adentro:
 
 ```
-$ opencode run --dir <proyecto> -m … "Leé /…/skills/sfx-tdd/SKILL.md y decime …"
-  ! permission requested: external_directory (/…/skills/sfx-tdd/*); auto-rejecting
-  ✗ Read … failed
-
-$ opencode run --dir <proyecto> --auto -m … (mismo prompt)
-  → Read /…/skills/sfx-tdd/SKILL.md
-  Core Principle
+$ opencode run --dir <proyecto> -m …  "Usá la skill sf-sonda-comp y seguí lo que diga."
+  → Skill "sf-sonda-comp"                              el nombre lo dio sf
+  → Skill "sf-sonda-ref"                               la composición resolvió sola
+  → Read …/skills/sf-sonda-ref/references/reglas.md    y el reference también
+  TOKEN-REF-9F3A
 ```
 
-O sea: **apuntar exige `--auto`**, una escalada de permisos, para algo tan inocente como leer un
-`.md` propio. **Pegar el texto no necesita ningún permiso.** La decisión queda cerrada por medición
-y no por gusto: **`sf` pega.**
+**Tres niveles, sin `--auto`**, y la ruta del `references/` está FUERA del `--dir`. Cargar una skill
+por nombre habilita su carpeta; leer una ruta suelta no. Son dos permisos distintos y sólo el
+segundo está cerrado.
 
-### Lo que queda por decidir, entonces, es uno solo
+Y con las skills de verdad, en los dos arneses que no son Claude Code:
 
-**¿Cuándo viajan los `references/`?** Hoy el modelo decide si los abre — son carga perezosa, y la
-mayoría de las veces no hacen falta. Pegarlos siempre engorda cada prompt con material que casi
-nunca se usa; no pegarlos deja punteros colgando, que es justo el modo de fallar silencioso de
-arriba.
+```
+$ opencode run --dir … -m …   "Usá la skill sfp-po. Decime el primer '## '."
+  → Skill "sfp-po"
+  → Read ~/.claude/skills/sfp-po/templates/prd.tmpl.md      ← hasta los templates
+  Actores
 
-Las dos salidas razonables:
+$ cmd -p "Usá la skill sfp-po. Decime el primer '## '."     (SIN --yolo)
+  The size is set by its two readers, and nothing else      = sfp-po/SKILL.md:24
+```
 
-| | |
-|---|---|
-| **pegar todo** | simple, sin sorpresas, ~2 a 6 KB de más por prompt |
-| **pegar el que la skill nombra en el paso que toca** | más fino, pero exige que `sf` entienda la estructura interna de cada skill — y eso es acoplamiento nuevo |
+Dos cosas más que salieron de ahí:
 
-Empezar por **pegar todo** y medir. Si duele, se afina; si no, no hay nada que afinar.
+- **opencode encuentra `~/.claude/skills/` sin que nadie se lo diga.** No hace falta instalarle nada.
+- **La compuerta de Command Code (§7) es sólo de escritura y shell.** Leer una skill anda sin
+  `--yolo`. Achica el problema: lo que falta ahí no es *entender*, es *actuar*.
+
+### Entonces `sf` apunta, no pega
+
+```
+prompt = "Usá la skill sfp-po." + el sobre (lo que hoy devuelve `sf context`)
+```
+
+Y todo lo demás —la composición, los `references/`, los `templates/`— lo resuelve el arnés, igual que
+hoy adentro del TUI. **`sf lanzar` no tiene que entender la estructura interna de ninguna skill**,
+que era el acoplamiento nuevo que esta sección temía.
+
+La única condición es que el arnés **encuentre** las skills, y eso ya es trabajo de `sf install`:
+para Command Code escribe `settings.skills`, y opencode no necesita nada. Es una instalación por
+arnés, una vez — no un archivo por alias con reinicio, que es lo que headless viene a matar.
+
+### Lo que sí queda por decidir
+
+**¿Y si el modelo decide no cargar la skill?** Apuntar es una instrucción, y una instrucción se
+puede ignorar — es exactamente lo que hizo opencode el 2026-08-31 con `via: subagente`. La ficha de
+§6 tiene que poder contestar **si la skill se cargó**, porque el stream lo dice (`→ Skill "sfp-po"`)
+y es la única señal barata de que el paso corrió como se pidió.
+
+> Pegar el texto sigue existiendo como **plan B por arnés**, no como diseño. Si aparece uno que no
+> tenga mecanismo de skills, ese arnés recibe el texto y listo.
 
 ---
 
