@@ -192,6 +192,60 @@ Esta es de seguridad.
 
 ---
 
+## 5.1 El horizonte de una parada — y hasta dónde llega
+
+**Agregado el 2026-08-31** (commit `d1c7856`), después de correr el bucle en tres harness.
+
+Una parada contestaba *dónde estás* y nunca *qué desencadena decir que sí*. Y como **no todos los
+pasos frenan**, un `sf approve` no dispara UN paso: dispara todos los que siguen hasta la próxima
+parada. Hay dos tramos así:
+
+```
+⑥ sello  →  ⑦ PRD       (sin parada)  →  ⑧ constitución
+⑨ ⏸     →  ⑩ roadmap   (sin parada)  →  ⑫–⑯ planificación
+```
+
+Javier selló el brief y le salieron el PRD y la constitución de una. En sus palabras: *"es medio
+enquilombado saber cuándo no debés aprobar porque sino salta directo a la siguiente fase"*. Ahora
+la parada lo anuncia:
+
+```
+🛑 PARÁ. El brief está escrito y lo sellás vos (el ⑥).
+
+   si aprobás corre:  ⑦ el PRD → ⑧ la constitución
+   próxima parada:    el sello del ⑧
+```
+
+**Se deriva, no se escribe.** Sale de dos mapas —`ordenDeEstados`, que ya vivía escondido adentro
+de `SkillsDeEstado` y ahora es una sola copia, y `paranAlFinal`— y no de un texto a mano en cada
+parada, que sería una segunda copia del flujo y se desincronizaría el día que alguien mueva un
+estado. `TestElHorizonteEsCierto` camina la máquina de verdad y compara el anuncio contra el
+recorrido.
+
+### Lo que quedó afuera, a propósito: el ⑰ no anuncia horizonte
+
+**Y no es una tarea pendiente que se olvidó: es un límite del método.**
+
+La derivación es LINEAL — recorre `ordenDeEstados` hasta el primer estado que frena. Del ⑰ para
+adelante el flujo **deja de ser una fila**:
+
+- los lotes del ⑱–⑳ dan vueltas: cada uno es rojo y después verde, y son N
+- un finding del ㉑ **manda la feature de vuelta a implementar**, y la revisión se rehace entera
+- el ⑳ tiene su propia parada de seguridad, la **ME TRABÉ** de §5, que no está en ningún orden
+
+Una derivación lineal sobre eso no se equivocaría a veces: **contestaría siempre, y con seguridad,
+algo falso.** Y una parada que anuncia mal es peor que una que no anuncia nada — la primera te hace
+aprobar confiado.
+
+Así que el ⑰ se dejó sin horizonte y está dicho en el código, en el sitio mismo donde se
+construye esa parada, para que nadie lo "complete" creyendo que fue un descuido.
+
+> **Si alguna vez hace falta**, no es agregarle un caso a `horizonte()`: es **modelar los ciclos**
+> —cuántos lotes, qué pasa con un finding, dónde entra el contador de intentos— y eso es un trabajo
+> propio, no un remate de éste.
+
+---
+
 ## 6. El orden lo elige Javier, y no hace falta configurarlo
 
 **No hay features en paralelo.** Hay una **cola**: features planificadas esperando, y se toca
