@@ -166,17 +166,65 @@ Y ahí desaparece otra clase entera de problemas: **el descubrimiento de skills 
 No hace falta que el arnés encuentre `sfp-po`; `sf` la lee del disco y la manda. Se cae también la
 mitad de `sf doctor` que hoy cuenta 9/9.
 
-### Lo que hay que decidir acá
+### El problema, dicho preciso: la skill es un menú, no la comida
 
-1. **¿La skill viaja entera o resumida?** Entera es honesto y caro. Es medible: contar tokens.
-2. **¿`sf context` se reusa tal cual?** Debería — es el mismo sobre. Si no alcanza, el que está mal
-   es el sobre, no el modo.
-3. **¿Y las skills que componen otras** (`sf-build` compone `sfx-tdd`)? Hoy lo resuelve el arnés
-   cargando las dos. En headless `sf` tiene que resolver la composición al armar el prompt.
+Una skill no contiene el método entero. Contiene **punteros**:
 
-> **Ojo con el punto 3.** Es la parte que más fácil se subestima: `sfx-tdd`, `sfx-think`,
-> `sfx-documenter` y `sfx-journal` se componen desde los nueve, y hoy nadie escribió esa
-> resolución porque el arnés la hacía sola.
+```
+sf-build/SKILL.md:82        Compose **sfx-tdd**. The cycle is unchanged: …
+sfp-constitucion/SKILL.md   **Working rules** — see `references/reglas-de-trabajo.md`
+```
+
+Hoy eso funciona porque el que lee está **adentro de un arnés y puede abrir archivos**: ve el
+puntero y va a buscarlo. En headless no hay quien lo resuelva, y **el que falla no avisa**: un
+modelo que lee "Compose sfx-tdd" y no puede traerlo va a inventar algo parecido a TDD y devolver un
+artefacto que parece bien. Es la misma familia de todo lo que mordió el 2026-08-31: silencioso.
+
+### Medido el 2026-08-31 — el grafo es chico y no hay recursión
+
+| | |
+|---|---|
+| skills que componen | 5 de 9 — `sfp-scout`, `sfp-backlog`, `sf-plan`, `sf-build`, `sf-cierre` |
+| profundidad | **un nivel**: ninguna `sfx-` compone otra |
+| archivos `references/` | 16, nombrados 17 veces, de 1,5 a 4,4 KB |
+| el prompt más grande | `sf-build` = 9.036 B + 8.157 B compuestas ≈ **4.300 tokens** |
+
+**El tamaño no es el problema.** Entra sobrado.
+
+### Y "apuntar en vez de pegar" NO es una alternativa
+
+La salida fácil sería no pegar nada: decirle al modelo *"la skill está en tal ruta, leela"*. Se
+probó, y opencode la cierra:
+
+```
+$ opencode run --dir <proyecto> -m … "Leé /…/skills/sfx-tdd/SKILL.md y decime …"
+  ! permission requested: external_directory (/…/skills/sfx-tdd/*); auto-rejecting
+  ✗ Read … failed
+
+$ opencode run --dir <proyecto> --auto -m … (mismo prompt)
+  → Read /…/skills/sfx-tdd/SKILL.md
+  Core Principle
+```
+
+O sea: **apuntar exige `--auto`**, una escalada de permisos, para algo tan inocente como leer un
+`.md` propio. **Pegar el texto no necesita ningún permiso.** La decisión queda cerrada por medición
+y no por gusto: **`sf` pega.**
+
+### Lo que queda por decidir, entonces, es uno solo
+
+**¿Cuándo viajan los `references/`?** Hoy el modelo decide si los abre — son carga perezosa, y la
+mayoría de las veces no hacen falta. Pegarlos siempre engorda cada prompt con material que casi
+nunca se usa; no pegarlos deja punteros colgando, que es justo el modo de fallar silencioso de
+arriba.
+
+Las dos salidas razonables:
+
+| | |
+|---|---|
+| **pegar todo** | simple, sin sorpresas, ~2 a 6 KB de más por prompt |
+| **pegar el que la skill nombra en el paso que toca** | más fino, pero exige que `sf` entienda la estructura interna de cada skill — y eso es acoplamiento nuevo |
+
+Empezar por **pegar todo** y medir. Si duele, se afina; si no, no hay nada que afinar.
 
 ---
 
