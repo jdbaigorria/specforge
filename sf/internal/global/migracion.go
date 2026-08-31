@@ -14,17 +14,35 @@ package global
 // migrar sube un catálogo viejo al formato nuevo, al leerlo.
 //
 // El formato viejo era `modelos:` con nombre → {via}, sin ids y sin perfiles. Se
-// mueven los tres nativos al bloque del harness que el archivo ya declara, cada
-// uno como ÚNICO elemento de la lista de su perfil, con alias e id iguales al
-// nombre viejo. Los demás quedan donde estaban: son los sueltos.
+// mueven los tres nativos al bloque de CLAUDE-CODE, cada uno como ÚNICO elemento
+// de la lista de su perfil, con alias e id iguales al nombre viejo. Los demás
+// quedan donde estaban: son los sueltos.
+//
+// Van a claude-code y NO al harness que el archivo declara, y esto se pagó
+// caro. El puntero escrito es memoria de la última instalación, no de dónde
+// salieron esos nombres: un catálogo que decía `harness: opencode` terminaba
+// afirmando que opencode sabe correr `opus`, y de ahí `sf next` le entregaba al
+// orquestador un id que ese harness no tiene. Era H1 —"siempre opus"— entrando
+// por la ventana de la migración.
+//
+// Que sea claude-code no es sf opinando sobre modelos (R3): en el formato viejo
+// el nombre ERA el id, y esos tres nombres son vocabulario de Claude Code
+// porque el sf viejo los tenía hardcodeados. Eso es de dónde vienen, un hecho
+// del pasado — no un juicio sobre a qué se parece cada uno.
 //
 // Se hace al leer y se persiste en el primer Guardar(). No hay comando de
 // migración y no debería haberlo: un archivo que se arregla solo la primera vez
 // que se lo toca es mejor que uno que exige acordarse de un comando.
+//
+// Es de UNA SOLA VEZ: con `harnesses:` ya poblado no vuelve a correr. Un archivo
+// que quedó mal por la versión anterior de esta función se arregla a mano.
 func (c *Config) migrar() {
 	if len(c.Harnesses) > 0 || len(c.Modelos) == 0 || c.Harness == "" {
 		return
 	}
+	// El harness al que pertenecían esos tres nombres, por construcción.
+	const nativo = "claude-code"
+
 	viejos := []struct{ nombre, perfil string }{
 		{"opus", Razonar}, {"sonnet", Construir}, {"haiku", Mecanico},
 	}
@@ -39,6 +57,6 @@ func (c *Config) migrar() {
 		delete(c.Modelos, v.nombre)
 	}
 	if len(cat) > 0 {
-		c.Harnesses[c.Harness] = cat
+		c.Harnesses[nativo] = cat
 	}
 }

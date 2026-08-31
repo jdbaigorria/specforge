@@ -286,6 +286,42 @@ func TestUnCatalogoViejoSeMigraSolo(t *testing.T) {
 	}
 }
 
+// Los tres nativos van a claude-code AUNQUE el archivo apunte a otro harness.
+//
+// Es la regresión que le costó a Javier un catálogo que afirmaba que opencode
+// sabía correr `opus`: el puntero escrito es memoria de la última instalación,
+// no de dónde salieron esos nombres.
+func TestLosNativosViejosNoSeMigranAlHarnessEquivocado(t *testing.T) {
+	dir := enUnHomeFalso(t)
+	viejo := "harness: opencode\nmodelos:\n" +
+		"  opus: {via: subagente}\n" +
+		"  sonnet: {via: subagente}\n" +
+		"  gpt5: {via: consola, comando: codex exec}\n"
+	if err := os.WriteFile(filepath.Join(dir, Archivo), []byte(viejo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := Leer()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if n := len(c.AliasDe("opencode")); n != 0 {
+		t.Errorf("opencode quedó con %d alias: %+v", n, c.AliasDe("opencode"))
+	}
+	if n := len(c.AliasDe("claude-code")); n != 2 {
+		t.Errorf("claude-code quedó con %d alias, esperaba 2: %+v", n, c.AliasDe("claude-code"))
+	}
+	// El puntero escrito NO se toca: dónde estás parado es otra pregunta.
+	if c.Harness != "opencode" {
+		t.Errorf("la migración movió el puntero a %q", c.Harness)
+	}
+	// Y el suelto, con su comando, sobrevive.
+	if m, hay := c.Resolver("gpt5"); !hay || m.Comando != "codex exec" {
+		t.Errorf("se perdió el suelto: %+v", m)
+	}
+}
+
 // El catálogo del PROYECTO le gana al global. Es la elección de Javier: cada
 // repo puede querer modelos distintos.
 func TestElCatalogoDelProyectoLeGanaAlGlobal(t *testing.T) {
