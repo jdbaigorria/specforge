@@ -803,10 +803,33 @@ func pedidoDeFeature(raiz string, fr roadmap.Feature, f *estado.Feature, est str
 	return perfil(est)
 }
 
-// lanzar traduce un pedido al modelo concreto de ESTA máquina.
+// conversan son los pasos que se hacen HABLANDO con Javier, no delegando.
 //
-// `brief` es el único que conversa: ①–⑤ es un pinponeo con Javier, y un subagente
-// arranca, trabaja y muere — NO TE HABLA.
+// Un subagente arranca, trabaja y muere: NO TE HABLA. Así que un paso que
+// necesita la opinión de Javier no puede ser subagente, y ésta es la lista de
+// los que la necesitan.
+//
+// El ⑥ porque ①–⑤ es un pinponeo. Y el ⑧ porque la constitución NO SE DERIVA
+// DEL PRD: arquitectura, stack y convenciones son decisiones suyas, y un paso
+// que no puede sacarlas de lo que ya está escrito tiene que poder preguntar.
+//
+// El ⑧ estuvo del lado equivocado hasta que un modelo obediente lo mostró. Su
+// skill siempre dijo "Step 1: Interview Javier — this state talks to him
+// directly", y es la ÚNICA de las nueve cuya descripción no dice "runs in a
+// fresh subagent" — o sea que nunca fue pensado como tal. Lo que lo puso ahí fue
+// el default de esta función: todo lo que no era brief iba por subagente. Los
+// modelos de Anthropic tapaban la contradicción salteándose el Step 1 y
+// escribiendo directo; nemotron hizo lo que estaba escrito y preguntó al aire.
+//
+// Que el ⑧ no sea subagente tiene un costo real y consentido: corre en el
+// contexto principal, así que usa el modelo de la sesión y no se le puede elegir
+// uno. Es lo que cuesta que pueda conversar, y conversar es el punto.
+var conversan = map[string]bool{
+	"brief":        true,
+	"constitucion": true,
+}
+
+// lanzar traduce un pedido al modelo concreto de ESTA máquina.
 //
 // El tercer retorno es la parada: `false` significa que el perfil que hace falta
 // NO ESTÁ DECLARADO para este harness, y ahí sf no elige un reemplazo —eso sería
@@ -825,7 +848,7 @@ func pedidoDeFeature(raiz string, fr roadmap.Feature, f *estado.Feature, est str
 // propósito: no tener el catálogo no puede impedir trabajar, sólo impide resolver
 // `consola`. La máquina funcionaba así antes de que el catálogo existiera.
 func lanzar(est, pedido, base string, g *global.Config) (global.Modelo, string, bool) {
-	if est == "brief" {
+	if conversan[est] {
 		return global.Modelo{Via: global.Vos}, "", true
 	}
 	if g == nil {

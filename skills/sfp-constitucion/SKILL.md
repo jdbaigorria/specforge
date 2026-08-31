@@ -3,10 +3,12 @@ name: sfp-constitucion
 description: >
   Write the project's technical constitution — architecture, stack and why, code conventions,
   folder layout, working rules — and fill the frontmatter that `sf` reads. State `constitucion`
-  (step ⑧) of the SpecForge machine, invoked when `sf next` returns `skill: sfp-constitucion`.
-  This is the hinge artifact: its readers are a cold subagent, the implementer, the reviewer and
-  `sf` itself, and its frontmatter is where the branch-per-feature and unapproved-dependency
-  pains die. Also usable standalone: "write the constitution", "set the project rules",
+  (step ⑧) of the SpecForge machine, invoked when `sf next` returns `skill: sfp-constitucion` —
+  and, unlike every other state, it runs WITH Javier and not in a fresh subagent: besides the
+  brief it is the only step that talks to him, because architecture, stack and conventions do
+  not derive from the PRD. This is the hinge artifact: its readers are a cold subagent, the
+  implementer, the reviewer and `sf` itself, and its frontmatter is where the branch-per-feature
+  and unapproved-dependency pains die. Also usable standalone: "write the constitution", "set the project rules",
   "/sfp-constitucion". Purely technical — the vision and the why already live in the brief and
   the PRD.
 ---
@@ -70,6 +72,11 @@ nobody had written it down — so the implementer met it as a failure instead of
 > and the fight will look like a broken test.
 
 ## Step 1: Interview Javier — this state talks to him directly
+
+> You can actually do this: `sf next` gives the ⑧ `via: vos`, so you are in the conversation
+> with him, not in a subagent. Do not "optimise" this away by deciding everything yourself and
+> writing — the ⑧ used to be dispatched as a subagent by mistake, and the models that papered
+> over it by skipping this step are the reason nobody noticed for months.
 
 Cover, in this order, and **skip nothing silently**:
 

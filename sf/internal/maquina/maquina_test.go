@@ -789,13 +789,54 @@ func TestSinCatalogoCaeASubagente(t *testing.T) {
 	}
 }
 
-// El brief es el único que conversa, y eso NO depende del mapa: un subagente
-// arranca, trabaja y muere — no te habla.
+// El brief conversa, y eso NO depende del mapa: un subagente arranca, trabaja y
+// muere — no te habla.
 func TestElBriefSiempreEsVos(t *testing.T) {
 	p := nuevo(t).conTresPerfiles()
 
 	if i := p.next(); i.Via != global.Vos {
 		t.Errorf("el brief salió con via %q", i.Via)
+	}
+}
+
+// El ⑧ también conversa, y por el mismo motivo: la constitución NO SE DERIVA
+// del PRD — arquitectura, stack y convenciones son decisiones de Javier.
+//
+// Estuvo del lado equivocado y nadie lo vio: su skill dice "Step 1: Interview
+// Javier" y los modelos de Anthropic se lo salteaban, así que la contradicción
+// no aparecía. Nemotron hizo lo que estaba escrito y preguntó al aire.
+func TestLaConstitucionTambienEsVos(t *testing.T) {
+	p := nuevo(t).conTresPerfiles()
+	p.conArchivo(".docs/brief.md").conArchivo(".docs/prd.md")
+	p.e.Producto.BriefSellado = "hacelo"
+	p.e.Producto.PrdHash = "a3f9c1"
+
+	i := p.next()
+	if i.Estado != "constitucion" {
+		t.Fatalf("estado %q, quería constitucion", i.Estado)
+	}
+	if i.Via != global.Vos {
+		t.Errorf("el ⑧ salió con via %q: no puede ser subagente, tiene que poder preguntar", i.Via)
+	}
+	// Y sin agente ni modelo: no hay a quién delegarle esto.
+	if i.Agente != "" {
+		t.Errorf("el ⑧ trajo agente %q", i.Agente)
+	}
+}
+
+// Los que NO conversan siguen delegando. Es la contracara del test de arriba:
+// sin esto, mover un estado a `conversan` por error no rompería nada.
+func TestElPrdNoConversa(t *testing.T) {
+	p := nuevo(t).conTresPerfiles()
+	p.conArchivo(".docs/brief.md")
+	p.e.Producto.BriefSellado = "hacelo"
+
+	i := p.next()
+	if i.Estado != "prd" {
+		t.Fatalf("estado %q, quería prd", i.Estado)
+	}
+	if i.Via != global.Subagente {
+		t.Errorf("el ⑦ salió con via %q, quería subagente", i.Via)
 	}
 }
 
