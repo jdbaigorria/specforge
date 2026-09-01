@@ -390,6 +390,39 @@ func TestDesinstalarNoTocaElMapaGlobal(t *testing.T) {
 
 // El esfuerzo es parte de "cómo se corre este alias", así que viaja en el
 // portamodelo — con el nombre que usa cada harness, y sólo si está declarado.
+// EL `tools` DEL FRONTMATTER ES POR HARNESS, y lo encontró una corrida.
+//
+// El primer `sf lanzar` de verdad murió en un segundo:
+//
+//	Configuration is invalid at .opencode/agents/sf-ultra.md
+//	↳ Expected object | undefined, got "*" tools
+//
+// El `tools: "*"` estaba escrito para los dos por igual. En opencode ese campo
+// espera un objeto o no estar, así que un `"*"` INVALIDA EL ARCHIVO ENTERO —no
+// sólo ese campo— y el agente deja de existir. Y como el portamodelo es lo único
+// que fija el modelo en opencode, el arnés no arrancaba.
+//
+// No se vio antes porque nada leía el archivo: `sf install` lo escribe y el que
+// lo valida es opencode, al arrancar. Es la misma lección de `arreglos.md` §A2 —
+// la costura no se ve desde adentro de un paquete.
+func TestElPortamodeloDeOpencodeNoLlevaTools(t *testing.T) {
+	m := global.Modelo{Alias: "ultra", ID: "opencode/x", Via: global.Subagente}
+
+	if txt := Portamodelo(m, "opencode"); strings.Contains(txt, "tools:") {
+		t.Errorf("opencode rechaza el archivo entero con esto:\n%s", txt)
+	}
+	// Y en Command Code se queda: ahí el archivo se lee y se aplica (sonda 1).
+	if txt := Portamodelo(m, "commandcode"); !strings.Contains(txt, `tools: "*"`) {
+		t.Errorf("le sacó el tools a Command Code:\n%s", txt)
+	}
+	// El modelo, que es para lo único que el archivo existe, está en los dos.
+	for _, h := range []string{"opencode", "commandcode"} {
+		if txt := Portamodelo(m, h); !strings.Contains(txt, "model: opencode/x") {
+			t.Errorf("%s: se perdió el modelo:\n%s", h, txt)
+		}
+	}
+}
+
 func TestElPortamodeloLlevaElEsfuerzoConElNombreDeCadaHarness(t *testing.T) {
 	m := global.Modelo{Alias: "x", ID: "prov/x", Via: global.Subagente, Esfuerzo: "high"}
 

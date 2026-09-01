@@ -2,7 +2,13 @@
 
 **Fecha:** 2026-08-31 · **Branch:** `refundation` · **Commit:** `1aa81dd`
 
-> **Estado: SIN IMPLEMENTAR.** Es una spec de diseño, no un parte de obra.
+> **Estado: EL TRAMO SINCRÓNICO, CONSTRUIDO Y CORRIENDO** (2026-08-31). `sf lanzar` corre un paso en
+> otro arnés, guarda el registro, escribe la ficha y respeta el tope de espera. **Probado de verdad**:
+> desde una sesión de Claude Code, el ⑦ corrió en opencode con `mimo-v2.5-free`, cargó la skill,
+> escribió `.docs/prd.md`, y `sf done` lo aceptó y movió la máquina. El detalle al final, en
+> **Lo que se implementó**.
+>
+> Falta `--async` —fuera de alcance a propósito, §10— y Command Code, que espera la decisión de §9.
 >
 > **La medición se hizo dos veces.** La primera ronda dejó las tablas de §2. La segunda, más
 > profunda y el mismo día, **corrigió tres cosas de la primera** y encontró la que más pesa de todo
@@ -492,10 +498,16 @@ Los mismos cuatro de siempre, y el 0 es el que hay que leer con cuidado:
 
 | | Cuándo |
 |---|---|
-| **0** | el proceso corrió y terminó |
+| **0** | el arnés corrió y salió con 0 |
 | **1** | no se pudo lanzar — el binario no está, el arnés falló al arrancar |
-| **2** | parada: el paso conversa (⑥ ⑧), el alias no existe, se agotó la espera |
+| **2** | parada: el paso conversa (⑥ ⑧), el alias no existe, se agotó la espera, **o el arnés salió con un código feo** |
 | **3** | no hay nada que lanzar — `sf next` dice que no queda trabajo |
+
+> **Corrección, y salió de escribir el que llama.** La primera versión de esta tabla decía que el 0
+> era "el proceso corrió y terminó", sin mirar con qué código salió el arnés. Con eso, un arnés que
+> muere en un segundo —el binario mal configurado, el modelo retirado— devolvía **0**, y el
+> orquestador seguía adelante a correr `sf done` sobre un artefacto que no existe. Un exit feo del
+> hijo es algo que alguien tiene que mirar: eso es una parada.
 
 > **`0` NO quiere decir que el trabajo esté bien.** Quiere decir que el proceso terminó. Quien
 > decide si el trabajo vale es `sf done`, y eso es §7 entero: Command Code devolvió `exit=0` y
@@ -808,3 +820,99 @@ Y las pruebas que de verdad cierran el diseño:
 > **La prueba de que el modo sirve no es que corra: es que el ⑦ salga bien con un modelo que no es
 > de Anthropic, sin que nadie haya tenido que configurar el arnés.** Eso es lo que hoy cuesta una
 > instalación por arnés, un archivo por alias y un reinicio.
+
+---
+
+## 14. Lo que se implementó
+
+**2026-08-31.** El tramo sincrónico entero: §8 construido y corriendo. 451 tests contra los 430 del
+día anterior, más los 9 e2e; `gofmt`, `vet` y `build` limpios.
+
+### La prueba que cierra el diseño
+
+Es la que §13 pone como la única que importa, y corrió:
+
+```
+$ SPECFORGE_HARNESS=claude-code  sf lanzar --harness=opencode
+→ opencode · opencode/mimo-v2.5-free
+  prd · sfp-po
+✓ terminó en 1m2s
+  US$ 0.0000 · 39103↓ 1354↑ tokens · skill, read, write, bash
+  dijo: Listo. Quedó en `.docs/prd.md` con 7 capacidades, 2 restricciones …
+
+$ sf done
+✓                         ← el prd_hash quedó escrito y la máquina pasó al ⑧
+```
+
+**Desde una sesión de Claude Code, el ⑦ lo hizo un modelo que no es de Anthropic, y la compuerta lo
+aceptó.** Nadie configuró opencode a mano: el id salió del catálogo (§4), la skill se cargó sola
+—`skill` aparece entre las herramientas, que es la señal de §6— y el artefacto pasó la compuerta
+como si lo hubiera escrito un subagente.
+
+Y el paso siguiente, el ⑧, `sf lanzar` lo rechaza:
+
+```
+sf lanzar: el paso de la constitución (⑧) se hace con Javier, no se delega
+```
+
+### Las piezas
+
+| | Qué |
+|---|---|
+| `linea.go` | la tabla de tres filas: cómo se escribe cada cosa en cada arnés |
+| `pedido.go` | qué se puede lanzar y qué no, y el prompt que apunta a la skill |
+| `resumen.go` | los tres lectores de stream, uno por arnés |
+| `correr.go` | la ejecución, el registro, el tope de espera y la ficha |
+| `contar.go` | el parte que lee el que lanzó |
+
+**Los tres lectores no son sobre-ingeniería: los tres streams son distintos.** Medido corriendo
+`Usá la skill sfp-po` en los tres — hasta la carga de la skill se llama distinto:
+
+```
+claude-code    tool_use name="Skill"           result: total_cost_usd, usage
+opencode       part.tool="skill"               NO HAY resultado — cost y tokens POR PASO
+commandcode    toolName="activate_skill"       result: usage, finalText
+```
+
+### Dos cosas que encontró la primera corrida de verdad
+
+**① El portamodelo de opencode era inválido, y ninguna suite lo veía.** El primer `sf lanzar` murió
+en un segundo:
+
+```
+Configuration is invalid at .opencode/agents/sf-ultra.md
+↳ Expected object | undefined, got "*" tools
+```
+
+`sf install` escribía `tools: "*"` para los dos arneses por igual. En opencode ese campo espera un
+objeto o no estar, y un `"*"` **invalida el archivo entero** — no sólo ese campo—, así que el agente
+deja de existir. Y como el portamodelo es lo único que fija el modelo en opencode, el arnés no
+arrancaba.
+
+No se veía porque **nada leía el archivo**: `sf install` lo escribe y el que lo valida es opencode,
+al arrancar. Es la lección de `arreglos.md` §A2 otra vez — la costura entre comandos no se ve desde
+adentro de un paquete. Ahora `tools` es por arnés, como el esfuerzo, y tiene su test.
+
+**② El parte escondía el motivo justo cuando más falta hacía.** `Contar` mostraba el stderr sólo si
+`fin` no era `termino`. Pero el caso de arriba terminó normal con salida 1, así que el parte dijo
+`✗ salió con 1` pelado y el motivo —que estaba en la ficha— había que ir a buscarlo. Que no haya que
+abrir un archivo para saber qué pasó es para lo que ese texto existe.
+
+### Lo que quedó decidido en el código
+
+- **`--espera=0` es sin tope, no sin tiempo.** Tiene test: sin esa distinción, pedir "sin límite"
+  mataría el proceso al instante.
+- **El registro es sólo stdout.** El stderr va aparte, a un campo de la ficha: mezclarlo rompería el
+  JSONL, y tirarlo perdería lo primero que se mira cuando algo sale mal.
+- **`stdin` es el dispositivo nulo**, que es §11.② resuelta: sin eso Claude Code espera tres segundos.
+- **Un exit feo del arnés NO es un error de `sf`**: es un dato, y viaja en la ficha. Los tres usan
+  códigos distintos —Command Code devuelve 4 con un modelo retirado y 8 al tope de vueltas— y `sf`
+  los **anota sin interpretarlos**.
+- **El registro se lee del archivo y no de memoria.** Una corrida de Command Code emite un evento
+  por token de pensamiento; tenerlos todos en RAM no tiene sentido.
+
+### Lo que falta
+
+- **Command Code**, que espera la decisión de §9. Con opencode y Claude Code el modo ya sirve.
+- **`--async`**, fuera de alcance a propósito (§10).
+- **El tope por silencio**, que sigue esperando la medición que §8.5 nombra.

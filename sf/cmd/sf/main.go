@@ -639,8 +639,6 @@ func lanzarPaso(args []string) int {
 			}
 		}
 	}
-	_ = espera // lo usa la ejecución; con --seco todavía no
-
 	raiz, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sf:", err)
@@ -729,8 +727,47 @@ func lanzarPaso(args []string) int {
 		return salidaTrabajo
 	}
 
-	fmt.Fprintln(os.Stderr, "sf lanzar: todavía no ejecuta. Por ahora, `--seco`.")
-	return salidaError
+	fmt.Printf("→ %s · %s%s\n", g.EnUso(), modelo, conEsfuerzo(esf))
+	if i.Feature != "" {
+		fmt.Printf("  %s · %s · feature %s\n", i.Estado, i.Skill, i.Feature)
+	} else {
+		fmt.Printf("  %s · %s\n", i.Estado, i.Skill)
+	}
+
+	f, err := lanzar.Correr(linea, lanzar.Ficha{
+		Estado:   i.Estado,
+		Feature:  i.Feature,
+		Harness:  g.EnUso(),
+		Alias:    alias,
+		Modelo:   modelo,
+		Esfuerzo: esf,
+		Skill:    i.Skill,
+	}, lanzar.Opciones{Raiz: raiz, Harness: g.EnUso(), Espera: espera})
+
+	fmt.Print(lanzar.Contar(f))
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf lanzar:", err)
+		return salidaError
+	}
+	// EL CÓDIGO DE SALIDA NO OPINA SOBRE EL TRABAJO, sólo sobre la corrida.
+	//
+	// Un 0 acá quiere decir "el proceso terminó bien", NO "el artefacto está
+	// bien": Command Code devolvió exit=0 y `subtype: success` sin haber hecho
+	// nada. Quien decide si el trabajo vale es `sf done`, y por eso `sf lanzar`
+	// no lo corre solo.
+	if f.Fin != "termino" || f.Salida != 0 {
+		return salidaParada
+	}
+	return salidaTrabajo
+}
+
+// conEsfuerzo arma el sufijo del encabezado, o nada si no hay esfuerzo.
+func conEsfuerzo(e string) string {
+	if e == "" {
+		return ""
+	}
+	return " · esfuerzo " + e
 }
 
 // hayPersona dice si del otro lado hay alguien a quien preguntarle.

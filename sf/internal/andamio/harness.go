@@ -215,8 +215,7 @@ func Portamodelo(m global.Modelo, harness string) string {
 name: %s
 description: SpecForge — un modelo. Se invoca por nombre exacto, nunca por descripción.
 mode: subagent
-tools: "*"
-model: %s
+%smodel: %s
 %s---
 
 Seguí exactamente las instrucciones que te dé quien te invocó. No pidas
@@ -224,7 +223,29 @@ confirmación y no cambies de tema.
 
 Este archivo no aporta método: lo único que aporta es el modelo. Todo lo demás
 llega en el prompt.
-`, global.NombreDeAgente(m.Alias), m.ID, esfuerzo)
+`, global.NombreDeAgente(m.Alias), herramientas[harness], m.ID, esfuerzo)
+}
+
+// herramientas es el campo `tools` del frontmatter, POR HARNESS.
+//
+// opencode NO lo lleva, y eso lo encontró una corrida y no una lectura: el
+// primer `sf lanzar` de verdad murió en un segundo con
+//
+//	Configuration is invalid at .opencode/agents/sf-ultra.md
+//	↳ Expected object | undefined, got "*" tools
+//
+// El `tools: "*"` estaba escrito para los dos por igual. En opencode ese campo
+// espera un objeto —`{ write: true }`— o no estar, así que un `"*"` invalida el
+// archivo ENTERO y el agente deja de existir. Sin él, el agente hereda las
+// herramientas por default, que es lo que queremos.
+//
+// En Command Code se queda: ahí el archivo se lee y se aplica, probado con la
+// sonda 1 del 2026-08-29.
+//
+// La entrada vacía de un harness es la respuesta correcta y no un agujero: por
+// eso el mapa se indexa directo, sin comprobar que la clave exista.
+var herramientas = map[string]string{
+	"commandcode": "tools: \"*\"\n",
 }
 
 // claveDeEsfuerzo es cómo se llama el esfuerzo en el frontmatter de cada harness.
