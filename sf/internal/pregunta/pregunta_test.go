@@ -213,3 +213,70 @@ func TestSinDeteccionOfreceLosTresIgual(t *testing.T) {
 		}
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// El permiso de Command Code
+// ────────────────────────────────────────────────────────────────────────────
+
+// SÓLO SE PREGUNTA POR COMMAND CODE, porque es el único donde significa algo.
+//
+// opencode escribe y ejecuta permisivo sin ningún flag, y Claude Code usa
+// `bypassPermissions`. Preguntarlo ahí sería pedir una decisión que no cambia
+// nada — y encima una decisión sobre seguridad, que es la peor para pedir de más.
+func TestSoloPreguntaElPermisoEnCommandCode(t *testing.T) {
+	_, out, err := correr(t, "1\n\n\n", []string{"claude-code"}, catalogoFalso(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "yolo") {
+		t.Errorf("preguntó por --yolo en claude-code:\n%s", out)
+	}
+
+	_, out, err = correr(t, "1\n\n\n\n", []string{"commandcode"}, catalogoFalso(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "yolo") {
+		t.Errorf("no lo preguntó en commandcode:\n%s", out)
+	}
+}
+
+// EL DEFAULT ES QUE NO. Enter no concede un permiso.
+//
+// Es lo mínimo que se le pide a una pregunta sobre seguridad: que la respuesta
+// que se da sin leer sea la conservadora. Y la que se da sin leer es el enter.
+func TestElEnterNoConcedeElPermiso(t *testing.T) {
+	r, _, err := correr(t, "1\n\n\n\n", []string{"commandcode"}, catalogoFalso(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Permisos["commandcode"] != "" {
+		t.Errorf("un enter concedió %q", r.Permisos["commandcode"])
+	}
+}
+
+func TestUnSiConcedeElPermiso(t *testing.T) {
+	for _, dijo := range []string{"s", "S", "si", "sí", "y", "yes"} {
+		r, _, err := correr(t, "1\n"+dijo+"\n\n\n", []string{"commandcode"}, catalogoFalso(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Permisos["commandcode"] != "yolo" {
+			t.Errorf("%q no concedió el permiso: %v", dijo, r.Permisos)
+		}
+	}
+}
+
+// Y la pregunta tiene que DECIR qué concede, no sólo pedir una tecla. Quien la
+// contesta está apagando todos los chequeos de permisos de ese arnés.
+func TestLaPreguntaDiceQueEsLoQueSeConcede(t *testing.T) {
+	_, out, err := correr(t, "1\n\n\n\n", []string{"commandcode"}, catalogoFalso(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tiene := range []string{"permiso", "headless"} {
+		if !strings.Contains(strings.ToLower(out), tiene) {
+			t.Errorf("la pregunta no dice %q:\n%s", tiene, out)
+		}
+	}
+}

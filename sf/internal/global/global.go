@@ -193,6 +193,29 @@ type Config struct {
 	// Harnesses es harness → su catálogo.
 	Harnesses map[string]Catalogo `yaml:"harnesses"`
 
+	// Permisos es harness → qué permiso extra declaró Javier para lanzarlo.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// POR QUÉ ESTO ES UN CAMPO Y NO UNA DECISIÓN DE sf
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Command Code, en modo headless, NO ESCRIBE ARCHIVOS NI CORRE COMANDOS
+	// salvo con `--yolo`, que su propia ayuda declara alias de
+	// `--dangerously-skip-permissions`. Probado cinco veces el 2026-08-31: con
+	// y sin su `settings.json`, con `--tools-all`, con `auto-accept` y con
+	// reglas `allow` para `write_file` y `shell_command`. No hay puerta más
+	// angosta.
+	//
+	// Así que o Command Code queda fuera del modo headless, o alguien decide
+	// pasarle ese flag. Y ESE ALGUIEN ES JAVIER, NO sf: es una decisión de
+	// riesgo que su propio proveedor marca como peligrosa, y sf tomándola por
+	// él sería exactamente lo que R3 prohíbe con los modelos, aplicado a algo
+	// que puede borrar archivos.
+	//
+	// Por eso vive acá, en el archivo de Javier, al lado de los ids que él
+	// eligió: sf lo TRANSPORTA. Vacío —el default— es que no se pasa nada.
+	Permisos map[string]string `yaml:"permisos,omitempty"`
+
 	// Modelos son los sueltos: los que no compiten en ningún perfil.
 	//
 	// Es donde vive un `sf model deepseek --via consola`: un modelo ajeno que
@@ -492,6 +515,45 @@ func (c *Config) DeclararSuelto(nombre string, m Modelo) {
 	}
 	m.Alias = nombre
 	c.Modelos[nombre] = m
+}
+
+// Origen es de qué carpeta se leyó este catálogo.
+//
+// Hace falta para poder DECIRLE A JAVIER QUÉ ARCHIVO EDITAR. Hay dos —el global
+// y el del proyecto— y el del proyecto gana si existe (`LeerPara`), así que un
+// mensaje que nombre el global a secas manda a editar el que no rige. Pasó, y se
+// vio corriendo: un permiso escrito en el global no tenía ningún efecto porque
+// `sf init` había sembrado uno de proyecto.
+//
+// Vacío es un catálogo que todavía no vive en ningún archivo: lo armó Semilla.
+func (c *Config) Origen() string {
+	if c == nil {
+		return ""
+	}
+	return c.origen
+}
+
+// PermisoYolo es el único valor que hoy significa algo, y sólo en Command Code.
+const PermisoYolo = "yolo"
+
+// PermisoDe es qué declaró Javier para ese harness. Vacío es "nada".
+func (c *Config) PermisoDe(harness string) string {
+	if c == nil {
+		return ""
+	}
+	return c.Permisos[harness]
+}
+
+// DeclararPermiso deja escrito lo que Javier decidió para un harness.
+func (c *Config) DeclararPermiso(harness, permiso string) {
+	if permiso == "" {
+		delete(c.Permisos, harness)
+		return
+	}
+	if c.Permisos == nil {
+		c.Permisos = map[string]string{}
+	}
+	c.Permisos[harness] = permiso
 }
 
 // Alias son todos los alias declarados para el harness activo, sin repetir.

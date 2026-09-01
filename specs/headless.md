@@ -8,7 +8,11 @@
 > escribió `.docs/prd.md`, y `sf done` lo aceptó y movió la máquina. El detalle al final, en
 > **Lo que se implementó**.
 >
-> Falta `--async` —fuera de alcance a propósito, §10— y Command Code, que espera la decisión de §9.
+> **Y los tres arneses corren.** Javier eligió la **opción B** de §9 el 2026-08-31: el permiso de
+> Command Code se declara en el catálogo y `sf` lo transporta. Con eso el ⑦ también corrió en
+> Command Code con `deepseek-v4-flash`.
+>
+> Lo único que falta es `--async`, fuera de alcance a propósito (§10).
 >
 > **La medición se hizo dos veces.** La primera ronda dejó las tablas de §2. La segunda, más
 > profunda y el mismo día, **corrigió tres cosas de la primera** y encontró la que más pesa de todo
@@ -681,6 +685,24 @@ Las opciones, sin recomendación de mi parte porque el riesgo lo corre él:
 Javier decidió y `sf` sólo acarrea, y con §4 eso es más cierto que antes— pero **A es una respuesta
 legítima** si prefiere no tener ese flag escrito en ningún archivo suyo.
 
+> ### ✅ DECIDIDO: la B (Javier, 2026-08-31)
+>
+> El permiso vive en el catálogo, en un campo nuevo `permisos:` indexado por arnés, al lado de los
+> ids que él eligió. `sf` lo lee y lo transporta; **no lo concede solo, y sin declararlo no lanza**.
+>
+> ```yaml
+> permisos:
+>   commandcode: yolo
+> ```
+>
+> Lo pregunta `sf install`, **sólo para Command Code** —a los otros dos no tiene sentido
+> preguntarles— y **el enter es que NO**: la respuesta que se da sin leer tiene que ser la
+> conservadora.
+>
+> Y sin el permiso, `sf lanzar` **frena antes de gastar la corrida**. Sin ese freno, Command Code
+> arranca, tarda medio minuto, gasta tokens y devuelve `exit=0` con la carta diciendo `success` y
+> ningún artefacto — el peor desenlace posible, porque parece que anduvo.
+
 > **El dato que ordena la comparación:** opencode escribe y ejecuta sin pedir permiso y sin ningún
 > flag. O sea que el permiso que `--yolo` concede en Command Code es el que opencode ya da de
 > arranque. La diferencia real entre los dos no es cuánto se arriesga: es que uno lo hace explícito
@@ -825,7 +847,7 @@ Y las pruebas que de verdad cierran el diseño:
 
 ## 14. Lo que se implementó
 
-**2026-08-31.** El tramo sincrónico entero: §8 construido y corriendo. 451 tests contra los 430 del
+**2026-08-31.** El tramo sincrónico entero: §8 construido y corriendo. 456 tests contra los 430 del
 día anterior, más los 9 e2e; `gofmt`, `vet` y `build` limpios.
 
 ### La prueba que cierra el diseño
@@ -911,8 +933,32 @@ abrir un archivo para saber qué pasó es para lo que ese texto existe.
 - **El registro se lee del archivo y no de memoria.** Una corrida de Command Code emite un evento
   por token de pensamiento; tenerlos todos en RAM no tiene sentido.
 
+### Command Code, con la decisión de §9 tomada
+
+Javier eligió la **B** y quedó cableada: campo `permisos:` en el catálogo, la pregunta de
+`sf install` sólo para Command Code, el enter como "no", y un freno antes de lanzar. Con eso:
+
+```
+$ SPECFORGE_HARNESS=commandcode  sf lanzar
+→ commandcode · deepseek/deepseek-v4-flash
+  prd · sfp-po
+✓ terminó en 58.2s
+  96117↓ 5067↑ tokens · activate_skill, read_file, write_file, shell_command
+  dijo: Listo — `.docs/prd.md` escrito y `sf done` aceptó el paso …
+```
+
+**Los tres arneses corren headless.**
+
+Y ahí apareció una cosa más, otra vez corriendo: **el mensaje mandaba a editar el archivo
+equivocado.** Decía `~/.specforge/modelos.yaml`, pero hay DOS catálogos y el del proyecto gana si
+existe —y `sf init` siembra uno—. Un permiso escrito en el global no hacía nada y no había forma de
+saber por qué. Ahora el mensaje nombra el archivo que de verdad rige (`Config.Origen()`).
+
+> Es la tercera vez en el día que muerde la misma distinción entre el catálogo global y el del
+> proyecto. Vale como aviso para el que venga: **cada vez que un mensaje nombre `modelos.yaml`, tiene
+> que nombrar CUÁL.**
+
 ### Lo que falta
 
-- **Command Code**, que espera la decisión de §9. Con opencode y Claude Code el modo ya sirve.
 - **`--async`**, fuera de alcance a propósito (§10).
 - **El tope por silencio**, que sigue esperando la medición que §8.5 nombra.

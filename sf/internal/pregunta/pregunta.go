@@ -68,6 +68,10 @@ type Declaracion struct {
 type Respuesta struct {
 	Harnesses     []string
 	Declaraciones []Declaracion
+
+	// Permisos es harness → el permiso extra que Javier concedió. Ver
+	// `preguntarPermiso`.
+	Permisos map[string]string
 }
 
 // Listador es de dónde salen los modelos de un arnés.
@@ -113,10 +117,49 @@ func Preguntar(w io.Writer, r io.Reader, instalados []string, listar Listador) (
 	}
 
 	res.Harnesses = p.cualesArneses(ofrecidos, len(instalados) > 0)
+	res.Permisos = map[string]string{}
 	for _, h := range res.Harnesses {
+		if permiso := p.cualPermiso(h); permiso != "" {
+			res.Permisos[h] = permiso
+		}
 		res.Declaraciones = append(res.Declaraciones, p.modelosDe(h)...)
 	}
 	return res, nil
+}
+
+// cualPermiso pregunta por el permiso extra de un arnés, si tiene sentido.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// SÓLO COMMAND CODE, Y SÓLO PORQUE NO HAY OTRA PUERTA
+// ────────────────────────────────────────────────────────────────────────────
+//
+// En modo headless Command Code no escribe archivos ni corre comandos salvo con
+// `--yolo`. Probado cinco veces el 2026-08-31 —con y sin su `settings.json`, con
+// `--tools-all`, con `auto-accept`, con reglas `allow` para `write_file` y
+// `shell_command`— y no hay puerta más angosta.
+//
+// A los otros dos NO se les pregunta: opencode escribe y ejecuta permisivo sin
+// ningún flag, y Claude Code usa `bypassPermissions`. Preguntarlo ahí sería pedir
+// una decisión que no cambia nada, y de más es lo peor que se puede pedir en una
+// pregunta sobre seguridad.
+//
+// EL DEFAULT ES QUE NO. La respuesta que se da sin leer es el enter, así que el
+// enter tiene que ser la conservadora.
+func (p *sesion) cualPermiso(harness string) string {
+	if harness != "commandcode" {
+		return ""
+	}
+	p.di("\n── %s %s", harness, strings.Repeat("─", max(0, 60-len(harness))))
+	p.di("  En headless, Command Code no escribe archivos ni corre comandos salvo")
+	p.di("  con --yolo, que apaga TODOS sus chequeos de permisos. Sin eso, sf no le")
+	p.di("  puede delegar pasos — como arnés principal lo seguís usando igual.")
+	fmt.Fprint(p.w, "  ¿Se lo paso? (s/N): ")
+
+	switch strings.ToLower(p.leer()) {
+	case "s", "si", "sí", "y", "yes":
+		return global.PermisoYolo
+	}
+	return ""
 }
 
 // sesion es el estado de una conversación: por dónde escribir y de dónde leer.

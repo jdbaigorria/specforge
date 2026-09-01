@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -484,7 +485,10 @@ func instalar(args []string) int {
 	// que es el caso que no puede fallar nunca — un `sf install` corrido por el
 	// orquestador o por `install.sh` colgaría esperando algo que nadie va a
 	// escribir.
-	var declaraciones []pregunta.Declaracion
+	var (
+		declaraciones []pregunta.Declaracion
+		permisos      map[string]string
+	)
 	if len(o.Harness) == 0 && hayPersona() {
 		resp, err := pregunta.Preguntar(os.Stdout, os.Stdin, andamio.Instalados(), modelos.Listar)
 		if err != nil {
@@ -493,6 +497,7 @@ func instalar(args []string) int {
 		}
 		o.Harness = resp.Harnesses
 		declaraciones = resp.Declaraciones
+		permisos = resp.Permisos
 		fmt.Println()
 	}
 
@@ -506,8 +511,8 @@ func instalar(args []string) int {
 	// siembra el catálogo — antes puede no haber ninguno donde escribir. Y por
 	// eso hay que regenerar los portamodelo: el andamio se armó cuando estos
 	// modelos todavía no existían.
-	if len(declaraciones) > 0 {
-		if err := declararYRegenerar(raiz, declaraciones, r); err != nil {
+	if len(declaraciones) > 0 || len(permisos) > 0 {
+		if err := declararYRegenerar(raiz, declaraciones, permisos, r); err != nil {
 			fmt.Fprintln(os.Stderr, "sf:", err)
 			return salidaError
 		}
@@ -704,6 +709,30 @@ func lanzarPaso(args []string) int {
 		esf = esfuerzo
 	}
 
+	// FRENAR ANTES DE GASTAR UNA CORRIDA. Sin el permiso declarado, Command Code
+	// arranca, tarda medio minuto, y devuelve `exit=0` con la carta diciendo
+	// `success` y ningún artefacto — que es el peor desenlace posible, porque
+	// parece que anduvo.
+	yolo := g.PermisoDe(g.EnUso()) == global.PermisoYolo
+	if lanzar.NecesitaPermiso(g.EnUso()) && !yolo {
+		fmt.Fprintf(os.Stderr, "🛑 %s no escribe archivos ni corre comandos en headless "+
+			"sin que vos se lo permitas.\n", g.EnUso())
+		fmt.Fprintln(os.Stderr, "   Es --yolo, que apaga TODOS sus chequeos de permisos, y la")
+		fmt.Fprintln(os.Stderr, "   decisión es tuya: sf no se la toma solo.")
+		fmt.Fprintln(os.Stderr)
+		// El archivo se nombra por su ORIGEN y no "~/.specforge/" a secas: hay dos
+		// catálogos y el del proyecto gana si existe. Mandar a editar el que no
+		// rige es peor que no decir nada — el permiso se escribe, no pasa nada, y
+		// nadie entiende por qué.
+		donde := "~/.specforge/" + global.Archivo
+		if o := g.Origen(); o != "" {
+			donde = filepath.Join(o, global.Archivo)
+		}
+		fmt.Fprintln(os.Stderr, "   Lo declarás con `sf install` —te lo pregunta— o a mano en")
+		fmt.Fprintf(os.Stderr, "   %s:\n\n     permisos:\n       %s: yolo\n", donde, g.EnUso())
+		return salidaParada
+	}
+
 	s, err := sobre.Armar(raiz, e, r, g)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sf:", err)
@@ -716,6 +745,8 @@ func lanzarPaso(args []string) int {
 		Esfuerzo: esf,
 		Raiz:     raiz,
 		Prompt:   lanzar.Armar(i, s.Texto(raiz, false)),
+		// sf NO decide esto: lo lee de donde Javier lo escribió.
+		Yolo: yolo,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sf lanzar:", err)
@@ -820,12 +851,18 @@ func hayPersona() bool {
 
 // declararYRegenerar mete en el catálogo lo que Javier eligió y reescribe los
 // portamodelo de los arneses tocados.
-func declararYRegenerar(raiz string, ds []pregunta.Declaracion, r *andamio.Resultado) error {
+func declararYRegenerar(raiz string, ds []pregunta.Declaracion, permisos map[string]string, r *andamio.Resultado) error {
 	// El del proyecto si existe, y si no el global: es el que rige acá, y es
 	// donde `sf model` escribiría si Javier lo declarara a mano.
 	g, err := global.LeerPara(raiz)
 	if err != nil {
 		return err
+	}
+
+	// El permiso va al mismo archivo que los modelos y por el mismo motivo: es
+	// una decisión de Javier que sf sólo transporta.
+	for h, permiso := range permisos {
+		g.DeclararPermiso(h, permiso)
 	}
 
 	tocados := map[string]bool{}

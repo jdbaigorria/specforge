@@ -145,3 +145,19 @@ func TestNoLanzaUnViaConsola(t *testing.T) {
 		t.Errorf("el motivo no lo nombra: %v", err)
 	}
 }
+
+// FRENAR ANTES DE LANZAR VALE UNA CORRIDA.
+//
+// Sin permiso declarado, Command Code arranca, tarda medio minuto, gasta tokens
+// y devuelve exit=0 con `subtype: success` y ningún artefacto. Enterarse antes es
+// gratis.
+func TestSoloCommandCodeNecesitaPermisoDeclarado(t *testing.T) {
+	if !NecesitaPermiso("commandcode") {
+		t.Error("Command Code no escribe ni ejecuta en headless sin --yolo")
+	}
+	for _, h := range []string{"claude-code", "opencode"} {
+		if NecesitaPermiso(h) {
+			t.Errorf("%s no necesita ningún permiso declarado", h)
+		}
+	}
+}

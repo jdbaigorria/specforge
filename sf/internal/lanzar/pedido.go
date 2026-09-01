@@ -65,6 +65,25 @@ func nombrar(estado string) string {
 	return "paso `" + estado + "`"
 }
 
+// NecesitaPermiso dice si ese arnés NO PUEDE trabajar headless sin que Javier le
+// haya declarado un permiso.
+//
+// Hoy es sólo Command Code, y es un hecho medido cinco veces el 2026-08-31: en
+// `-p` no escribe archivos ni corre comandos salvo con `--yolo`. Probado con y
+// sin su `settings.json`, con `--tools-all`, con `auto-accept` y con reglas
+// `allow` para `write_file` y `shell_command`.
+//
+// Existe para FRENAR ANTES DE LANZAR. Sin esto, la corrida arranca, tarda medio
+// minuto, gasta tokens y devuelve `exit=0` con la carta diciendo `success`
+// —headless.md §7— y un artefacto que no existe. Enterarse antes es gratis;
+// enterarse después cuesta una corrida y una confusión.
+//
+// El día que Command Code abra otra puerta, esto es una línea menos y un test
+// que lo dice.
+func NecesitaPermiso(harness string) bool {
+	return harness == "commandcode"
+}
+
 // Armar es el prompt que recibe el arnés.
 //
 // SF APUNTA, NO PEGA. Alcanza con nombrar la skill: los tres arneses resuelven
