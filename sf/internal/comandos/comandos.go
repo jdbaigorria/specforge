@@ -50,6 +50,7 @@ var Todos = []string{
 	"uninstall",
 	"models",
 	"next",
+	"lanzar",
 	"context",
 	"done",
 	"lote start",

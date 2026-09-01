@@ -26,6 +26,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/jdbaigorria/specforge/sf/internal/andamio"
 	"github.com/jdbaigorria/specforge/sf/internal/arranque"
@@ -35,6 +36,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
+	"github.com/jdbaigorria/specforge/sf/internal/lanzar"
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/modelos"
 	"github.com/jdbaigorria/specforge/sf/internal/pregunta"
@@ -97,6 +99,8 @@ func main() {
 		os.Exit(desinstalar())
 	case "models":
 		os.Exit(listarModelos(os.Args[2:]))
+	case "lanzar":
+		os.Exit(lanzarPaso(os.Args[2:]))
 	case "approve", "reject", "take", "model", "dismiss":
 		os.Exit(parada(os.Args[1], os.Args[2:]))
 	case "lote":
@@ -578,6 +582,155 @@ func sinPreparar(ya []string) []string {
 		}
 	}
 	return faltan
+}
+
+// lanzarPaso es `sf lanzar`: sf corre el paso, en vez de pedir que lo corran.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// NO DECIDE NADA NUEVO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Le pregunta a `sf next` qué toca, resuelve el modelo con LA MISMA CADENA DE
+// PRECEDENCIA DE SIEMPRE, arma la línea desde el catálogo y ejecuta. Lo que
+// cambia no es la decisión: es quién aprieta el botón (headless.md §3).
+//
+// Y por eso son dos comandos y no uno: `sf next` sigue siendo consulta pura, y
+// éste escribe. Tampoco corre `sf done` solo — lanzar es hacer y `done` es
+// juzgar, y juntarlos sería que el que hace se apruebe a sí mismo.
+func lanzarPaso(args []string) int {
+	var (
+		harness, alias, esfuerzo string
+		seco                     bool
+		espera                   = 30 * time.Minute
+	)
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		valor := func(flag string) (string, bool) {
+			if a == flag && i+1 < len(args) {
+				i++
+				return args[i], true
+			}
+			if v, ok := strings.CutPrefix(a, flag+"="); ok {
+				return v, true
+			}
+			return "", false
+		}
+		switch {
+		case a == "--seco" || a == "--dry-run":
+			seco = true
+		default:
+			if v, ok := valor("--harness"); ok {
+				harness = v
+			} else if v, ok := valor("--alias"); ok {
+				alias = v
+			} else if v, ok := valor("--esfuerzo"); ok {
+				esfuerzo = v
+			} else if v, ok := valor("--espera"); ok {
+				d, err := time.ParseDuration(v)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "sf lanzar: no entiendo la espera %q. Va como `30m`, `90s`, o `0` para sin tope.\n", v)
+					return salidaError
+				}
+				espera = d
+			} else {
+				fmt.Fprintf(os.Stderr, "sf lanzar: no conozco %q.\n", a)
+				fmt.Fprintln(os.Stderr, "    Son --harness, --alias, --esfuerzo, --espera y --seco.")
+				return salidaError
+			}
+		}
+	}
+	_ = espera // lo usa la ejecución; con --seco todavía no
+
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	// PEDIR OTRO ARNÉS ES DECIRLE A TODO SF QUE ESTAMOS AHÍ, y por eso se hace
+	// con la variable y no con un parámetro suelto: así el modelo se resuelve
+	// contra el catálogo de ESE arnés —no del de acá— y de paso el hijo la
+	// hereda, que es literalmente para lo que `VarHarness` se creó.
+	if harness != "" {
+		if err := os.Setenv(global.VarHarness, harness); err != nil {
+			fmt.Fprintln(os.Stderr, "sf:", err)
+			return salidaError
+		}
+	}
+
+	e, r, err := cargar(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+	g, _ := global.LeerPara(raiz)
+
+	i := maquina.Siguiente(raiz, e, r, g)
+	if err := lanzar.Puede(i); err != nil {
+		// Si la máquina no está en `Trabajar`, ELLA ya explica por qué y con qué
+		// comando se sale. Mostrar eso —lo mismo que imprime `sf next`— es mucho
+		// más útil que un "no hay trabajo" de nuestra cosecha.
+		if errors.Is(err, lanzar.ErrNoHayTrabajo) {
+			fmt.Print(mostrar(i))
+			if i.Tipo == maquina.Fin {
+				return salidaFin
+			}
+			return salidaParada
+		}
+		// Y los motivos propios de lanzar —conversa, va por consola, no nombra
+		// skill— no los sabe nadie más, así que se dicen acá.
+		fmt.Fprintln(os.Stderr, "sf lanzar:", err)
+		return salidaParada
+	}
+
+	modelo, esf := i.Modelo, i.Esfuerzo
+	if alias != "" {
+		// Un alias explícito gana, y tiene que existir EN ESTE ARNÉS. No se busca
+		// uno parecido ni se traduce el id a otro proveedor: es R3, y es lo mismo
+		// que ya hace `sf next`.
+		m, hay := g.PorAlias(alias)
+		if !hay {
+			fmt.Fprintf(os.Stderr, "sf lanzar: %q no está declarado en %s.\n", alias, g.EnUso())
+			if otros := g.AliasDe(g.EnUso()); len(otros) > 0 {
+				var nombres []string
+				for _, o := range otros {
+					nombres = append(nombres, o.Alias)
+				}
+				fmt.Fprintln(os.Stderr, "    Hay: "+strings.Join(nombres, " · "))
+			}
+			return salidaParada
+		}
+		modelo, esf = m.ID, m.Esfuerzo
+	}
+	if esfuerzo != "" {
+		esf = esfuerzo
+	}
+
+	s, err := sobre.Armar(raiz, e, r, g)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+
+	linea, err := lanzar.Linea(lanzar.Pedido{
+		Harness:  g.EnUso(),
+		Modelo:   modelo,
+		Esfuerzo: esf,
+		Raiz:     raiz,
+		Prompt:   lanzar.Armar(i, s.Texto(raiz, false)),
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf lanzar:", err)
+		return salidaParada
+	}
+
+	if seco {
+		fmt.Println(lanzar.Mostrar(linea))
+		return salidaTrabajo
+	}
+
+	fmt.Fprintln(os.Stderr, "sf lanzar: todavía no ejecuta. Por ahora, `--seco`.")
+	return salidaError
 }
 
 // hayPersona dice si del otro lado hay alguien a quien preguntarle.
@@ -1086,6 +1239,7 @@ func uso() {
   sf models     los ids que tu harness dice tener, para declararlos (--harness=<nombre>)
   sf init       el andamio: 2 directorios · detecta el stack · el estado vacío
   sf next       dónde estás · qué sigue · con qué skill y modelo
+  sf lanzar     corre acá el paso que sigue  (--seco lo imprime y no lo corre)
   sf context    el sobre del estado actual  (--completo lo embebe)
   sf done       corre las compuertas y mueve  (--msg "…" en implementar)
 
