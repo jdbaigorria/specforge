@@ -7,11 +7,12 @@
 > **La medición se hizo dos veces.** La primera ronda dejó las tablas de §2. La segunda, más
 > profunda y el mismo día, **corrigió tres cosas de la primera** y encontró la que más pesa de todo
 > el documento: **la carta del arnés dice "éxito" aunque no haya hecho nada** (§7). Todo lo de §2,
-> §7, §8 y §10 salió de ejecutar los tres arneses en carpetas descartables — nada está leído de una
+> §7, §9 y §11 salió de ejecutar los tres arneses en carpetas descartables — nada está leído de una
 > doc ni supuesto. Las dos veces que se adivinó una variable o un flag se adivinó mal, y está
 > contado en [`agnostico-al-harness.md`](agnostico-al-harness.md).
 >
-> **La decisión que falta es de Javier y está en §8.**
+> **Los cuatro huecos que faltaban para poder construirlo están cerrados en §8.** Lo único que
+> sigue abierto es una decisión, y es de Javier: está en §9.
 
 ---
 
@@ -97,7 +98,7 @@ Corrido el 2026-08-31 en carpetas descartables, con `git init` y nada más.
 | **salida con forma** | `--json-schema <schema>` | — | — |
 | **tope de vueltas** | — | — | `--max-turns` (exit 8 al tope) |
 | **seguir sesión** | `--resume` · `--fork-session` | `-c` · `-s <id>` · `--fork` | `-c` · `-r` · `--session` · `--fork-session` |
-| **permisos** | `--permission-mode` | *nada* | ver §8 |
+| **permisos** | `--permission-mode` | *nada* | ver §9 |
 
 ### Las tres correcciones a la primera ronda
 
@@ -113,7 +114,7 @@ arnés, y pasa a ser un argumento.
 **② El `--async` que §3 proponía construir, Claude Code ya lo tiene entero.** No es un flag suelto:
 es un subsistema. `claude --bg` lanza y devuelve un id, y después hay `claude agents` (listar),
 `claude logs <id>`, `claude attach <id>`, `claude stop <id>`, `claude rm <id>` y `claude respawn`.
-Los otros dos no tienen nada equivalente. Eso cambia el cálculo de §9: no es *"construirlo"*, es
+Los otros dos no tienen nada equivalente. Eso cambia el cálculo de §10: no es *"construirlo"*, es
 *"construirlo para dos y adoptarlo en uno"*, que es peor, porque son dos ciclos de vida distintos
 conviviendo.
 
@@ -141,7 +142,7 @@ cmd -p … --yolo                                                    ✓ escribi
 
 **Y `--tools-all` no es la salida de Command Code**, aunque su propia ayuda lo insinúe:
 *"-p: enable every tool, **including the ones a headless run withholds**"*. Se probó solo y
-combinado, y las dos veces se negó. Está en §8, que es donde vive esa decisión.
+combinado, y las dos veces se negó. Está en §9, que es donde vive esa decisión.
 
 ### Los códigos de salida
 
@@ -171,6 +172,9 @@ sf lanzar                                   # corre el paso que dice `sf next`, 
 sf lanzar --harness=opencode --alias=ultra  # el mismo paso, ejecutado por otro
 sf lanzar --seco                            # imprime el comando que correría y no lo corre
 ```
+
+> La superficie completa —los cinco flags, los códigos de salida, dónde escribe y qué escribe—
+> está en **§8**. Acá va el qué; allá el contrato.
 
 `sf lanzar` no decide nada nuevo: le pregunta a `sf next` qué toca, resuelve el modelo con **la
 misma cadena de precedencia de siempre** (§H2 de `agnostico-al-harness.md`), arma la línea de
@@ -353,7 +357,7 @@ $ cmd -p "Usá la skill sfp-po. Decime el primer '## '."     (SIN --yolo)
 Dos cosas más que salieron de ahí:
 
 - **opencode encuentra `~/.claude/skills/` sin que nadie se lo diga.** No hace falta instalarle nada.
-- **La compuerta de Command Code (§8) es sólo de escritura y shell.** Leer una skill anda sin
+- **La compuerta de Command Code (§9) es sólo de escritura y shell.** Leer una skill anda sin
   `--yolo`. Achica el problema: lo que falta ahí no es *entender*, es *actuar*.
 
 ### Entonces `sf` apunta, no pega
@@ -397,7 +401,7 @@ confundirlas sería un error:
 **Medido, y es el dato más importante de este documento.**
 
 Se le pidió a Command Code, headless, la tarea más chica que existe: escribir un archivo y correr un
-`echo`. **Se negó** —es §8— y no escribió nada. Su última línea fue:
+`echo`. **Se negó** —es §9— y no escribió nada. Su última línea fue:
 
 ```json
 {"type":"result","subtype":"success","sessionId":"430e25dc-…","stopReason":"end_turn",
@@ -454,7 +458,176 @@ primera versión de esta spec**, que asumía que la carta venía hecha.
 
 ---
 
-## 8. La compuerta de Command Code — la decisión que falta
+## 8. El contrato de `sf lanzar`
+
+**Los cuatro huecos que faltaban para poder construirlo.** §3 dice qué es y §7 dice qué produce;
+esto dice con qué se lo llama, dónde escribe, qué campos tiene lo que escribe y cuánto espera. No
+son decisiones de diseño —esas ya están tomadas arriba— son las que se toman igual al escribir el
+código, y quedan acá para que no se tomen adentro de un `for`.
+
+### 8.1 La superficie
+
+```
+sf lanzar [--harness=X] [--alias=Y] [--esfuerzo=Z] [--espera=D] [--seco]
+```
+
+| | Qué hace | Sin él |
+|---|---|---|
+| `--harness` | quién ejecuta | donde estás parado (`EnUso()`) |
+| `--alias` | qué modelo, del catálogo | el perfil del estado, por la cadena de H2 |
+| `--esfuerzo` | pisa el del catálogo | el declarado; vacío es "el del modelo" |
+| `--espera` | el tope, `30m` por default; `0` es sin tope | 30 minutos |
+| `--seco` | imprime la línea y **no corre nada** | corre |
+
+**Un alias, no un id.** `sf lanzar --alias=ultra` y nunca `--modelo=opencode/nemotron-…`. El id
+vive en el catálogo y sale de ahí (§4): aceptarlo por la línea de comando sería abrir la puerta a
+lanzar con algo que nadie declaró, y el catálogo dejaría de ser la fuente.
+
+Y si el alias no existe en ese arnés, **para y dice cuáles hay**. No busca uno parecido ni traduce
+el id a otro proveedor — es R3, y es lo que ya hace `sf next` hoy.
+
+### 8.2 Los códigos de salida
+
+Los mismos cuatro de siempre, y el 0 es el que hay que leer con cuidado:
+
+| | Cuándo |
+|---|---|
+| **0** | el proceso corrió y terminó |
+| **1** | no se pudo lanzar — el binario no está, el arnés falló al arrancar |
+| **2** | parada: el paso conversa (⑥ ⑧), el alias no existe, se agotó la espera |
+| **3** | no hay nada que lanzar — `sf next` dice que no queda trabajo |
+
+> **`0` NO quiere decir que el trabajo esté bien.** Quiere decir que el proceso terminó. Quien
+> decide si el trabajo vale es `sf done`, y eso es §7 entero: Command Code devolvió `exit=0` y
+> `subtype: success` sin haber hecho nada.
+
+Y `sf lanzar` **nunca corre `sf done` solo**. Son dos comandos porque son dos actos: lanzar es
+hacer, y `done` es juzgar. Juntarlos sería que el que hace se apruebe a sí mismo.
+
+### 8.3 Dónde escribe
+
+```
+.specforge/lanzamientos/2026-08-31T14-30-22-prd.json     ← la ficha
+.specforge/lanzamientos/2026-08-31T14-30-22-prd.jsonl    ← el registro
+```
+
+**En `.specforge/` y no en `.docs/`**, y la razón es quién lee cada carpeta. `.docs/` es la
+documentación que el proyecto **guarda y commitea** — el brief, el PRD, las historias. El stream de
+un modelo no es documentación ni es evidencia (§7): es forense. Y `.specforge/` ya está
+gitignoreado por `sf init`, así que no hay que agregar ninguna línea.
+
+> Si `sf init` no llegó a escribir esa línea —pasa cuando el proyecto ya tenía catálogo propio y
+> `sembrarCatalogo` sale temprano—, `sf lanzar` la agrega. Un registro commiteado por accidente es
+> un diff de megabytes que nadie quiso.
+
+**El nombre es el sello de tiempo primero, y por eso se ordena solo.** `sf next` necesita saber cuál
+fue el último lanzamiento; ordenar por nombre lo contesta sin guardar un puntero, que es R6 —
+derivar en vez de escribir estado nuevo.
+
+**No se borra nada solo.** El registro es lo único que queda cuando algo sale mal, y un programa que
+borra evidencia para ahorrar disco elige mal. La carpeta crece; está gitignoreada; borrarla es de
+Javier.
+
+### 8.4 La ficha, campo por campo
+
+```json
+{
+  "id":        "2026-08-31T14-30-22-prd",
+  "estado":    "prd",
+  "feature":   "f-1",
+  "harness":   "opencode",
+  "alias":     "ultra",
+  "modelo":    "opencode/nemotron-3-ultra-free",
+  "esfuerzo":  "high",
+  "skill":     "sfp-po",
+  "empezo":    "2026-08-31T14:30:22Z",
+  "duro_ms":   26944,
+  "salida":    0,
+  "fin":       "termino",
+  "registro":  "2026-08-31T14-30-22-prd.jsonl",
+
+  "costo_usd":       0.0951614,
+  "tokens":          { "entrada": 4, "salida": 154 },
+  "cargo_la_skill":  true,
+  "herramientas":    ["Write", "Bash"],
+  "dijo":            "Listo, escribí .docs/prd.md"
+}
+```
+
+**La regla que ordena el bloque de abajo: lo que el arnés no da, NO ESTÁ.** No va en cero, no va en
+`null`, no va. Un costo de `0` y "este arnés no dice cuánto costó" son dos cosas distintas, y
+escribir la primera cuando pasa la segunda es mentir en un archivo que alguien va a leer para
+decidir con qué modelo sigue. Es la misma distinción que ya rige para `esfuerzo` en el catálogo:
+vacío es *"el que traiga el modelo"* y no *"bajo"*.
+
+Por eso los cinco de abajo son opcionales y los de arriba no. De los tres arneses:
+
+| | Claude Code | Command Code | opencode |
+|---|---|---|---|
+| `costo_usd` | ✓ `total_cost_usd` | — | ✓ por paso, hay que sumar |
+| `tokens` | ✓ | ✓ | ✓ por paso |
+| `dijo` | ✓ | ✓ `finalText` | del último evento de texto |
+
+**`fin` habla del PROCESO y nunca del trabajo.** Cuatro valores y ninguno opina sobre el artefacto:
+
+```
+termino   el proceso salió por su cuenta
+timeout   se agotó la espera y lo matamos
+error     no se pudo lanzar
+matado    alguien lo cortó (Ctrl-C)
+```
+
+**`cargo_la_skill` tiene tres estados y el tercero importa**: `true`, `false`, y **ausente** cuando
+del stream de ese arnés no se puede saber. Es la única señal barata de que el paso corrió como se
+pidió (§6), y si un arnés no la emite hay que decir "no sé" y no "no".
+
+### 8.5 El tope de espera
+
+**30 minutos por default**, `--espera=0` para sacarlo.
+
+El número sale de dos hechos medidos que tiran para lados opuestos: un modelo gratis de opencode
+estuvo **7m40 emitiendo cero bytes** (§11.①), así que un tope hace falta; y un lote de implementación
+de verdad puede tardar mucho más que eso trabajando bien, así que el tope no puede ser chico. Media
+hora es holgado para lo segundo y corta lo primero.
+
+Cuando se agota:
+
+```
+1. SIGTERM al hijo            para que el arnés cierre su sesión y la deje resumible
+2. 5 segundos de gracia
+3. SIGKILL si sigue vivo
+4. la ficha con `fin: "timeout"`, y EL REGISTRO PARCIAL SE QUEDA
+5. exit 2 — es una parada, no un error: alguien tiene que mirar
+```
+
+El registro parcial es lo que más importa de los cinco: el momento en que querés el stream es
+justamente cuando la corrida no terminó.
+
+> **Lo que sería mejor y todavía no se puede.** Un tope por SILENCIO —"no emitió nada en 5
+> minutos"— es más fino que uno total: no castiga a la corrida que trabaja bien y tarda. Pero
+> depende de que el stream llegue progresivamente, y **eso no está medido**: las corridas de §2
+> se leyeron enteras al final. Antes de construirlo hay que comprobar en los tres si los eventos
+> salen mientras el modelo trabaja o todos juntos al cerrar. Hasta entonces, el tope total, que es
+> el que sí se sabe que funciona.
+
+### 8.6 Y una invariante que hay que retirar a propósito
+
+`internal/estado/estado.go` abre diciendo:
+
+> *"Package estado lee y escribe el `estado.json`: **el único archivo que `sf` escribe**."*
+
+Con la ficha y el registro pasan a ser tres, y son de naturalezas distintas: `estado.json` es la
+verdad de la máquina, la ficha es un parte de una corrida y el registro es forense. **Igual que el
+comentario de `main.go` (§10), ese párrafo se reescribe en el mismo commit que lo vuelva falso**, no
+se deja ahí mintiendo.
+
+Lo que sí sobrevive intacto y conviene conservar dicho: **`estado.json` sigue siendo el único que la
+máquina lee para decidir.** La ficha no es una entrada de la máquina — `sf next` la mira para saber
+qué pasó recién, nunca para saber dónde está.
+
+---
+
+## 9. La compuerta de Command Code — la decisión que falta
 
 **Es de Javier, no mía, y por eso está sola en su sección.**
 
@@ -503,7 +676,7 @@ legítima** si prefiere no tener ese flag escrito en ningún archivo suyo.
 
 ---
 
-## 9. El alcance de la primera versión — `--async` queda afuera
+## 10. El alcance de la primera versión — `--async` queda afuera
 
 La versión anterior de §3 ofrecía `sf lanzar --async` ("lo larga y devuelve un id; el bucle sigue")
 como parte del modo. **Va afuera de la primera versión, y el argumento es del propio recorrido de
@@ -529,6 +702,10 @@ Y `--async` es la parte cara del proyecto:
 > la experiencia de haberlo usado. Que es exactamente el orden en el que este proyecto acertó las
 > otras veces.
 
+**Y con §8 escrita, el tramo sincrónico ya no tiene huecos.** Lo que queda para construirlo es
+código, más la decisión de §9 — que sólo afecta a Command Code: con opencode y Claude Code se puede
+empezar sin ella.
+
 ### Y hay un comentario en el código que hay que retirar a propósito
 
 `sf/cmd/sf/main.go` abre con esto, y es el argumento fundacional del binario:
@@ -546,7 +723,7 @@ durando milisegundos. El único que se queda vivo es `lanzar`, y sólo mientras 
 
 ---
 
-## 10. Las asperezas medidas
+## 11. Las asperezas medidas
 
 Chicas, todas comprobadas, y todas muerden en la primera corrida si no están anotadas.
 
@@ -580,12 +757,12 @@ pero conviene ver que el diseño de Javier lo *mejora*:
 | tres arneses abiertos en paralelo | tres conductores, un volante | real, y existe hoy |
 | un principal que reparte | un conductor que pide trabajos | **bajo** — todo pasa por un lugar y de a uno |
 
-El paralelo vuelve a aparecer sólo con `--async`, que es §9, y es una razón más para dejarlo para
+El paralelo vuelve a aparecer sólo con `--async`, que es §10, y es una razón más para dejarlo para
 después. Cuando llegue, el candado es requisito, no adorno.
 
 ---
 
-## 11. Lo que NO cambia
+## 12. Lo que NO cambia
 
 Para que quede dicho antes de que alguien lo "aproveche":
 
@@ -602,7 +779,7 @@ Para que quede dicho antes de que alguien lo "aproveche":
 
 ---
 
-## 12. Cómo se sabrá que quedó bien
+## 13. Cómo se sabrá que quedó bien
 
 ```bash
 # el mismo paso, el mismo estado en disco, tres ejecutores distintos
@@ -619,14 +796,14 @@ Y las pruebas que de verdad cierran el diseño:
    eso es imposible —los agentes se leen al arrancar— y es la señal más limpia de que la causa
    desapareció.
 3. **Que un `success` mentiroso no avance el estado.** Lanzar un paso con Command Code **sin** el
-   permiso de §8, o con un modelo que se niega, y comprobar que la ficha lo registra como terminado
+   permiso de §9, o con un modelo que se niega, y comprobar que la ficha lo registra como terminado
    y **`sf done` igual dice ✗**. Es la prueba de §7, y es la única que verifica que la carta no se
    confundió con la evidencia.
 4. **Un solo comando para dos arneses.** Que el principal lance el ⑦ en opencode y el ⑱ en Command
    Code sin que Javier haya escrito un id, un flag ni una ruta — sólo `--harness` y `--alias`. Es la
    prueba de §4.
 5. **Que un modelo colgado no cuelgue el bucle.** Lanzar contra un modelo que no contesta y que
-   `sf lanzar` corte solo, con la ficha diciendo que se agotó el tiempo. Es §10.①.
+   `sf lanzar` corte solo, con la ficha diciendo que se agotó el tiempo. Es §11.①.
 
 > **La prueba de que el modo sirve no es que corra: es que el ⑦ salga bien con un modelo que no es
 > de Anthropic, sin que nadie haya tenido que configurar el arnés.** Eso es lo que hoy cuesta una
