@@ -180,6 +180,9 @@ Y con eso, las preguntas se vuelven conteos:
 - **No trae cadena de hash.** Un registro que nadie puede editar en silencio hace falta el día que
   **una compuerta lea el registro**. Mientras sea un instrumento de medición, nadie falsifica sus
   propios datos de prueba. Se agrega cuando se lo necesite, no antes.
+
+> **T0 está especificado entero en [`registro.md`](registro.md)**: la forma de la línea, los cuatro
+> puntos de enganche, los seis tests y los cinco diferidos con su umbral.
 - **No frena nada.** En esta etapa el registro **sólo escribe**. Ninguna compuerta lo lee todavía.
 - **No agrega superficie**, salvo un comando para leerlo: `sf log`. Es la única adición al
   inventario de `comandos.Todos`, y existe porque un JSONL a ojo no se lee.
