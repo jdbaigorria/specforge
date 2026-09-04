@@ -21,11 +21,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,6 +43,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 	"github.com/jdbaigorria/specforge/sf/internal/modelos"
 	"github.com/jdbaigorria/specforge/sf/internal/pregunta"
+	"github.com/jdbaigorria/specforge/sf/internal/registro"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/sobre"
 	"github.com/jdbaigorria/specforge/sf/internal/vista"
@@ -66,63 +69,91 @@ const (
 	salidaFin     = 3 // no queda nada
 )
 
+// main abre el registro, despacha, y cierra el registro. Nada más.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ EL SWITCH SE MUDÓ A `despachar` Y DEVUELVE EN VEZ DE SALIR
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Porque `os.Exit` se saltea TODOS los defer: con el switch haciendo
+// `os.Exit(fn())` en cada rama no había ningún lugar donde colgar el cierre del
+// registro. Partirlo en dos es lo que hace que la línea se escriba SIEMPRE, sin
+// importar por qué rama salió.
+//
+// Y engancha acá y no en los veinte comandos a propósito: veinte llamadas serían
+// veinte copias, y agregar el comando veintiuno sin acordarse dejaría un hueco
+// silencioso. Es la misma razón por la que existe el paquete `comandos`.
 func main() {
 	if len(os.Args) < 2 {
 		uso()
 		os.Exit(salidaError)
 	}
 
+	raiz, err := os.Getwd()
+	if err == nil {
+		registro.Abrir(raiz, os.Args[1], os.Args[2:])
+	}
+
+	codigo := despachar()
+
+	registro.Cerrar(codigo)
+	os.Exit(codigo)
+}
+
+func despachar() int {
 	switch os.Args[1] {
 	case "init":
-		os.Exit(iniciar())
+		return iniciar()
 	case "next":
-		os.Exit(next())
+		return next()
 	case "context":
-		os.Exit(contexto(os.Args[2:]))
+		return contexto(os.Args[2:])
 	case "done":
-		os.Exit(terminar(os.Args[2:]))
+		return terminar(os.Args[2:])
 	case "new":
-		os.Exit(parada("new", os.Args[2:]))
+		return parada("new", os.Args[2:])
 	case "status":
-		os.Exit(estadoActual())
+		return estadoActual()
 	case "audit":
-		os.Exit(auditar(os.Args[2:]))
+		return auditar(os.Args[2:])
 	case "doctor":
-		os.Exit(revisar())
+		return revisar()
 	case "version", "--version":
 		// Una sola línea y nada más: `install.sh` la lee para comprobar que
 		// instaló lo que creía. El informe para humanos es `sf doctor`.
 		fmt.Println(version)
-		os.Exit(salidaTrabajo)
+		return salidaTrabajo
 	case "install":
-		os.Exit(instalar(os.Args[2:]))
+		return instalar(os.Args[2:])
 	case "uninstall":
-		os.Exit(desinstalar())
+		return desinstalar()
 	case "models":
-		os.Exit(listarModelos(os.Args[2:]))
+		return listarModelos(os.Args[2:])
 	case "lanzar":
-		os.Exit(lanzarPaso(os.Args[2:]))
+		return lanzarPaso(os.Args[2:])
+	case "log":
+		return verRegistro(os.Args[2:])
 	case "approve", "reject", "take", "model", "dismiss":
-		os.Exit(parada(os.Args[1], os.Args[2:]))
+		return parada(os.Args[1], os.Args[2:])
 	case "lote":
 		// `sf lote start` es el único comando de dos palabras del inventario.
 		// Se mantiene así porque "lote" nombra la unidad de trabajo, y el día
 		// que haga falta otra operación sobre el lote ya tiene dónde colgarse.
 		if len(os.Args) < 3 || os.Args[2] != "start" {
 			fmt.Fprintln(os.Stderr, "sf: el único es `sf lote start`")
-			os.Exit(salidaError)
+			return salidaError
 		}
-		os.Exit(parada("lote start", nil))
+		return parada("lote start", nil)
 	case "-h", "--help", "help":
 		uso()
-		os.Exit(salidaTrabajo)
+		return salidaTrabajo
 	default:
 		// Los diez del inventario están. Decirlo
 		// con el nombre del que falta es más útil que un "comando desconocido":
 		// el que lo lee suele ser un agente siguiendo el bucle.
 		fmt.Fprintf(os.Stderr, "sf: %q todavía no está construido.\n", os.Args[1])
 		fmt.Fprintln(os.Stderr, "    Todos: "+comandos.Lista())
-		os.Exit(salidaError)
+		return salidaError
 	}
 }
 
@@ -154,6 +185,16 @@ func next() int {
 	g, _ := global.LeerPara(raiz)
 
 	i := maquina.Siguiente(raiz, e, r, g)
+
+	// Lo que sf CONTESTÓ es la mitad que el registro no puede deducir del
+	// estado.json: en los cinco pasos de producto no hay feature, y "brief" o
+	// "prd" no son un campo de ningún archivo — los deduce la máquina.
+	registro.AnotarPaso(registro.Paso{
+		Tipo: i.Tipo.String(), Estado: i.Estado, Feature: i.Feature,
+		Skill: i.Skill, Perfil: i.Perfil, Modelo: i.Modelo,
+		Via: i.Via, Esfuerzo: i.Esfuerzo,
+	})
+
 	fmt.Print(mostrar(i))
 
 	switch i.Tipo {
@@ -252,6 +293,11 @@ func terminar(args []string) int {
 
 	c := maquina.Terminar(raiz, e, r, msg)
 
+	// Las fallas y los avisos son el dato más valioso del registro para la etapa
+	// de tramos: son, literalmente, la lista de las veces que un modelo produjo
+	// algo que la compuerta no aceptó. Hoy se imprimen y se pierden.
+	registro.AnotarVeredicto(c.Estado, c.Fallas, c.Avisos, c.Movio)
+
 	// El estado se guarda SÓLO si algo se movió. Un `sf done` que falla no
 	// tiene que dejar rastro en el archivo... salvo el contador de intentos,
 	// que es justamente el que cuenta los fracasos: por eso también se guarda
@@ -334,6 +380,11 @@ func parada(cmd string, args []string) int {
 		// que sf soporte brownfield` tiene que funcionar sin comillas.
 		ef = maquina.Nueva(raiz, e, strings.Join(args, " "))
 	}
+
+	// Las cinco respuestas de Javier y el `lote start` pasan por acá, así que
+	// una sola llamada cubre los seis. `Movio` no existe en `Efecto`: lo
+	// equivalente es que no haya fallas, o sea que el sello se dio.
+	registro.AnotarVeredicto(ef.Estado, ef.Fallas, ef.Avisos, ef.Pasa())
 
 	// Un alias nuevo necesita su portamodelo AHORA. La sesión viva no lo va a
 	// ver —los agentes se leen al arrancar, y por eso `sf model` avisa que hay
@@ -489,7 +540,7 @@ func instalar(args []string) int {
 		declaraciones []pregunta.Declaracion
 		permisos      map[string]string
 	)
-	if len(o.Harness) == 0 && hayPersona() {
+	if len(o.Harness) == 0 && registro.HayPersona() {
 		resp, err := pregunta.Preguntar(os.Stdout, os.Stdin, andamio.Instalados(), modelos.Listar)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "sf:", err)
@@ -775,6 +826,16 @@ func lanzarPaso(args []string) int {
 		Skill:    i.Skill,
 	}, lanzar.Opciones{Raiz: raiz, Harness: g.EnUso(), Espera: espera})
 
+	// Ata esta invocación a la ficha de la corrida que largó. Es lo que permite
+	// contestar "entre este `next` que dijo subagente y el `done` que vino
+	// después, ¿hubo una corrida?".
+	registro.AnotarLanzamiento(f.ID)
+	registro.AnotarPaso(registro.Paso{
+		Tipo: i.Tipo.String(), Estado: i.Estado, Feature: i.Feature,
+		Skill: i.Skill, Perfil: i.Perfil, Modelo: modelo,
+		Via: i.Via, Esfuerzo: esf,
+	})
+
 	fmt.Print(lanzar.Contar(f))
 
 	if err != nil {
@@ -793,60 +854,104 @@ func lanzarPaso(args []string) int {
 	return salidaTrabajo
 }
 
+// verRegistro es `sf log`: la película, para leerla.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// ES EL ÚNICO COMANDO NUEVO, Y EXISTE PORQUE UN JSONL A OJO NO SE LEE
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	sf log                  las últimas 20
+//	sf log --ultimas N      cuántas
+//	sf log --feature f-2    sólo las de esa feature
+//	sf log --cmd done       sólo ese comando
+//	sf log --vueltas        el conteo por estado — la pregunta ① de cada tramo
+//	sf log --json           crudo, para jq
+//
+// SALE SIEMPRE CON 0, y no es un descuido: es un LECTOR. Un 2 significaría
+// "parada, es de Javier" y confundiría al orquestador que lo corriera adentro
+// del bucle; un 1 haría que un registro vacío pareciera un error.
+func verRegistro(args []string) int {
+	f := registro.Filtro{Ultimas: 20}
+	vueltas, crudo := false, false
+
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		valor := func(flag string) (string, bool) {
+			if a == flag && i+1 < len(args) {
+				i++
+				return args[i], true
+			}
+			if v, ok := strings.CutPrefix(a, flag+"="); ok {
+				return v, true
+			}
+			return "", false
+		}
+		switch {
+		case a == "--vueltas":
+			vueltas = true
+		case a == "--json":
+			crudo = true
+		default:
+			if v, ok := valor("--feature"); ok {
+				f.Feature = v
+			} else if v, ok := valor("--cmd"); ok {
+				f.Cmd = v
+			} else if v, ok := valor("--ultimas"); ok {
+				n, err := strconv.Atoi(v)
+				if err != nil || n < 1 {
+					fmt.Fprintf(os.Stderr, "sf log: --ultimas va con un número, no %q\n", v)
+					return salidaError
+				}
+				f.Ultimas = n
+			} else {
+				fmt.Fprintf(os.Stderr, "sf log: no conozco %q.\n", a)
+				fmt.Fprintln(os.Stderr, "    Son --ultimas, --feature, --cmd, --vueltas y --json.")
+				return salidaError
+			}
+		}
+	}
+
+	raiz, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf:", err)
+		return salidaError
+	}
+	todas, err := registro.Leer(raiz)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sf log:", err)
+		return salidaError
+	}
+
+	// El conteo mira TODO el registro y no las últimas veinte: contar vueltas
+	// sobre una ventana daría un número más chico que el real, y ese número es
+	// justo el que se vino a buscar.
+	if vueltas {
+		fmt.Print(registro.TextoVueltas(registro.Vueltas(
+			registro.Filtrar(todas, registro.Filtro{Feature: f.Feature, Cmd: f.Cmd}))))
+		return salidaTrabajo
+	}
+
+	es := registro.Filtrar(todas, f)
+	if crudo {
+		for _, e := range es {
+			b, err := json.Marshal(e)
+			if err != nil {
+				continue
+			}
+			fmt.Println(string(b))
+		}
+		return salidaTrabajo
+	}
+	fmt.Print(registro.Texto(es))
+	return salidaTrabajo
+}
+
 // conEsfuerzo arma el sufijo del encabezado, o nada si no hay esfuerzo.
 func conEsfuerzo(e string) string {
 	if e == "" {
 		return ""
 	}
 	return " · esfuerzo " + e
-}
-
-// hayPersona dice si del otro lado hay alguien a quien preguntarle.
-//
-// MEDIDO el 2026-08-31: la shell de un agente NO tiene TTY y la de una persona
-// sí. Adentro de la herramienta Bash de Claude Code, stdin y stdout no son
-// terminales; en una terminal de verdad, stdin sí.
-//
-// Sale con la STDLIB SOLA, y eso importa: `sf` tiene hoy UNA dependencia
-// (`gopkg.in/yaml.v3`), y meter `golang.org/x/term` para preguntar si hay una
-// terminal la duplicaría. Es la misma cuenta que decidió que la pregunta sea una
-// lista numerada y no una pantalla con flechitas.
-//
-// ────────────────────────────────────────────────────────────────────────────
-// POR QUÉ NO ALCANZA CON ModeCharDevice, QUE ES LO QUE DECÍA LA SPEC
-// ────────────────────────────────────────────────────────────────────────────
-//
-// Porque /dev/null TAMBIÉN es un dispositivo de caracteres. La versión de
-// `install-interactivo.md` §2 miraba sólo ese bit, y con eso un
-// `sf install < /dev/null` decía "hay alguien" — que es exactamente el caso que
-// la prueba 1 de esa misma spec nombra como el que no puede fallar.
-//
-// No colgaba, porque leer de /dev/null da EOF enseguida. Hacía algo peor y más
-// callado: la pregunta se contestaba sola con "enter" en todo, y "enter" en la
-// primera es TODOS LOS ARNESES. O sea que un `sf install` desatendido pasaba de
-// armar el andamio de uno a armar el de los tres, en silencio. Lo encontró
-// `TestInstall_SinTTYNoPreguntaNiCuelga`, no la lectura.
-//
-// Lo que NO cubre, dicho para que nadie lo descubra solo: un dispositivo de
-// caracteres que no sea /dev/null ni una terminal —/dev/zero, por ejemplo—
-// seguiría dando true. Cerrar eso de verdad pide un ioctl por plataforma o
-// `golang.org/x/term`, y ninguna de las dos paga para un caso que no existe: los
-// tres reales son una terminal, un pipe y /dev/null.
-func hayPersona() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	// Un pipe o un archivo redirigido: no hay nadie.
-	if fi.Mode()&os.ModeCharDevice == 0 {
-		return false
-	}
-	// Y /dev/null es un dispositivo de caracteres sin nadie atrás. `os.DevNull`
-	// vale también en Windows ("NUL"), así que esto no necesita build tags.
-	if dn, err := os.Stat(os.DevNull); err == nil && os.SameFile(fi, dn) {
-		return false
-	}
-	return true
 }
 
 // declararYRegenerar mete en el catálogo lo que Javier eligió y reescribe los
@@ -1320,6 +1425,7 @@ func uso() {
   sf lote start   crea la branch · exige el ROJO · guarda el hash
   sf new "…"      mete una feature o un bug al backlog (entradas B y C)
   sf status       dónde está todo — el único para vos, no para el agente
+  sf log          la película: qué pasó, en qué orden  (--vueltas · --feature)
   sf audit [f-#…]  el punta a punta: varias features contra sus historias
   sf doctor       ¿esta instalación sirve? binario · skills · harness
   sf version      la versión, en una línea

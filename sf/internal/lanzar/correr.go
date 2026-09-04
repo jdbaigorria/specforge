@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/jdbaigorria/specforge/sf/internal/registro"
 	"time"
 )
 
@@ -136,6 +138,19 @@ func Correr(linea []string, f Ficha, o Opciones) (Ficha, error) {
 
 	cmd := exec.CommandContext(ctx, linea[0], linea[1:]...)
 	cmd.Dir = o.Raiz
+
+	// LA MARCA DEL HIJO, y es el único valor de `quien` en el que sf puede
+	// confiar: los otros dos —`terminal` y `agente`— se deducen de señales que
+	// el propio agente puede producir (medido el 2026-09-04: `script(1)`
+	// fabrica un TTY). Éste lo pone sf mismo, acá.
+	//
+	// Va el ID de la ficha y no un `1` para que el registro pueda decir CUÁL
+	// corrida hizo qué. Y se hereda el resto del entorno a propósito: sin
+	// os.Environ() el hijo perdería PATH, HOME y las claves del proveedor.
+	//
+	// HOY SÓLO REGISTRA. Que una parada de Javier se RECHACE cuando viene de un
+	// delegado es vecinos.md §2 ①, y espera los datos de las corridas.
+	cmd.Env = append(os.Environ(), registro.VarDelegado+"="+f.ID)
 
 	// Stdin nil es el dispositivo nulo, y hace falta: Claude Code espera tres
 	// segundos por stdin y avisa "no stdin data received in 3s" si no se lo dan.

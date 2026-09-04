@@ -39,6 +39,17 @@ type Cierre struct {
 
 	// Mensaje es qué pasó, para el que lo lee.
 	Mensaje string
+
+	// Estado es en qué paso actuó, y existe para el registro.
+	//
+	// Sin esto, la línea de un `sf done` sobre un paso de PRODUCTO no puede
+	// decir de cuál era: "brief" o "prd" no son un valor de ningún campo del
+	// estado.json —los deduce este switch— y un `done` que no movió nada no
+	// deja ninguna otra huella de dónde estaba parado.
+	//
+	// Lo dice la máquina y no lo re-deduce el registro, que es la diferencia
+	// entre informar y tener el orden del flujo escrito en dos lados.
+	Estado string
 }
 
 // Terminar corre las compuertas del estado actual y mueve lo que corresponda.
@@ -71,14 +82,16 @@ func terminarProducto(raiz string, e *estado.Estado) (Cierre, bool) {
 		// Las compuertas pasan pero el estado NO se mueve: el ⑥ lo sella
 		// Javier, y sellarlo es elegir uno de tres veredictos. sf no puede
 		// elegir por él ni siquiera cuando todo está bien.
-		return paraDeProducto(compuerta.Brief(raiz), "el brief está listo. Lo sellás vos (el ⑥)."), true
+		c := paraDeProducto(compuerta.Brief(raiz), "el brief está listo. Lo sellás vos (el ⑥).")
+		c.Estado = "brief"
+		return c, true
 
 	case e.Producto.PrdHash == "":
 		// El ⑦ no tiene parada: se pasa derecho al ⑧. Acá sf sí mueve, y de
 		// paso guarda la huella del PRD para poder avisar después si cambia.
 		r := compuerta.PRD(raiz)
 		if !r.Pasa() {
-			return Cierre{Resultado: r}, true
+			return Cierre{Resultado: r, Estado: "prd"}, true
 		}
 		h, err := git.HashDe(raiz, []string{docs.PRD})
 		if err != nil {
@@ -87,16 +100,20 @@ func terminarProducto(raiz string, e *estado.Estado) (Cierre, bool) {
 			h = "sin-hash"
 		}
 		e.Producto.PrdHash = h
-		return Cierre{Resultado: r, Movio: true, Cambio: true,
+		return Cierre{Resultado: r, Movio: true, Cambio: true, Estado: "prd",
 			Mensaje: "prd_hash " + h + " — sigue el ⑧"}, true
 
 	case !e.Producto.ConstitucionSellada:
-		return paraDeProducto(compuerta.Constitucion(raiz),
-			"la constitución está lista. La sellás vos (el ⑧)."), true
+		c := paraDeProducto(compuerta.Constitucion(raiz),
+			"la constitución está lista. La sellás vos (el ⑧).")
+		c.Estado = "constitucion"
+		return c, true
 
 	case !e.Producto.BacklogVisto:
-		return paraDeProducto(compuerta.Backlog(raiz),
-			"salieron las historias. Mirá si querés y seguí (⏸)."), true
+		c := paraDeProducto(compuerta.Backlog(raiz),
+			"salieron las historias. Mirá si querés y seguí (⏸).")
+		c.Estado = "backlog"
+		return c, true
 	}
 	return Cierre{}, false
 }
@@ -161,15 +178,24 @@ func terminarFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, msg stri
 	// contradiciendo a `sf next`.
 	f.Estado = estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
 
+	// El estado en el que se ENTRÓ, tomado antes de que ninguna rama lo mueva:
+	// una línea del registro tiene que decir de dónde salía el `sf done`, no
+	// dónde terminó — eso ya lo dice la foto del después.
+	entro := f.Estado
+	conEstado := func(c Cierre) Cierre {
+		c.Estado = entro
+		return c
+	}
+
 	switch f.Estado {
 	case estado.Planificacion:
-		return cerrarPlanificacion(raiz, f, fr)
+		return conEstado(cerrarPlanificacion(raiz, f, fr))
 	case estado.Implementar:
-		return cerrarLote(raiz, f, fr, msg)
+		return conEstado(cerrarLote(raiz, f, fr, msg))
 	case estado.Revision:
-		return cerrarRevision(raiz, f, fr)
+		return conEstado(cerrarRevision(raiz, f, fr))
 	case estado.Cierre:
-		return cerrarCierre(raiz, f, fr)
+		return conEstado(cerrarCierre(raiz, f, fr))
 	}
 
 	var c Cierre

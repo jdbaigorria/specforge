@@ -2,9 +2,12 @@
 
 **Fecha:** 2026-09-04 · **Branch:** `refundation` · **Commit:** `5b5dc29`
 
-> **Estado: SPEC, SIN IMPLEMENTAR.** Es la pieza ⓪ de [`por-tramos.md`](por-tramos.md): lo único
-> que hay que construir **antes** de correr el primer tramo. Sin esto, cada corrida devuelve
+> **Estado: IMPLEMENTADO** el 2026-09-04. Es la pieza ⓪ de [`por-tramos.md`](por-tramos.md): lo
+> único que hay que construir **antes** de correr el primer tramo. Sin esto, cada corrida devuelve
 > impresiones en vez de datos.
+>
+> **§12 registra las tres cosas que cambiaron al construirlo**, y una de ellas la encontró un test
+> que falló — no la lectura.
 
 **Entra:** las cuatro preguntas de Javier sobre cada tramo, los cuatro agujeros medidos el
 2026-09-03, y la medición de TTY del 2026-09-04.
@@ -408,3 +411,86 @@ Y la prueba que de verdad lo cierra, que es la que no se puede hacer con un test
 > brief, cuánto tardó cada una, qué compuerta falló y cuántas veces, y con qué modelo.
 >
 > Si esas cuatro se pueden contestar sin abrir otra cosa, el tablero está.
+
+
+---
+
+## 12. Lo que cambió al construirlo
+
+Tres correcciones. La primera la encontró un test que falló, y es la que importa.
+
+### ① El conteo no veía los tramos de producto — y son los primeros que se corren
+
+**El síntoma.** `TestElConteoDeVueltasVeElRecorridoDeVerdad` recorrió el ⑥ y el ⑦ de verdad, con el
+binario, y `sf log --vueltas` contestó *"todavía no hay ninguna transición de estado registrada"*.
+
+**La causa.** `Vueltas` contaba comparando `antes.estado` contra `despues.estado`, y ese campo sale
+de la feature. **En los cinco pasos de producto no hay feature**: lo que se mueve ahí es un SELLO
+(`brief_sellado`, `prd_hash`, …), no un estado. O sea que el conteo estaba ciego exactamente en
+T1, T2 y T3 — los tres primeros tramos del plan.
+
+**El arreglo, y la regla que lo ordena.** Se cuenta el sello que cambió, **comparando y no
+derivando**:
+
+```go
+if s := sellosQueSeMovieron(e.Antes.Producto, e.Despues.Producto); s != "" { … }
+```
+
+La alternativa tentadora era derivar el paso —*"si `brief_sellado` está vacío estás en el brief"*—
+y es exactamente el switch de `terminarProducto`. **Copiarlo habría puesto el orden del flujo en
+dos lados**, y se desincronizaría el día que alguien mueva un paso. Comparando, esto reporta lo que
+de verdad cambió **aunque el orden cambie**.
+
+> Y es el mismo error que este documento ya se había prohibido en `Foto`: no derivar el estado de
+> producto. Estaba dicho en un lado y roto en el otro.
+
+### ② `estado` y `feature` subieron al nivel de la entrada
+
+La spec los tenía adentro de la foto, y `AnotarPaso` los pisaba. **Eran dos cosas distintas:**
+
+```
+antes.estado     el estado de la FEATURE, leído del estado.json
+estado           el paso que sf NOMBRÓ — y "brief" o "prd" no son un campo de ningún archivo
+```
+
+Pisar uno con el otro rompía dos casos reales: el ⑪ nombra la feature **siguiente** y no la actual,
+y un `sf next` sobre un paso de producto dejaba un *"antes"* que el `estado.json` nunca dijo.
+
+Ahora conviven, y hay un método —`DeQuienEs()`— que mira los tres lugares donde puede estar una
+feature, en orden de confianza.
+
+### ③ La máquina informa en qué paso actuó — no lo re-deduce el registro
+
+Salió de mirar la primera corrida real. Las líneas de `sf done` sobre pasos de producto decían
+`—`, porque sólo `sf next` anotaba el paso:
+
+```
+done      —                            ⏵ 0ms  agente          ← ilegible
+done      brief                        ✗ falta .docs/brief.md  ← después
+```
+
+`maquina.Cierre` y `maquina.Efecto` ganaron un campo `Estado`. **Lo llena la máquina, en el mismo
+switch que ya decidía qué hacer**, y el registro sólo lo transporta. Es la diferencia entre
+*informar* y *tener el orden del flujo escrito en dos lados* — la misma regla del ①.
+
+### Y una cosa que se hizo y no estaba en la spec, dicha para que se vea
+
+**`sf lanzar` ahora le pone `SPECFORGE_DELEGADO` al hijo** (`lanzar/correr.go`, con el id de la
+ficha). Sin eso, `quien` **nunca podría valer `delegado`** — y ése es el único de los tres valores
+en el que sf puede confiar, porque la marca la pone él.
+
+> **Registra y nada más.** Que una parada de Javier se RECHACE cuando viene de un delegado es
+> `vecinos.md` §2 ①, y sigue esperando los datos de las corridas.
+
+---
+
+## 13. El saldo
+
+| | |
+|---|---|
+| **paquete nuevo** | `internal/registro` — 2 archivos, stdlib sola |
+| **comando nuevo** | `sf log` (`--ultimas · --feature · --cmd · --vueltas · --json`) |
+| **enganches** | 4: `main` abre y cierra · `next` · `done`/`parada` · `lanzar` |
+| **refactor** | `main()` → `despachar() int`; ~20 `os.Exit(x)` → `return x` |
+| **tests** | 479 (eran 456) + 14 e2e (eran 13) |
+| **dependencias nuevas** | **ninguna** |

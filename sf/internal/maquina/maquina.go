@@ -73,6 +73,27 @@ const (
 	Fin
 )
 
+// String nombra la parada, para que el registro no tenga que copiar el enum.
+//
+// Es lo único que hace falta para que una línea del registro se pueda leer sin
+// tener este paquete al lado — y sin esto, `registro` tendría que importar
+// `maquina` sólo para traducir un entero, o main tendría un switch más.
+func (t Tipo) String() string {
+	switch t {
+	case Trabajar:
+		return "trabajar"
+	case Para:
+		return "para"
+	case Barata:
+		return "barata"
+	case MeTrabe:
+		return "me-trabe"
+	case Fin:
+		return "fin"
+	}
+	return "desconocido"
+}
+
 // TopeIntentos es cuántos `sf done` en ✗ seguidos disparan ME TRABÉ.
 //
 // Tres sale del ejemplo del diseño ("el lote 2 falló 3 veces con deepseek").

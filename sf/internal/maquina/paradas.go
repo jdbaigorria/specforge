@@ -76,6 +76,13 @@ type Efecto struct {
 	// un `sf done` que falla igual incrementa `intentos_fallidos`.
 	Cambio bool
 
+	// Estado es en qué paso se contestó la parada, y existe para el registro.
+	//
+	// Mismo motivo que el de `Cierre`: un `sf approve` sobre el ⑥ y uno sobre
+	// el ⑧ son la misma línea vistos desde afuera, y cuál era lo sabe este
+	// switch y nadie más.
+	Estado string
+
 	// Commit es "cuando el estado esté guardado, commiteá con este mensaje".
 	//
 	// ────────────────────────────────────────────────────────────────────
@@ -183,6 +190,7 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 
 	switch {
 	case e.Producto.BriefSellado == "":
+		ef.Estado = "brief"
 		// El veredicto NO lo elige sf: lo escribió Javier en el brief, y acá
 		// sólo se copia al estado. `sf approve` significa "sí, sellalo con lo
 		// que dice" — incluso si lo que dice es "no-lo-hagas".
@@ -203,10 +211,12 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		return ef
 
 	case e.Producto.PrdHash == "":
+		ef.Estado = "prd"
 		ef.falla("el ⑦ no tiene parada: corré `sf done`")
 		return ef
 
 	case !e.Producto.ConstitucionSellada:
+		ef.Estado = "constitucion"
 		if !ef.compuerta(compuerta.Constitucion(raiz)) {
 			return ef
 		}
@@ -216,6 +226,7 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		return ef
 
 	case !e.Producto.BacklogVisto:
+		ef.Estado = "backlog"
 		if !ef.compuerta(compuerta.Backlog(raiz)) {
 			return ef
 		}
@@ -235,6 +246,8 @@ func Aprobar(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		ef.falla("%s no está en el roadmap", e.FeatureActual)
 		return ef
 	}
+
+	ef.Estado = f.Estado
 
 	switch f.Estado {
 	case estado.Planificacion:

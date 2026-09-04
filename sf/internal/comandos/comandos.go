@@ -56,6 +56,7 @@ var Todos = []string{
 	"lote start",
 	"new",
 	"status",
+	"log",
 	"audit",
 	"doctor",
 	"version",
