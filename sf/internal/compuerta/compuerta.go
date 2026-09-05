@@ -37,6 +37,7 @@
 package compuerta
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -113,6 +114,7 @@ func Brief(raiz string) Resultado {
 
 	var fm struct {
 		Veredicto string `yaml:"veredicto"`
+		Evidencia string `yaml:"evidencia"`
 	}
 	if !leerCabecera(raiz, docs.Brief, &fm, &r) {
 		return r
@@ -124,7 +126,81 @@ func Brief(raiz string) Resultado {
 	if !slices.Contains(validos, fm.Veredicto) {
 		r.falla("el brief no trae veredicto (%s)", strings.Join(validos, " | "))
 	}
+
+	// ────────────────────────────────────────────────────────────────────
+	// UN VEREDICTO SIN UNA SOLA FUENTE NO SELLA
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// MEDIDO EL 2026-09-05, primera corrida real de T1 con dos modelos y la
+	// misma idea semilla, palabra por palabra:
+	//
+	//	A (claude-code)  no-lo-hagas   17 retrieved · 1 model-prior · 13 links
+	//	B (nemotron)     hacelo         1 retrieved · 8 model-prior ·  0 links
+	//
+	// Veredictos OPUESTOS, y esta compuerta aceptó los dos: hasta hoy sólo
+	// miraba que el veredicto fuera uno de los tres. A frenó el producto; B
+	// siguió y escribió un PRD entero para algo que A concluyó que no había
+	// que construir.
+	//
+	// Y el detalle que decide el diseño: B NO MINTIÓ. Marcó cada afirmación
+	// como `model-prior — unverified`, que es exactamente lo que el skill le
+	// pide. El skill hizo su trabajo. La que exigía de menos era la compuerta.
+	//
+	// POR QUÉ SE CUENTAN LINKS Y NO LA PALABRA `retrieved`
+	//
+	// `retrieved` es una palabra que el modelo tipea; puede tipearla sin haber
+	// recuperado nada. Un link tampoco prueba que la fuente exista —se puede
+	// alucinar una URL— pero CERO links sí prueba algo, y es lo único que hace
+	// falta: un modelo que inventa competidores de memoria no tiene links que
+	// escribir, porque no los tiene. Es un hecho sobre bytes, no una opinión
+	// sobre calidad, y por eso lo puede afirmar una compuerta (R3).
+	//
+	// POR QUÉ EL UMBRAL ES UNO Y NO ES UN NÚMERO MÁGICO
+	//
+	// Cero es una categoría —"no investigó"—. Cualquier número mayor es un
+	// juicio sobre CUÁNTO alcanza, y el juicio es de Javier. Uno es el borde
+	// entre nada y algo, que es la única línea que una compuerta puede trazar
+	// sin opinar.
+	//
+	// LA SALIDA, QUE YA ESTABA DISEÑADA
+	//
+	// El skill ya contempla la corrida degradada: sin los MCPs de
+	// investigación, con consentimiento explícito, todo queda `model-prior` y
+	// el brief se marca de baja evidencia. `evidencia: baja` es esa marca, y
+	// tiene que ser DELIBERADA — declarar que no se investigó cuesta escribir
+	// una línea a propósito, que es justo lo que se quiere que cueste.
+	//
+	// LO QUE ESTO NO COMPRA, DICHO ANTES DE QUE ALGUIEN LO CREA
+	//
+	// No prueba que las fuentes sean reales, ni que el modelo las haya
+	// visitado, ni que la investigación sea buena. Cierra el agujero de CERO
+	// evidencia. El de POCA evidencia es juicio, y el juicio es del ⑥.
+	if fm.Evidencia != "baja" && !citaAlgunaFuente(raiz) {
+		r.falla("el brief no cita una sola fuente, y sellar un veredicto sin evidencia " +
+			"es lo único que ningún paso posterior puede corregir.\n" +
+			"→ volvé al ② y citá lo que encontraste, cada afirmación con su link.\n" +
+			"  Si de verdad no se pudo investigar, se declara: `evidencia: baja`.")
+	}
+	if fm.Evidencia == "baja" {
+		r.avisa("el brief está declarado de BAJA EVIDENCIA: el veredicto %q no se apoya "+
+			"en investigación verificada.", fm.Veredicto)
+	}
 	return r
+}
+
+// citaAlgunaFuente contesta si el brief tiene al menos un link.
+//
+// Se busca sobre el archivo entero y no sólo sobre el cuerpo: un link es un
+// link, esté donde esté, y partir el archivo agregaría un parser para no ganar
+// nada. Que no se pueda leer se trata como que no cita — llegar acá con el
+// archivo ilegible es imposible (`leerCabecera` ya lo abrió), y si pasara, el
+// lado seguro es frenar.
+func citaAlgunaFuente(raiz string) bool {
+	b, err := os.ReadFile(filepath.Join(raiz, docs.Brief))
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(b, []byte("http://")) || bytes.Contains(b, []byte("https://"))
 }
 
 // PRD comprueba que exista y tenga cuerpo.

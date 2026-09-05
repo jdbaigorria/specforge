@@ -75,9 +75,56 @@ func TestBriefExigeVeredicto(t *testing.T) {
 	exige(t, Brief(p.raiz), "veredicto")
 
 	for _, v := range []string{"hacelo", "pivotea", "no-lo-hagas"} {
-		p := nuevo(t).archivo(".docs/brief.md", "---\nveredicto: "+v+"\n---\n# ok\n")
+		p := nuevo(t).archivo(".docs/brief.md",
+			"---\nveredicto: "+v+"\n---\n# ok\n\n`retrieved` https://github.com/x/y\n")
 		if !Brief(p.raiz).Pasa() {
 			t.Errorf("el veredicto %q no pasó", v)
+		}
+	}
+}
+
+// El caso medido el 2026-09-05: nemotron selló `hacelo` con 8 afirmaciones
+// `model-prior`, CERO links, y esta compuerta lo dejó pasar. El producto siguió
+// hasta el PRD apoyado en nada.
+//
+// Los tres veredictos, no sólo `hacelo`: el propio skill dice que la
+// alucinación más cara del ⑥ es sellar `no-lo-hagas` por algo que no existe.
+func TestBriefRechazaVeredictoSinUnaSolaFuente(t *testing.T) {
+	for _, v := range []string{"hacelo", "pivotea", "no-lo-hagas"} {
+		p := nuevo(t).archivo(".docs/brief.md",
+			"---\nveredicto: "+v+"\n---\n# el panorama\n\n"+
+				"| ccusage | lo mismo | nada | `model-prior` sin verificar |\n")
+		exige(t, Brief(p.raiz), "no cita una sola fuente")
+	}
+}
+
+// La salida ya estaba diseñada en el skill: sin los MCPs de investigación, con
+// consentimiento explícito, corre una pasada degradada y el brief queda marcado.
+// Pasa, pero NO en silencio.
+func TestBriefAceptaLaBajaEvidenciaDeclarada(t *testing.T) {
+	p := nuevo(t).archivo(".docs/brief.md",
+		"---\nveredicto: hacelo\nevidencia: baja\n---\n# sin un solo link\n")
+
+	r := Brief(p.raiz)
+	if !r.Pasa() {
+		t.Fatalf("con `evidencia: baja` tiene que pasar: %v", r.Fallas)
+	}
+	if !strings.Contains(strings.Join(r.Avisos, ""), "BAJA EVIDENCIA") {
+		t.Errorf("tiene que avisar que la evidencia es baja: %v", r.Avisos)
+	}
+}
+
+// Un link es un link esté donde esté: no se parsea el cuerpo ni se exige que
+// viva en la tabla de procedencia. Es un hecho sobre bytes.
+func TestBriefCuentaLinksEnCualquierParte(t *testing.T) {
+	for _, cuerpo := range []string{
+		"# ok\n\nver http://example.com\n",
+		"# ok\n\n[la fuente](https://example.com)\n",
+		"# ok\n\n> https://news.ycombinator.com/item?id=1\n",
+	} {
+		p := nuevo(t).archivo(".docs/brief.md", "---\nveredicto: hacelo\n---\n"+cuerpo)
+		if !Brief(p.raiz).Pasa() {
+			t.Errorf("no encontró el link en %q", cuerpo)
 		}
 	}
 }

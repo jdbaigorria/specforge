@@ -160,7 +160,9 @@ func TestElConteoDeVueltasVeElRecorridoDeVerdad(t *testing.T) {
 	p.conPerfiles()
 
 	// ⑥ el brief, y su sello.
-	p.escribir(".docs/brief.md", "---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n")
+	p.escribir(".docs/brief.md",
+		"---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n\n"+
+			"| suma-cli | lo mismo | no exporta | `retrieved` https://github.com/x/suma-cli |\n")
 	p.paso("el brief está y lo sella Javier", hayTrabajo, "done")
 	p.paso("approve copia el veredicto", hayTrabajo, "approve")
 

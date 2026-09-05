@@ -58,7 +58,9 @@ skill contributes:
 **Tooling gate.** If the research MCPs are unavailable (`references/tooling.md`), do **not**
 silently invent competitors from training data — that is the false-validation trap. Either
 (a) name the MCPs to enable and stop, or (b) with explicit consent run a **degraded pass** where
-every claim is `model-prior` and the brief is stamped low-evidence.
+every claim is `model-prior` and the brief is stamped low-evidence — which means writing
+`evidencia: baja` in the frontmatter. That line is the ONLY way a brief with no cited sources
+gets through the ⑥, and it must be a deliberate declaration, never a shortcut.
 
 ## Step 3: Does it help me, and where do I differ? (④)
 
@@ -88,8 +90,19 @@ The frontmatter carries the verdict, and `sf` reads it:
 ```yaml
 ---
 veredicto: hacelo   # hacelo | pivotea | no-lo-hagas — the one YOU propose
+evidencia: baja     # ONLY on a degraded pass (Step 2). Omit it otherwise.
 ---
 ```
+
+**Cite your sources in the body.** The ⑥ gate counts links: a brief that carries a verdict and
+not one single URL does **not** seal. This is not about how much research is enough — that is
+Javier's call — it is about the difference between *some* and *none*.
+
+> **Measured, 2026-09-05.** The same idea, the same seed text, two models. One returned
+> `no-lo-hagas` with 13 cited links; the other returned `hacelo` with 8 `model-prior` claims and
+> **zero** links, and the machine accepted both. The second one was not lying — it marked every
+> claim `model-prior — unverified`, exactly as this skill asks. The gate was the part that
+> asked for too little. It no longer does.
 
 **Write the verdict you propose.** Not empty — one of the three, the same one you argue for in
 the body and print in the gate message. `sf approve` means *"yes, seal it with what it says"*, so
@@ -112,8 +125,10 @@ Awaiting: sf approve  /  sf reject "motivo"
 ───────────────────────────────────────
 ```
 
-Then `sf done`. The gate runs: the brief must exist and carry a valid `veredicto`. It does
-**not** check whether the brief is *good* — that is judgment, and judgment is Javier's.
+Then `sf done`. The gate runs: the brief must exist, carry a valid `veredicto`, and cite at
+least one source — unless it declares `evidencia: baja`. It does **not** check whether the brief
+is *good*, nor whether the sources are strong enough — that is judgment, and judgment is
+Javier's.
 
 ## Rules
 

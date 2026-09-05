@@ -262,7 +262,9 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 	p.dice(out, "vos", "el brief es un pinponeo: un subagente no te habla")
 
 	// ── ⑥ el brief ──────────────────────────────────────────────────────────
-	p.escribir(".docs/brief.md", "---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n")
+	p.escribir(".docs/brief.md",
+		"---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n\n"+
+			"| suma-cli | lo mismo | no exporta | `retrieved` https://github.com/x/suma-cli |\n")
 	p.paso("el brief está y lo sella Javier", hayTrabajo, "done")
 	p.paso("hasta que no lo selle, no se pasa", esParada, "next")
 	p.paso("approve copia el veredicto que dice el archivo", hayTrabajo, "approve")
@@ -664,7 +666,9 @@ func (p *proyecto) productoListo() {
 	mustSf("install")
 	mustSf("init")
 	p.conPerfiles()
-	p.escribir(".docs/brief.md", "---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n")
+	p.escribir(".docs/brief.md",
+		"---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n\n"+
+			"| suma-cli | lo mismo | no exporta | `retrieved` https://github.com/x/suma-cli |\n")
 	mustSf("approve")
 	p.escribir(".docs/prd.md", "# PRD\nSumar.\n")
 	mustSf("done")

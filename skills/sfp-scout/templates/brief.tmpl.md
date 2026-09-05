@@ -1,5 +1,7 @@
 ---
 veredicto: <hacelo | pivotea | no-lo-hagas>   # el que PROPONÉS. Javier lo sella con `sf approve`
+# evidencia: baja   ← SÓLO en una pasada degradada (sin MCPs de investigación).
+#                     Sin esta línea, el ⑥ exige al menos UNA fuente citada abajo.
 ---
 
 # <producto> — brief
