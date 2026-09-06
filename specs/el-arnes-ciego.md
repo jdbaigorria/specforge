@@ -2,13 +2,26 @@
 
 **Fecha:** 2026-09-05 · **Branch:** `refundation` · **Commit:** `4d7cc28`
 
-> **Estado: UN ARREGLO HECHO, CUATRO PROPUESTOS.** Sale de la primera corrida de T1 con dos modelos
-> y la misma idea semilla. **Todo lo de §1, §2 y §6 está medido** — carpetas, registros y salidas
-> reales, no impresiones. Lo que es deducción está marcado como deducción.
+> **Estado: UN ARREGLO HECHO, SEIS PROPUESTOS.** Sale de la primera corrida de T1 con dos modelos
+> y la misma idea semilla. **Todo lo de §1, §2, §6 y §8 está medido** — carpetas, registros y
+> salidas reales, no impresiones. Lo que es deducción está marcado como deducción.
 
 Este documento continúa a [`por-tramos.md`](por-tramos.md) —que pidió esta corrida y escribió el
 método— y a [`vecinos.md`](vecinos.md). Lo que agrega es **el resultado**: la primera vez que un
 artefacto de esta máquina lo escribió un modelo y no una mano.
+
+**Cómo está armado.** §1–§3 son el parte de la corrida y terminan en la regla que ordena todo lo
+demás. §4 es lo único ya construido. §5 son las cuatro tareas, y **§6 y §7 son las respuestas a las
+tres preguntas que Javier hizo el mismo día** —cómo se subdivide la fase, qué herramientas hacen
+falta, qué artefactos faltan—, que resultaron ser **la misma respuesta vista de tres lados**:
+
+```
+subdividir la fase        el ② es el único paso con entrada, artefacto y compuerta propias
+darle herramientas        el ② es el único que las necesita
+generar artefactos        el ② es el que produce el que falta
+
+                          → son tres caras de sacar el ② afuera
+```
 
 ---
 
@@ -292,56 +305,267 @@ parezca en nada al primero. Hasta entonces, dos formatos y una tabla.
 
 ---
 
-### ④ El ①–⑤ se parte en decisiones — lo que se trae de wayfinder
+### ④ El ①–⑤ se parte — un corte, no cinco
 
 **El dolor.** `sfp-scout` hace **cinco pasos de un saque, en una sola cabeza, sin frenar en el
 medio**. El único control está al final, en el ⑥. Si se degrada en el paso ②, **nadie se entera
 hasta el final** — que es literalmente lo que pasó en B.
 
-**De dónde sale.** `mattpocock/skills`, skill `wayfinder`. Planifica trabajo que no entra en una
-sesión como **un mapa de decisiones**, no de tareas. Sus cuatro reglas:
+#### La regla que decide dónde cortar
 
-| Regla | Qué dice |
-|---|---|
-| *"Plan, don't do"* | el mapa produce **decisiones**, no entregables |
-| **el test de la niebla** | *"la prueba es si podés enunciar la pregunta con precisión ahora, no si podés contestarla ahora"* |
-| **un ticket por sesión** | salvo los de investigar |
-| **el destino fija el alcance** | lo que queda más allá, está afuera |
+> **Un paso merece ser un paso propio cuando tiene entrada propia, artefacto propio y compuerta
+> propia.** Si le falta una de las tres, es conversación, y una conversación cortada en pedazos no
+> gana control: gana ceremonia.
 
-**Y sus tipos de ticket ya existen en esta máquina:**
+Aplicada al ①–⑤:
+
+| paso | ¿entrada? | ¿artefacto? | ¿compuerta? | |
+|---|---|---|---|---|
+| ① entender la idea | la idea cruda | no — es charla | no | conversación |
+| **② investigar** | **la idea en una frase** | **la evidencia** | **¿hay fuentes?** | **← las tres** |
+| ③ diferenciarse | la evidencia | no | no | conversación |
+| ④ grill | la evidencia | no | no | conversación |
+| ⑤ escribir | todo | `brief.md` | el ⑥ | ya la tiene |
+
+**Sólo el ② califica**, y no por casualidad: es el único que corre **sin Javier**, el único que
+**necesita herramientas**, y **el que falló** en la corrida.
+
+```
+hoy:        ① ② ③ ④ ⑤ ──────────────────────►  🛑 ⑥
+                    una sola cabeza, sin frenar
+
+propuesta:  ① ──►  ⏸  ② investigar  ⏸  ──►  ③ ④ ⑤ ──►  🛑 ⑥
+              charla    delegable · con herramientas    charla
+                        · deja evidencia.json (§7)
+```
+
+#### Los dos que ya hacen exactamente este corte
+
+**`wayfinder`** marca su ticket `research` como el único *"AFK, agent-driven"*; los otros tres
+—`grilling`, `prototype`, `task`— son con humano. **El corte ya está hecho en su taxonomía.**
+
+**`research`** (mismo autor) **no es un paso de una conversación: es un agente que se lanza aparte**
+y devuelve un archivo con citas. Su regla:
+
+> *"Investigá contra **fuentes primarias** —docs oficiales, código fuente, specs, APIs de primera
+> mano—, no un resumen de ellas. Seguí cada afirmación hasta la fuente que la posee."*
+>
+> *"Escribí los hallazgos en un solo archivo Markdown, citando la fuente de cada afirmación."*
+
+Y sus tipos de ticket **ya existen en esta máquina**:
 
 | wayfinder | SpecForge | quién |
 |---|---|---|
-| `research` — sin humano, lo hace el agente | `via: subagente` | **acá va el modelo barato, y acá hacen falta los MCPs** |
+| `research` — sin humano | `via: subagente` | **acá va el modelo barato, y acá hacen falta las herramientas** |
 | `grilling` — conversación | `via: vos` | Javier |
-| `prototype` · `task` | (no existen todavía) | — |
+| `prototype` · `task` | (no existen) | — |
 
-**La observación que lo justifica.** [`por-tramos.md`](por-tramos.md) **es** un mapa de wayfinder
-escrito a mano: destino, T0..T7 con dependencias forzadas, cada tramo produce **hallazgos y no
-features**, y su §11 lista *"las cuatro preguntas que hoy no se pueden contestar"*.
+> **No hace falta el mapa entero de wayfinder para ganar esto.** Alcanza con reconocer que el ② es
+> un ticket de investigación y sacarlo de la charla. El mapa completo se discute cuando haya datos
+> de T3 en adelante.
 
-> **Cuando la máquina no alcanzó, se escribió un wayfinder a mano.** Ésa es la señal más fuerte de
-> que falta la pieza.
+#### El contrato
 
-**El contrato — deliberadamente incompleto.** Éste **no se diseña en este documento**. Lo que sí
-queda escrito es qué tiene que contestar el diseño:
+1. **El ② sale como paso propio**, `via: subagente`, delegable a un modelo barato.
+2. **Deja `evidencia.json`** (§7) — sin artefacto no hay corte, sólo una pausa.
+3. **Su compuerta es la del §4, movida de lugar**: al menos una fuente, o `evidencia: baja`
+   declarada. Deja de correr al final y corre **donde el fallo ocurre**.
+4. **La parada es ⏸, no 🛑.** Javier mira la evidencia si quiere; no sella nada. El único sello del
+   tramo sigue siendo el ⑥.
 
-1. ¿el ①–⑤ pasa a ser **un estado con vueltas** o **N estados chicos**? La máquina hoy no tiene
-   forma de "el brief va por la mitad".
-2. ¿dónde vive el mapa? `.docs/` es lo que se commitea; `.specforge/` es forense. Un mapa de
-   decisiones abiertas no es ninguno de los dos todavía.
-3. ¿cada ticket tiene compuerta propia? Si no la tiene, es §3 otra vez con más pasos.
-4. **la del corte**: el mapa termina *"cuando no queda nada por decidir"*. ¿Quién lo declara? Si lo
-   declara el mismo que abre los tickets, no hay punto fijo — es el mismo problema del ㉑.
+#### Lo que este documento NO decide, a propósito
 
-**Por qué va último.** Es el único de los cuatro que **cambia la forma de la máquina**. Los otros
-tres hacen visible lo que hoy es invisible; éste mueve estados. Y `por-tramos.md` §9 es explícito:
-no se construyen piezas nuevas hasta que la corrida dé datos. **Ahora hay datos de T1 y de medio T2
-— y de T3 en adelante, ninguno.**
+1. ¿el ② es **un estado nuevo** o **una parada dentro de `brief`**? La máquina hoy no tiene forma de
+   *"el brief va por la mitad"*, y agregar un estado toca `ordenDeEstados` y `paranAlFinal`.
+2. ¿el ② puede **volver a correr**? Si el ④ (grill) descubre que falta investigar algo, ¿se
+   reabre? Ahí aparece un bucle nuevo, y **todo bucle nuevo necesita saber quién lo cierra** — la
+   pregunta del ㉑ otra vez.
+3. ¿dónde vive un mapa de decisiones abiertas, si algún día se trae el wayfinder entero? `.docs/` se
+   commitea, `.specforge/` es forense. Un mapa **no es ninguno de los dos**.
 
 ---
 
-## 6. La corrección al plan — el pid no mide delegación
+## 6. Las herramientas — nivel 0 primero
+
+§5① y §5③ dicen *que* hay que darle herramientas al arnés. Esta sección dice **cuáles**, y la
+respuesta cambió después de una medición de un segundo.
+
+### El experimento que reordena la lista
+
+Corrido el 2026-09-05, sin MCP, sin llave, sin configurar nada:
+
+```bash
+curl -s "https://registry.npmjs.org/-/v1/search?text=claude+code+usage+cost&size=3"
+```
+
+```
+@cliftonc/finius   Local-first Claude Code usage & cost tracker — OTLP + transcript
+claude-cup         Track your Value/Tokens…
+tokenfin           TokenFin CLI — one command to auto-record Claude Code usage
+```
+
+**Tres competidores reales de la idea de prueba, al instante, con una llamada HTTP sin llave.**
+
+> **A nemotron no le faltaba un MCP caro. Le faltaba `curl`.**
+>
+> Y el skill no lo sabe: `references/method.md` va directo a Tavily y al MCP de GitHub — o sea
+> directo al nivel que necesita configuración y llave. **El nivel que funciona en cualquier arnés no
+> está nombrado en ninguna parte.**
+
+### La decisión de fondo: MCP o CLI
+
+No es una preferencia de gusto. Para un producto multi-arnés hay una asimetría dura:
+
+| | MCP | CLI (`curl`, `npx`, …) |
+|---|---|---|
+| declararlo | **distinto en cada arnés** | ninguno — está en el `PATH` |
+| que `sf` compruebe que **está** | lee un config → sabe lo **declarado**, no lo **cargado** | `command -v` → **la verdad** |
+| que `sf` compruebe que se **usó** | **imposible** | posible, si pasa por un envoltorio (§7) |
+
+La última fila es la que decide, y conviene decirla sin vueltas: **`sf` nunca va a poder ver una
+llamada MCP.** No es una limitación de esta versión: es que el MCP vive entre el modelo y el
+servidor, y `sf` no está en el medio.
+
+**Y medido:** los cuatro MCPs del `.mcp.json` de este repo corren con `npx` y `uvx`, que ya están en
+la máquina. La dependencia real es la misma; lo único que cambia es cómo se le avisa al arnés.
+
+### Los tres niveles
+
+**Nivel 0 — sin llave, sin MCP, funciona en cualquier arnés con shell**
+
+| Para qué | Cómo |
+|---|---|
+| ¿ya existe este paquete? | los registries de npm · PyPI · crates.io, por HTTP |
+| ¿existe este repo, y qué issues tiene? | la API pública de GitHub (60 req/hora sin token) |
+| leer una página concreta | `curl` |
+
+**Nivel 1 — con llave, y es donde vive la búsqueda web de verdad**
+
+`tavily` (o brave/exa). Sin esto **no hay señales de demanda** —Reddit, HN, sitios de reviews—, que
+es la mitad del método de `method.md`. Es el nivel que hay que declarar por arnés.
+
+**Nivel 2 — opcional**
+
+`context7` para docs de librerías. `fetch` como MCP **sólo si el arnés no da shell**; con shell,
+`curl` hace lo mismo sin declarar nada.
+
+### La regla
+
+```
+NIVEL 0 PRIMERO, SIEMPRE.
+Una herramienta que funciona en los tres arneses sin configurar nada vale más
+que una mejor que hay que declarar tres veces.
+```
+
+Y eso le pone contenido concreto a los otros dos:
+
+- **§5① (`sf doctor`)** — el nivel 0 se comprueba con `command -v`, que es un hecho. El nivel 1 sólo
+  se puede leer de un config, y ahí `doctor` dice *"declarado"*, **nunca *"funciona"***. Son dos
+  columnas distintas y colapsarlas sería mentir.
+- **§5③ (`sf install`)** — no tiene que cablear cuatro MCPs para que la máquina sirva. Tiene que
+  **garantizar el nivel 0 y avisar del nivel 1**. Eso baja muchísimo el costo de esa tarea.
+
+### El riesgo, dicho
+
+**El nivel 0 no reemplaza al 1.** Los registries contestan *"¿existe algo con este nombre?"*; no
+contestan *"¿alguien se queja de esto en Reddit?"*. Un brief con nivel 0 solo puede mapear el
+panorama y **no** puede traer señales de demanda. Eso hay que decirlo en el brief, no taparlo.
+
+---
+
+## 7. Los artefactos que faltan
+
+### El grande: `evidencia.json`, el hermano que le falta al brief
+
+El patrón ya existe en la máquina, y el brief es el único que queda afuera:
+
+| fase | lo que lee el humano | lo que lee la máquina |
+|---|---|---|
+| planificación | `spec-design.md` | **`tareas.json`** |
+| revisión | el detalle de los hallazgos | **`revision.json`** |
+| **brief** | `brief.md` | **nada** |
+
+**Ésa es la razón por la que la compuerta del §4 tiene que grepear `http` sobre prosa.** Es la parte
+débil de ese arreglo, y se dijo cuando se hizo.
+
+**El contrato.**
+
+1. El ② escribe `.docs/evidencia.json`: una fila por afirmación.
+
+```json
+{"afirmacion":"ccusage hace exactamente esto",
+ "procedencia":"retrieved",
+ "fuente":"https://github.com/ryoppippi/ccusage",
+ "consultado":"2026-09-05T22:14:03Z",
+ "para":"panorama"}
+```
+
+2. `procedencia` es una **lista cerrada**: `retrieved` | `model-prior`. Un valor fuera de la lista
+   es un archivo corrupto, con el mismo trato que un JSON roto — es el ⑤ de `vecinos.md` aplicado
+   acá.
+3. `para` dice a qué sirve la fila: `panorama` | `demanda` | `diferenciador`. **Sin esto no se puede
+   distinguir un brief que mapeó competidores de uno que además encontró demanda**, que es
+   justamente lo que el nivel 0 solo no puede hacer (§6).
+4. **La compuerta lee el JSON, no la prosa.** El `grep` del §4 queda como el camino de compatibilidad
+   para briefs viejos, no como el mecanismo.
+5. **`brief.md` no se toca.** El JSON es lo que lee la máquina; la tabla del `## Panorama` es lo que
+   lee un humano. Exactamente la relación que ya tienen `revision.json` y el resto.
+
+**Lo que compra, y son cuatro cosas de una:**
+
+| | |
+|---|---|
+| la compuerta frena sobre un **hecho** | y no sobre un patrón de texto (R3) |
+| el ⑥ imprime conteos reales | **§5② sale gratis**: los datos ya están estructurados |
+| `sf log` puede decir *"el ⑥ consultó 13 fuentes"* | la película gana una línea que hoy no tiene |
+| es la entrada de cualquier chequeo futuro | fuentes distintas, dominios repetidos, fechas viejas |
+
+> **Y es lo que hace que el corte del §5④ sea un corte de verdad.** Sin artefacto, sacar el ② afuera
+> es poner una pausa; con artefacto, es poner una compuerta.
+
+**El riesgo.** Duplicar información entre el JSON y la tabla del brief, y que se desincronicen (R6).
+Se acepta con el mismo argumento que ya se aceptó para `revision.json`: **el JSON es la fuente y el
+Markdown es su rendering**, no al revés. Si divergen, manda el JSON.
+
+### El chico: el hueco negro entre dos `sf`
+
+Lo que el tablero ve hoy, de la corrida real:
+
+```
+22:31:26  next  prd
+22:33:51  done  prd  ✗ falta .docs/prd.md
+```
+
+**Dos minutos y medio sin absolutamente nada.** El registro tiene la película **de los estados**, no
+la del trabajo.
+
+**No se propone llenarlo todavía** — es un agujero grande y no está claro con qué. Lo que sí queda
+escrito, porque es el marco de todo lo demás:
+
+> **`sf` mira la máquina, no al que trabaja.** Todo artefacto nuevo que lo haga ver al que trabaja
+> vale más que uno que le dé más detalle de lo que ya ve.
+
+`evidencia.json` es el primero que cruza esa línea: es la primera cosa que `sf` va a saber sobre
+**qué hizo** el modelo, y no sólo sobre en qué estado quedó.
+
+### La opción grande, que NO se hace ahora: `sf buscar`
+
+Si la búsqueda pasara por `sf`, entonces **el log lo escribe `sf`** — y deja de ser una afirmación
+del modelo para ser un hecho. Eso cerraría el agujero que el §4 declara que no puede cerrar: **la
+URL inventada**.
+
+Y no rompe la regla de cero red en el enforcement: la red estaría en la **herramienta**, no en la
+**compuerta**; la compuerta seguiría leyendo un archivo local.
+
+**Pero es superficie nueva grande** —`comandos.Todos` se defiende sola— y hoy no hay dato que la
+justifique.
+
+> **Umbral que la despertaría:** una corrida **con las herramientas puestas** donde el brief cite una
+> URL que no existe. Hasta entonces, es una idea con fecha, no una tarea.
+
+---
+
+## 8. La corrección al plan — el pid no mide delegación
 
 **`por-tramos.md` §3 dice que el registro contestaría esto:**
 
@@ -372,25 +596,42 @@ reusa el mismo padre. **Eso es arquitectura del arnés, no delegación.**
 
 ---
 
-## 7. El orden, y por qué ése
+## 9. El orden, y por qué ése
 
 ```
-✓  la compuerta del brief        HECHO — 4d7cc28
-①  sf doctor ve las herramientas  diagnóstico antes que tratamiento
-②  el ⑥ muestra la evidencia      media tarde, y ya está todo leído
-③  sf install cablea los MCPs     la palanca grande, y la más cara
-④  el ①–⑤ en decisiones           cambia la forma. Necesita diseño, no improvisación
+✓  la compuerta del brief          HECHO — 4d7cc28
+
+0  el nivel 0 entra en el skill    §6 · CHICO · ya habría evitado el fallo de B
+1  evidencia.json + la compuerta   §7 · el artefacto que le falta al brief
+   lee JSON en vez de prosa
+2  el ② sale como paso propio      §5④ · el corte. Va con el 1, no sin él
+3  sf doctor ve las herramientas   §5① · las dos columnas: `está` y `declarado`
+4  el ⑥ muestra la evidencia       §5② · sale casi gratis si el 1 está hecho
+5  sf install garantiza el nivel 0 §5③ · mucho más barato que "cablear los MCPs"
+6  el mapa entero de wayfinder     §5④ · sólo con datos de T3 en adelante
 ```
 
-**El ① va antes que el ③** porque no se arregla lo que no se ve, y porque un `doctor` que avisa ya
-alcanza para que nadie más corra a ciegas mientras el ③ se piensa.
+**Por qué el 0 va primero, y sale de la medición de §6.** Es un cambio de texto en un skill, no toca
+Go, y **habría evitado el fallo de esta corrida**: una llamada a un registry sin llave devolvió tres
+competidores reales al instante. Cuesta una tarde y tapa la causa raíz.
 
-**El ① y el ② son el mismo día de trabajo**, y los dos son lo mismo: **hacer visible lo que hoy es
-invisible.** Cierran la mayor parte del dolor que encontró esta corrida.
+**Por qué el 1 va antes que el 2.** Sin `evidencia.json`, sacar el ② afuera es poner **una pausa**;
+con él, es poner **una compuerta**. Un paso sin compuerta propia no es un paso: es una parada más, y
+paradas de más ya hay una en discusión (la ⏸ del ⑨).
+
+**Por qué el 4 bajó de puesto.** En la versión anterior de este documento el ⑥ mostrando evidencia
+iba segundo, y era caro porque había que parsear prosa. **Con `evidencia.json` los conteos ya están
+contados.** Es la misma tarea, después, y más barata: hacer una cosa en el orden correcto la volvió
+casi gratis.
+
+**Por qué el 5 se abarató.** §5③ se escribió como *"cablear los MCPs por arnés"*, que es la tarea más
+cara del documento. §6 la parte en dos: **garantizar el nivel 0** (barato, universal, `command -v`)
+y **avisar del nivel 1** (leer un config y no prometer más que eso). Sólo la segunda mitad es cara,
+y ya no es bloqueante.
 
 ---
 
-## 8. Lo que se decide NO hacer, y qué lo despertaría
+## 10. Lo que se decide NO hacer, y qué lo despertaría
 
 **No se aprieta más la compuerta del brief.** La que quedó ya atrapó el caso real. Exigirle más
 —N fuentes, fuentes distintas, que el veredicto "coincida" con el panorama— es **castigar al modelo
@@ -403,12 +644,27 @@ por algo que es culpa nuestra**: no le dimos la herramienta. Primero el ① y el
 corrida **no lo explotó**, y sin un caso real aflojar o apretar es adivinar. Lo que sí se puede
 hacer gratis: **arreglar el comentario**, que hoy dice *"y tenga cuerpo"* y es falso.
 
+**No se construye `sf buscar`.** El razonamiento entero está en §7: cerraría el agujero de la URL
+inventada, no rompe la regla de cero red en el enforcement, **y es superficie nueva grande sin un
+dato que la pida.**
+
+> **Umbral que lo despertaría:** una corrida con las herramientas puestas donde el brief cite una URL
+> que no existe.
+
+**No se trae el mapa de decisiones entero de wayfinder.** Se trae **el corte** (§5④), que es la parte
+que esta corrida justificó. El mapa —tickets, dependencias, frontera, "listo cuando no queda nada por
+decidir"— toca la forma de la máquina y arrastra un bucle nuevo sin dueño.
+
+> **Umbral que lo despertaría:** un tramo de T3 en adelante donde el problema sea *"no sabemos lo
+> suficiente para planificar"* y no *"planificamos mal"*. Son dolores distintos y hoy sólo se midió
+> el segundo.
+
 **No se implementa `--async` ni se toca el orquestador conversacional.** Sin cambios respecto de
 `por-tramos.md` §9.
 
 ---
 
-## 9. Cómo se sabrá que quedó bien
+## 11. Cómo se sabrá que quedó bien
 
 **Del ① y el ③, la prueba es la corrida de nuevo:**
 
@@ -423,8 +679,21 @@ cd ~/projects/workspace/personal/sf-banco && ./comparar.sh
 **Del ②:** que `sf next` en el ⑥ imprima el veredicto, el conteo y el diferenciador **sin que ningún
 modelo haya tenido que acordarse de hacerlo.**
 
-**Del ④:** que se pueda contestar *"el brief de f-X está por la mitad, falta resolver la decisión
-d-2"* mirando el estado, y no leyendo un Markdown.
+**Del nivel 0 (§6):** la prueba es la de arriba, y tiene una forma más exigente que conviene escribir
+porque distingue las dos hipótesis:
+
+```
+B cita fuentes           →  era la herramienta. Causa raíz confirmada y cerrada.
+B sigue sin citar nada   →  era el modelo. Recién ahí se sabe, y es otro problema.
+```
+
+**De `evidencia.json` (§7):** que la compuerta del brief **deje de tener un `grep`** en el camino
+principal, y que borrar la tabla del `## Panorama` del Markdown **no** cambie el veredicto de la
+compuerta. Si lo cambia, el JSON no es la fuente y el §7 quedó a medias.
+
+**Del corte del ② (§5④):** que un `sf next` pueda contestar *"el brief va por la mitad: la
+investigación está, falta el grill"*. Hoy `estado.json` sólo sabe `brief_sellado: ""`, que es lo
+mismo para *"no empecé"* y para *"me falta lo último"*.
 
 ---
 
