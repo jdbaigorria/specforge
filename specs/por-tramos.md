@@ -170,6 +170,8 @@ Y con eso, las preguntas se vuelven conteos:
 ¿se lanzó el subagente que sf pidió?
   → entre un `next` con via=subagente y el `done` siguiente, ¿hay una ficha
     de lanzamiento? ¿o el `context` vino del mismo pid?
+    ⚠ CORREGIDO 2026-09-05: la segunda mitad NO FUNCIONA — el pid mide
+      cómo cada arnés abre la terminal, no si delegó. Ver `el-arnes-ciego.md` §6
 
 ¿algún sello salió de una terminal?
   → contar `approve` por valor de `quien`
