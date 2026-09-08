@@ -141,7 +141,7 @@ solas al ponerlas después de otra.
 | 1 | `evidencia.json` + la compuerta lee JSON en vez de prosa | §7 | mediano |
 | 2 | el ② sale como paso propio, delegable | §5④ | mediano — **va con el 1, no sin él** |
 | 3 | `sf doctor` ve las herramientas | §5① | mediano |
-| 4 | el ⑥ muestra la evidencia | §5② | **casi gratis si el 1 está hecho** |
+| 4 | toda parada entrega un **acta** | §5② | **casi gratis si el 1 está hecho** — creció de alcance el 07-09 |
 | 5 | `sf install` garantiza el nivel 0 | §5③ | mediano — se abarató con §6 |
 | 6 | el mapa entero de wayfinder | §5④ | **no ahora** — necesita datos de T3+ |
 

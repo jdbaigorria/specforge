@@ -5,6 +5,10 @@
 > **Estado: UN ARREGLO HECHO, SEIS PROPUESTOS.** Sale de la primera corrida de T1 con dos modelos
 > y la misma idea semilla. **Todo lo de §1, §2, §6 y §8 está medido** — carpetas, registros y
 > salidas reales, no impresiones. Lo que es deducción está marcado como deducción.
+>
+> **Revisión del 2026-09-07:** §5② se amplió. Dejó de ser *"el ⑥ muestra la evidencia"* y pasó a ser
+> **el contrato del acta, para toda parada** — con la distinción **comprobar ≠ decidir** que la
+> explica. Lo que se agrega sobre el código está verificado leyéndolo, no supuesto.
 
 Este documento continúa a [`por-tramos.md`](por-tramos.md) —que pidió esta corrida y escribió el
 método— y a [`vecinos.md`](vecinos.md). Lo que agrega es **el resultado**: la primera vez que un
@@ -239,7 +243,11 @@ igual que `sf models`.
 
 ---
 
-### ② El ⑥ muestra la evidencia — Javier decide con datos
+### ② Toda parada entrega un **acta** — Javier decide con datos
+
+> **Ampliado el 2026-09-07.** Nació como *"el ⑥ muestra la evidencia"*. La conversación con Javier
+> lo generalizó: no es del ⑥ ni es de la evidencia, **es de toda parada**. El ⑥ queda como el
+> primer caso, no como el caso.
 
 **El dolor.** Esto es lo que la máquina le muestra hoy a Javier antes de que selle el producto
 entero (salida real):
@@ -257,22 +265,142 @@ El mensaje bueno —con `Proposed:`, `Evidence: retrieved N / model-prior M` y `
 existe, **pero en el skill**. O sea que depende de que el modelo se acuerde de imprimirlo. **Es §3
 otra vez.**
 
-**El contrato.** `sf` ya tiene el archivo en la mano cuando corre la compuerta. Que lo diga él:
+---
+
+#### La distinción que ordena todo esto: **comprobar ≠ decidir**
+
+Son dos trabajos, y v1 de SpecForge los hizo uno solo:
 
 ```
-🛑 ⑥ — el brief está. Lo sellás vos.
-   propone:        no-lo-hagas
-   evidencia:      13 fuentes citadas · 1 afirmación sin verificar
-   se diferencia:  <la línea que el brief ya escribe>
-
-   sf approve  ·  sf reject "motivo"
+comprobar   trabajo mecánico   →  la máquina, SIEMPRE, en todos los pasos, sin pedir permiso
+decidir     juicio             →  Javier, y SÓLO donde equivocarse sale caro
 ```
 
-**Por qué éste es el más barato de los cuatro.** Los tres datos ya están en `brief.md` y la
-compuerta ya lo abre para contar links. Es imprimir lo que ya se leyó.
+**El error de v1 no fue "el humano es la compuerta". Fue que el humano era la compuerta *y* el
+inspector.** Tenía que leer, contar, verificar *y además* decidir. Cuando alguien hace las cuatro
+cosas veinte veces por feature, la cuarta se convierte en apretar Enter sin mirar. Eso no es
+control: es la ceremonia del control.
 
-**El riesgo.** Que `sf` empiece a resumir el brief — no es su trabajo (R1). **Se imprimen tres
-campos y ninguno se interpreta.** Si el brief no trae diferenciador, se dice que no lo trae.
+**Un check después de implementar, una auditoría, una validación de seguridad — ésos no son
+decisiones.** Son cosas que se tienen que hacer. Pedir permiso para correrlas es gastar la atención
+de Javier en el único lugar donde no cambia nada.
+
+**Y el *dónde* ya está bien resuelto** (verificado en el código, no deducido):
+
+| Paso | ¿Para? | Dónde vive |
+|---|---|---|
+| ⑥ brief | **sí** | `done.go` → `terminarProducto` |
+| ⑦ PRD | no — pasa derecho | `done.go` |
+| ⑧ constitución | **sí** | `done.go` |
+| ⑨/⑩ backlog | **sí** (⏸ blanda: "visto") | `done.go` |
+| ⑰ plan | **sí** | `paradas.go` → `Aprobar`, `case estado.Planificacion` |
+| ⑱–⑳ lotes | no | `cerrarLote` |
+| ㉑㉒ revisión | **no — decide sola**: cuenta hallazgos abiertos y vuelve a implementar | `done.go` → `cerrarRevision` |
+| ㉓ cierre | **sí** (y recién ahí archiva, que es irreversible) | `paradas.go` → `Aprobar` |
+
+**Lo que falta no es dónde parar. Es qué mostrar cuando se para.**
+
+---
+
+#### El hallazgo: la compuerta le habla al que trabaja, no al que firma
+
+Está escrito en el código, arriba de `Resultado.Texto()`
+(`sf/internal/compuerta/compuerta.go`):
+
+> *Los ✓ no se listan: sólo importa lo que falta. Un veredicto que enumera todo lo que salió bien
+> es ruido, y el que lo lee tiene que buscar la ✗ entre quince ✓.*
+
+**Ese comentario tiene razón — para el subagente que tiene que arreglar algo. Y está equivocado —
+para Javier parado en una parada.** Un solo output, dos lectores con necesidades opuestas.
+
+Es la misma diferencia que un test: cuando corre en CI y falla querés la ✗ y nada más; cuando vas a
+firmar el release querés ver los 340 verdes. **Misma corrida, dos informes.**
+
+Y hoy el segundo informe **no se puede armar**: `Resultado` guarda `Fallas` y `Avisos`, y **los ✓ se
+tiran**. Cuando llega el momento de mostrárselos a Javier, el dato ya no existe.
+
+---
+
+#### El contrato
+
+**Tres bloques, y el tercero es el que hoy no existe en ninguna parte de la máquina.**
+
+```
+🛑 ⑥ brief — te toca a vos
+
+COMPROBÉ              ✓ existe .docs/brief.md
+                      ✓ veredicto válido: "hacelo"
+                      ✓ trae sección de fuentes
+
+MEDÍ                  1 retrieved · 8 model-prior · 0 links
+(cuento, no juzgo)
+
+NO PUEDO COMPROBAR    si 1 fuente alcanza para un "hacelo"
+                      si las 8 afirmaciones del modelo son ciertas
+
+  sf approve   ·   sf reject "por qué"
+```
+
+1. **`COMPROBÉ`** son los ✓ que hoy se tiran. Se guardan en `Resultado` y se imprimen sólo acá.
+2. **`MEDÍ`** son números crudos del artefacto. **Ninguno se interpreta** (R1): si el brief no trae
+   diferenciador, se dice que no lo trae — no se resume el brief.
+3. **`NO PUEDO COMPROBAR`** es la frontera: dónde termina lo que la máquina sabe y arranca lo que
+   sólo puede saber Javier. **Es el bloque que le da sentido a la parada.** Sin él, una parada donde
+   todo pasó parece un trámite; con él, es una pregunta concreta.
+
+**Y esto solo hubiera atajado el caso B de §1.** La compuerta no lo tenía que frenar —juzgar si una
+fuente alcanza es criterio, y R3 dice que una compuerta frena sobre hechos—, pero podía **ponerlo
+adelante en vez de esconderlo**. Javier leía `0 links · veredicto hacelo` y rechazaba en dos
+segundos. **La compuerta no reemplaza al humano: le da con qué.**
+
+---
+
+#### Los botones ya están, y son dos
+
+No hace falta un tercer verbo para "rehacer": **`sf reject` YA es rehacer.**
+
+```
+sf approve            sella y avanza                       paradas.go → Aprobar
+sf reject "motivo"    no sella, guarda el motivo,          paradas.go → Rechazar
+                      y el motivo viaja en el sobre de
+                      `sf context` al que rehace de cero
+```
+
+El motivo es obligatorio y no es decoración: el subagente que rehace **arranca en frío**, y sin el
+motivo vuelve a proponer lo mismo.
+
+---
+
+#### Un choque de nombres que hay que resolver antes de escribir código
+
+**`el sobre` ya está tomado**: es lo que `sf context` le sirve al **subagente**
+(`superficie-sf.md` H2, H13). Lo de acá va para el lado contrario.
+
+```
+el sobre   →  va al que TRABAJA   ·  lo sirve `sf context`
+el acta    →  va al que FIRMA     ·  lo imprime la parada
+```
+
+Se propone **`el acta`**.
+
+**Y `parte` tampoco sirve, aunque sea vocabulario del repo:** ya existe
+`type Parte struct` en `internal/sobre/sobre.go:77` — *"una sección del sobre"*. Chocaría adentro
+de la misma familia de conceptos. `acta` está libre: se verificó por palabra entera sobre todo el
+Go y no aparece.
+
+---
+
+**Por qué sigue siendo de los baratos.** Los datos ya están: la compuerta abre el artefacto y ya
+cuenta. Es guardar lo que ya se calculó y agregar una segunda salida al lado de `Texto()`. Toca un
+solo paquete.
+
+**El riesgo.** Que `sf` empiece a resumir el artefacto — no es su trabajo (R1). **Se imprimen campos
+y ninguno se interpreta.** Y el segundo riesgo, más callado: que `NO PUEDO COMPROBAR` se llene de
+todo lo imaginable y se vuelva ruido. **Va sólo lo que la compuerta rozó y no pudo cerrar.**
+
+**Los tests.** Tres desenlaces distinguibles desde afuera: una parada con todo en verde imprime los
+tres bloques; una compuerta que falla sigue imprimiendo sólo la ✗ (el lector es otro); y un
+artefacto sin el campo medible dice *"no lo trae"* y no cero.
 
 ---
 
@@ -606,7 +734,7 @@ reusa el mismo padre. **Eso es arquitectura del arnés, no delegación.**
    lee JSON en vez de prosa
 2  el ② sale como paso propio      §5④ · el corte. Va con el 1, no sin él
 3  sf doctor ve las herramientas   §5① · las dos columnas: `está` y `declarado`
-4  el ⑥ muestra la evidencia       §5② · sale casi gratis si el 1 está hecho
+4  toda parada entrega un acta     §5② · el ⑥ primero; sale casi gratis si el 1 está hecho
 5  sf install garantiza el nivel 0 §5③ · mucho más barato que "cablear los MCPs"
 6  el mapa entero de wayfinder     §5④ · sólo con datos de T3 en adelante
 ```
@@ -623,6 +751,12 @@ paradas de más ya hay una en discusión (la ⏸ del ⑨).
 iba segundo, y era caro porque había que parsear prosa. **Con `evidencia.json` los conteos ya están
 contados.** Es la misma tarea, después, y más barata: hacer una cosa en el orden correcto la volvió
 casi gratis.
+
+**Y el 4 creció de alcance sin encarecerse (2026-09-07).** Dejó de ser *"el ⑥ imprime tres campos"*
+y pasó a ser *"toda parada entrega un acta de tres bloques"*. El costo no cambió —los datos ya
+están contados y es una segunda salida al lado de `Texto()`— pero **lo que compra sí**: el bloque
+`NO PUEDO COMPROBAR` es hoy el único lugar de la máquina donde se dice dónde termina lo que ella
+sabe. Se implementa primero en el ⑥ y se extiende a las otras cuatro paradas.
 
 **Por qué el 5 se abarató.** §5③ se escribió como *"cablear los MCPs por arnés"*, que es la tarea más
 cara del documento. §6 la parte en dos: **garantizar el nivel 0** (barato, universal, `command -v`)
