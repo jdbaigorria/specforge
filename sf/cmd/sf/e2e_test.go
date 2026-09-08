@@ -262,9 +262,7 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 	p.dice(out, "vos", "el brief es un pinponeo: un subagente no te habla")
 
 	// ── ⑥ el brief ──────────────────────────────────────────────────────────
-	p.escribir(".docs/brief.md",
-		"---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n\n"+
-			"| suma-cli | lo mismo | no exporta | `retrieved` https://github.com/x/suma-cli |\n")
+	p.brief()
 	p.paso("el brief está y lo sella Javier", hayTrabajo, "done")
 	p.paso("hasta que no lo selle, no se pasa", esParada, "next")
 	p.paso("approve copia el veredicto que dice el archivo", hayTrabajo, "approve")
@@ -623,6 +621,25 @@ func TestElModeloDeJavierMandaEnLosCuatroEstados(t *testing.T) {
 
 // constitucion escribe la constitución CON EL CUERPO, o sea sin el marcador que
 // deja `sf init` — que es el checkpoint del ⑧.
+// brief deja los TRES archivos del ①–⑤, que es lo que el ⑥ exige desde el
+// 2026-09-07: el argumento, el registro de la entrevista y la evidencia.
+//
+// Están los tres y no uno porque la compuerta los mira a los tres: `abiertas: 0`
+// dice que la entrevista terminó, y el link vive en la evidencia, no en el
+// brief.
+func (p *proyecto) brief() {
+	p.t.Helper()
+	p.escribir(".docs/brief.md",
+		"---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n")
+	p.escribir(".docs/entrevista.md",
+		"---\nrondas: 2\npreguntas: 7\nabiertas: 0\n---\n"+
+			"# Ronda 1\n\n**Q1 — qué es**: un sumador. ✅\n")
+	p.escribir(".docs/evidencia.md",
+		"---\nretrieved: 1\nmodel_prior: 0\nlinks: 1\n---\n"+
+			"## ¿ya existe?\n\n- suma-cli hace lo mismo y no exporta. [retrieved]\n"+
+			"  - https://github.com/x/suma-cli\n")
+}
+
 func (p *proyecto) constitucion(testCmd string) {
 	p.t.Helper()
 	p.escribir(".docs/constitucion.md",
@@ -666,9 +683,7 @@ func (p *proyecto) productoListo() {
 	mustSf("install")
 	mustSf("init")
 	p.conPerfiles()
-	p.escribir(".docs/brief.md",
-		"---\nveredicto: hacelo\n---\n# Brief\nUn sumador.\n\n"+
-			"| suma-cli | lo mismo | no exporta | `retrieved` https://github.com/x/suma-cli |\n")
+	p.brief()
 	mustSf("approve")
 	p.escribir(".docs/prd.md", "# PRD\nSumar.\n")
 	mustSf("done")

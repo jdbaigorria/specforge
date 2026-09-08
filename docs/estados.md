@@ -35,8 +35,9 @@ Cada estado tiene cuatro cosas y las cuatro importan:
 ```
 skill    sfp-scout          via: vos          (el único que conversa)
 sobre    VACÍO — es un pinponeo, no una lectura
-produce  .docs/brief.md
-parada   🛑 el ⑥ · lo sellás vos
+produce  .docs/brief.md · .docs/entrevista.md · .docs/evidencia.md
+         (+ .docs/vocabulario.md, sólo si alguna palabra hizo falta definirla)
+parada   🛑 el ⑥ · lo sellás vos, y con un acta delante
 ```
 
 **Es el único `via: vos` del flujo, y hay motivo:** un subagente arranca, trabaja y muere — **no
@@ -45,9 +46,14 @@ te habla**. Los pasos ①–⑤ son una conversación donde la idea toma forma.
 **La compuerta:**
 
 ```
-✓ existe .docs/brief.md
-✓ trae un veredicto válido:  hacelo | pivotea | no-lo-hagas
+✓ existe .docs/brief.md, y trae un veredicto válido: hacelo | pivotea | no-lo-hagas
+✓ existe .docs/entrevista.md, y declara  abiertas: 0
+✓ existe .docs/evidencia.md, y cita al menos UNA fuente con link
+  ↳ salvo que declare `evidencia: baja`, que es una pasada degradada declarada a propósito
 ```
+
+Y como toda parada, **entrega un acta**: lo que comprobó, los números crudos que midió, y —el
+bloque que más importa— **lo que no pudo comprobar**.
 
 **No comprueba que el brief sea bueno** — eso es juicio, y el juicio es tuyo. Es la diferencia
 entre una compuerta y un juez.

@@ -3,6 +3,7 @@ package sobre
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -674,4 +675,57 @@ func TestElSobreDelNueveNoAgregaNadaEnLaPrimeraVuelta(t *testing.T) {
 	if texto := p.texto(); strings.Contains(texto, "Lo que hay que completar") {
 		t.Errorf("agregó la parte sin ninguna historia escrita:\n%s", texto)
 	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El vocabulario — nace en el ①–⑤ y lo hereda todo lo demás
+// ────────────────────────────────────────────────────────────────────────────
+
+// Va en TODOS los sobres, no en el del estado que lo escribió. Si no llegara a
+// los demás, sería un archivo que no lee nadie — y el punto de tenerlo es que
+// el ⑦, el ⑨ y el ⑱ usen las mismas palabras.
+func TestElVocabularioViajaEnTodosLosSobres(t *testing.T) {
+	p := nuevo(t).
+		archivo(".docs/brief.md", "---\nveredicto: hacelo\n---\n# b\n").
+		archivo(".docs/vocabulario.md", "---\nterminos: 1\n---\n## Corrida\nUna pasada entera.\n")
+
+	e := &estado.Estado{}
+	e.Producto.BriefSellado = "hacelo"
+
+	s, err := Armar(p.raiz, e, &roadmap.Roadmap{}, &global.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tieneRuta(s, ".docs/vocabulario.md") {
+		t.Errorf("el sobre del ⑦ no trae el vocabulario: %+v", s.Partes)
+	}
+}
+
+// Es PEREZOSO: no existe hasta que una palabra se tambalea, y su ausencia no es
+// una falta. Por eso no aparece ni con `Falta` — no hay nada que explicar.
+func TestSinVocabularioElSobreNoDiceNada(t *testing.T) {
+	p := nuevo(t).archivo(".docs/brief.md", "---\nveredicto: hacelo\n---\n# b\n")
+
+	e := &estado.Estado{}
+	e.Producto.BriefSellado = "hacelo"
+
+	s, err := Armar(p.raiz, e, &roadmap.Roadmap{}, &global.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, parte := range s.Partes {
+		if strings.Contains(parte.Titulo, "palabras") {
+			t.Errorf("no hay vocabulario y el sobre lo nombra igual: %+v", parte)
+		}
+	}
+}
+
+// tieneRuta dice si alguna parte del sobre sirve esa ruta.
+func tieneRuta(s *Sobre, ruta string) bool {
+	for _, p := range s.Partes {
+		if slices.Contains(p.Rutas, ruta) {
+			return true
+		}
+	}
+	return false
 }

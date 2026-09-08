@@ -56,6 +56,38 @@ import (
 )
 
 // Resultado es el veredicto de correr las compuertas de un estado.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// UN TEST NO TIENE DOS SALIDAS: TIENE TRES
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	✓  pasó              lo comprobé, salió bien
+//	✗  falló             lo comprobé, salió mal
+//	?  NO EVALUABLE      esto NO lo pude comprobar
+//
+// La tercera es la que faltaba, y es la que cambia decisiones. "No pude
+// comprobar si esto ya existe" no es un verde. UN VERDE QUE EN REALIDAD QUIERE
+// DECIR "NO MIRÉ" ES PEOR QUE UN ROJO, porque el que lo lee no tiene forma de
+// enterarse.
+//
+// La regla ya estaba escrita en este repo, en `lanzar/resumen.go`:
+//
+//	"LO QUE EL ARNÉS NO DA, NO ESTÁ. No va en cero, no va en false, no va."
+//
+// Estaba en el paquete equivocado. Acá está la misma idea para las compuertas.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// Y POR QUÉ APARECEN LOS ✓, QUE ANTES SE TIRABAN A PROPÓSITO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Porque son DOS LECTORES y hasta hoy había un solo texto:
+//
+//	el subagente que arregla   sólo necesita saber QUÉ FALTA   → Texto()
+//	Javier que firma           necesita ver la EVIDENCIA        → Acta()
+//
+// El comentario viejo de Texto() —"un veredicto que enumera todo lo que salió
+// bien es ruido"— sigue siendo cierto para el primero, y es exactamente falso
+// para el segundo.
 type Resultado struct {
 	// Fallas son los motivos por los que el estado NO se mueve.
 	Fallas []string
@@ -67,6 +99,31 @@ type Resultado struct {
 	// dijo dos veces que la última palabra es suya. Una herramienta que frena
 	// sola rompe esa regla.
 	Avisos []string
+
+	// Ok son las comprobaciones que SÍ se hicieron y salieron bien, con el
+	// hecho al lado. No las lee el subagente; las lee Javier en el acta.
+	Ok []string
+
+	// NoSeSabe es lo que quedó fuera del alcance de la máquina.
+	//
+	// NO frena: no poder comprobar algo no es lo mismo que comprobar que está
+	// mal. Frenar sobre lo que no se sabe sería opinar, y R3 lo prohíbe. Lo que
+	// sí hace es LLEGAR A LOS OJOS del que decide, que es todo el punto.
+	NoSeSabe []string
+
+	// Medido son los números crudos, sin interpretar.
+	//
+	// Existe porque el 2026-09-05 los números ESTABAN —17 retrieved, 13 links
+	// contra 1 y 0— y no llegaban a ninguna parte. Un número crudo al lado de
+	// una decisión cambia la decisión; el mismo número adentro de una prosa no.
+	Medido []Medida
+}
+
+// Medida es un número crudo con su nombre. Sin unidades mágicas ni formato:
+// lo que se guarda es lo que se imprime.
+type Medida struct {
+	Que    string
+	Cuanto string
 }
 
 // Pasa dice si el estado puede moverse.
@@ -80,11 +137,34 @@ func (r *Resultado) avisa(formato string, args ...any) {
 	r.Avisos = append(r.Avisos, fmt.Sprintf(formato, args...))
 }
 
-// Texto arma el veredicto para que lo lea el que trabajó.
+// ok anota una comprobación que salió bien, con el hecho al lado.
+func (r *Resultado) ok(formato string, args ...any) {
+	r.Ok = append(r.Ok, fmt.Sprintf(formato, args...))
+}
+
+// noSeSabe anota algo que la máquina NO pudo comprobar.
+//
+// Se usa donde la respuesta honesta es "no sé", no donde es "no". La diferencia
+// no es de matiz: "no encontré competidores" y "no pude buscar competidores"
+// llevan a decisiones opuestas.
+func (r *Resultado) noSeSabe(formato string, args ...any) {
+	r.NoSeSabe = append(r.NoSeSabe, fmt.Sprintf(formato, args...))
+}
+
+// mide anota un número crudo para el acta.
+func (r *Resultado) mide(que, cuanto string) {
+	r.Medido = append(r.Medido, Medida{Que: que, Cuanto: cuanto})
+}
+
+// Texto arma el veredicto PARA EL QUE TRABAJÓ — un subagente que va a arreglar
+// lo que falta y nada más.
 //
 // Los ✓ no se listan: sólo importa lo que falta. Un veredicto que enumera todo
 // lo que salió bien es ruido, y el que lo lee tiene que buscar la ✗ entre
 // quince ✓.
+//
+// Ese razonamiento es correcto PARA ESTE LECTOR. Para el otro —Javier, en una
+// parada, decidiendo— es exactamente al revés, y por eso existe Acta().
 func (r Resultado) Texto() string {
 	var b strings.Builder
 	for _, a := range r.Avisos {
@@ -101,6 +181,73 @@ func (r Resultado) Texto() string {
 	return b.String()
 }
 
+// Acta arma el informe PARA EL QUE FIRMA.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// COMPROBAR ≠ DECIDIR
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	comprobar   trabajo mecánico   →  la máquina, SIEMPRE, sin pedir permiso
+//	decidir     juicio             →  Javier, y SÓLO donde hay algo que elegir
+//
+// El error de la v1 no fue poner al humano de compuerta: fue ponerlo de
+// compuerta Y DE INSPECTOR. Tenía que leer, contar, verificar y ADEMÁS decidir,
+// veinte veces por feature — y la cuarta ya es apretar Enter sin mirar.
+//
+// El acta separa los dos trabajos: la máquina comprueba y entrega la evidencia;
+// el humano no valida, LEE Y DECIDE. Es el reporte de una corrida de tests, no
+// un formulario de aprobación.
+//
+// Los tres bloques van SIEMPRE, incluso vacíos con su "—": un acta a la que le
+// falta el bloque "no pude comprobar" se lee como si no hubiera nada que no se
+// pudiera comprobar, y eso es justo lo que no se quiere decir.
+func (r Resultado) Acta() string {
+	var b strings.Builder
+
+	bloque := func(titulo, marca string, lineas []string) {
+		fmt.Fprintf(&b, "%s\n", titulo)
+		if len(lineas) == 0 {
+			b.WriteString("  —\n")
+		}
+		for _, l := range lineas {
+			fmt.Fprintf(&b, "  %s %s\n", marca, l)
+		}
+		b.WriteString("\n")
+	}
+
+	bloque("COMPROBÉ", "✓", r.Ok)
+
+	fmt.Fprintf(&b, "MEDÍ\n")
+	if len(r.Medido) == 0 {
+		b.WriteString("  —\n")
+	}
+	ancho := 0
+	for _, m := range r.Medido {
+		if len(m.Que) > ancho {
+			ancho = len(m.Que)
+		}
+	}
+	for _, m := range r.Medido {
+		fmt.Fprintf(&b, "  %-*s  %s\n", ancho, m.Que, m.Cuanto)
+	}
+	b.WriteString("\n")
+
+	bloque("NO PUEDO COMPROBAR", "?", r.NoSeSabe)
+
+	if len(r.Avisos) > 0 {
+		bloque("OJO", "⚠", r.Avisos)
+	}
+
+	// Las fallas no deberían llegar acá —el acta se imprime en una parada, y a
+	// una parada se llega con la compuerta en verde— pero si llegan, se
+	// muestran. Un acta que esconde una falla es peor que no tener acta.
+	if !r.Pasa() {
+		bloque("NO AVANZO", "✗", r.Fallas)
+	}
+
+	return b.String()
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Los cinco de producto
 // ────────────────────────────────────────────────────────────────────────────
@@ -108,13 +255,25 @@ func (r Resultado) Texto() string {
 // Brief comprueba que el ⑥ tenga qué sellar.
 //
 // No comprueba que el brief sea BUENO —eso es juicio y es de Javier— sino que
-// exista y traiga un veredicto. Es la diferencia entre una compuerta y un juez.
+// el ①–⑤ dejó lo que tenía que dejar. Es la diferencia entre una compuerta y un
+// juez.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// TRES ARCHIVOS, NO UNO — Y POR QUÉ
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	brief.md        el ARGUMENTO       veredicto           envejece cada vuelta
+//	entrevista.md   el RAZONAMIENTO    abiertas: 0         se relee después
+//	evidencia.md    el HECHO           links con http      se acumula
+//
+// Hasta el 2026-09-07 esto era un archivo y un `grep` de "http" sobre él. El
+// grep funcionaba —cero links es cero links— y no se podía extender: "¿la
+// entrevista terminó?" no se contesta grepeando prosa.
 func Brief(raiz string) Resultado {
 	var r Resultado
 
 	var fm struct {
 		Veredicto string `yaml:"veredicto"`
-		Evidencia string `yaml:"evidencia"`
 	}
 	if !leerCabecera(raiz, docs.Brief, &fm, &r) {
 		return r
@@ -125,82 +284,160 @@ func Brief(raiz string) Resultado {
 	validos := []string{"hacelo", "pivotea", "no-lo-hagas"}
 	if !slices.Contains(validos, fm.Veredicto) {
 		r.falla("el brief no trae veredicto (%s)", strings.Join(validos, " | "))
+	} else {
+		r.ok("el brief propone un veredicto: %s", fm.Veredicto)
+		r.mide("veredicto", fm.Veredicto)
 	}
 
-	// ────────────────────────────────────────────────────────────────────
-	// UN VEREDICTO SIN UNA SOLA FUENTE NO SELLA
-	// ────────────────────────────────────────────────────────────────────
-	//
-	// MEDIDO EL 2026-09-05, primera corrida real de T1 con dos modelos y la
-	// misma idea semilla, palabra por palabra:
-	//
-	//	A (claude-code)  no-lo-hagas   17 retrieved · 1 model-prior · 13 links
-	//	B (nemotron)     hacelo         1 retrieved · 8 model-prior ·  0 links
-	//
-	// Veredictos OPUESTOS, y esta compuerta aceptó los dos: hasta hoy sólo
-	// miraba que el veredicto fuera uno de los tres. A frenó el producto; B
-	// siguió y escribió un PRD entero para algo que A concluyó que no había
-	// que construir.
-	//
-	// Y el detalle que decide el diseño: B NO MINTIÓ. Marcó cada afirmación
-	// como `model-prior — unverified`, que es exactamente lo que el skill le
-	// pide. El skill hizo su trabajo. La que exigía de menos era la compuerta.
-	//
-	// POR QUÉ SE CUENTAN LINKS Y NO LA PALABRA `retrieved`
-	//
-	// `retrieved` es una palabra que el modelo tipea; puede tipearla sin haber
-	// recuperado nada. Un link tampoco prueba que la fuente exista —se puede
-	// alucinar una URL— pero CERO links sí prueba algo, y es lo único que hace
-	// falta: un modelo que inventa competidores de memoria no tiene links que
-	// escribir, porque no los tiene. Es un hecho sobre bytes, no una opinión
-	// sobre calidad, y por eso lo puede afirmar una compuerta (R3).
-	//
-	// POR QUÉ EL UMBRAL ES UNO Y NO ES UN NÚMERO MÁGICO
-	//
-	// Cero es una categoría —"no investigó"—. Cualquier número mayor es un
-	// juicio sobre CUÁNTO alcanza, y el juicio es de Javier. Uno es el borde
-	// entre nada y algo, que es la única línea que una compuerta puede trazar
-	// sin opinar.
-	//
-	// LA SALIDA, QUE YA ESTABA DISEÑADA
-	//
-	// El skill ya contempla la corrida degradada: sin los MCPs de
-	// investigación, con consentimiento explícito, todo queda `model-prior` y
-	// el brief se marca de baja evidencia. `evidencia: baja` es esa marca, y
-	// tiene que ser DELIBERADA — declarar que no se investigó cuesta escribir
-	// una línea a propósito, que es justo lo que se quiere que cueste.
-	//
-	// LO QUE ESTO NO COMPRA, DICHO ANTES DE QUE ALGUIEN LO CREA
-	//
-	// No prueba que las fuentes sean reales, ni que el modelo las haya
-	// visitado, ni que la investigación sea buena. Cierra el agujero de CERO
-	// evidencia. El de POCA evidencia es juicio, y el juicio es del ⑥.
-	if fm.Evidencia != "baja" && !citaAlgunaFuente(raiz) {
-		r.falla("el brief no cita una sola fuente, y sellar un veredicto sin evidencia " +
-			"es lo único que ningún paso posterior puede corregir.\n" +
-			"→ volvé al ② y citá lo que encontraste, cada afirmación con su link.\n" +
-			"  Si de verdad no se pudo investigar, se declara: `evidencia: baja`.")
-	}
-	if fm.Evidencia == "baja" {
-		r.avisa("el brief está declarado de BAJA EVIDENCIA: el veredicto %q no se apoya "+
-			"en investigación verificada.", fm.Veredicto)
-	}
+	revisarEntrevista(raiz, &r)
+	revisarEvidencia(raiz, &r)
+
+	// Va SIEMPRE, pase o no pase, y no es una disculpa: es el límite del
+	// diseño. Una compuerta no sale a la red y no llama a un modelo (R3), así
+	// que puede contar links y no puede visitarlos. Decirlo en cada acta es lo
+	// que evita que "13 links" se lea como "13 fuentes verificadas".
+	r.noSeSabe("si las fuentes citadas existen de verdad: la compuerta las CUENTA, no las visita")
+
 	return r
 }
 
-// citaAlgunaFuente contesta si el brief tiene al menos un link.
+// revisarEntrevista mira el registro del ①–⑤.
 //
-// Se busca sobre el archivo entero y no sólo sobre el cuerpo: un link es un
-// link, esté donde esté, y partir el archivo agregaría un parser para no ganar
-// nada. Que no se pueda leer se trata como que no cita — llegar acá con el
-// archivo ilegible es imposible (`leerCabecera` ya lo abrió), y si pasara, el
-// lado seguro es frenar.
-func citaAlgunaFuente(raiz string) bool {
-	b, err := os.ReadFile(filepath.Join(raiz, docs.Brief))
-	if err != nil {
-		return false
+// ────────────────────────────────────────────────────────────────────────────
+// `abiertas` AUSENTE NO ES `abiertas: 0`
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Por eso es un puntero. Con un `int` pelado, un modelo que no escribe el campo
+// obtiene un cero, y el cero es justo el valor que deja pasar. O sea: olvidarse
+// del campo sería MÁS FÁCIL que cerrar la entrevista, y la compuerta estaría
+// premiando el olvido.
+//
+// Es la misma regla que `lanzar/resumen.go`: lo que no está, no está.
+func revisarEntrevista(raiz string, r *Resultado) {
+	var fm struct {
+		Rondas    *int `yaml:"rondas"`
+		Preguntas *int `yaml:"preguntas"`
+		Abiertas  *int `yaml:"abiertas"`
 	}
-	return bytes.Contains(b, []byte("http://")) || bytes.Contains(b, []byte("https://"))
+	if !leerCabecera(raiz, docs.Entrevista, &fm, r) {
+		return
+	}
+
+	if fm.Rondas != nil {
+		r.mide("rondas", fmt.Sprint(*fm.Rondas))
+	}
+	if fm.Preguntas != nil {
+		r.mide("preguntas", fmt.Sprint(*fm.Preguntas))
+	}
+
+	switch {
+	case fm.Abiertas == nil:
+		r.falla("%s no declara `abiertas` en el frontmatter, así que no se puede saber "+
+			"si la entrevista terminó.\n"+
+			"→ el ①–⑤ cierra cuando la frontera queda vacía: escribí `abiertas: 0`.\n"+
+			"  Si quedaron ramas sin visitar, ponelas y NO sellés: un brief sobre huecos "+
+			"es un PRD sobre huecos.", docs.Entrevista)
+	case *fm.Abiertas > 0:
+		r.mide("preguntas abiertas", fmt.Sprint(*fm.Abiertas))
+		r.falla("la entrevista cerró con %d pregunta(s) abierta(s).\n"+
+			"→ volvé al ①–⑤ y visitá esas ramas, o bajá el alcance del brief "+
+			"hasta que no dependa de ellas.", *fm.Abiertas)
+	default:
+		r.mide("preguntas abiertas", "0")
+		r.ok("la entrevista cerró con la frontera vacía")
+	}
+}
+
+// revisarEvidencia mira lo que se encontró, y cuenta los links de verdad.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// EL FRONTMATTER DECLARA; EL CUERPO ES EL HECHO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `links: 13` es una línea que el modelo tipea. Trece "https://" en el cuerpo
+// son trece bytes que están o no están. La compuerta frena sobre el segundo y
+// AVISA cuando el primero no coincide — porque un número declarado que no cierra
+// con lo que hay es exactamente la clase de cosa que alguien quiere ver antes de
+// firmar, y no es motivo para frenar a nadie.
+//
+// POR QUÉ EL UMBRAL ES UNO Y NO ES UN NÚMERO MÁGICO
+//
+// Cero es una categoría —"no investigó"—. Cualquier número mayor es un juicio
+// sobre CUÁNTO alcanza, y el juicio es de Javier. Uno es el borde entre nada y
+// algo, que es la única línea que una compuerta puede trazar sin opinar.
+//
+// MEDIDO EL 2026-09-05, y es la razón de que esto exista:
+//
+//	A (claude-code)  no-lo-hagas   17 retrieved · 1 model-prior · 13 links
+//	B (nemotron)     hacelo         1 retrieved · 8 model-prior ·  0 links
+//
+// Veredictos OPUESTOS, y la compuerta aceptó los dos. Y el detalle que decide
+// el diseño: B NO MINTIÓ. Marcó cada afirmación como `model-prior — unverified`,
+// que es exactamente lo que el skill le pide. El skill hizo su trabajo. La que
+// exigía de menos era la compuerta.
+func revisarEvidencia(raiz string, r *Resultado) {
+	var fm struct {
+		Retrieved  *int   `yaml:"retrieved"`
+		ModelPrior *int   `yaml:"model_prior"`
+		Probado    *int   `yaml:"probado"`
+		Links      *int   `yaml:"links"`
+		Evidencia  string `yaml:"evidencia"`
+	}
+	cuerpo, err := frontmatter.DeArchivo(filepath.Join(raiz, docs.Evidencia), &fm)
+	if err != nil {
+		if os.IsNotExist(err) {
+			r.falla("falta %s.\n"+
+				"→ el ①–⑤ deja lo que encontró en su propio archivo, con procedencia por "+
+				"afirmación: `retrieved` con link, `model-prior` sin verificar, `probado` "+
+				"si lo construiste y lo viste.", docs.Evidencia)
+		} else {
+			r.falla("%s: %v", docs.Evidencia, err)
+		}
+		return
+	}
+
+	for _, m := range []struct {
+		que string
+		val *int
+	}{
+		{"retrieved", fm.Retrieved},
+		{"model-prior", fm.ModelPrior},
+		{"probado", fm.Probado},
+	} {
+		if m.val != nil {
+			r.mide(m.que, fmt.Sprint(*m.val))
+		}
+	}
+
+	reales := bytes.Count(cuerpo, []byte("http://")) + bytes.Count(cuerpo, []byte("https://"))
+	r.mide("links en el cuerpo", fmt.Sprint(reales))
+	if fm.Links != nil && *fm.Links != reales {
+		r.avisa("%s declara `links: %d` y en el cuerpo hay %d.", docs.Evidencia, *fm.Links, reales)
+	}
+
+	// LA SALIDA, QUE YA ESTABA DISEÑADA
+	//
+	// El skill contempla la corrida degradada: sin herramientas de
+	// investigación, con consentimiento explícito, todo queda `model-prior` y
+	// la evidencia se marca de baja. Tiene que ser DELIBERADA — declarar que no
+	// se investigó cuesta escribir una línea a propósito, que es justo lo que
+	// se quiere que cueste.
+	if fm.Evidencia == "baja" {
+		r.avisa("la evidencia está declarada BAJA: el veredicto no se apoya en investigación " +
+			"verificada.")
+		r.noSeSabe("el panorama real: se declaró una corrida degradada y no se investigó")
+		return
+	}
+
+	if reales == 0 {
+		r.falla("%s no cita una sola fuente, y sellar un veredicto sin evidencia "+
+			"es lo único que ningún paso posterior puede corregir.\n"+
+			"→ empezá por el nivel 0, que no necesita ninguna llave: los registries "+
+			"(npm, PyPI, crates.io), la API pública de GitHub y `curl`.\n"+
+			"  Si de verdad no se pudo investigar, se declara: `evidencia: baja`.", docs.Evidencia)
+		return
+	}
+	r.ok("la evidencia cita %d fuente(s) con link", reales)
 }
 
 // PRD comprueba que exista y tenga cuerpo.

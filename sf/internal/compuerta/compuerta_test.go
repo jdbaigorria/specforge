@@ -66,19 +66,29 @@ func exige(t *testing.T, r Resultado, pedazo string) {
 // Producto
 // ────────────────────────────────────────────────────────────────────────────
 
+// briefCompleto deja el ①–⑤ tal como tiene que quedar: los tres archivos, la
+// entrevista cerrada y una fuente con link. Cada test después rompe UNA cosa.
+func (p *proyecto) briefCompleto(veredicto string) *proyecto {
+	return p.
+		archivo(".docs/brief.md", "---\nveredicto: "+veredicto+"\n---\n# la idea\n").
+		archivo(".docs/entrevista.md", "---\nrondas: 2\npreguntas: 9\nabiertas: 0\n---\n# rondas\n").
+		archivo(".docs/evidencia.md",
+			"---\nretrieved: 1\nmodel_prior: 0\nlinks: 1\n---\n"+
+				"- ya existe. [retrieved]\n  - https://registry.npmjs.org/-/v1/search?text=x\n")
+}
+
 // El brief tiene que traer veredicto — y "no-lo-hagas" es tan válido como los
 // otros dos: el valor del ⑥ es poder decir que no.
 func TestBriefExigeVeredicto(t *testing.T) {
 	exige(t, Brief(nuevo(t).raiz), "falta")
 
-	p := nuevo(t).archivo(".docs/brief.md", "---\ntipo: brief\n---\n# sin veredicto\n")
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/brief.md", "---\ntipo: brief\n---\n# sin veredicto\n")
 	exige(t, Brief(p.raiz), "veredicto")
 
 	for _, v := range []string{"hacelo", "pivotea", "no-lo-hagas"} {
-		p := nuevo(t).archivo(".docs/brief.md",
-			"---\nveredicto: "+v+"\n---\n# ok\n\n`retrieved` https://github.com/x/y\n")
-		if !Brief(p.raiz).Pasa() {
-			t.Errorf("el veredicto %q no pasó", v)
+		if r := Brief(nuevo(t).briefCompleto(v).raiz); !r.Pasa() {
+			t.Errorf("el veredicto %q no pasó: %v", v, r.Fallas)
 		}
 	}
 }
@@ -91,26 +101,30 @@ func TestBriefExigeVeredicto(t *testing.T) {
 // alucinación más cara del ⑥ es sellar `no-lo-hagas` por algo que no existe.
 func TestBriefRechazaVeredictoSinUnaSolaFuente(t *testing.T) {
 	for _, v := range []string{"hacelo", "pivotea", "no-lo-hagas"} {
-		p := nuevo(t).archivo(".docs/brief.md",
-			"---\nveredicto: "+v+"\n---\n# el panorama\n\n"+
-				"| ccusage | lo mismo | nada | `model-prior` sin verificar |\n")
+		p := nuevo(t).briefCompleto(v).
+			archivo(".docs/evidencia.md", "---\nretrieved: 0\nmodel_prior: 8\n---\n"+
+				"- ccusage hace lo mismo. [model-prior — sin verificar]\n")
 		exige(t, Brief(p.raiz), "no cita una sola fuente")
 	}
 }
 
-// La salida ya estaba diseñada en el skill: sin los MCPs de investigación, con
-// consentimiento explícito, corre una pasada degradada y el brief queda marcado.
-// Pasa, pero NO en silencio.
+// La salida ya estaba diseñada en el skill: sin herramientas de investigación,
+// con consentimiento explícito, corre una pasada degradada y la evidencia queda
+// marcada. Pasa, pero NO en silencio — y además deja dicho que el panorama real
+// no se pudo comprobar, que es la tercera salida.
 func TestBriefAceptaLaBajaEvidenciaDeclarada(t *testing.T) {
-	p := nuevo(t).archivo(".docs/brief.md",
-		"---\nveredicto: hacelo\nevidencia: baja\n---\n# sin un solo link\n")
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md", "---\nevidencia: baja\n---\n# sin un solo link\n")
 
 	r := Brief(p.raiz)
 	if !r.Pasa() {
 		t.Fatalf("con `evidencia: baja` tiene que pasar: %v", r.Fallas)
 	}
-	if !strings.Contains(strings.Join(r.Avisos, ""), "BAJA EVIDENCIA") {
+	if !strings.Contains(strings.Join(r.Avisos, ""), "BAJA") {
 		t.Errorf("tiene que avisar que la evidencia es baja: %v", r.Avisos)
+	}
+	if !strings.Contains(strings.Join(r.NoSeSabe, ""), "panorama") {
+		t.Errorf("una pasada degradada deja el panorama SIN COMPROBAR: %v", r.NoSeSabe)
 	}
 }
 
@@ -118,14 +132,119 @@ func TestBriefAceptaLaBajaEvidenciaDeclarada(t *testing.T) {
 // viva en la tabla de procedencia. Es un hecho sobre bytes.
 func TestBriefCuentaLinksEnCualquierParte(t *testing.T) {
 	for _, cuerpo := range []string{
-		"# ok\n\nver http://example.com\n",
-		"# ok\n\n[la fuente](https://example.com)\n",
-		"# ok\n\n> https://news.ycombinator.com/item?id=1\n",
+		"ver http://example.com\n",
+		"[la fuente](https://example.com)\n",
+		"> https://news.ycombinator.com/item?id=1\n",
 	} {
-		p := nuevo(t).archivo(".docs/brief.md", "---\nveredicto: hacelo\n---\n"+cuerpo)
+		p := nuevo(t).briefCompleto("hacelo").
+			archivo(".docs/evidencia.md", "---\nretrieved: 1\n---\n"+cuerpo)
 		if !Brief(p.raiz).Pasa() {
 			t.Errorf("no encontró el link en %q", cuerpo)
 		}
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// La entrevista — el ①–⑤ deja registro, y el registro se cuenta
+// ────────────────────────────────────────────────────────────────────────────
+
+// El corte del grilling es "la frontera quedó vacía". Eso es un número, y un
+// número se comprueba: una entrevista con ramas sin visitar es un brief
+// construido sobre huecos, y el hueco no se ve tres estados después.
+func TestBriefRechazaLaEntrevistaConRamasAbiertas(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/entrevista.md", "---\nrondas: 1\npreguntas: 4\nabiertas: 3\n---\n# a medias\n")
+	exige(t, Brief(p.raiz), "3 pregunta(s) abierta(s)")
+}
+
+// LA TRAMPA QUE ESTE TEST CUIDA: con un `int` pelado, no escribir el campo da
+// cero, y cero es justo el valor que pasa. Olvidarse sería MÁS BARATO que
+// cerrar la entrevista. Por eso el campo es un puntero y ausente no es cero.
+func TestBriefNoConfundeAbiertasAusenteConCero(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/entrevista.md", "---\nrondas: 2\n---\n# sin declarar abiertas\n")
+	exige(t, Brief(p.raiz), "no declara `abiertas`")
+}
+
+// Los tres archivos son obligatorios, y la falla tiene que NOMBRAR el que falta:
+// el que la lee es un modelo que tiene que saber qué escribir.
+func TestBriefExigeLosTresArchivos(t *testing.T) {
+	completo := nuevo(t).briefCompleto("hacelo")
+	if !Brief(completo.raiz).Pasa() {
+		t.Fatalf("el brief completo tiene que pasar: %v", Brief(completo.raiz).Fallas)
+	}
+
+	for _, falta := range []string{".docs/entrevista.md", ".docs/evidencia.md"} {
+		p := nuevo(t).briefCompleto("hacelo")
+		if err := os.Remove(filepath.Join(p.raiz, falta)); err != nil {
+			t.Fatal(err)
+		}
+		exige(t, Brief(p.raiz), falta)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Las tres salidas — y los dos lectores
+// ────────────────────────────────────────────────────────────────────────────
+
+// El frontmatter DECLARA y el cuerpo es el HECHO. Declarar trece links y no
+// tener ninguno no frena —frenar sobre eso sería opinar sobre prolijidad— pero
+// tiene que llegar a los ojos del que firma.
+func TestBriefAvisaCuandoElConteoDeclaradoNoCierra(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md", "---\nretrieved: 13\nlinks: 13\n---\n"+
+			"- una sola. [retrieved]\n  - https://example.com\n")
+
+	r := Brief(p.raiz)
+	if !r.Pasa() {
+		t.Fatalf("un conteo que no cierra AVISA, no frena: %v", r.Fallas)
+	}
+	if !strings.Contains(strings.Join(r.Avisos, ""), "`links: 13`") {
+		t.Errorf("tiene que avisar que el declarado no cierra: %v", r.Avisos)
+	}
+}
+
+// Lo que la compuerta NO puede comprobar tiene que decirlo SIEMPRE, y con estas
+// palabras: sin esto, "13 links" se lee como "13 fuentes verificadas". Una
+// compuerta no sale a la red (R3), así que cuenta y no visita.
+func TestBriefDiceSiempreQueNoVerificaLosLinks(t *testing.T) {
+	r := Brief(nuevo(t).briefCompleto("hacelo").raiz)
+	if !strings.Contains(strings.Join(r.NoSeSabe, ""), "CUENTA, no las visita") {
+		t.Errorf("el límite se declara en toda acta: %v", r.NoSeSabe)
+	}
+}
+
+// Dos lectores, dos textos. El subagente que arregla sólo quiere lo que falta;
+// Javier que firma quiere la evidencia. El mismo Resultado los sirve a los dos.
+func TestTextoYActaSonParaLectoresDistintos(t *testing.T) {
+	r := Brief(nuevo(t).briefCompleto("hacelo").raiz)
+
+	if strings.Contains(r.Texto(), "COMPROBÉ") {
+		t.Errorf("el texto del subagente no lleva los ✓:\n%s", r.Texto())
+	}
+
+	acta := r.Acta()
+	for _, bloque := range []string{"COMPROBÉ", "MEDÍ", "NO PUEDO COMPROBAR"} {
+		if !strings.Contains(acta, bloque) {
+			t.Errorf("el acta no trae el bloque %q:\n%s", bloque, acta)
+		}
+	}
+	if !strings.Contains(acta, "veredicto") {
+		t.Errorf("el acta tiene que traer los números medidos:\n%s", acta)
+	}
+}
+
+// Los tres bloques van SIEMPRE, aunque estén vacíos: un acta sin el bloque "no
+// pude comprobar" se lee como si no hubiera nada que no se pudiera comprobar.
+func TestElActaNoEsconderLosBloquesVacios(t *testing.T) {
+	acta := Resultado{}.Acta()
+	for _, bloque := range []string{"COMPROBÉ", "MEDÍ", "NO PUEDO COMPROBAR"} {
+		if !strings.Contains(acta, bloque) {
+			t.Errorf("falta el bloque %q en un acta vacía:\n%s", bloque, acta)
+		}
+	}
+	if strings.Count(acta, "—") < 3 {
+		t.Errorf("los bloques vacíos se marcan con —:\n%s", acta)
 	}
 }
 

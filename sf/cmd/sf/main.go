@@ -309,7 +309,22 @@ func terminar(args []string) int {
 		}
 	}
 
-	fmt.Print(c.Texto())
+	// ────────────────────────────────────────────────────────────────────
+	// DOS LECTORES, Y LA DIFERENCIA ES MECÁNICA
+	// ────────────────────────────────────────────────────────────────────
+	//
+	//	pasó y NO movió   es una PARADA        la lee Javier    → Acta()
+	//	pasó y movió      la máquina sigue     la lee el orq.   → Texto()
+	//	no pasó           hay que arreglar     la lee el subag. → Texto()
+	//
+	// No hace falta preguntar en qué paso estamos: un `done` que pasa y deja
+	// el estado quieto es, por definición, la máquina esperando una decisión
+	// que no puede tomar. Ahí es donde el acta vale, y sólo ahí.
+	if c.Pasa() && !c.Movio {
+		fmt.Print(c.Acta())
+	} else {
+		fmt.Print(c.Texto())
+	}
 	if c.Mensaje != "" {
 		fmt.Println("→ " + c.Mensaje)
 	}

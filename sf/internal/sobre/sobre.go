@@ -127,12 +127,46 @@ func Armar(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Config) 
 	if err != nil {
 		return nil, err
 	}
+	// El vocabulario va antes del material de trabajo: las palabras se leen
+	// primero. Después del rechazo, que sigue siendo lo primero de todo.
+	if p, hay := vocabulario(raiz); hay {
+		s.Partes = append([]Parte{p}, s.Partes...)
+	}
 	// El motivo del rechazo se antepone a lo que sea que traiga el sobre: da
 	// igual el estado, si algo se rechazó eso va arriba de todo.
 	if p, hay := rechazo(motivoDeRechazo(e)); hay {
 		s.Partes = append([]Parte{p}, s.Partes...)
 	}
 	return s, nil
+}
+
+// vocabulario sirve el glosario del negocio, si existe.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// VA EN TODOS LOS SOBRES, Y ES EL ÚNICO QUE PUEDE FALTAR SIN SER UNA FALTA
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Nace en el ①–⑤, cuando una palabra se tambalea, y de ahí en adelante lo lee
+// todo el mundo: el que escribe el PRD, el que corta las historias, el que
+// implementa. Ése es el punto — el vocabulario se construye UNA vez y los demás
+// estados lo heredan en vez de reinventar las palabras.
+//
+// Se sirve acá y no caso por caso a propósito. Cada rama de deProducto y
+// deFeature enumera sus rutas a mano, así que agregarlo ahí serían once lugares
+// donde olvidarse, y olvidarse no daría error: daría un estado que usa otra
+// palabra para la misma cosa, tres estados después.
+//
+// Y es PEREZOSO: no existe hasta que haga falta. Su ausencia no es una falta,
+// así que NO lleva `Falta` — a diferencia del diff de git, que cuando no está
+// hay que explicarlo. Acá no hay nada que explicar: no hizo falta.
+func vocabulario(raiz string) (Parte, bool) {
+	if _, err := os.Stat(filepath.Join(raiz, docs.Vocabulario)); err != nil {
+		return Parte{}, false
+	}
+	return Parte{
+		Titulo: "Las palabras de este proyecto",
+		Rutas:  []string{docs.Vocabulario},
+	}, true
 }
 
 // motivoDeRechazo busca el rechazo que corresponde al estado actual.

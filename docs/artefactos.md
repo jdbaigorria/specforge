@@ -6,7 +6,10 @@ Qué archivos existen, dónde viven, y qué forma tienen.
 <tu proyecto>/
   CLAUDE.md · AGENTS.md            el orquestador — el mismo texto
   .docs/
-    brief.md                       ①  la idea, con su veredicto
+    brief.md                       ⑤  el ARGUMENTO, con su veredicto
+    entrevista.md                  ①–⑤ las rondas tal cual pasaron
+    evidencia.md                   ①–⑤ lo que se encontró, con procedencia
+    vocabulario.md                 ·  las palabras del negocio — PEREZOSO: sólo si hizo falta
     prd.md                         ⑦  qué hay que poder hacer
     constitucion.md                ⑧  las reglas — la lee TODO el mundo
     estado.json                    ·  dónde estás. LO ESCRIBE SÓLO sf
@@ -56,27 +59,104 @@ trabaja creería que no hacía falta.
 
 # Los de producto
 
-## `brief.md`
+## Los tres del ①–⑤ — y por qué son tres
+
+El primer tramo deja **tres archivos, no uno**, y cada uno tiene un lector distinto:
+
+```
+brief.md        el ARGUMENTO       envejece con cada vuelta del ⑥
+entrevista.md   el RAZONAMIENTO    se relee después: "¿por qué decidimos esto?"
+evidencia.md    el HECHO           se acumula, no se reescribe
+```
+
+**Los tres son markdown con frontmatter, y eso no es decoración: es un archivo con dos lectores.**
+El cuerpo lo leés vos; el frontmatter lo cuenta la compuerta sin parsear prosa.
+
+### `brief.md`
 
 ```markdown
 ---
-veredicto: ""       # hacelo | pivotea | no-lo-hagas — lo ponés vos en el ⑥
+veredicto: hacelo   # hacelo | pivotea | no-lo-hagas — lo sellás vos en el ⑥
 ---
 
 # <producto> — brief
 
 <la idea en UNA oración>
-
-## Panorama — qué existe ya
-| Qué | Resuelve | Qué le falta | Procedencia |
-|---|---|---|---|
-| … | … | … | `retrieved` <link> |
-| … | … | … | `model-prior` ⚠ sin verificar |
 ```
 
-**La procedencia es lo mejor que aporta este artefacto.** Cada afirmación va marcada `retrieved`
-(con link) o `model-prior` (sin verificar), porque **el ⑥ es el único punto del flujo donde una
-alucinación cuesta el producto entero**: sellar *"no lo hagas"* porque existe algo que no existe.
+El brief **cita** a los otros dos, no los copia. Si una sección se puede reemplazar por un
+puntero, es un puntero.
+
+### `entrevista.md`
+
+```markdown
+---
+rondas: 4
+preguntas: 23
+abiertas: 0      ← el ⑥ NO sella con esto en más de cero
+---
+```
+
+El ①–⑤ es un árbol de decisiones que se trabaja por rondas, y **termina cuando la frontera queda
+vacía** — no cuando se hizo largo. `abiertas: 0` es esa frase, escrita como número.
+
+**Ojo con el campo ausente:** no escribirlo **no** vale como cero. La compuerta frena y lo dice,
+porque si valiera cero, olvidarse sería más barato que terminar la entrevista.
+
+### `evidencia.md`
+
+```markdown
+---
+retrieved: 17
+model_prior: 1
+probado: 0
+links: 13
+# evidencia: baja   ← SÓLO en una pasada degradada, y es una declaración
+---
+
+- Hay tres paquetes publicados que hacen esto. [retrieved]
+  - https://registry.npmjs.org/-/v1/search?text=…
+- La categoría se siente saturada. [model-prior — sin verificar]
+- Busqué quejas en Reddit y no llegué. [no evaluable]
+```
+
+**La procedencia es lo mejor que aporta este artefacto**, porque **el ⑥ es el único punto del flujo
+donde una alucinación cuesta el producto entero**: sellar *"no lo hagas"* porque existe algo que no
+existe. Tres etiquetas, y la tercera es nueva:
+
+```
+retrieved      lo leí, con link
+model-prior    me lo acuerdo, sin verificar
+probado        lo construí y lo vi          ← la deja un prototipo, y es la más fuerte
+```
+
+**El frontmatter DECLARA y el cuerpo es el HECHO.** La compuerta cuenta los `http` del cuerpo; si
+el número declarado no cierra con lo que hay, avisa — y no frena, porque frenar por eso sería
+opinar sobre prolijidad.
+
+Y lo que **no** puede: visitar los links. Una compuerta no sale a la red, así que cuenta y no
+verifica. Eso sale escrito en cada acta, para que "13 links" no se lea como "13 fuentes
+verificadas".
+
+### `vocabulario.md`
+
+El glosario del negocio, y el único **perezoso** de todos: no existe hasta que una palabra se
+tambalea, y su ausencia no es una falta. Cuando existe, `sf context` lo sirve en **todos** los
+sobres de ahí en adelante — se construye una vez y los demás estados heredan las palabras.
+
+```markdown
+---
+terminos: 7
+---
+
+## Corrida
+Una ejecución completa de la máquina sobre una idea, de punta a punta.
+
+**No es** una vuelta del bucle de implementación — eso es un *lote*.
+```
+
+Cada entrada dice **qué no es**, que es la mitad donde muere la ambigüedad. No se llama
+`CONTEXT.md` aunque venga de ahí: `sf context` ya es el sobre.
 
 ## `prd.md`
 
