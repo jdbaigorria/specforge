@@ -147,7 +147,7 @@ No por opinión, por aritmética:
 ## La estructura
 
 ```
-sf/          el binario — 24 paquetes, 496 tests, una sola dependencia
+sf/          el binario — 24 paquetes, 499 tests, una sola dependencia
 skills/      22 skills: 9 de estado (sfp-* · sf-*) + 13 utilitarios (sfx-*)
 specs/       el diseño, y por qué cada decisión es como es
 ```

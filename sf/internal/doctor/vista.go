@@ -57,6 +57,9 @@ func (i Informe) Texto() string {
 		case len(s.Desconocidos) > 0:
 			fmt.Fprintf(&b, "       ✗  %-18s nombra `sf %s`\n",
 				s.Nombre, strings.Join(s.Desconocidos, "`, `sf "))
+		case len(s.CompuestasQueFaltan) > 0:
+			fmt.Fprintf(&b, "       ✗  %-18s le falta %s\n",
+				s.Nombre, strings.Join(s.CompuestasQueFaltan, ", "))
 		default:
 			fmt.Fprintf(&b, "       ✓  %-18s %s\n", s.Nombre, acortar(s.Ruta))
 		}

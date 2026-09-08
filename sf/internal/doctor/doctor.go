@@ -115,6 +115,25 @@ type Skill struct {
 	// Desconocidos son los `sf <cmd>` que el skill nombra y este binario no
 	// tiene. Es la comprobación de desalineación.
 	Desconocidos []string
+
+	// CompuestasQueFaltan son los skills que éste manda llamar —o los que
+	// aquéllos mandan llamar— y que no están instalados.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// POR QUÉ ESTO APARECIÓ RECIÉN AHORA
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Hasta el 2026-09-07 los nueve de la máquina se bastaban solos, así que
+	// alcanzaba con contar que estuvieran. Desde el replanteo de T1 no:
+	// `sfp-scout` es un COMPOSITOR y el método vive en cuatro primitivos
+	// aparte. Un scout instalado que llama a un `sfx-grilling` que no está
+	// no falla con un error — el modelo improvisa, que es peor, porque la
+	// corrida sale igual y nadie se entera de que corrió sin el método.
+	//
+	// Se camina en cadena (scout → grilling → buscar) porque la dependencia
+	// es transitiva y mirar un solo nivel dejaría el agujero un escalón más
+	// abajo.
+	CompuestasQueFaltan []string
 }
 
 // Instalado dice si el harness lo va a encontrar.
@@ -197,6 +216,10 @@ func Revisar(raiz, version string) Informe {
 		for _, c := range s.Desconocidos {
 			i.Fallas = append(i.Fallas,
 				s.Nombre+" nombra `sf "+c+"`, y este binario no lo tiene")
+		}
+		for _, c := range s.CompuestasQueFaltan {
+			i.Fallas = append(i.Fallas,
+				s.Nombre+" manda llamar al skill `"+c+"`, y no está instalado")
 		}
 	}
 	if len(faltan) > 0 {
@@ -405,6 +428,7 @@ func revisarSkills(raiz string) []Skill {
 		s := Skill{Nombre: n, Ruta: donde[n]}
 		if s.Ruta != "" {
 			s.Desconocidos = comandosDesconocidos(filepath.Join(s.Ruta, "SKILL.md"))
+			s.CompuestasQueFaltan = compuestasQueFaltan(donde, s.Ruta)
 		}
 		out = append(out, s)
 	}
@@ -532,3 +556,50 @@ func revisarProyecto(raiz string) Proyecto {
 
 // Sano dice si se puede usar. Es lo que decide el código de salida.
 func (i Informe) Sano() bool { return len(i.Fallas) == 0 }
+
+// reComponer caza la orden explícita con la que un skill manda llamar a otro.
+//
+// La forma es una convención del proyecto y está escrita en los skills:
+//
+//	Call the Skill tool with "sfx-grilling"
+//
+// Se eligió una ORDEN y no un link ni un `/nombre` suelto porque un modelo
+// flojo lee prosa y no llama nada. El efecto lateral, que es el que se
+// aprovecha acá: una orden con esa forma es GREPEABLE, así que la dependencia
+// entre skills se puede comprobar sin ejecutar nada.
+var reComponer = regexp.MustCompile(`Call the Skill tool with "([a-z][a-z0-9-]*)"`)
+
+// compuestasQueFaltan camina la cadena de composición y devuelve las que no están.
+//
+// Se mira el texto ENTERO del skill y no sólo sus bloques de código —al revés
+// que `comandosDesconocidos`— porque la orden vive en la prosa y en las tablas,
+// que es justo donde el que la tiene que obedecer la va a leer.
+func compuestasQueFaltan(donde map[string]string, raizSkill string) []string {
+	vistas := map[string]bool{}
+	var faltan []string
+
+	cola := []string{raizSkill}
+	for len(cola) > 0 {
+		ruta := cola[0]
+		cola = cola[1:]
+
+		b, err := os.ReadFile(filepath.Join(ruta, "SKILL.md"))
+		if err != nil {
+			continue
+		}
+		for _, m := range reComponer.FindAllStringSubmatch(string(b), -1) {
+			n := m[1]
+			if vistas[n] {
+				continue
+			}
+			vistas[n] = true
+			if d, hay := donde[n]; hay {
+				cola = append(cola, d)
+				continue
+			}
+			faltan = append(faltan, n)
+		}
+	}
+	sort.Strings(faltan)
+	return faltan
+}

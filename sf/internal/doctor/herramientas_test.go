@@ -101,3 +101,72 @@ func TestLaLlaveQueFaltaAvisaYNoFrena(t *testing.T) {
 		t.Errorf("tiene que avisar cuál falta: %v", i.Avisos)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// La cadena de composición — apareció con el replanteo de T1
+// ────────────────────────────────────────────────────────────────────────────
+
+// skillEn deja un SKILL.md mínimo en una carpeta con ese nombre.
+func skillEn(t *testing.T, raiz, nombre, cuerpo string) {
+	t.Helper()
+	d := filepath.Join(raiz, ".claude", "skills", nombre)
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "SKILL.md"),
+		[]byte("---\nname: "+nombre+"\n---\n"+cuerpo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Un compositor instalado que llama a un primitivo que no está NO falla con un
+// error: el modelo improvisa. La corrida sale igual y nadie se entera de que
+// corrió sin el método. Por eso lo tiene que ver el doctor y no la corrida.
+func TestElDoctorVeElPrimitivoQueFalta(t *testing.T) {
+	raiz := t.TempDir()
+	skillEn(t, raiz, "sfp-scout", `Call the Skill tool with "sfx-grilling"`)
+
+	donde := map[string]string{"sfp-scout": filepath.Join(raiz, ".claude", "skills", "sfp-scout")}
+	faltan := compuestasQueFaltan(donde, donde["sfp-scout"])
+	if len(faltan) != 1 || faltan[0] != "sfx-grilling" {
+		t.Errorf("quería [sfx-grilling], vino %v", faltan)
+	}
+}
+
+// LA CADENA ES TRANSITIVA. scout llama a grilling y grilling llama a buscar:
+// mirar un solo nivel dejaría el agujero un escalón más abajo, que es peor que
+// no mirar, porque el informe diría que está todo bien.
+func TestLaCadenaDeComposicionSeCaminaEntera(t *testing.T) {
+	raiz := t.TempDir()
+	skillEn(t, raiz, "sfp-scout", `Call the Skill tool with "sfx-grilling"`)
+	skillEn(t, raiz, "sfx-grilling", `y si falta un hecho, Call the Skill tool with "sfx-buscar"`)
+
+	base := filepath.Join(raiz, ".claude", "skills")
+	donde := map[string]string{
+		"sfp-scout":    filepath.Join(base, "sfp-scout"),
+		"sfx-grilling": filepath.Join(base, "sfx-grilling"),
+	}
+	faltan := compuestasQueFaltan(donde, donde["sfp-scout"])
+	if len(faltan) != 1 || faltan[0] != "sfx-buscar" {
+		t.Errorf("tenía que encontrar sfx-buscar un nivel más abajo, vino %v", faltan)
+	}
+}
+
+// Con todo instalado no dice nada. Un doctor que se queja cuando está todo bien
+// se aprende a ignorar.
+func TestConLaCadenaCompletaNoSeQuejaDeNada(t *testing.T) {
+	raiz := t.TempDir()
+	skillEn(t, raiz, "sfp-scout", `Call the Skill tool with "sfx-grilling"`)
+	skillEn(t, raiz, "sfx-grilling", `Call the Skill tool with "sfx-buscar"`)
+	skillEn(t, raiz, "sfx-buscar", "busca y ya")
+
+	base := filepath.Join(raiz, ".claude", "skills")
+	donde := map[string]string{
+		"sfp-scout":    filepath.Join(base, "sfp-scout"),
+		"sfx-grilling": filepath.Join(base, "sfx-grilling"),
+		"sfx-buscar":   filepath.Join(base, "sfx-buscar"),
+	}
+	if faltan := compuestasQueFaltan(donde, donde["sfp-scout"]); len(faltan) != 0 {
+		t.Errorf("está todo y se queja igual: %v", faltan)
+	}
+}
