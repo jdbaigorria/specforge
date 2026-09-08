@@ -1,7 +1,7 @@
 {
   "name": "specforge",
   "version": "1.0.0",
-  "description": "SpecForge: a state machine that guides the harness. `sf` knows where you are, what comes next and whether you can advance; 9 states, 18 skills, and a four-line orchestrator. The state advances on checked facts, never on the worker's word.",
+  "description": "SpecForge: a state machine that guides the harness. `sf` knows where you are, what comes next and whether you can advance; 9 states, 22 skills, and a four-line orchestrator. The state advances on checked facts, never on the worker's word.",
   "author": {
     "name": "Javier Baigorria"
   },

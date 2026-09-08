@@ -126,7 +126,7 @@ jobs:
             echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | sh"
             echo '```'
             echo
-            echo "Y la otra mitad — los 18 skills — en Claude Code:"
+            echo "Y la otra mitad — los 22 skills — en Claude Code:"
             echo
             echo '```'
             echo "/plugin marketplace add ${GITHUB_REPOSITORY}"

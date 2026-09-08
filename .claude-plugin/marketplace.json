@@ -1,6 +1,6 @@
 {
   "name": "specforge",
-  "description": "SpecForge — a state machine that guides the harness: 9 states, 18 skills, and a four-line orchestrator.",
+  "description": "SpecForge — a state machine that guides the harness: 9 states, 22 skills, and a four-line orchestrator.",
   "owner": {
     "name": "Javier Baigorria"
   },

@@ -45,14 +45,18 @@ nunca.
 
 ---
 
-## Los nueve utilitarios
+## Los trece utilitarios
 
 Sirven **solos**, en cualquier proyecto, con o sin SpecForge. Invocalos cuando quieras.
 
 | Skill | Qué hace |
 |---|---|
+| **`sfx-grilling`** | **el primitivo de entrevista**: árbol, frontera, rondas. Dueño único del método |
+| **`sfx-buscar`** | **el primitivo de investigación**: nivel 0 sin llave antes que los MCPs, con procedencia |
+| **`sfx-vocabulario`** | **el primitivo del glosario**: `vocabulario.md`, perezoso |
+| **`sfx-prototipo`** | **el primitivo de la prueba**: código descartable que contesta UNA pregunta |
 | **`sfx-think`** | debatir una idea, explorar opciones antes de comprometerse |
-| **`sfx-grill-me`** | entrevistarte sin piedad hasta que el plan aguante |
+| **`sfx-grill-me`** | la entrevista suelta — compone `sfx-grilling` |
 | **`sfx-tdd`** | RED → GREEN → REFACTOR, una rebanada por vez |
 | **`sfx-github`** | branch, commit, push, PR, merge |
 | **`sfx-documenter`** | documentación exhaustiva desde el código |
@@ -72,7 +76,10 @@ estado sólo sabe hablar con la máquina.
           el skill de ESTADO             los UTILITARIOS
           delgado · habla con sf         el método · standalone
           ─────────────────────          ─────────────────────
-brief     sfp-scout        compone  →    sfx-think (②) · sfx-grill-me (⑤)
+brief     sfp-scout        compone  →    sfx-grilling (①–⑤)
+                                          └ y sfx-grilling ramifica solo:
+                                            sfx-buscar · sfx-vocabulario
+                                            sfx-prototipo · sfx-think
 backlog   sfp-backlog      compone  →    sfx-triage (cuando es un bug)
 planif.   sf-plan          compone  →    sfx-think (⑫)
 implem.   sf-build         compone  →    sfx-tdd · sfx-github

@@ -49,6 +49,10 @@ do, what do the docs say — **go get it**. Never ask the user something you cou
 - a fact about this repo → read it yourself, or dispatch a subagent
 - a question that only running code can answer → `Call the Skill tool with "sfx-prototipo"`,
   **after the user approves building it** (building costs time; that is a decision, not a check)
+- **a question no fact can settle** — several shapes are viable and the evidence does not separate
+  them → `Call the Skill tool with "sfx-think"`. This is the rarest branch, and the tell is
+  specific: you searched, you found, and the options are still tied. Do **not** reach for it to
+  avoid asking a question you could just ask.
 
 **Do not block on any of them.** A running search is an unsettled prerequisite: only the questions
 downstream of it wait. Ask the rest of the frontier now.

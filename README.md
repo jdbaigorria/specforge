@@ -152,8 +152,8 @@ Not by opinion — by arithmetic:
 ## Layout
 
 ```
-sf/          the binary — 20 packages, 288 tests, one dependency
-skills/      18 skills: 9 for the states (sfp-* · sf-*) + 9 utilities (sfx-*)
+sf/          the binary — 24 packages, 482 tests, one dependency
+skills/      22 skills: 9 for the states (sfp-* · sf-*) + 13 utilities (sfx-*)
 specs/       the design, and why each decision is the way it is
 ```
 
@@ -173,7 +173,7 @@ that matter most here live in the **seam between commands**, and no package test
 | [`docs/comandos.md`](docs/comandos.md) | the 15 commands |
 | [`docs/estados.md`](docs/estados.md) | the 9 states and what each gate checks |
 | [`docs/artefactos.md`](docs/artefactos.md) | every file and its shape |
-| [`docs/skills.md`](docs/skills.md) | the 18 skills |
+| [`docs/skills.md`](docs/skills.md) | the 22 skills |
 | [`docs/problemas.md`](docs/problemas.md) | what to do when `sf` stops you |
 
 ## The design

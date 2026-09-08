@@ -222,6 +222,33 @@ Y de ahí sale un criterio de "pasó" que es chequeable y no una impresión:
 Distinto estado con el mismo tramo significa que **el skill y la máquina no dicen lo mismo** — que
 es, exactamente, la familia de bug que ya mordió una vez.
 
+### La excepción de T1 — y tiene nombre porque si no T1 falla siempre
+
+**Escrito el 2026-09-07**, resolviendo la contradicción que `el-mapa.md` §4① dejó abierta entre
+este párrafo y `retomar.md` §4.
+
+El criterio de arriba sirve de T2 en adelante, donde los campos que se mueven son **mecánicos**:
+`prd_hash`, `constitucion_sellada`, el estado de la feature. Ahí, dos estados distintos con el
+mismo tramo **son** un bug.
+
+**En T1 no.** El único campo que se mueve es `producto.brief_sellado`, y ése **es el veredicto**:
+juicio puro. Dos modelos honestos pueden leer la misma evidencia y decidir distinto sin que nada
+esté roto. Con el criterio genérico, **T1 falla siempre** y la corrida se declara fallida por la
+razón equivocada — que es peor que no correrla, porque se pierde el dato.
+
+> **En T1 la vara es de EVIDENCIA, no de veredicto.** Pasa si, con los dos modelos:
+>
+> ```
+> entrevista.md   cierra con  abiertas: 0
+> evidencia.md    trae al menos una fuente `retrieved` CON link
+> ```
+>
+> **El veredicto no entra en la vara.** Que uno diga `hacelo` y el otro `no-lo-hagas` sobre la
+> misma evidencia no es un fallo del tramo: es el ⑥ haciendo su trabajo, que es poner una decisión
+> de criterio delante de Javier.
+
+El detalle completo está en [`tramo-1.md`](tramo-1.md) §7.
+
 ---
 
 ## 5. Los tramos, uno por uno
@@ -230,6 +257,12 @@ Cada ficha dice: qué corre, qué produce, **qué campo del `estado.json` tiene 
 compuerta cierra, y las preguntas abiertas. Los campos salen de `estado/estado.go`.
 
 ### T1 · El brief — ①–⑥
+
+> ⚠️ **Esta ficha describe la forma vieja del tramo.** T1 se replanteó el 2026-09-07: la entrevista
+> pasa a ser un árbol con frontera, la investigación deja de ser una etapa y pasa a ser una rama, y
+> el tramo deja tres artefactos contables en vez de uno. **La fuente de T1 es ahora
+> [`tramo-1.md`](tramo-1.md).** Se conserva esto porque las preguntas abiertas de abajo son las que
+> lo originaron.
 
 | | |
 |---|---|

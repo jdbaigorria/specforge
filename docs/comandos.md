@@ -467,7 +467,7 @@ Sale `0` si anda y `2` si hay algo que arreglar — y cuando hay algo, dice **c�
 
 ### Qué mira, y por qué esas tres cosas
 
-SpecForge se instala en dos mitades: el binario por un lado (`install.sh`), los 18 skills por
+SpecForge se instala en dos mitades: el binario por un lado (`install.sh`), los 22 skills por
 otro (el plugin del harness). No es un defecto del instalador — son cosas distintas, y un
 ejecutable compilado no entra en un plugin de Markdown. El precio es que **las dos mitades pueden
 quedar bien cada una por su lado y no verse entre ellas**, que es una familia de error sin

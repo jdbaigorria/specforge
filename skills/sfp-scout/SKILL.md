@@ -36,6 +36,7 @@ does not repeat them. Four primitives do the work:
 | a fact is missing | `sfx-grilling` calls `sfx-buscar` on its own |
 | a word means two things | `sfx-grilling` calls `sfx-vocabulario` on its own |
 | only running code answers it | `sfx-grilling` calls `sfx-prototipo`, **after Javier approves** |
+| no fact separates the options | `sfx-grilling` calls `sfx-think` — the rare branch |
 
 **You call `sfx-grilling` once and it drives.** Do not re-explain how to interview, do not run your
 own question loop, do not batch the research into a separate phase. **Research is a branch of the

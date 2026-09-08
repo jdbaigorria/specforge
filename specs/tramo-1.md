@@ -50,6 +50,9 @@ T1           ①–⑤ = UNA entrevista por rondas de frontera
                      │                                          espera lo que cuelga)
                      ├── falta una PALABRA   → sfx-vocabulario
                      ├── falta una PRUEBA    → sfx-prototipo  (lo aprueba Javier)
+                     ├── falta una FORMA     → sfx-think      (la rama rara: buscaste,
+                     │                                          encontraste, y las
+                     │                                          opciones siguen empatadas)
                      │
                      ▼  frontera vacía
              entrevista.md · evidencia.md · vocabulario.md · brief.md
@@ -81,6 +84,7 @@ nuevo**, y ése era el único motivo por el que el corte del ② estaba diferido
 | `sfx-buscar` | sí | el método de investigación: nivel 0 → nivel 1, procedencia |
 | `sfx-vocabulario` | sí | el glosario del negocio: `vocabulario.md` |
 | `sfx-prototipo` | sí | código descartable que contesta **una** pregunta |
+| `sfx-think` | sí (ya existía) | debatir cuando ningún hecho desempata las opciones |
 
 Y arriba de ellos, los compositores:
 
@@ -105,7 +109,7 @@ a lo alto    descubrimiento        SKILL.md → references/   ← ya era de Spec
 El descubrimiento progresivo vive **adentro** de cada primitivo. Un `references/` no lo puede
 invocar otra skill sin copiarlo — y copiarlo es el bug de arriba.
 
-**Medido:** ninguna de las 18 skills de SpecForge usa `disable-model-invocation`. La distinción
+**Medido:** ninguna de las 22 skills de SpecForge usa `disable-model-invocation`. La distinción
 user-invoked / model-invoked **no está encodeada hoy en ninguna parte**.
 
 **Y no se puede copiar tal cual — acá choca.** En Matt, "user-invoked" quiere decir *sólo la
@@ -261,6 +265,7 @@ glosario es un archivo que nadie lee.
 | que la compuerta verifique que los links existen | cero red y cero LLM en el camino de enforcement | nunca — es un límite de diseño, no una deuda |
 | `sf buscar` como comando | superficie nueva grande; el primitivo `sfx-buscar` alcanza | una corrida donde el skill no baste y haga falta enforcement |
 | exigir `vocabulario.md` en el ⑥ | perezoso por diseño; exigirlo es ceremonia | dos artefactos usando la misma palabra para dos cosas |
+| que `sfp-scout` componga `sfx-think` como paso fijo | el ⑤ viejo lo llamaba **siempre**; en el árbol la mayoría de las preguntas las desempata un hecho, no un debate. Queda como **rama** de `sfx-grilling` | — ya resuelto: es rama, no paso |
 | tocar `entradas.go` (brownfield) | sigue en pie de `el-mapa.md` §7 | T1 y T2 corridos enteros |
 
 ---
