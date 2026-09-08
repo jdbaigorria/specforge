@@ -29,13 +29,19 @@ State the question, what you would build, and roughly how long, then wait.
 3. **The default, when there is nothing:** a single HTML file with everything inline, opened by
    double-click. It is the only thing that runs anywhere with nothing installed.
 
-## Two shapes, and picking wrong wastes the whole thing
+## Two branches, and picking wrong wastes the whole prototype
 
-- **"Does this logic / state model feel right?"** → a single shareable file that pushes the model
-  through the cases that are hard to reason about on paper: free-play buttons plus a couple of
-  guided walkthroughs, drivable by someone who does not write code.
-- **"What should this look like?"** → several **radically** different variations of the same
-  screen, switchable in one click. Not three shades of the same layout.
+The question decides the shape, and the two shapes share almost nothing. **Read the guide for the
+branch you picked before writing any code** — each one carries the steps, the layout and the
+anti-patterns for its shape.
+
+| The question is about… | Branch | Guide |
+|---|---|---|
+| rules, states, the shape of the data — *"does this hold up?"* | **lógica** | [references/logica.md](references/logica.md) |
+| what a screen should look like — *"how should this look?"* | **pantallas** | [references/pantallas.md](references/pantallas.md) |
+
+The tell: if someone would drive it by **pressing buttons and watching state change**, it is
+lógica. If they would drive it by **looking and comparing**, it is pantallas.
 
 If it is genuinely ambiguous, say which one you assumed at the top of the prototype.
 
@@ -44,6 +50,8 @@ If it is genuinely ambiguous, say which one you assumed at the top of the protot
 1. **Throwaway from day one, and it says so.** Lives in `.docs/prototipos/<pregunta-en-kebab>/`,
    outside the feature flow. **No branch** — there is no feature yet at this point, and inventing
    one would drag the whole per-feature ceremony into a question that has not been asked yet.
+   The losing variants and the scaffolding stay in that folder: they are the proof the answer was
+   compared against something.
 2. **Trivial to run.** One command, or a double-click. No setup step.
 3. **No persistence.** State lives in memory. If the question itself is about the database, use a
    scratch file named so nobody mistakes it.

@@ -281,7 +281,60 @@ palabra para la misma cosa, tres estados después.
 
 ---
 
-## 10. Las decisiones de esta sesión
+## 10. Dos observaciones que quedan anotadas — no son de T1, son de la máquina
+
+**De dónde salen.** Del cotejo de T1 ya construido contra el flujo de `planning/matt.md` §4 y §7,
+el 2026-09-07. **No se arreglan ahora, y el motivo es el mismo para las dos: son decisiones de la
+máquina entera y todavía no hay una corrida larga que diga cuál es el problema real.** Inventarles
+la solución ahora sería adivinar.
+
+### ① La pizarra se llena, y no hay regla
+
+`matt.md` §4, sobre la higiene de contexto:
+
+> *"Los pasos 1 a 3 van en una sola ventana sin cortar… El límite es la **smart zone** (~150k
+> tokens). Si la sesión se acerca antes de `/to-tickets`, no se sigue empujando en degradado: se
+> compacta en el borde de fase más cercano."*
+
+**Nuestro ①–⑤ es exactamente eso: una sola ventana sin cortar.** Y no hay ninguna regla escrita
+para cuando se hace larga — ni en el skill, ni en `sf`.
+
+**Y esta vuelta lo agrandamos nosotros.** El ①–⑤ pasó de una charla a un árbol con cuatro ramas,
+hasta cuatro artefactos, y prototipos que se construyen en el medio. El riesgo no es teórico: es
+consecuencia directa de este replanteo.
+
+**Dónde muerde:** un ①–⑤ que se degrada al final produce las últimas ramas del árbol razonadas en
+degradado — y `abiertas: 0` **no lo nota**, porque cuenta ramas visitadas, no la calidad con que se
+visitaron. Es un verde que puede querer decir "las contesté cansado".
+
+**Umbral que lo despierta:** la primera corrida de T1 donde la ventana se llene antes del ⑥. Ahí se
+sabe si el corte va en el skill (comprimir y seguir), en `sf` (partir el ①–⑤ en dos paradas) o en
+ningún lado.
+
+### ② Los cortes entre etapas: Matt da cinco opciones, nosotros una y clavada
+
+`matt.md` §7 pone cinco salidas en el borde entre dos fases —continuar, `/clear`, `/handoff`,
+subagente, `/compact`— y dice que elegir entre ellas *"es la decisión más difusa del mapa"*.
+
+Nosotros tenemos **una sola, escrita en Go**: el ⑥ para, y el ⑦ arranca en un subagente fresco con
+su sobre.
+
+**Y esto NO es un defecto — es la diferencia entre una colección de skills y una máquina.** Matt le
+deja la decisión al humano en cada borde y paga en carga mental; SpecForge la toma una vez y la
+cablea. Es la misma elección que el proyecto ya hizo en todos lados.
+
+**El precio, dicho igual:** el día que la opción cableada no sea la correcta, no hay salida. Y hay
+un caso concreto donde ya se ve: `matt.md` §4 envuelve el prototipo en `/handoff → /prototype →
+/handoff de vuelta`. Nosotros tenemos **la mitad de vuelta** —la respuesta entra a `entrevista.md`
+con procedencia `probado`— y **no dijimos nada de la de ida**: si `sfx-prototipo` corre en un
+subagente, no tiene sobre. Corriendo inline no pasa nada; ahí está el límite.
+
+**Umbral que lo despierta:** un tramo donde la parada cableada sea claramente la equivocada, o el
+primer prototipo que haya que correr en un subagente.
+
+---
+
+## 11. Las decisiones de esta sesión
 
 Las once, para que no haya que reconstruirlas de la conversación.
 

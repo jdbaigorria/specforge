@@ -414,6 +414,8 @@ No están contestadas, ninguna bloquea hoy, y las cinco pueden morder mañana.
 | **③** | **¿Cómo se mide que el orquestador delega?** El test del pid no sirve: mide arquitectura del arnés, no delegación | transversal. Candidata: `SPECFORGE_DELEGADO`, que **ya existe pero sólo registra** |
 | **④** | **¿Un ticket necesita las tres cosas, o sólo la constitución?** | T7 / brownfield |
 | **⑤** | **¿La ⏸ del ⑨ sirve, o es una parada de más?** | T3 |
+| **⑥** | **La ventana se llena en el ①–⑤ y no hay regla de corte.** Matt la tiene (`smart zone`); nosotros no, y este replanteo alargó ese tramo | transversal — el detalle en [`tramo-1.md`](tramo-1.md) §10① |
+| **⑦** | **Matt da cinco opciones en el borde de fase; nosotros una y clavada en Go.** No es defecto, es ser máquina — pero cuando la clavada no sirve no hay salida | transversal — [`tramo-1.md`](tramo-1.md) §10② |
 
 ---
 
