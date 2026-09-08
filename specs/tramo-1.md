@@ -237,9 +237,10 @@ retomar   §4    "pasa si B CITA, no si B dice hacelo"
 
 ---
 
-## 8. Lo que falta cablear en Go — en orden, con tamaño
+## 8. El cableado en Go — HECHO el 2026-09-07
 
-Las skills no obligan. Esto sí. **Nada de esto está hecho todavía.**
+Las skills no obligan. Esto sí. **Los seis están hechos**, en `96f2dec` (①–⑤) y el commit del
+`sf doctor` (⑥).
 
 | # | Qué | Dónde | Tamaño |
 |---|---|---|---|
@@ -250,10 +251,20 @@ Las skills no obligan. Esto sí. **Nada de esto está hecho todavía.**
 | 5 | el sobre inyecta `vocabulario.md` como una ruta más, **si existe** | `internal/sobre` | chico |
 | 6 | `sf doctor` ve las herramientas; si no las puede ver, lo dice | `internal/doctor` | mediano |
 
-**El 5 tiene una trampa medida:** `sobre.go:160-170` — el sobre del brief está **vacío a propósito**
+**El 5 tenía una trampa medida:** `sobre.go:160-170` — el sobre del brief está **vacío a propósito**
 y de ahí en adelante cada estado enumera sus rutas a mano. Un `vocabulario.md` **no llega solo** a
-los demás tramos: hay que agregarlo caso por caso o hacer una parte común. Si no se hace, el
-glosario es un archivo que nadie lee.
+los demás tramos. Se resolvió poniéndolo en `Armar()` y no caso por caso: agregarlo en cada rama
+serían once lugares donde olvidarse, y olvidarse no daría error — daría un estado usando otra
+palabra para la misma cosa, tres estados después.
+
+**Lo que apareció al construirlo, y no estaba previsto:**
+
+| | |
+|---|---|
+| `abiertas` tiene que ser un **puntero** | con un `int` pelado, no escribir el campo da cero, y cero es el valor que pasa. Olvidarse saldría **más barato** que cerrar la entrevista |
+| el frontmatter **declara**, el cuerpo es el **hecho** | la compuerta frena sobre los `http` que hay y avisa cuando el número declarado no cierra. En la primera corrida a mano ya atrapó un `links: 13` con 2 links reales |
+| el acta se engancha **sin preguntar el paso** | un `sf done` que pasa y NO mueve es, por definición, la máquina esperando una decisión que no puede tomar |
+| los e2e se rompieron **otra vez** | escribían sólo `brief.md`, y la suite normal no los corre. Ya había pasado el 05-09. Ahora hay un helper `p.brief()` |
 
 ---
 

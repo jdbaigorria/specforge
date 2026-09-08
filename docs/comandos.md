@@ -459,13 +459,21 @@ skills    9/9 de la máquina
        ✓  sfp-scout          ~/.claude/skills/sfp-scout
        …
 
+buscar    nivel 0 disponible — alcanza sin ninguna llave
+       ✓  curl               /usr/bin/curl
+       ·  ~/.claude/plugins/…/.mcp.json
+       ✓  context7           sin llave
+       ✓  tavily             TAVILY_API_KEY puesta
+       ✗  github             falta GITHUB_PERSONAL_ACCESS_TOKEN
+       ?  si el arnés los levantó de verdad: no se sabe desde acá
+
 proyecto  ~/proyectos/lo-que-sea
           .docs/ está — `sf status` dice dónde va
 ```
 
 Sale `0` si anda y `2` si hay algo que arreglar — y cuando hay algo, dice **cómo**.
 
-### Qué mira, y por qué esas tres cosas
+### Qué mira, y por qué esas cuatro cosas
 
 SpecForge se instala en dos mitades: el binario por un lado (`install.sh`), los 22 skills por
 otro (el plugin del harness). No es un defecto del instalador — son cosas distintas, y un
@@ -478,6 +486,31 @@ archivo donde leerla.
 | **el `sf` del PATH** | si hay otro adelante, el agente va a correr ése y no el que instalaste |
 | **los 9 skills de la máquina** | `sf next` devuelve un nombre; si el harness no lo encuentra, el bucle se termina ahí |
 | **los comandos que esos skills nombran** | un skill más nuevo que el binario le pide algo que no existe, y traba el bucle |
+| **con qué se puede buscar** | el 2026-09-05 los nueve skills estaban instalados y la corrida del ⑥ falló igual: no había herramientas de búsqueda y nadie se enteró hasta leer los dos briefs |
+
+### El bloque `buscar`, y el límite que declara
+
+Es el único bloque que **avisa y nunca frena**: que falte una llave no impide usar `sf`, impide
+investigar bien — y con qué evidencia se sella el ⑥ lo decidís vos.
+
+Mira tres cosas, y las tres están en el disco o en el entorno:
+
+```
+curl              está o no está      → el nivel 0, que no necesita ninguna llave
+.mcp.json         qué declara         → la INTENCIÓN
+la variable       está puesta o no    → si la llave llegó
+```
+
+**Nunca guarda el valor de una llave**, sólo su nombre: el informe se imprime en una terminal que
+alguien puede estar compartiendo.
+
+> **Y la última línea del bloque es la que más importa:** *"si el arnés los levantó de verdad: no
+> se sabe desde acá"*. Los servidores MCP viven adentro del proceso del arnés, y `sf` es un
+> binario que se ejecuta y termina. Un `.mcp.json` con tavily declarado y su llave puesta **no
+> prueba** que el arnés lo haya levantado.
+>
+> **"No lo puedo saber acá" no es lo mismo que "no están".** Sin esa línea, cuatro ✓ se leerían
+> como *"las herramientas andan"*, y lo que se comprobó es que están **declaradas**.
 
 **El tercero no compara versiones, y es a propósito.** Dos versiones distintas no prueban que
 algo esté roto: el que trabaja desde el repo no tiene versión, y el que edita un skill a mano

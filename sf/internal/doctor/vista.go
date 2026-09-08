@@ -62,6 +62,41 @@ func (i Informe) Texto() string {
 		}
 	}
 
+	// Las herramientas van entre los skills y el proyecto porque contestan la
+	// misma pregunta que los skills —"¿el que va a trabajar tiene con qué?"—
+	// pero del lado de afuera: el skill dice qué hacer y la herramienta es con
+	// qué. El 2026-09-05 los nueve skills estaban instalados y la corrida
+	// falló igual, porque la mitad de abajo no estaba.
+	h := i.Herramientas
+	b.WriteString("\nbuscar    ")
+	if h.Nivel0() {
+		fmt.Fprintf(&b, "nivel 0 disponible — alcanza sin ninguna llave\n")
+		fmt.Fprintf(&b, "       ✓  %-18s %s\n", "curl", acortar(h.Curl))
+	} else {
+		fmt.Fprintf(&b, "SIN NIVEL 0\n")
+		fmt.Fprintf(&b, "       ✗  %-18s no está en el PATH\n", "curl")
+	}
+	if h.MCP == "" {
+		fmt.Fprintf(&b, "       ·  sin .mcp.json — no hay MCPs declarados\n")
+	} else {
+		fmt.Fprintf(&b, "       ·  %s\n", acortar(h.MCP))
+		for _, s := range h.Servidores {
+			switch {
+			case s.Llave == "":
+				fmt.Fprintf(&b, "       ✓  %-18s sin llave\n", s.Nombre)
+			case s.Puesta:
+				fmt.Fprintf(&b, "       ✓  %-18s %s puesta\n", s.Nombre, s.Llave)
+			default:
+				fmt.Fprintf(&b, "       ✗  %-18s falta %s\n", s.Nombre, s.Llave)
+			}
+		}
+	}
+	// La última línea del bloque es la más importante y por eso va última: sin
+	// ella, cuatro ✓ se leen como "las herramientas andan", y lo que se
+	// comprobó es que están DECLARADAS. Levantarlas es del arnés, y el arnés no
+	// se ve desde un binario que se ejecuta y termina.
+	fmt.Fprintf(&b, "       ?  si el arnés los levantó de verdad: no se sabe desde acá\n")
+
 	fmt.Fprintf(&b, "\nproyecto  %s\n", acortar(i.Proyecto.Raiz))
 	if i.Proyecto.Andamiado {
 		fmt.Fprintf(&b, "          .docs/ está — `sf status` dice dónde va\n")

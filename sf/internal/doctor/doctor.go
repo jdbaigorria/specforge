@@ -81,6 +81,9 @@ type Informe struct {
 	Perfiles []Perfil
 	Proyecto Proyecto
 
+	// Herramientas es con qué se puede investigar, hasta donde sf lo ve.
+	Herramientas Herramientas
+
 	// Fallas son las que impiden usar sf. Avisos, las que no.
 	Fallas []string
 	Avisos []string
@@ -155,6 +158,26 @@ func Revisar(raiz, version string) Informe {
 	i.Harness = g.EnUso()
 	i.Skills = revisarSkills(raiz)
 	i.Proyecto = revisarProyecto(raiz)
+	i.Herramientas = revisarHerramientas(raiz)
+
+	// El bloque de herramientas AVISA y no frena, siempre: que falte una llave
+	// no impide usar sf — impide investigar bien, y con qué evidencia se sella
+	// el ⑥ lo decide Javier, no una herramienta.
+	if !i.Herramientas.Nivel0() {
+		i.Avisos = append(i.Avisos,
+			"no encontré `curl`: sin él no queda ni el nivel 0 de investigación "+
+				"—los registries y la API pública de GitHub— y el ⑥ va a salir de la "+
+				"memoria del modelo, que es exactamente lo que falló el 2026-09-05")
+	}
+	for _, s := range i.Herramientas.Servidores {
+		if s.Llave != "" && !s.Puesta {
+			i.Avisos = append(i.Avisos,
+				"el MCP `"+s.Nombre+"` está declarado y le falta "+s.Llave+
+					": va a arrancar y no va a poder buscar.\n"+
+					"  `export "+s.Llave+"=…` en tu shell, o el almacén de secretos del arnés.\n"+
+					"  Mientras tanto queda el nivel 0, que no necesita llave.")
+		}
+	}
 
 	if i.Binario.Sombra {
 		i.Fallas = append(i.Fallas,
