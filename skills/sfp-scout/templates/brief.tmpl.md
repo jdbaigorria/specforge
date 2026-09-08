@@ -1,28 +1,28 @@
 ---
 veredicto: <hacelo | pivotea | no-lo-hagas>   # el que PROPONÉS. Javier lo sella con `sf approve`
-# evidencia: baja   ← SÓLO en una pasada degradada (sin MCPs de investigación).
-#                     Sin esta línea, el ⑥ exige al menos UNA fuente citada abajo.
 ---
 
 # <producto> — brief
 
 <La idea en UNA sola oración. Si no entra en una, el ① no terminó.>
 
+> **Dónde está lo demás.** Este archivo es **el argumento**, no el archivo de pruebas.
+> La evidencia con sus links está en [`evidencia.md`](evidencia.md);
+> el razonamiento, ronda por ronda, en [`entrevista.md`](entrevista.md);
+> las palabras del negocio, en [`vocabulario.md`](vocabulario.md) si hizo falta escribirlas.
+> **Acá se cita, no se copia.**
+
 ## Para quién, y cuándo
 
 > Cuando **<situación>**, quiero **<motivación>**, para **<resultado esperado>**.
 
-<El JTBD principal. Quién tiene el problema y en qué momento — no "todos".>
+<Quién tiene el problema y en qué momento — no "todos".>
 
-## Panorama — qué existe ya
+## Qué existe ya, en tres líneas
 
-| Qué | Resuelve | Qué le falta | Procedencia |
-|---|---|---|---|
-| <producto / repo> | <en una línea> | <el hueco> | `retrieved` <link> |
-| <producto / repo> | <en una línea> | <el hueco> | `model-prior` ⚠ sin verificar |
-
-<Señales de demanda: quejas reales, reviews, tendencias. Cada una con su link.
-Lo que NO se encontró también se dice: "busqué X y no aparece nada" es un dato.>
+<El panorama resumido, con el puntero al bloque de `evidencia.md` que lo sostiene.
+Lo que NO se encontró también se dice: "busqué X y no aparece nada" es un dato.
+Y si no se llegó al nivel 1, se dice acá: el panorama está mapeado, la demanda no.>
 
 ## En qué me diferencio
 
@@ -32,7 +32,7 @@ Lo que NO se encontró también se dice: "busqué X y no aparece nada" es un dat
 ## De qué me surto
 
 <Lo que los repos comparables YA resolvieron y conviene tomar en vez de reescribir.
-Con link. Esta sección es la otra mitad del ④ y suele ser la más rentable.>
+Es la otra mitad del ④ y suele ser la más rentable.>
 
 ## El límite del MVP
 
@@ -41,7 +41,7 @@ Con link. Esta sección es la otra mitad del ④ y suele ser la más rentable.>
 
 ## Lo que esto tiene que aguantar
 
-<Lo que salió del grill: qué lo mata, qué tiene que ser cierto, qué supuesto es
+<Lo que salió de las rondas: qué lo mata, qué tiene que ser cierto, qué supuesto es
 el más frágil. Uno por línea, sin suavizar.>
 
 ## Riesgos y lo que no se puede saber
@@ -50,11 +50,11 @@ el más frágil. Uno por línea, sin suavizar.>
 |---|---|---|
 | <riesgo> | <alto/medio/bajo> | <la evidencia que falta> |
 
-> **Lo que la IA no puede saber:** <demanda real, disposición a pagar, y lo que
-> sea que en este caso sólo se confirme construyendo o preguntándole a alguien.>
+> **Lo que la IA no puede saber:** <demanda real, disposición a pagar, y lo que sea
+> que en este caso sólo se confirme construyendo o preguntándole a alguien.>
 
 ## Propuesta de veredicto
 
 **<hacelo | pivotea | no-lo-hagas>** — <el argumento en dos o tres líneas>
 
-Evidencia: `retrieved` <N> · `model-prior` <M>
+Evidencia: `retrieved` <N> · `model-prior` <M> · `probado` <P> · links <L>

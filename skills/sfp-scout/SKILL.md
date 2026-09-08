@@ -2,13 +2,12 @@
 name: sfp-scout
 description: >
   Turn a fuzzy product idea into a sealed brief with a verdict. The front-end of the SpecForge
-  machine (state `brief`, steps ①–⑤): ping-pong the idea until it has shape, research whether it
-  already exists, find the gap, stress-test it, and write `.docs/brief.md` with a
-  hacelo/pivotea/no-lo-hagas verdict for Javier to seal. Invoked by the orchestrator when
-  `sf next` returns `skill: sfp-scout`. Also usable standalone: "scout this idea", "should I
-  build X", "is this worth building", "de-risk this", "/sfp-scout". NOT validation — AI cannot
-  prove demand; it gathers evidence and surfaces risk. Needs the research MCPs; without them it
-  will not fabricate research.
+  machine (state `brief`, steps ①–⑤): it COMPOSES the interview, the research, the glossary and
+  the prototype primitives, and adds the one thing they do not have — a verdict and the ⑥ gate.
+  Invoked by the orchestrator when `sf next` returns `skill: sfp-scout`, not on your own
+  initiative. Also usable standalone: "scout this idea", "should I build X", "is this worth
+  building", "/sfp-scout". NOT validation — AI cannot prove demand; it gathers evidence and
+  surfaces risk.
 ---
 
 # sfp-scout
@@ -16,126 +15,105 @@ description: >
 The first state of the machine. **Fuzzy idea → evidence → a brief with a verdict.**
 
 ```bash
-sf context      # your envelope. The brief is the ONE state with an empty envelope —
-                # ①–⑤ is a ping-pong about an idea that has no shape yet.
+sf context   # your envelope. The brief is the ONE state with an empty envelope, on purpose:
+             # ①–⑤ is an interview about an idea that has no shape yet. There is nothing to read.
 ```
 
 **Framing, non-negotiable:** this **de-risks**, it does not **validate**. AI cannot prove market
-demand or willingness to pay. It can gather evidence, compare alternatives, find gaps, and
-stress-test assumptions. Say so; never present research as proof.
+demand or willingness to pay. Say so; never present research as proof.
 
-**This state talks to Javier directly** (`via: vos`). It is not a subagent — the whole point of
-①–⑤ is the back-and-forth.
+**This state talks to Javier directly** (`via: vos`). It is not a subagent — the back-and-forth
+*is* the step.
 
-## Step 1: Ping-pong the idea (⑫ this is where it takes shape)
+## This skill is a composer
 
-**Interview properly. Do not rush this.** The idea arrives fuzzy and leaves with edges: what it
-is, who it is for, what problem, what outcome, what it explicitly is *not*.
+It owns the **outcome** — the brief, the verdict, the ⑥. It does **not** own the methods, and it
+does not repeat them. Four primitives do the work:
 
-> **This step comes first on purpose.** An earlier version of this skill said *"don't
-> over-interview here — the grilling comes after there's evidence."* That is backwards for this
-> flow: **researching a shapeless idea returns shapeless results.** You cannot search for
-> competitors to something you cannot yet describe in one sentence.
+| when | call |
+|---|---|
+| the whole of ①–⑤ | `Call the Skill tool with "sfx-grilling"` |
+| a fact is missing | `sfx-grilling` calls `sfx-buscar` on its own |
+| a word means two things | `sfx-grilling` calls `sfx-vocabulario` on its own |
+| only running code answers it | `sfx-grilling` calls `sfx-prototipo`, **after Javier approves** |
 
-Leave when you can state the idea in **one sentence** and Javier agrees with it.
+**You call `sfx-grilling` once and it drives.** Do not re-explain how to interview, do not run your
+own question loop, do not batch the research into a separate phase. **Research is a branch of the
+tree, not a stage** — that is the whole point of this shape, and it is why there is no loop to
+close here.
 
-## Step 2: Research — does it already exist? (③)
+## Step 1 — the interview (①–⑤)
 
-Use the MCPs to map the landscape: similar products, comparable GitHub repos, what they solve,
-what they miss, demand and saturation signals. Hunt for **demand evidence** — real complaints,
-weaknesses in incumbent reviews, trends — per `references/method.md`.
+`Call the Skill tool with "sfx-grilling"`, telling it: the raw idea, that the output file is
+`.docs/entrevista.md`, and that the tree must cover these five branches before the frontier can be
+empty:
 
-**Every claim carries provenance** (`references/provenance.md`), and this is the best thing this
-skill contributes:
+1. **What it is** — one sentence Javier agrees with. If it does not fit in one, the tree is not done.
+2. **Who and when** — the job being hired: *"Cuando <situación>, quiero <motivación>, para
+   <resultado>"*. Not "everyone".
+3. **What already exists** — the landscape, via `sfx-buscar`. Level 0 first.
+4. **The gap, both halves** — where you differ (a hole the incumbents *cannot* close without
+   breaking their own model) **and what you stock up on** (what comparable repos already solved and
+   you should take instead of rewriting). A scout that only hunts gaps hands you a product built
+   from scratch.
+5. **What has to be true** — what kills this, which assumption is most fragile, what only building
+   it can settle.
 
-- `retrieved` — backed by a real source, **with the link**.
-- `model-prior` — from training, **unverified**, flagged as such.
+The interview ends when the frontier is empty. Not when it feels long enough.
 
-> **Why provenance matters more here than anywhere else in the flow.** The ⑥ is the one point
-> where a hallucination costs the whole product: sealing `no-lo-hagas` because something exists
-> that does not actually exist. There is no later step that catches it.
+## Step 2 — write the brief (⑤)
 
-**Tooling gate.** If the research MCPs are unavailable (`references/tooling.md`), do **not**
-silently invent competitors from training data — that is the false-validation trap. Either
-(a) name the MCPs to enable and stop, or (b) with explicit consent run a **degraded pass** where
-every claim is `model-prior` and the brief is stamped low-evidence — which means writing
-`evidencia: baja` in the frontmatter. That line is the ONLY way a brief with no cited sources
-gets through the ⑥, and it must be a deliberate declaration, never a shortcut.
+Write `.docs/brief.md` from `templates/brief.tmpl.md`.
 
-## Step 3: Does it help me, and where do I differ? (④)
+**The brief is the ARGUMENT, not the archive.** The evidence already lives in `.docs/evidencia.md`
+and the reasoning in `.docs/entrevista.md`. The brief cites them; it does not copy them. If a
+section of the brief could be replaced by a pointer, make it a pointer.
 
-Two halves, and **both are required** — this step is not only about differentiating:
-
-- **Differentiate** — the gap the incumbents structurally skip. Not "ours is nicer": a reason
-  they *cannot* close it without breaking their own model.
-- **Stock up** — what the comparable repos already solved that you should take instead of
-  rewriting. A scout that only looks for gaps hands you a product built from scratch.
-
-## Step 4: Is there consensus? (⑤ — compose think + grill-me)
-
-This is where `sfx-think` and `sfx-grill-me` are **composed** — not replaced, they stay
-standalone:
-
-- **`sfx-think`** the solution space: the JTBD, the MVP boundary, the shape of the thing.
-- **`sfx-grill-me`** the assumptions: who exactly, why now, what kills this, what has to be true.
-  **Ground every challenge in the Step 2 evidence** — grilling against opinion is theatre.
-
-## Step 5: Write the brief
-
-Write `.docs/brief.md` from `templates/brief.tmpl.md`. **One file** — no separate research doc,
-no decision log. What survives of the research is what the brief cites.
-
-The frontmatter carries the verdict, and `sf` reads it:
+Frontmatter, and `sf` reads it:
 
 ```yaml
 ---
 veredicto: hacelo   # hacelo | pivotea | no-lo-hagas — the one YOU propose
-evidencia: baja     # ONLY on a degraded pass (Step 2). Omit it otherwise.
 ---
 ```
 
-**Cite your sources in the body.** The ⑥ gate counts links: a brief that carries a verdict and
-not one single URL does **not** seal. This is not about how much research is enough — that is
-Javier's call — it is about the difference between *some* and *none*.
+**Write the verdict you propose.** Not empty — the same one you argue for in the body and print in
+the gate line. `sf approve` means *"sí, sellalo con lo que dice"*, so the file has to say
+something; an empty `veredicto` deadlocks the ⑥ and the only way out is editing the file by hand.
+Javier's move is `approve` or `reject`, never filling in a blank.
 
-> **Measured, 2026-09-05.** The same idea, the same seed text, two models. One returned
-> `no-lo-hagas` with 13 cited links; the other returned `hacelo` with 8 `model-prior` claims and
-> **zero** links, and the machine accepted both. The second one was not lying — it marked every
-> claim `model-prior — unverified`, exactly as this skill asks. The gate was the part that
-> asked for too little. It no longer does.
-
-**Write the verdict you propose.** Not empty — one of the three, the same one you argue for in
-the body and print in the gate message. `sf approve` means *"yes, seal it with what it says"*, so
-the file has to say something; an empty `veredicto` deadlocks the ⑥ — `sf done` refuses to move,
-`sf approve` has nothing to seal, and the only way out is editing the file by hand.
-
-Javier's decision is `approve` or `reject`, not filling in the blank. If he wants a different
-verdict than the one you propose, he rejects and the ①–⑤ runs again.
-
-## Step 6: The ⑥ — stop, and it is Javier's
+## Step 3 — the ⑥, and it is Javier's
 
 You do not seal. Print the gate and stop:
 
 ```
 ───────────────────────────────────────
-🛑 ⑥ — brief ready: "<idea in one line>"
-Proposed: <hacelo | pivotea | no-lo-hagas>
-Evidence: <retrieved N / model-prior M>  ·  Differentiator: <one line>
-Awaiting: sf approve  /  sf reject "motivo"
+🛑 ⑥ — brief listo: "<la idea en una línea>"
+Propongo: <hacelo | pivotea | no-lo-hagas>
+Evidencia: retrieved N / model-prior M / probado P  ·  links L
+Ronda(s): R  ·  preguntas abiertas: 0
+Diferencial: <una línea>
+No pude comprobar: <lo que quedó afuera, o "nada">
+Esperando: sf approve  /  sf reject "motivo"
 ───────────────────────────────────────
 ```
 
-Then `sf done`. The gate runs: the brief must exist, carry a valid `veredicto`, and cite at
-least one source — unless it declares `evidencia: baja`. It does **not** check whether the brief
-is *good*, nor whether the sources are strong enough — that is judgment, and judgment is
-Javier's.
+Then `sf done`. The gate checks the mechanical part — the three files exist, the interview closed
+with no open branches, the evidence cites at least one real source, the verdict is one of three. It
+does **not** check whether the brief is *good*, nor whether the evidence is *enough*. That is
+judgment, and judgment is Javier's.
+
+> **Measured, 2026-09-05.** Same idea, same seed text, two models. One returned `no-lo-hagas` with
+> 13 links; the other `hacelo` with 8 `model-prior` claims and **zero** links, and the machine
+> accepted both. The second was not lying — it tagged provenance correctly, exactly as asked. **The
+> harness was blind and the gate asked for too little.** Both halves are fixed now; this skill is
+> the half that stopped guessing.
 
 ## Rules
 
+- Compose, never re-explain. The method belongs to the primitive.
 - De-risk, never claim validation. Name what AI cannot know.
-- No evidence tools → no fabricated research. Gate on tooling.
-- Provenance on every claim. `model-prior` is allowed but always labelled.
+- Research is a branch of the interview, not a phase before it.
+- Differentiate **and** stock up. Both halves.
 - `no-lo-hagas` is a success. The value of the ⑥ is being able to say no.
-- Ping-pong **before** research. A shapeless idea returns shapeless results.
-- Differentiate **and** stock up. Both halves of the ④.
-- One file: `.docs/brief.md`. Everything else is conversation.
+- The brief argues and cites. The evidence lives in `evidencia.md`.

@@ -1,136 +1,55 @@
 ---
 name: sfx-grill-me
 description: >
-  Interview the user relentlessly about a plan, design, or artifact until reaching shared
-  understanding. Walk down every branch of the decision tree. Trigger: "/grill-me",
+  The interview, standalone — no product state behind it, no artifact required. Use when the user
+  wants to stress-test a plan, a design or an idea on its own. Triggers: "/grill-me",
   "/grill-me <artifact-path>", "grill me", "stress-test this plan", "interview me about",
   "poke holes in this", "challenge my design".
 ---
 
-# grill-me
+# sfx-grill-me
 
-Interview relentlessly about every aspect until you and the user reach a shared understanding.
+The interview with nothing behind it. **The method lives in `sfx-grilling`** — this skill only
+figures out what is being grilled and whether to keep a record.
 
-## The 5 Principles
+## 1. What is the target
 
-1. **Interview relentlessly** about every aspect until shared understanding.
-2. **Walk down each branch** of the decision tree, resolving dependencies one-by-one.
-3. **For each question, provide your recommended answer**. User can accept with "yes" or push back.
-4. **Ask one question at a time**. Never batch questions.
-5. **If a question can be answered by exploring the codebase, explore instead** — don't waste user's time.
+- no argument → ask: *"¿qué querés poner a prueba?"*
+- a path → read the artifact first
+- a topic → ask for two or three sentences of context
 
-## Step 1: Determine Target
+Then read whatever context is at hand — `.docs/constitucion.md`, `.docs/vocabulario.md`, related
+specs or code — **before** the first round. Every fact you can find yourself is a question you do
+not spend on the user.
 
-- `/grill-me` no arg → ask: "What do you want to stress-test?"
-- `/grill-me <path>` → read the artifact
-- `/grill-me <topic>` → ask for 2-3 sentences of context
+## 2. Keep a record?
 
-## Step 2: Save Prompt
-
-Before starting:
-
-> Ready to grill. This session might last 15-45 minutes with 15-50 questions.
-> Save the transcript to a file? Where? [path / N]
+> Esto puede durar un rato. ¿Guardo la entrevista en un archivo? [ruta / N]
 
 Default: no. Remember the answer.
 
-## Step 3: Explore Context First
+## 3. Run it
 
-Before asking questions, read:
-- The artifact (if given)
-- `.docs/constitucion.md` (if exists)
-- Related code or specs
-- `.docs/features/*/spec-design.md` if relevant
+`Call the Skill tool with "sfx-grilling"`, telling it the target, the context you gathered, and the
+file to write — or that there is none.
 
-This prevents asking questions you can answer yourself (principle 5).
-
-## Step 4: Interview
-
-For each question:
-
-```markdown
-**Q{N}**: {question}
-
-Recommended: {your recommended answer with brief rationale}
-```
-
-Wait for response. Adapt next question based on answer.
-
-Continue until:
-- User says "stop" / "done" / "enough"
-- All branches resolved
-- 3 consecutive "I don't know" → pause, suggest research first
-
-Track:
-- Decisions made
-- Open issues
-- New branches to explore
-
-## Step 5: Generate Summary
-
-### If user said "save"
-
-If the user asked for a file, write it there:
-
-```markdown
-# Grill: {topic}
-
-**Date**: {YYYY-MM-DD}
-**Questions**: {count}
-
-## Summary
-
-### Decisions Made
-- {decision}: {choice + rationale}
-
-### Open Issues
-- {issue}: {why unresolved}
-
-### Key Insights
-- {insight surfaced during conversation}
-
-## Full Transcript
-### Q1: {question}
-**Recommended**: {recommendation}
-**User**: {response}
-...
-```
-
-### If "no save" → don't write any file.
-
-## Step 6: Return Summary
+## 4. Close
 
 ```
-## Grill Complete: {topic}
+## Grill terminado: {tema}
 
-**Questions**: {count}
-**Saved**: {path | not saved}
+Rondas: {n} · preguntas: {n} · abiertas: {n}
+Guardado: {ruta | no}
 
-### Decisions Made ({count})
-- {decision, one line}
+### Decisiones ({n})
+- {una línea cada una}
 
-### Open Issues ({count})
-- {issue, one line}
+### Lo que quedó abierto ({n})
+- {una línea cada una, con por qué}
 
-### Recommended Next Step
-{`sf new "…"`, more research, or "resolve open issues first"}
+### Siguiente paso sugerido
+{`sf new "…"`, más investigación, o "resolvé lo abierto primero"}
 ```
 
-## Not this skill: when the gaps are already known
-
-"Never batch" below is right *for this job* — probing assumptions, where each
-answer changes the next question. It is not a universal rule.
-
-If you can already name the open questions — after reading a PRD, or with a
-feature seeded from `--from` — this is the wrong mode: asking 20 known gaps one
-at a time is fatigue, not rigour. Ask them in one batch instead.
-
-## Rules
-
-- ONE question at a time. Never batch. (Probing assumptions only — see above.)
-- ALWAYS provide recommended answer with each question.
-- If answerable by reading code/artifacts, do that FIRST.
-- Adapt depth to responses. Quick "yes" → move faster. Long deliberation → dig deeper.
-- 3+ "I don't know" → pause, suggest research.
-- NEVER lecture. Extract the user's thinking, don't teach.
-- Respect "enough" / "stop" — end immediately with summary.
+**If `abiertas` is not zero, say it out loud.** An interview cut short is a fine outcome; one that
+pretends it finished is not.
