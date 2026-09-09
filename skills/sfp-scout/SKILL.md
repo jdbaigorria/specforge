@@ -1,13 +1,14 @@
 ---
 name: sfp-scout
 description: >
-  Turn a fuzzy product idea into a sealed brief with a verdict. The front-end of the SpecForge
-  machine (state `brief`, steps ①–⑤): it COMPOSES the interview, the research, the glossary and
-  the prototype primitives, and adds the one thing they do not have — a verdict and the ⑥ gate.
-  Invoked by the orchestrator when `sf next` returns `skill: sfp-scout`, not on your own
-  initiative. Also usable standalone: "scout this idea", "should I build X", "is this worth
-  building", "/sfp-scout". NOT validation — AI cannot prove demand; it gathers evidence and
-  surfaces risk.
+  A raw product idea arrives — turn it into a sealed brief with a verdict. THIS IS THE FIRST
+  STOP for a fuzzy idea: "quiero armar X", "tengo una idea", "should I build X", "is this
+  worth building", "scout this idea", "/sfp-scout". A raw idea comes HERE, never to open-ended
+  debate — the first thing it needs is somebody checking whether it already exists. The
+  front-end of the SpecForge machine (state `brief`, steps ①–⑤): it composes the interview,
+  the research, the glossary and the prototype primitives, and adds what they lack — a verdict
+  and the ⑥ gate. `sf next` names it as `skill: sfp-scout`. NOT validation — AI cannot prove
+  demand; it gathers evidence and surfaces risk.
 ---
 
 # sfp-scout

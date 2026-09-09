@@ -77,6 +77,25 @@ nuevo**, y ése era el único motivo por el que el corte del ② estaba diferido
 2. **Una skill user-invoked nunca invoca a otra user-invoked.**
 3. **La dependencia se escribe como orden ejecutable** — `Call the Skill tool with "sfx-grilling"` —
    no como link ni como `/nombre` suelto en la prosa. Un modelo débil lee prosa y no llama nada.
+4. **La `description` ES una regla de ruteo, y gana la carrera.**
+
+> **MEDIDO EL 2026-09-08, en opencode.** Le llega una idea difusa —*"un pomodoro de anime"*— y el
+> trace fue: `Read .` → `Skill "sfx-think"`. **Nunca abrió el `AGENTS.md`**, que en su paso 1 dice
+> *"Corré `sf next`"*.
+>
+> **Las descripciones de las skills están SIEMPRE en contexto; el orquestador hay que leerlo.**
+> Así que la descripción decide antes de que el modelo lea la instrucción que le decía qué hacer.
+> Un archivo que hay que abrir nunca le va a ganar a un texto que ya está adentro.
+>
+> Y la causa concreta fue una regresión de `e42f07a`, del día anterior: `sfp-scout` decía *"not on
+> your own initiative"* mientras `sfx-think` listaba entre sus gatillos *"I have this idea"* y *"is
+> it worth doing X"*. **El modelo eligió la que lo invitaba por sobre la que le decía que no.** Hizo
+> exactamente lo que las descripciones le dijeron.
+>
+> **La regla que sale de ahí:** dos skills no pueden reclamar el mismo gatillo, y la que NO va
+> tiene que decir a dónde va — como hace Matt entre `LOGIC.md` y `UI.md` (*"this is the wrong
+> branch, use the other"*). Arreglado: la idea cruda es de `sfp-scout` y `sfx-think` pasó a ser
+> sólo para opciones **que ya están sobre la mesa**.
 
 | primitivo | model-invoked | dueño único de |
 |---|---|---|

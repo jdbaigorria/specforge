@@ -1,13 +1,13 @@
 ---
 name: sfx-think
 description: >
-  Debate an idea, explore possibilities, evaluate approaches before committing to a plan.
-  Open-ended thinking with structured conclusions. Use when the user wants to think through
-  something without immediately building or specifying. Triggers: "/think", "/think <topic>",
-  "/debate", "let's think about", "should I use X or Y", "I'm considering", "what if we",
-  "help me think through", "let's debate", "I have this idea", "is it worth doing X",
-  "pros and cons of", "evaluate this approach", or any open-ended question about direction,
-  strategy, or technical choices that doesn't yet have a clear scope.
+  Weigh options that are ALREADY on the table: compare approaches, follow a decision to its
+  consequences, reach a documented conclusion. Triggers: "/think", "/think <topic>",
+  "/debate", "should I use X or Y", "pros and cons of", "evaluate this approach", "what if
+  we", "I'm considering", "let's think about <this decision>". NOT for a raw product idea —
+  "quiero armar X", "tengo una idea", "is this worth building" go to `sfp-scout`, which
+  starts by researching whether the thing already exists. Composed by `sf-plan` for the ⑫
+  decision, and by `sfx-grilling` when no fact separates the options.
 ---
 
 # Think
