@@ -1,6 +1,6 @@
 # T1 refundado — el brief, en cuatro primitivos
 
-**Fecha:** 2026-09-07 · **Branch:** `refundation` · **Commit base:** `6880bd8`
+**Fecha:** 2026-09-08 · **Branch:** `refundation` · **Commit base:** `6880bd8`
 
 > **Qué es esto.** El replanteo del primer tramo (①–⑥) después de leer las skills de Matt Pocock.
 > No reemplaza a `el-mapa.md` —ése sigue siendo el estado del proyecto— sino a la ficha de T1 que
@@ -8,7 +8,7 @@
 >
 > **Es corto a propósito.** Lo largo son las skills, y las skills son chicas.
 >
-> **Regla de lectura.** Lo que dice "el código hace X" tiene archivo y línea, medido el 2026-09-07.
+> **Regla de lectura.** Lo que dice "el código hace X" tiene archivo y línea, medido el 2026-09-08.
 > Lo que es deducción está marcado.
 
 ---
@@ -237,7 +237,7 @@ retomar   §4    "pasa si B CITA, no si B dice hacelo"
 
 ---
 
-## 8. El cableado en Go — HECHO el 2026-09-07
+## 8. El cableado en Go — HECHO el 2026-09-08
 
 Las skills no obligan. Esto sí. **Los seis están hechos**, en `96f2dec` (①–⑤) y el commit del
 `sf doctor` (⑥).
@@ -281,10 +281,10 @@ palabra para la misma cosa, tres estados después.
 
 ---
 
-## 10. Dos observaciones que quedan anotadas — no son de T1, son de la máquina
+## 10. Tres observaciones que quedan anotadas — no son de T1, son de la máquina
 
 **De dónde salen.** Del cotejo de T1 ya construido contra el flujo de `planning/matt.md` §4 y §7,
-el 2026-09-07. **No se arreglan ahora, y el motivo es el mismo para las dos: son decisiones de la
+el 2026-09-08. **No se arreglan ahora, y el motivo es el mismo para las dos: son decisiones de la
 máquina entera y todavía no hay una corrida larga que diga cuál es el problema real.** Inventarles
 la solución ahora sería adivinar.
 
@@ -332,6 +332,37 @@ subagente, no tiene sobre. Corriendo inline no pasa nada; ahí está el límite.
 **Umbral que lo despierta:** un tramo donde la parada cableada sea claramente la equivocada, o el
 primer prototipo que haya que correr en un subagente.
 
+### ③ La memoria del arnés contamina el banco — y NO es un problema de SpecForge
+
+**Medido el 2026-09-08, preparando la re-corrida de T1.** La idea semilla del banco y **su
+respuesta** habían quedado guardadas en ICM. Desde adentro de la corrida:
+
+```
+icm recall "CLI costos Claude Code transcripts"
+  → "ccusage (18.4k estrellas, Rust, cubre 100% del spec salvo CSV)"   score 0.628
+```
+
+Y el `CLAUDE.md` global del usuario manda usarla: *"You MUST use it actively. Not optional."* O
+sea que **el agente tiene la orden de ir a buscar la respuesta que tendría que investigar.** La
+corrida sale verde, con links y todo, y **mide cero**: no probaste el scout, probaste la memoria.
+
+**El canal automático no era el culpable** —`icm hook start` desde `corridas/A` se cree proyecto
+"A" y no devuelve nada del banco—: **el que filtra es el recall que hace el agente por su cuenta.**
+
+**Por qué esto entra en un documento de SpecForge y no sólo en el del banco.** Porque es una
+propiedad general: **cualquier sistema de memoria persistente rompe un experimento de
+repetibilidad**, y SpecForge se prueba corriendo el mismo tramo dos veces. Hoy se arregló donde
+salía más barato —cambiar la semilla, y la regla escrita en `IDEA.md`— pero la pregunta de fondo
+sigue abierta: *¿cómo se corre la máquina en un cuarto limpio?*
+
+**Lo que se intentó y NO funcionó, dicho para que nadie lo repita:** aislar con
+`CLAUDE_CONFIG_DIR` apuntando a una config vacía. Aísla —pide login de nuevo— pero incluso
+llevándole las credenciales, el agente **seguía contestando que ve la instrucción de ICM**. Por
+qué, no se averiguó.
+
+**Umbral que lo despierta:** la primera vez que haya que correr un tramo donde la semilla no se
+pueda cambiar — o sea, cuando lo que se prueba **sea** un proyecto real y no una idea de banco.
+
 ---
 
 ## 11. Las decisiones de esta sesión
@@ -351,3 +382,4 @@ Las once, para que no haya que reconstruirlas de la conversación.
 | Q9 | `vocabulario.md` se inyecta como la constitución, **si existe**. Sin ADRs |
 | Q10 | El prototipo es efímero, sin branch. El lenguaje sale de la cabecera que dejó `sf init` |
 | Q11 | La vara de T1 es de **evidencia**, no de veredicto |
+| — | **La idea semilla del banco no se guarda en ninguna memoria, y su resultado menos.** Se rompió el 2026-09-08 |

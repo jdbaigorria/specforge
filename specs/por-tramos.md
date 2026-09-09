@@ -224,7 +224,7 @@ es, exactamente, la familia de bug que ya mordió una vez.
 
 ### La excepción de T1 — y tiene nombre porque si no T1 falla siempre
 
-**Escrito el 2026-09-07**, resolviendo la contradicción que `el-mapa.md` §4① dejó abierta entre
+**Escrito el 2026-09-08**, resolviendo la contradicción que `el-mapa.md` §4① dejó abierta entre
 este párrafo y `retomar.md` §4.
 
 El criterio de arriba sirve de T2 en adelante, donde los campos que se mueven son **mecánicos**:
@@ -258,7 +258,7 @@ compuerta cierra, y las preguntas abiertas. Los campos salen de `estado/estado.g
 
 ### T1 · El brief — ①–⑥
 
-> ⚠️ **Esta ficha describe la forma vieja del tramo.** T1 se replanteó el 2026-09-07: la entrevista
+> ⚠️ **Esta ficha describe la forma vieja del tramo.** T1 se replanteó el 2026-09-08: la entrevista
 > pasa a ser un árbol con frontera, la investigación deja de ser una etapa y pasa a ser una rama, y
 > el tramo deja tres artefactos contables en vez de uno. **La fuente de T1 es ahora
 > [`tramo-1.md`](tramo-1.md).** Se conserva esto porque las preguntas abiertas de abajo son las que

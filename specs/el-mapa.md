@@ -183,7 +183,7 @@ descubrir el número de corte, y el número sale de mirar las corridas*. Cablear
 
 ### T1 · El brief — ①–⑥ 🟡 **corrido, falló**
 
-> ⚠️ **Esta ficha quedó vieja el 2026-09-07.** T1 se replanteó entero después de leer las
+> ⚠️ **Esta ficha quedó vieja el 2026-09-08.** T1 se replanteó entero después de leer las
 > skills de Matt Pocock: la entrevista pasa a ser un árbol con frontera, la investigación deja
 > de ser una etapa y pasa a ser una rama, y el tramo deja tres artefactos contables en vez de
 > uno. **La fuente de T1 es ahora [`tramo-1.md`](tramo-1.md)** — que además cierra la
@@ -416,6 +416,7 @@ No están contestadas, ninguna bloquea hoy, y las cinco pueden morder mañana.
 | **⑤** | **¿La ⏸ del ⑨ sirve, o es una parada de más?** | T3 |
 | **⑥** | **La ventana se llena en el ①–⑤ y no hay regla de corte.** Matt la tiene (`smart zone`); nosotros no, y este replanteo alargó ese tramo | transversal — el detalle en [`tramo-1.md`](tramo-1.md) §10① |
 | **⑦** | **Matt da cinco opciones en el borde de fase; nosotros una y clavada en Go.** No es defecto, es ser máquina — pero cuando la clavada no sirve no hay salida | transversal — [`tramo-1.md`](tramo-1.md) §10② |
+| **⑧** | **La memoria del arnés contamina el banco.** `icm recall` devolvía la respuesta de la corrida anterior, y el `CLAUDE.md` global manda usarla. Hoy se tapó cambiando la semilla; falta la pregunta de fondo: ¿cómo se corre en un cuarto limpio? | transversal — [`tramo-1.md`](tramo-1.md) §10③ |
 
 ---
 

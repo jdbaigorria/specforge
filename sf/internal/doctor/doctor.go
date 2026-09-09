@@ -123,7 +123,7 @@ type Skill struct {
 	// POR QUÉ ESTO APARECIÓ RECIÉN AHORA
 	// ────────────────────────────────────────────────────────────────────
 	//
-	// Hasta el 2026-09-07 los nueve de la máquina se bastaban solos, así que
+	// Hasta el 2026-09-08 los nueve de la máquina se bastaban solos, así que
 	// alcanzaba con contar que estuvieran. Desde el replanteo de T1 no:
 	// `sfp-scout` es un COMPOSITOR y el método vive en cuatro primitivos
 	// aparte. Un scout instalado que llama a un `sfx-grilling` que no está

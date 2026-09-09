@@ -266,7 +266,7 @@ func (r Resultado) Acta() string {
 //	entrevista.md   el RAZONAMIENTO    abiertas: 0         se relee después
 //	evidencia.md    el HECHO           links con http      se acumula
 //
-// Hasta el 2026-09-07 esto era un archivo y un `grep` de "http" sobre él. El
+// Hasta el 2026-09-08 esto era un archivo y un `grep` de "http" sobre él. El
 // grep funcionaba —cero links es cero links— y no se podía extender: "¿la
 // entrevista terminó?" no se contesta grepeando prosa.
 func Brief(raiz string) Resultado {
