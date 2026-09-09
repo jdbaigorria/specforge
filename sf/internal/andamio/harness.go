@@ -114,10 +114,35 @@ var permisos = map[string]struct {
 }
 `,
 	},
+	// opencode lleva ADEMÁS `instructions`, y no es un extra: es la única forma
+	// de que AGENTS.md se cargue solo.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// MEDIDO EL 2026-09-08 — LA DESCRIPCIÓN LE GANA LA CARRERA AL ORQUESTADOR
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// Le llega una idea difusa a opencode y el trace fue:
+	//
+	//	Read .  →  Skill "sfx-think"
+	//
+	// NUNCA ABRIÓ AGENTS.md, que en su paso 1 dice "Corré `sf next`". Y no es
+	// desobediencia: las descripciones de las skills están SIEMPRE en el
+	// contexto, y el orquestador hay que ir a leerlo. Un archivo que hay que
+	// abrir no le gana a un texto que ya está adentro.
+	//
+	// Claude Code no tiene el problema porque auto-descubre CLAUDE.md. Ésta es
+	// la misma pieza para opencode, y sin ella el arnés no sabe que está
+	// parado adentro de un SpecForge hasta que alguien se lo dice.
+	//
+	// Javier, el 2026-09-08, después de tener que decírselo a mano:
+	//
+	//	"debería ver la carpeta .specforge y decir: apa, esto es un
+	//	 specforge, debo usarlo"
 	"opencode": {
 		Ruta: "opencode.json",
 		Contenido: `{
   "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
   "permission": {
     "edit": "allow",
     "bash": { "*": "allow", "rm -rf *": "deny" }
