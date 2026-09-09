@@ -24,16 +24,26 @@ set -euo pipefail
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 
 CORRIDAS="$HOME/projects/workspace/personal/sf-banco/corridas"
-nombre="${1:?uso: ./nuevo.sh <nombre> [--rehacer]}"
+# ─────────────────────────────────────────────────────────────────────────────
+# CADA CORRIDA VA EN UN DIRECTORIO NUEVO, Y NO ES MANÍA
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# MEDIDO EL 2026-09-08: ICM inventa un proyecto de memoria CON EL NOMBRE DEL
+# DIRECTORIO. Correr en `corridas/A` creó el tópico `context-sf-banco-A`, y ahí
+# quedó guardado el resultado de esa corrida — incluido un "la corrida A NO
+# llegó al PRD, no queda nada".
+#
+# O sea: CADA CORRIDA EN corridas/A ENVENENA LA SIGUIENTE CORRIDA EN corridas/A.
+# Para siempre, aunque cambies la semilla y aunque borres la carpeta: el veneno
+# no está en el disco, está indexado bajo el nombre.
+#
+# Con un nombre nuevo cada vez, el proyecto de memoria arranca vacío. Es la
+# única forma de que el arnés no se acuerde sin desinstalarle la memoria.
+base="${1:?uso: ./nuevo.sh <a|b> [sufijo]}"
+nombre="${base}-$(date +%Y%m%d-%H%M)${2:+-$2}"
 d="$CORRIDAS/$nombre"
 
-if [ -e "$d" ]; then
-  if [ "${2:-}" = "--rehacer" ]; then
-    rm -rf "$d"
-  else
-    echo "ya existe $d — pasá --rehacer si la querés de cero"; exit 1
-  fi
-fi
+[ -e "$d" ] && { echo "ya existe $d"; exit 1; }
 
 mkdir -p "$d"
 cd "$d"
@@ -49,4 +59,5 @@ mkdir -p "$DIAG"
 sf doctor > "$DIAG/$nombre-$(date +%Y%m%d-%H%M).txt" 2>&1 || true
 
 echo "listo: $d"
+echo "     (nombre nuevo a propósito: la memoria del arnés se indexa por directorio)"
 sed -n '/^buscar/,/^$/p' "$DIAG"/$nombre-*.txt | tail -5

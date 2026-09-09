@@ -32,7 +32,19 @@ el agente encontró tirado.
 ①  la semilla y su resultado NO se guardan en ninguna memoria
 ②  las corridas viejas NO se archivan adentro del banco
 ③  nada que explique el experimento entra al directorio de la corrida
+④  cada corrida va en un DIRECTORIO NUEVO
 ```
+
+**La ④ es la que costó más cara, y es la menos obvia.** ICM inventa un proyecto de
+memoria **con el nombre del directorio**: correr en `corridas/A` creó el tópico
+`context-sf-banco-A`, y ahí quedó guardado *"la corrida A NO llegó al PRD, no queda
+nada"*. O sea que **cada corrida en `corridas/A` envenena la siguiente corrida en
+`corridas/A`** — para siempre, aunque cambies la semilla y aunque borres la carpeta.
+El veneno no está en el disco: está indexado bajo el nombre.
+
+`nuevo.sh` le pone fecha y hora al nombre justamente por eso. Verificado el
+2026-09-08: en una corrida nueva el wake-up dice `project: a-20260908-2341` y no
+inyecta nada del banco.
 
 **El resto que queda, y es tuyo decidirlo:** el path dice `sf-banco/corridas/A`. Eso no
 da la respuesta, pero le avisa al agente que está en una prueba. Si te parece que
