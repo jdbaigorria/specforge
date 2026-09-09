@@ -78,6 +78,25 @@ links: 13
 ---
 ```
 
+**What each counter counts — no interpretation allowed.** These four numbers are what the ⑥ gate
+reads, so the scope is fixed and it is not yours to narrow:
+
+| counter | counts | scope |
+|---|---|---|
+| `retrieved` | every `[retrieved]` tag in the body | the whole file |
+| `model_prior` | every `[model-prior …]` tag in the body | the whole file |
+| `probado` | every `[probado]` tag in the body | the whole file |
+| `links` | **every** `http://` or `https://` in the body | the whole file |
+
+`links` is a count of URLs, **not** a count of competitors. A link that only explains what the
+thing *is* counts exactly the same as a link to a rival product. Do not filter by what the link is
+*about* — if it is a URL in the body, it is in the number.
+
+> **Why so literal.** The gate counts bytes: zero network, zero LLM on the enforcement path. It
+> cannot tell a context link from a competitor link, so any narrower reading you invent will not
+> match and will show up as a mismatch warning. Count everything; say what the links are *about*
+> in the prose, where it belongs.
+
 Body, one block per question asked:
 
 ```markdown
@@ -101,3 +120,5 @@ decision. A green that means "I did not look" is worse than a red.
 - What you did not find gets written down.
 - No tools → no invented landscape. Stop, or declare `evidencia: baja`.
 - One file: `.docs/evidencia.md`. Append, never overwrite someone else's block.
+- The frontmatter counts the WHOLE body, tag for tag and URL for URL. `links` is every URL,
+  not every competitor.

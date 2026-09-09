@@ -264,7 +264,7 @@ func (r Resultado) Acta() string {
 //
 //	brief.md        el ARGUMENTO       veredicto           envejece cada vuelta
 //	entrevista.md   el RAZONAMIENTO    abiertas: 0         se relee después
-//	evidencia.md    el HECHO           links con http      se acumula
+//	evidencia.md    el HECHO           tags y links        se acumula
 //
 // Hasta el 2026-09-08 esto era un archivo y un `grep` de "http" sobre él. El
 // grep funcionaba —cero links es cero links— y no se podía extender: "¿la
@@ -348,19 +348,22 @@ func revisarEntrevista(raiz string, r *Resultado) {
 	}
 }
 
-// revisarEvidencia mira lo que se encontró, y cuenta los links de verdad.
+// revisarEvidencia mira lo que se encontró, y cuenta los tags y los links de
+// verdad — los cuatro contadores, no sólo `links`.
 //
 // ────────────────────────────────────────────────────────────────────────────
 // EL FRONTMATTER DECLARA; EL CUERPO ES EL HECHO
 // ────────────────────────────────────────────────────────────────────────────
 //
 // `links: 13` es una línea que el modelo tipea. Trece "https://" en el cuerpo
-// son trece bytes que están o no están. La compuerta frena sobre el segundo y
-// AVISA cuando el primero no coincide — porque un número declarado que no cierra
+// son trece bytes que están o no están. Lo mismo vale para los otros tres: un
+// `[retrieved` en el cuerpo es un byte, `retrieved: 5` es una opinión sobre esos
+// bytes. La compuerta frena sobre los segundos y AVISA cuando los primeros no
+// coinciden — porque un número declarado que no cierra
 // con lo que hay es exactamente la clase de cosa que alguien quiere ver antes de
 // firmar, y no es motivo para frenar a nadie.
 //
-// POR QUÉ EL UMBRAL ES UNO Y NO ES UN NÚMERO MÁGICO
+// # POR QUÉ EL UMBRAL ES UNO Y NO ES UN NÚMERO MÁGICO
 //
 // Cero es una categoría —"no investigó"—. Cualquier número mayor es un juicio
 // sobre CUÁNTO alcanza, y el juicio es de Javier. Uno es el borde entre nada y
@@ -396,23 +399,40 @@ func revisarEvidencia(raiz string, r *Resultado) {
 		return
 	}
 
+	// LOS CUATRO CONTADORES SE MIDEN IGUAL, Y POR LA MISMA RAZÓN
+	//
+	// MEDIDO EL 2026-09-09, corrida B: el modelo declaró `retrieved: 5` con
+	// SIETE tags `[retrieved]` en el cuerpo, y nadie chistó — porque hasta acá
+	// `links` era el único que se contrastaba y los otros tres se repetían tal
+	// como venían. Un número declarado que nadie mira es un número que se puede
+	// inventar, que es justo lo que esta compuerta existe para no dejar pasar.
+	//
+	// Se cuenta por el ABRE-TAG y no por el tag entero: el skill escribe
+	// `[model-prior — sin verificar]`, y el sufijo es prosa libre. El prefijo es
+	// lo único estable.
 	for _, m := range []struct {
-		que string
-		val *int
+		que       string
+		abreTag   string
+		declarado *int
 	}{
-		{"retrieved", fm.Retrieved},
-		{"model-prior", fm.ModelPrior},
-		{"probado", fm.Probado},
+		{"retrieved", "[retrieved", fm.Retrieved},
+		{"model-prior", "[model-prior", fm.ModelPrior},
+		{"probado", "[probado", fm.Probado},
 	} {
-		if m.val != nil {
-			r.mide(m.que, fmt.Sprint(*m.val))
+		reales := bytes.Count(cuerpo, []byte(m.abreTag))
+		r.mide(m.que+" en el cuerpo", fmt.Sprint(reales))
+		if m.declarado != nil && *m.declarado != reales {
+			r.avisa("%s declara `%s: %d` y en el cuerpo hay %d tag(s).",
+				docs.Evidencia, m.que, *m.declarado, reales)
 		}
 	}
 
 	reales := bytes.Count(cuerpo, []byte("http://")) + bytes.Count(cuerpo, []byte("https://"))
 	r.mide("links en el cuerpo", fmt.Sprint(reales))
 	if fm.Links != nil && *fm.Links != reales {
-		r.avisa("%s declara `links: %d` y en el cuerpo hay %d.", docs.Evidencia, *fm.Links, reales)
+		r.avisa("%s declara `links: %d` y en el cuerpo hay %d.\n"+
+			"→ `links` cuenta TODA url del cuerpo, no sólo las de competidores: "+
+			"la compuerta cuenta bytes y no puede distinguirlas.", docs.Evidencia, *fm.Links, reales)
 	}
 
 	// LA SALIDA, QUE YA ESTABA DISEÑADA

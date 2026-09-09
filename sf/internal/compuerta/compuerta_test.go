@@ -144,6 +144,46 @@ func TestBriefCuentaLinksEnCualquierParte(t *testing.T) {
 	}
 }
 
+// MEDIDO EL 2026-09-09, corrida B: el modelo declaró `retrieved: 5` con SIETE
+// tags en el cuerpo —contó sólo las implementaciones existentes y dejó afuera
+// los links de contexto— y la compuerta repitió el 5 sin mirar. Los cuatro
+// contadores se contrastan igual: avisan, no frenan.
+func TestBriefAvisaCuandoLosContadoresNoCierran(t *testing.T) {
+	cuerpo := "- una. [retrieved]\n  - https://a.example\n" +
+		"- dos. [retrieved]\n  - https://b.example\n" +
+		"- de memoria. [model-prior — sin verificar]\n"
+
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md",
+			"---\nretrieved: 1\nmodel_prior: 0\nprobado: 0\nlinks: 1\n---\n"+cuerpo)
+
+	r := Brief(p.raiz)
+	if !r.Pasa() {
+		t.Fatalf("un contador que no cierra AVISA, no frena: %v", r.Fallas)
+	}
+	avisos := strings.Join(r.Avisos, "\n")
+	for _, que := range []string{"retrieved", "model-prior", "links"} {
+		if !strings.Contains(avisos, que) {
+			t.Errorf("no avisó del descuadre de %q: %v", que, r.Avisos)
+		}
+	}
+}
+
+// Y el caso limpio no tiene que avisar nada: si el modelo declara lo que hay,
+// la compuerta se calla.
+func TestBriefNoAvisaCuandoLosContadoresCierran(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md",
+			"---\nretrieved: 2\nmodel_prior: 1\nprobado: 0\nlinks: 2\n---\n"+
+				"- una. [retrieved]\n  - https://a.example\n"+
+				"- dos. [retrieved]\n  - https://b.example\n"+
+				"- de memoria. [model-prior — sin verificar]\n")
+
+	if r := Brief(p.raiz); len(r.Avisos) != 0 {
+		t.Errorf("con los cuatro números al día no hay nada que avisar: %v", r.Avisos)
+	}
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // La entrevista — el ①–⑤ deja registro, y el registro se cuenta
 // ────────────────────────────────────────────────────────────────────────────
