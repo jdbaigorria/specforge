@@ -1,6 +1,6 @@
 # Los skills
 
-Dieciocho. **Nueve saben hacer un estado; nueve son utilitarios que no saben que la máquina
+Veinticinco. **Nueve saben hacer un estado; dieciséis son utilitarios que no saben que la máquina
 existe.**
 
 ```
@@ -45,7 +45,7 @@ nunca.
 
 ---
 
-## Los trece utilitarios
+## Los dieciséis utilitarios
 
 Sirven **solos**, en cualquier proyecto, con o sin SpecForge. Invocalos cuando quieras.
 
@@ -55,6 +55,9 @@ Sirven **solos**, en cualquier proyecto, con o sin SpecForge. Invocalos cuando q
 | **`sfx-buscar`** | **el primitivo de investigación**: nivel 0 sin llave antes que los MCPs, con procedencia |
 | **`sfx-vocabulario`** | **el primitivo del glosario**: `vocabulario.md`, perezoso |
 | **`sfx-prototipo`** | **el primitivo de la prueba**: código descartable que contesta UNA pregunta |
+| **`sfx-verificar`** | **el primitivo de la verificación**: genera el skill que maneja la app de verdad, y el mapa de features. Es lo que hace alcanzable el escalón 5 del ㉑ |
+| **`sfx-prosa`** | **el primitivo de la prosa**: reglas `P-#` numeradas y citables, derivadas del castellano de este repo |
+| **`sfx-interrogar`** | varios modelos sobre el mismo diff: lo que dos encuentran solos es la señal alta |
 | **`sfx-think`** | debatir una idea, explorar opciones antes de comprometerse |
 | **`sfx-grill-me`** | la entrevista suelta — compone `sfx-grilling` |
 | **`sfx-tdd`** | RED → GREEN → REFACTOR, una rebanada por vez |
@@ -80,11 +83,18 @@ brief     sfp-scout        compone  →    sfx-grilling (①–⑤)
                                           └ y sfx-grilling ramifica solo:
                                             sfx-buscar · sfx-vocabulario
                                             sfx-prototipo · sfx-think
+prd       sfp-po           compone  →    sfx-prosa (antes de sellar)
 backlog   sfp-backlog      compone  →    sfx-triage (cuando es un bug)
 planif.   sf-plan          compone  →    sfx-think (⑫)
 implem.   sf-build         compone  →    sfx-tdd · sfx-github
-cierre    sf-cierre        compone  →    sfx-documenter · sfx-journal · sfx-github
+revisión  sf-check         recibe   →    el skill que dejó sfx-verificar, si existe
+cierre    sf-cierre        compone  →    sfx-documenter · sfx-journal · sfx-github · sfx-prosa
 ```
+
+> **El `revision` dice "recibe" y no "compone", y la diferencia importa.** `sf-check` no invoca a
+> `sfx-verificar`: lo que recibe es **el archivo** que ese utilitario dejó en `.docs/verificar/`,
+> servido por el sobre. `sfx-verificar` se corre una vez por proyecto, a mano, y el ㉑ de cada
+> feature cosecha lo que dejó.
 
 **Los `sfx-` no se tocan**, y hay motivo: un utilitario que aprendiera a llamar a `sf done`
 dejaría de servir fuera de un proyecto SpecForge — **que es la mitad de su valor**.

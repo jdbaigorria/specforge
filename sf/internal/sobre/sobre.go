@@ -341,6 +341,7 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Conf
 			{Titulo: "Los criterios, y hay que opinar sobre TODOS", Rutas: rutasDeHistorias(fr.Historias)},
 			diff(raiz, f.BaseCommit, "El código que quedó"),
 			mutantes(raiz),
+			verificar(raiz),
 		}
 
 	case estado.Cierre:
@@ -496,6 +497,46 @@ func diff(raiz, base, titulo string) Parte {
 // Y por eso esto no frena nunca: pase lo que pase, la parte se sirve diciendo
 // qué ocurrió. Un sobre al que le falta el dato tiene que DECIRLO; si la parte
 // simplemente no apareciera, el revisor creería que no hacía falta.
+// verificar sirve el skill de verificación del proyecto, si lo hay.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// ES LO QUE HACE ALCANZABLE EL ESCALÓN 5
+// ────────────────────────────────────────────────────────────────────────────
+//
+// La escalera del ㉑ tiene cinco peldaños y el quinto es "lo reprodujiste en la
+// app corriendo". Sin una forma escrita de arrancar la app y manejarla como un
+// usuario, ese peldaño no lo puede pisar nadie y el techo honesto es el 4.
+//
+// Lo genera `/sfx-verificar`, que es un utilitario: sf no lo lanza ni lo nombra
+// en `sf next`. Sólo sirve la ruta, y SERVIR UN ARCHIVO NO ES PENSAR.
+//
+// Que falte NO es un error, igual que `mutacion:` vacío: es una mejora, no un
+// requisito. Lo que sí importa es que el revisor sepa cuál de los dos casos
+// tiene, porque de eso depende si puede declarar un escalón 5.
+func verificar(raiz string) Parte {
+	const titulo = "Cómo manejar la app de verdad → el escalón 5"
+
+	if _, err := os.Stat(filepath.Join(raiz, docs.VerificarSkill)); err != nil {
+		return Parte{Titulo: titulo, Falta: "este proyecto no tiene skill de verificación " +
+			"(`/sfx-verificar` lo genera). Sin él tu techo honesto es el escalón 4: no declares un 5."}
+	}
+
+	rutas := []string{docs.VerificarSkill}
+
+	// El mapa de features es lo que evita la prueba que maneja el único camino
+	// cómodo: dice qué OTROS caminos hay. Se sirven las rutas, no el contenido.
+	entradas, err := os.ReadDir(filepath.Join(raiz, docs.VerificarFeatures))
+	if err == nil {
+		for _, e := range entradas {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
+				rutas = append(rutas, filepath.Join(docs.VerificarFeatures, e.Name()))
+			}
+		}
+	}
+
+	return Parte{Titulo: titulo, Rutas: rutas}
+}
+
 func mutantes(raiz string) Parte {
 	const titulo = "Los mutantes que sobrevivieron"
 

@@ -23,6 +23,25 @@ const (
 	Archivado    = Base + "/archivado" // las features cerradas, con todo adentro
 )
 
+// El skill de verificación, que lo genera `/sfx-verificar` y NO es de la máquina.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ SF LO CONOCE SI ES UN sfx-
+// ────────────────────────────────────────────────────────────────────────────
+//
+// No lo conoce como skill: nunca lo nombra en `sf next` y nunca lo lanza. Lo
+// conoce como RUTA, para servirla en el sobre del ㉑ cuando existe — y servir un
+// archivo no es pensar ni lanzar a nadie, la misma defensa de siempre.
+//
+// Es lo que hace alcanzable el escalón 5 de la escalera: "lo reprodujiste en la
+// app corriendo". Sin este skill, el techo honesto del ㉑ es el 4.
+const (
+	Verificar         = Base + "/verificar"
+	VerificarSkill    = Verificar + "/SKILL.md"
+	VerificarFeatures = Verificar + "/features"
+	VerificarPruebas  = Verificar + "/pruebas"
+)
+
 // Los tres que deja el ①–⑤, y por qué son tres y no uno.
 //
 // ────────────────────────────────────────────────────────────────────────────

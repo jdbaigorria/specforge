@@ -74,6 +74,8 @@ retrieved: 17
 model_prior: 1
 probado: 0
 links: 13
+consultado: 2
+sin_acceso: 1
 # evidencia: baja   ← ONLY on a degraded pass
 ---
 ```
@@ -87,6 +89,8 @@ reads, so the scope is fixed and it is not yours to narrow:
 | `model_prior` | every `[model-prior …]` tag in the body | the whole file |
 | `probado` | every `[probado]` tag in the body | the whole file |
 | `links` | **every** `http://` or `https://` in the body | the whole file |
+| `consultado` | every `[consultado]` tag in the `## Fuentes` roster | the whole file |
+| `sin_acceso` | every `[sin-acceso …]` tag in the `## Fuentes` roster | the whole file |
 
 `links` is a count of URLs, **not** a count of competitors. A link that only explains what the
 thing *is* counts exactly the same as a link to a rival product. Do not filter by what the link is
@@ -113,11 +117,40 @@ Body, one block per question asked:
 **`no evaluable` is a real outcome and it has to be written.** *"I could not check this"* changes a
 decision. A green that means "I did not look" is worse than a red.
 
+### Close with `## Fuentes` — the roster, including the levels you never reached
+
+Provenance per claim says where each answer came from. It says nothing about **what you never
+searched**. A pass that only touched level 0 and a pass that tried level 1 and bounced off a
+missing key look identical from the outside, and they are not the same evidence.
+
+So the file ends with one line per level, and there are exactly two answers:
+
+```markdown
+## Fuentes
+
+- nivel 0 · registries, la API pública de GitHub, `curl` [consultado]
+- nivel 0 · búsqueda web sin llave [consultado]
+- nivel 1 · Tavily [sin-acceso — no hay llave puesta]
+- nivel 2 · GitHub MCP [sin-acceso — no está habilitado en este arnés]
+```
+
+**A level with no matching tool gets a line anyway.** That is the whole point: *"level 1 had
+nothing"* and *"I never got to level 1"* are different facts, and only one of them is a gap in the
+research. Write the reason after `sin-acceso`, never bare.
+
+> **This is the same rule the body already follows, moved up one floor.** The body writes down the
+> claim you could not check. The roster writes down the *source* you could not reach.
+
+The ⑥ gate counts these two tags the same way it counts the other four: the frontmatter declares,
+the body is the fact, and a mismatch is a warning. A file with no roster at all is a warning too,
+not a failure — the block is newer than the archived `evidencia.md` files.
+
 ## Rules
 
 - Level 0 first, always. Level 1 only if level 0 did not answer it.
 - Provenance on every claim. `retrieved` without a link gets demoted.
 - What you did not find gets written down.
+- The source you could not reach gets written down too, in `## Fuentes`, with the reason.
 - No tools → no invented landscape. Stop, or declare `evidencia: baja`.
 - One file: `.docs/evidencia.md`. Append, never overwrite someone else's block.
 - The frontmatter counts the WHOLE body, tag for tag and URL for URL. `links` is every URL,

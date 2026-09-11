@@ -97,6 +97,30 @@ type Constitucion struct {
 	DependenciasAprobadas []string `yaml:"dependencias_aprobadas"`
 
 	Git Git `yaml:"git"`
+
+	Verificacion Verificacion `yaml:"verificacion"`
+}
+
+// Verificacion es el piso de la escalera de evidencia del ㉑.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ EL PISO NO ES DE sf
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Cuál es el escalón mínimo aceptable NO tiene una sola respuesta correcta, así
+// que no es de sf (R1). En un CLI un criterio llega al 5 barato: se arranca el
+// binario y se mira. En una librería de tipos el 3 es el techo honesto, porque
+// no hay nada que "correr".
+//
+// Y el fracaso de ponerlo en el binario es obvio y conocido: una vara de 4 en un
+// repo sin forma de correr nada vuelve rojas TODAS las revisiones, y la primera
+// reacción ante una compuerta que frena todo es aflojarla. Una compuerta que se
+// afloja una vez ya no frena nunca.
+type Verificacion struct {
+	// EscalonMinimo es el escalón que un `cumple` tiene que alcanzar para no
+	// ser un hallazgo. 0 o ausente = sólo se exige que el escalón esté
+	// DECLARADO, que es la mitad que sí tiene una sola respuesta correcta.
+	EscalonMinimo int `yaml:"escalon_minimo"`
 }
 
 // herramientasDeMutacion es qué usa cada lenguaje que sf sabe detectar.

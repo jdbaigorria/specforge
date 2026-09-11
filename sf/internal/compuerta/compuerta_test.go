@@ -1,6 +1,7 @@
 package compuerta
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,11 +41,38 @@ func (p *proyecto) archivo(rel, texto string) *proyecto {
 
 // planCompleto deja una planificación que pasa todas las compuertas. Cada test
 // después rompe UNA cosa, que es lo que hace evidente qué está probando.
+// decisionCompleta es un decision.md que pasa el ⑫ entero: tres opciones, la
+// vara escrita antes, y el puntaje con una fila por opción.
+const decisionCompleta = `# f-1 — la decisión
+
+## Vara
+
+| | criterio | cómo se evalúa |
+|---|---|---|
+| V-1 | costo de cambio | cuántos llamadores toca |
+| V-2 | superficie | cuántos símbolos exporta |
+| V-3 | reversibilidad | qué hay que borrar para volver atrás |
+
+## A — una
+## B — otra
+## C — la tercera
+
+## El puntaje
+
+| | V-1 | V-2 | V-3 |
+|---|---|---|---|
+| A | 3 | bajo | fácil |
+| B | 12 | alto | difícil |
+| C | 5 | medio | fácil |
+
+## Elegida: A
+`
+
 func (p *proyecto) planCompleto() *proyecto {
 	return p.
 		archivo(".docs/backlog/us-1.md",
 			"---\nid: us-1\n---\n## Criterios\n- **CA-1** — uno\n- **CA-2** — dos\n").
-		archivo(carpetaF1+"/decision.md", "## A — una\n## B — otra\n## C — la tercera\n").
+		archivo(carpetaF1+"/decision.md", decisionCompleta).
 		archivo(carpetaF1+"/spec-design.md", "# spec\n").
 		archivo(carpetaF1+"/tareas.json", `{"tareas":[
 			{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],
@@ -174,13 +202,68 @@ func TestBriefAvisaCuandoLosContadoresNoCierran(t *testing.T) {
 func TestBriefNoAvisaCuandoLosContadoresCierran(t *testing.T) {
 	p := nuevo(t).briefCompleto("hacelo").
 		archivo(".docs/evidencia.md",
-			"---\nretrieved: 2\nmodel_prior: 1\nprobado: 0\nlinks: 2\n---\n"+
+			"---\nretrieved: 2\nmodel_prior: 1\nprobado: 0\nlinks: 2\nconsultado: 1\nsin_acceso: 1\n---\n"+
 				"- una. [retrieved]\n  - https://a.example\n"+
 				"- dos. [retrieved]\n  - https://b.example\n"+
-				"- de memoria. [model-prior — sin verificar]\n")
+				"- de memoria. [model-prior — sin verificar]\n"+
+				"\n## Fuentes\n\n"+
+				"- nivel 0 · registries y la API pública de GitHub [consultado]\n"+
+				"- nivel 1 · Tavily [sin-acceso — no hay llave puesta]\n")
 
 	if r := Brief(p.raiz); len(r.Avisos) != 0 {
-		t.Errorf("con los cuatro números al día no hay nada que avisar: %v", r.Avisos)
+		t.Errorf("con los seis números al día no hay nada que avisar: %v", r.Avisos)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El roster de fuentes — lo que NO se miró también se escribe
+// ────────────────────────────────────────────────────────────────────────────
+
+// Los cuatro contadores viejos miden lo que se encontró. Ninguno distingue "el
+// nivel 1 no tenía nada" de "al nivel 1 no llegué", y ésa es la diferencia
+// entre una investigación completa y una con un agujero que nadie ve.
+func TestBriefAvisaCuandoFaltaElRosterDeFuentes(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md",
+			"---\nretrieved: 1\nmodel_prior: 0\nprobado: 0\nlinks: 1\n---\n"+
+				"- una. [retrieved]\n  - https://a.example\n")
+
+	r := Brief(p.raiz)
+	if !r.Pasa() {
+		t.Fatalf("el roster que falta AVISA, no frena: %v", r.Fallas)
+	}
+	if !strings.Contains(strings.Join(r.Avisos, "\n"), "Fuentes") {
+		t.Errorf("no avisó que falta el roster: %v", r.Avisos)
+	}
+}
+
+// LA TRAMPA QUE ESTE TEST CUIDA, y es la razón de que el roster avise en vez de
+// frenar: ninguna `evidencia.md` archivada antes del 2026-09-11 tiene el bloque.
+// Si esto fuera una falla, toda corrida vieja se volvería roja de golpe — y la
+// primera reacción ante una compuerta que frena todo es aflojarla.
+func TestBriefNoFrenaPorElRosterQueFalta(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md",
+			"---\nretrieved: 1\nmodel_prior: 0\nprobado: 0\nlinks: 1\n---\n"+
+				"- una. [retrieved]\n  - https://a.example\n")
+
+	if r := Brief(p.raiz); !r.Pasa() {
+		t.Errorf("una evidencia.md vieja sin roster tiene que pasar: %v", r.Fallas)
+	}
+}
+
+// Y el roster se cuenta como los otros: el frontmatter declara, el cuerpo es el
+// hecho, y el descuadre avisa.
+func TestBriefAvisaCuandoElRosterNoCierra(t *testing.T) {
+	p := nuevo(t).briefCompleto("hacelo").
+		archivo(".docs/evidencia.md",
+			"---\nretrieved: 1\nmodel_prior: 0\nprobado: 0\nlinks: 1\nconsultado: 3\nsin_acceso: 0\n---\n"+
+				"- una. [retrieved]\n  - https://a.example\n"+
+				"\n## Fuentes\n\n- nivel 0 · registries [consultado]\n")
+
+	avisos := strings.Join(Brief(p.raiz).Avisos, "\n")
+	if !strings.Contains(avisos, "consultado") {
+		t.Errorf("declaró consultado: 3 con un solo tag y no avisó: %v", avisos)
 	}
 }
 
@@ -401,6 +484,69 @@ func TestPlanificacionExigeTresOpciones(t *testing.T) {
 	exige(t, Planificacion(p.raiz, featureF1), "2 opciones")
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// La vara — contar tres encabezados no ve el fallo que queda
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El modelo que ya decidió B escribe B bien y A y C como espantapájaros. Tres
+// encabezados ✓, argumento que inclinó ✓, compuerta verde. La vara escrita
+// ANTES es lo único que lo deja por escrito.
+
+func TestPlanificacionExigeLaVara(t *testing.T) {
+	p := nuevo(t).planCompleto().
+		archivo(carpetaF1+"/decision.md", "## A — una\n## B — otra\n## C — tres\n")
+
+	exige(t, Planificacion(p.raiz, featureF1), "`## Vara`")
+}
+
+// Menos de tres criterios no es una vara: es la razón que ya tenías.
+func TestPlanificacionExigeAlMenosTresCriteriosEnLaVara(t *testing.T) {
+	p := nuevo(t).planCompleto().
+		archivo(carpetaF1+"/decision.md",
+			"## Vara\n\n| V-1 | uno | x |\n| V-2 | dos | y |\n\n"+
+				"## A — una\n## B — otra\n## C — tres\n\n"+
+				"## El puntaje\n\n| A | 1 |\n| B | 2 |\n| C | 3 |\n")
+
+	exige(t, Planificacion(p.raiz, featureF1), "2 criterio(s)")
+}
+
+// Y más de seis tampoco: con una vara larga cada opción gana en algo, y el
+// puntaje deja de decidir nada.
+func TestPlanificacionRechazaUnaVaraDemasiadoLarga(t *testing.T) {
+	vara := "## Vara\n\n"
+	for i := 1; i <= 7; i++ {
+		vara += fmt.Sprintf("| V-%d | c%d | x |\n", i, i)
+	}
+	p := nuevo(t).planCompleto().
+		archivo(carpetaF1+"/decision.md", vara+
+			"\n## A — una\n## B — otra\n## C — tres\n\n"+
+			"## El puntaje\n\n| A | 1 |\n| B | 2 |\n| C | 3 |\n")
+
+	exige(t, Planificacion(p.raiz, featureF1), "7 criterios")
+}
+
+// Puntuar dos de tres es elegir y después justificar. Es el mismo error que los
+// tres encabezados, un piso más abajo.
+func TestPlanificacionExigeUnaFilaDePuntajePorOpcion(t *testing.T) {
+	p := nuevo(t).planCompleto().
+		archivo(carpetaF1+"/decision.md",
+			"## Vara\n\n| V-1 | uno | x |\n| V-2 | dos | y |\n| V-3 | tres | z |\n\n"+
+				"## A — una\n## B — otra\n## C — tres\n\n"+
+				"## El puntaje\n\n| A | 1 |\n| B | 2 |\n")
+
+	exige(t, Planificacion(p.raiz, featureF1), "2 fila(s)")
+}
+
+// LA TRAMPA QUE ESTE TEST CUIDA: `reOpcion` caza `^##\s+([A-Z])\s`, y `## Vara`
+// empieza con `V` mayúscula. Si el regex fuera un poco más flojo, agregar la
+// vara habría convertido todo decision.md en uno de CUATRO opciones — y el test
+// de las tres habría empezado a fallar por una razón que no tiene nada que ver.
+func TestLaVaraNoSeCuentaComoUnaOpcion(t *testing.T) {
+	if n := len(reOpcion.FindAll([]byte(decisionCompleta), -1)); n != 3 {
+		t.Errorf("con la vara adentro, reOpcion cuenta %d opciones y son 3", n)
+	}
+}
+
 // Sin la lista de tests, `sf lote start` no tiene contra qué exigir el rojo —
 // que es toda la defensa contra el dolor #8.
 func TestPlanificacionExigeTestsEnCadaLote(t *testing.T) {
@@ -490,6 +636,14 @@ func revisionCon(p *proyecto, json string) *proyecto {
 		archivo(carpetaF1+"/revision.json", json)
 }
 
+// cumple3 es un veredicto en el escalón 3: "mostré que el caso malo no llega".
+//
+// Lo usan las fixtures que prueban OTRA compuerta, para que la escalera no las
+// haga fallar por algo que ese test no mira. Es el 3 y no el 4 a propósito: del
+// 4 para arriba la compuerta exige una `prueba` que exista, y eso sería un
+// archivo más por test sin probar nada nuevo.
+const cumple3 = `{"veredicto":"cumple","escalon":3}`
+
 // Acá muere el dolor #7. sf no juzga la revisión: comprueba que haya ocurrido
 // SOBRE TODOS, y dice cuáles faltan.
 func TestRevisionCuentaLosCriteriosSinVeredicto(t *testing.T) {
@@ -515,7 +669,7 @@ func TestRevisionFrenaConUnHallazgoAbierto(t *testing.T) {
 // frenar sobre algo que él ya resolvió (R3).
 func TestRevisionDejaPasarLosDescartados(t *testing.T) {
 	p := revisionCon(nuevo(t), `{"vuelta":1,
-		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":`+cumple3+`},
 		"hallazgos":[{"id":"h-1","estado":"descartado","motivo":"es intencional"}]}`)
 
 	if r := Revision(p.raiz, featureF1); !r.Pasa() {
@@ -527,7 +681,7 @@ func TestRevisionDejaPasarLosDescartados(t *testing.T) {
 // un test que lo agarraba y ya no. Reportarlo sin abrir nada lo pierde.
 func TestRevisionFrenaSiUnMutanteResucitaYNadieAbreNada(t *testing.T) {
 	p := revisionCon(nuevo(t), `{"vuelta":2,
-		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":`+cumple3+`},
 		"mutantes":{"propios":{"corridos":18,"sobrevivieron":0,"resucitados":2}}}`)
 
 	exige(t, Revision(p.raiz, featureF1), "resucitaron")
@@ -538,7 +692,7 @@ func TestRevisionFrenaSiUnMutanteResucitaYNadieAbreNada(t *testing.T) {
 // descartado para aislar ESTA compuerta de aquélla.
 func TestRevisionPasaSiLaResurreccionTieneHallazgo(t *testing.T) {
 	p := revisionCon(nuevo(t), `{"vuelta":2,
-		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":`+cumple3+`},
 		"mutantes":{"propios":{"corridos":18,"resucitados":2}},
 		"hallazgos":[{"id":"h-1","origen":22,"estado":"descartado","motivo":"el test se borró a propósito"}]}`)
 
@@ -551,18 +705,126 @@ func TestRevisionPasaSiLaResurreccionTieneHallazgo(t *testing.T) {
 // sin esto la compuerta se cumpliría con cualquier hallazgo de cualquier lado.
 func TestRevisionNoAceptaUnHallazgoDelVeintiunoPorUnaResurreccion(t *testing.T) {
 	p := revisionCon(nuevo(t), `{"vuelta":2,
-		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"},
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":`+cumple3+`},
 		"mutantes":{"propios":{"resucitados":1}},
 		"hallazgos":[{"id":"h-1","origen":21,"estado":"descartado","motivo":"x"}]}`)
 
 	exige(t, Revision(p.raiz, featureF1), "resucitaron")
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// La escalera — "cumple" tiene que decir CÓMO SE SABE
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Adentro de `cumple` cabían tres cosas que no valen lo mismo: lo corrí y lo
+// vi, hay un test con ese nombre y asumo, lo leí y me pareció bien. Las tres
+// eran el mismo byte.
+
+// ① el escalón se declara. Es lo único que sf puede exigir siempre, porque
+// tiene una sola respuesta correcta: está o no está.
+func TestRevisionFrenaSiUnCriterioNoDeclaraEscalon(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":{"veredicto":"cumple"}}}`)
+
+	exige(t, Revision(p.raiz, featureF1), "no declaran `escalon`")
+}
+
+// LA TRAMPA QUE ESTE TEST CUIDA, y es la razón de que exista `SinEscalera`:
+// `.docs/archivado/` tiene revisiones escritas antes de que la escalera
+// existiera, y el auditor las lee. Si la compuerta frenara sobre ellas, toda
+// feature cerrada se volvería roja de golpe — y lo primero que hace alguien
+// ante una compuerta que frena todo es aflojarla.
+func TestRevisionNoLeExigeEscalonALoArchivado(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"feature":"f-1","vuelta":1,
+		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"}}`).
+		archivo(".docs/archivado/f-1-nucleo/spec-design.md", "# vieja\n")
+
+	if r := Revision(p.raiz, featureF1); !r.Pasa() {
+		t.Errorf("una revisión archivada en formato viejo tiene que pasar: %v", r.Fallas)
+	}
+}
+
+// ② ACÁ MUERE LA MENTIRA BARATA, y es el mismo truco que la pregunta ④ de
+// `sf audit`: decir "escalón 4" cuesta dos bytes, que el test exista no.
+func TestRevisionFrenaSiLaPruebaDelEscalonCuatroNoExiste(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":{"veredicto":"cumple","escalon":4,
+		                          "prueba":"internal/nada/nada_test.go::TestFantasma"},
+		             "us-1/CA-2":`+cumple3+`}}`)
+
+	exige(t, Revision(p.raiz, featureF1), "su `prueba` no existe")
+}
+
+// Y el espejo: con el test de verdad en el repo, pasa. Sin esto la compuerta
+// podría estar fallando siempre y el test de arriba saldría verde igual.
+func TestRevisionPasaCuandoLaPruebaDelEscalonCuatroExiste(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":{"veredicto":"cumple","escalon":4,
+		                          "prueba":"internal/nucleo/nucleo_test.go::TestCierra"},
+		             "us-1/CA-2":`+cumple3+`}}`).
+		archivo("internal/nucleo/nucleo_test.go", "package nucleo\n\nfunc TestCierra(t *testing.T) {}\n")
+
+	if r := Revision(p.raiz, featureF1); !r.Pasa() {
+		t.Errorf("la prueba existe y frenó igual: %v", r.Fallas)
+	}
+}
+
+// Un escalón 4 sin `prueba` es la misma afirmación sin respaldo, escrita de otra
+// forma. Sin este test, dejar el campo vacío sería la salida fácil.
+func TestRevisionFrenaSiElEscalonCuatroNoNombraPrueba(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":{"veredicto":"cumple","escalon":4},
+		             "us-1/CA-2":`+cumple3+`}}`)
+
+	exige(t, Revision(p.raiz, featureF1), "sin `prueba`")
+}
+
+// ③ el piso lo pone la constitución, NO sf (R1): cuál es el escalón aceptable
+// depende del proyecto. En un CLI el 5 es barato; en una librería de tipos el 3
+// es el techo honesto.
+func TestRevisionFrenaPorDebajoDelPisoDeLaConstitucion(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":`+cumple3+`}}`).
+		archivo(".docs/constitucion.md",
+			"---\nlenguaje: go\ntest_cmd: go test ./...\nverificacion:\n  escalon_minimo: 4\n---\n# reglas\n")
+
+	exige(t, Revision(p.raiz, featureF1), "pide escalón 4")
+}
+
+// Y SIN PISO DECLARADO NO FRENA. Una vara de 4 cableada en el binario volvería
+// roja toda revisión de un repo sin forma de correr nada — que es exactamente
+// cómo se consigue que alguien afloje la compuerta.
+func TestRevisionNoExigePisoSiLaConstitucionNoLoDeclara(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":{"veredicto":"cumple","escalon":2,"prueba":"brief.go:42"},
+		             "us-1/CA-2":`+cumple3+`}}`).
+		archivo(".docs/constitucion.md", "---\nlenguaje: go\ntest_cmd: go test ./...\n---\n# reglas\n")
+
+	if r := Revision(p.raiz, featureF1); !r.Pasa() {
+		t.Errorf("sin `escalon_minimo` el escalón 2 declarado tiene que pasar: %v", r.Fallas)
+	}
+}
+
+// A un `no-cumple` no se le pide respaldo: ya es un hallazgo. Pedírselo sería
+// exigir que pruebe dos veces lo mismo.
+func TestRevisionNoLePideEscalonAltoAUnNoCumple(t *testing.T) {
+	p := revisionCon(nuevo(t), `{"vuelta":1,
+		"criterios":{"us-1/CA-1":{"veredicto":"no-cumple","escalon":1},
+		             "us-1/CA-2":`+cumple3+`},
+		"hallazgos":[{"id":"h-1","origen":21,"estado":"descartado","motivo":"x"}]}`).
+		archivo(".docs/constitucion.md",
+			"---\nlenguaje: go\ntest_cmd: go test ./...\nverificacion:\n  escalon_minimo: 3\n---\n# reglas\n")
+
+	if r := Revision(p.raiz, featureF1); !r.Pasa() {
+		t.Errorf("un no-cumple en escalón 1 no tiene que frenar por la escalera: %v", r.Fallas)
+	}
+}
+
 // Si el ㉑ va por la cuarta vuelta, eso no es ruido: es que la planificación se
 // quedó corta. Avisa, no frena.
 func TestRevisionAvisaCuandoVaPorLaTerceraVuelta(t *testing.T) {
 	p := revisionCon(nuevo(t), `{"vuelta":3,
-		"criterios":{"us-1/CA-1":"cumple","us-1/CA-2":"cumple"}}`)
+		"criterios":{"us-1/CA-1":`+cumple3+`,"us-1/CA-2":`+cumple3+`}}`)
 
 	r := Revision(p.raiz, featureF1)
 	if !r.Pasa() {

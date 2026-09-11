@@ -494,13 +494,43 @@ func TestArchivarEsIdempotenteSiLaCarpetaYaEstaba(t *testing.T) {
 // ────────────────────────────────────────────────────────────────────────────
 
 // conPlanCompleto deja una planificación que pasa las cinco compuertas del ⑰.
+// decisionCompleta es un decision.md que pasa el ⑫ entero: tres opciones, la
+// vara escrita ANTES de la primera, y el puntaje con una fila por opción.
+//
+// La vara vive acá y no en un archivo aparte porque es una fixture: si se
+// leyera de skills/sf-plan/templates/, el test del binario dependería de un
+// .md del repo y dejaría de correr aislado.
+const decisionCompleta = `# f-1 — la decisión
+
+## Vara
+
+| | criterio | cómo se evalúa |
+|---|---|---|
+| V-1 | costo de cambio | cuántos llamadores toca |
+| V-2 | superficie | cuántos símbolos exporta |
+| V-3 | reversibilidad | qué hay que borrar para volver atrás |
+
+## A — una
+## B — otra
+## C — la tercera
+
+## El puntaje
+
+| | V-1 | V-2 | V-3 |
+|---|---|---|---|
+| A | 3 | bajo | fácil |
+| B | 12 | alto | difícil |
+| C | 5 | medio | fácil |
+
+## Elegida: A
+`
+
 func (p *proyecto) conPlanCompleto() *proyecto {
 	p.t.Helper()
 	carpeta := filepath.Join(".docs", "features", "f-1-nucleo")
 	p.conArchivoConTexto(docs.Historia("us-1"),
 		"---\nid: us-1\n---\n## Criterios\n- **CA-1** — uno\n- **CA-2** — dos\n")
-	p.conArchivoConTexto(filepath.Join(carpeta, docs.Decision),
-		"## A — una\n## B — otra\n## C — la tercera\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, docs.Decision), decisionCompleta)
 	p.conArchivoConTexto(filepath.Join(carpeta, docs.Spec), "# spec\n")
 	p.conArchivoConTexto(filepath.Join(carpeta, "tareas.json"),
 		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1","us-1/CA-2"],

@@ -5,6 +5,11 @@ test_cmd: go test ./...           # lo llenó sf init — SIN ESTO sf no sella
 test_requiere: []                 # qué SERVICIO necesita el test_cmd: [postgres] [docker] [redis]
 mutacion: "gremlins"              # la del ㉒ — sf init deja un ⚠ con la de tu stack
 dependencias_aprobadas: []        # arranca vacía y crece con cada aprobación
+# verificacion:                   # el piso del ㉑, y OMITIRLO es una respuesta real.
+#   escalon_minimo: 3             # Ponelo sólo cuando sepas que el proyecto lo alcanza:
+#                                 # un piso de 4 donde no hay nada que correr vuelve
+#                                 # roja toda revisión, y una compuerta que frena todo
+#                                 # se afloja una vez y ya no frena nunca.
 git:
   branch_por_feature: true
   patron_branch: "feat/{feature-id}-{slug}"

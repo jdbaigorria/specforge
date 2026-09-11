@@ -27,6 +27,43 @@ se arregla escribiendo primero cuál es el modelo, y después moviendo el códig
 
 ---
 
+## Las siete reglas — el índice
+
+**Se citan por número en todo el repo** (`sf-build` cita R4, `sf-check` cita R3, `sfp-backlog`
+cita R3 y R5), y hasta hoy vivían sólo adentro de
+[`que-sobrevive.md`](que-sobrevive.md) §2, en la línea 46 de un documento de 986. El que escribe
+un skill nuevo no las encontraba.
+
+**El desarrollo de cada una sigue estando allá.** Acá está la regla, y **qué artefacto tiene que
+aparecer en el diff si la citaste**.
+
+| | La regla | Si la citaste, en el diff hay |
+|---|---|---|
+| **R1** | `sf` hace lo que tiene una sola respuesta correcta | un comando de `sf`, o una función determinista — no un párrafo en un `.md` |
+| **R2** | Un artefacto tiene el tamaño de sus consumidores | un consumidor nombrado por su estado, o una sección **borrada** |
+| **R3** | Una compuerta frena sobre un hecho; un juez opina | un contador en `compuerta.go`, o una decisión devuelta a Javier |
+| **R4** | El skill no tiene convenciones propias: lee la constitución | un default cableado **borrado** del skill y un campo leído de la constitución |
+| **R5** | Si no se puede escribir el test, no es un criterio de aceptación | un test nombrado, o el criterio movido a *"Qué NO entra"* |
+| **R6** | Un campo deducible de otro es un campo que se desincroniza | un campo **borrado**, y la función que lo deriva |
+| **R7** | Declarar el resultado o declarar la causa: gana el que se usa | los consumidores de cada campo, contados |
+
+### La columna de la derecha es la mitad que faltaba
+
+Sale de leer `pstack` ([`pstack.md`](pstack.md) §2.2), y es lo único que ese plugin tiene y acá no
+estaba:
+
+> *"Aplicar este principio produce un archivo. Si lo citaste y no hay codemod, script, generador
+> ni skill delegado en el diff, no lo aplicaste."*
+
+**Citar una regla sin que la cita cueste nada es un test que pasa con todo mockeado.** Cuatro de
+las siete se cobran en **líneas borradas**, y eso es a propósito: R2, R4, R6 y media R5 son reglas
+de sustracción, y una sustracción que no borró nada no ocurrió.
+
+> **Y no son un principio más cada una.** Siete reglas citadas le ganan a veintitrés skills de una
+> regla cada uno, por R2: un skill que nadie abre no tiene consumidores.
+
+---
+
 ## ① La máquina de estados
 
 ### El modelo

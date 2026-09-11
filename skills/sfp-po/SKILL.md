@@ -96,3 +96,5 @@ looking at a PRD that has since changed. It warns; it does not block.
 - Non-scope is mandatory, not optional.
 - Missing information becomes an open question in the PRD. Never an invention.
 - No personas, journeys, metrics, pricing, or wireframes. Nothing downstream reads them.
+- Run `sfx-prosa` before sealing. `P-1` especially: a capability sentence that would serve any
+  other product has not described this one.

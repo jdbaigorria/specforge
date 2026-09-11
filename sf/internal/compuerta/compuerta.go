@@ -52,6 +52,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
+	"github.com/jdbaigorria/specforge/sf/internal/suite"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
 
@@ -384,6 +385,8 @@ func revisarEvidencia(raiz string, r *Resultado) {
 		ModelPrior *int   `yaml:"model_prior"`
 		Probado    *int   `yaml:"probado"`
 		Links      *int   `yaml:"links"`
+		Consultado *int   `yaml:"consultado"`
+		SinAcceso  *int   `yaml:"sin_acceso"`
 		Evidencia  string `yaml:"evidencia"`
 	}
 	cuerpo, err := frontmatter.DeArchivo(filepath.Join(raiz, docs.Evidencia), &fm)
@@ -418,6 +421,8 @@ func revisarEvidencia(raiz string, r *Resultado) {
 		{"retrieved", "[retrieved", fm.Retrieved},
 		{"model-prior", "[model-prior", fm.ModelPrior},
 		{"probado", "[probado", fm.Probado},
+		{"consultado", "[consultado", fm.Consultado},
+		{"sin-acceso", "[sin-acceso", fm.SinAcceso},
 	} {
 		reales := bytes.Count(cuerpo, []byte(m.abreTag))
 		r.mide(m.que+" en el cuerpo", fmt.Sprint(reales))
@@ -433,6 +438,28 @@ func revisarEvidencia(raiz string, r *Resultado) {
 		r.avisa("%s declara `links: %d` y en el cuerpo hay %d.\n"+
 			"→ `links` cuenta TODA url del cuerpo, no sólo las de competidores: "+
 			"la compuerta cuenta bytes y no puede distinguirlas.", docs.Evidencia, *fm.Links, reales)
+	}
+
+	// EL ROSTER DE FUENTES — la procedencia por afirmación no dice qué NO se miró
+	//
+	// Los cuatro contadores de arriba miden lo que se encontró. Ninguno mide lo
+	// que no se buscó: una corrida que sólo tocó el nivel 0 y una que además
+	// intentó el nivel 1 y rebotó por falta de llave se ven IGUAL desde acá.
+	//
+	// El bloque `## Fuentes` lo arregla con una línea por nivel, y las dos
+	// etiquetas son las dos respuestas posibles: `[consultado]` y `[sin-acceso]`.
+	// Es la misma regla que el skill ya aplica a las afirmaciones —"lo que no
+	// encontraste se escribe"— corrida un nivel para arriba: a las fuentes.
+	//
+	// AVISA Y NO FRENA, y no es blandura: ninguna `evidencia.md` escrita antes de
+	// hoy tiene el bloque, y una compuerta nueva que frena sobre artefactos
+	// viejos convierte en roja toda corrida archivada. Sube a falla cuando el
+	// skill lleve una vuelta de uso y los artefactos del repo ya lo traigan.
+	if bytes.Count(cuerpo, []byte("[consultado"))+bytes.Count(cuerpo, []byte("[sin-acceso")) == 0 {
+		r.avisa("%s no tiene el roster `## Fuentes`: una línea por nivel, "+
+			"`[consultado]` o `[sin-acceso]`.\n"+
+			"→ sin él no se distingue \"el nivel 1 no tenía nada\" de \"al nivel 1 "+
+			"no llegué\", y son cosas distintas.", docs.Evidencia)
 	}
 
 	// LA SALIDA, QUE YA ESTABA DISEÑADA
@@ -618,8 +645,12 @@ func Planificacion(raiz string, f roadmap.Feature) Resultado {
 	b, err := os.ReadFile(filepath.Join(raiz, carpeta, docs.Decision))
 	if err != nil {
 		r.falla("%v", err)
-	} else if n := len(reOpcion.FindAll(b, -1)); n != 3 {
-		r.falla("decision.md tiene %d opciones y el ⑫ pide 3", n)
+	} else {
+		if n := len(reOpcion.FindAll(b, -1)); n != 3 {
+			r.falla("decision.md tiene %d opciones y el ⑫ pide 3", n)
+		}
+		// ② bis — la vara, y el puntaje contra la vara
+		revisarVara(b, &r)
 	}
 
 	p, err := tareas.Leer(raiz, carpeta)
@@ -721,6 +752,69 @@ func Planificacion(raiz string, f roadmap.Feature) Resultado {
 	return r
 }
 
+// reVara caza las filas de la vara: `| V-1 | … |`.
+var reVara = regexp.MustCompile(`(?m)^\|\s*(V-\d+)\s*\|`)
+
+// rePuntaje caza las filas del puntaje: la primera celda es A, B o C.
+//
+// La cabecera (`| | V-1 | …`) no matchea porque su primera celda está vacía, y
+// el separador (`|---|---|`) tampoco. Se apoya en eso a propósito: contar una
+// tabla con un regex es frágil, y las dos filas que podrían confundirla son
+// justo las dos que no empiezan con una letra sola.
+var rePuntaje = regexp.MustCompile(`(?m)^\|\s*([A-C])\s*\|`)
+
+// revisarVara cuenta la vara y el puntaje de decision.md.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// CONTAR TRES ENCABEZADOS ATACA EL SÍNTOMA GROSERO, NO EL QUE QUEDA
+// ────────────────────────────────────────────────────────────────────────────
+//
+// La compuerta ② exige tres opciones, y mata la corazonada escrita como si
+// fuera una comparación. Lo que NO ve es el fallo que pasa sin despeinarse:
+//
+//	el modelo ya decidió B mientras leía el us-#
+//	  → escribe B bien
+//	  → escribe A y C como espantapájaros, creíbles y peores
+//	  → tres encabezados ✓ · el argumento que inclinó ✓ · compuerta verde
+//
+// El antídoto es de `arena`, y NO es el fan-out: es que la vara se escriba
+// ANTES de ver las opciones. Es el mismo principio del ciego del banco, aplicado
+// a una decisión de diseño en vez de a un experimento.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// Y EL LÍMITE, DICHO ACÁ PARA QUE NADIE LO VENDA DE MÁS
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Una vara escrita por el mismo modelo que después elige NO es un ciego de
+// verdad: nada le impide escribirla ya sabiendo la respuesta. Lo que sí hace es
+// dejar el fraude POR ESCRITO y versionado — una vara que sólo premia lo que
+// hace B queda en decision.md, y el ⑰ es un humano leyendo. Hoy no hay ni eso.
+func revisarVara(b []byte, r *Resultado) {
+	criterios := reVara.FindAllSubmatch(b, -1)
+	vistos := map[string]bool{}
+	for _, m := range criterios {
+		vistos[string(m[1])] = true
+	}
+
+	switch n := len(vistos); {
+	case n == 0:
+		r.falla("decision.md no tiene la sección `## Vara`.\n" +
+			"→ de 3 a 6 criterios `V-#`, escritos ANTES de la primera opción. " +
+			"Una vara escrita después describe la opción que ya elegiste.")
+	case n < 3:
+		r.falla("la vara tiene %d criterio(s) y el ⑫ pide entre 3 y 6", n)
+	case n > 6:
+		r.falla("la vara tiene %d criterios: más de 6 no es más rigor, es una "+
+			"lista donde cada opción gana en algo", n)
+	}
+
+	if filas := len(rePuntaje.FindAll(b, -1)); filas != 3 {
+		r.falla("decision.md declara 3 opciones y el `## El puntaje` tiene %d fila(s).\n"+
+			"→ una fila por opción, criterio por criterio. Puntuar de a dos es "+
+			"elegir y después justificar.", filas)
+	}
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // revision — sf cuenta, no opina
 // ────────────────────────────────────────────────────────────────────────────
@@ -757,6 +851,20 @@ func Revision(raiz string, f roadmap.Feature) Resultado {
 			len(deLasHistorias), len(deLasHistorias)-len(sinVeredicto), strings.Join(sinVeredicto, " · "))
 	}
 
+	// ────────────────────────────────────────────────────────────────────────
+	// LA ESCALERA — "cumple" tiene que decir CÓMO SE SABE
+	// ────────────────────────────────────────────────────────────────────────
+	//
+	// Las dos comprobaciones de abajo son aritmética, igual que la de arriba.
+	// La primera cuenta que el escalón esté declarado; la segunda comprueba que
+	// un escalón que dice "lo corrí" tenga algo que exista detrás.
+	//
+	// LA SEGUNDA ES LA QUE ATRAPA LA MENTIRA, y no es una opinión: es el mismo
+	// truco que ya usa `sf audit` en su pregunta ④ —"¿los tests que lo probaban
+	// SIGUEN EXISTIENDO?"—, con la misma función. Decir "escalón 4" cuesta dos
+	// bytes; que el test exista, no.
+	revisarEscalera(raiz, rev, deLasHistorias, &r)
+
 	// Los hallazgos abiertos mandan de vuelta a implementar. Con uno solo no
 	// avanza — y `descartado` sí pasa, porque es una decisión de Javier (R3).
 	var abiertos []string
@@ -788,6 +896,106 @@ func Revision(raiz string, f roadmap.Feature) Resultado {
 	}
 
 	return r
+}
+
+// revisarEscalera comprueba que cada veredicto diga cómo se sabe.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// TRES REGLAS, Y NINGUNA OPINA
+// ────────────────────────────────────────────────────────────────────────────
+//
+//	① todo criterio declara `escalon` ≥ 1        cuenta que el campo esté
+//	② un `cumple` en escalón ≥ 4 nombra una       comprueba que el archivo
+//	  `prueba` QUE EXISTE                         esté en el repo
+//	③ un `cumple` por debajo del piso de la       compara dos números
+//	  constitución es un hallazgo
+//
+// LA ① NO CORRE SOBRE LO ARCHIVADO. Un criterio en `SinEscalera` es una
+// revisión escrita antes del 2026-09-11, no una afirmación sin respaldo, y
+// frenar sobre artefactos viejos volvería roja toda feature cerrada. Se
+// distingue por el 0, que el Unmarshal reserva justamente para eso.
+//
+// LA ③ SÓLO CORRE SI LA CONSTITUCIÓN DECLARÓ UN PISO (R1): cuál es el escalón
+// aceptable depende del proyecto, y sf no lo elige. Sin `escalon_minimo`, la
+// escalera informa y no frena.
+func revisarEscalera(raiz string, rev *revision.Revision, criterios []string, r *Resultado) {
+	piso := 0
+	if c, err := constitucion.Leer(raiz); err == nil {
+		piso = c.Verificacion.EscalonMinimo
+	}
+
+	var sinEscalon, sinPrueba, bajoElPiso []string
+
+	for _, c := range criterios {
+		v, hay := rev.Criterios[c]
+		if !hay {
+			continue // ya lo reportó el conteo de veredictos, y decirlo dos veces tapa
+		}
+
+		// Un criterio del formato viejo no entra a ninguna de las tres: la
+		// escalera no es retroactiva.
+		if v.Escalon == revision.SinEscalera {
+			if !esArchivada(raiz, rev) {
+				sinEscalon = append(sinEscalon, c)
+			}
+			continue
+		}
+
+		if !v.Cumple() {
+			continue // un `no-cumple` ya es un hallazgo; no le pedimos respaldo
+		}
+
+		if v.Escalon >= revision.EscalonCorrido {
+			if v.Prueba == "" {
+				sinPrueba = append(sinPrueba, c+" (escalón "+fmt.Sprint(v.Escalon)+", sin `prueba`)")
+			} else if faltan := suite.Faltantes(raiz, []string{v.Prueba}); len(faltan) > 0 {
+				sinPrueba = append(sinPrueba, c+" → "+faltan[0])
+			}
+		}
+
+		if piso > 0 && v.Escalon < piso {
+			bajoElPiso = append(bajoElPiso, fmt.Sprintf("%s (escalón %d)", c, v.Escalon))
+		}
+	}
+
+	if len(sinEscalon) > 0 {
+		r.falla("%d criterio(s) no declaran `escalon` — no se sabe cómo lo sabés: %s\n"+
+			"→ 1 lo dijiste · 2 señalaste la línea · 3 mostraste que el caso malo no llega · "+
+			"4 lo corriste · 5 lo reprodujiste en la app.",
+			len(sinEscalon), strings.Join(sinEscalon, " · "))
+	}
+	if len(sinPrueba) > 0 {
+		r.falla("%d criterio(s) dicen haberse corrido y su `prueba` no existe: %s\n"+
+			"→ del escalón 4 para arriba, `prueba` apunta a algo que está en el repo.",
+			len(sinPrueba), strings.Join(sinPrueba, " · "))
+	}
+	if len(bajoElPiso) > 0 {
+		r.falla("la constitución pide escalón %d y %d criterio(s) cumplen por debajo: %s\n"+
+			"→ o se sube la evidencia, o el criterio es un hallazgo.",
+			piso, len(bajoElPiso), strings.Join(bajoElPiso, " · "))
+	}
+}
+
+// esArchivada dice si esta revisión ya está en `.docs/archivado/`.
+//
+// Es la única forma de distinguir "revisión vieja, la escalera no existía" de
+// "revisión nueva que no declaró el escalón", y las dos se ven igual desde el
+// JSON: las dos tienen escalón 0.
+func esArchivada(raiz string, rev *revision.Revision) bool {
+	_, err := os.Stat(filepath.Join(raiz, docs.Archivado))
+	if err != nil {
+		return false
+	}
+	entradas, err := os.ReadDir(filepath.Join(raiz, docs.Archivado))
+	if err != nil {
+		return false
+	}
+	for _, e := range entradas {
+		if strings.HasPrefix(e.Name(), rev.Feature+"-") || e.Name() == rev.Feature {
+			return true
+		}
+	}
+	return false
 }
 
 // hayHallazgoDelVeintidos dice si el informe abrió algo desde los mutantes.

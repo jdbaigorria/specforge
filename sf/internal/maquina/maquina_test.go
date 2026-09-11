@@ -325,8 +325,7 @@ func TestPlanCompletoParaEnElDiecisiete(t *testing.T) {
 	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion}
 
 	carpeta := filepath.Join(".docs", "features", "f-1-nucleo")
-	p.conArchivoConTexto(filepath.Join(carpeta, "decision.md"),
-		"## A — una\n## B — otra\n## C — otra más\n")
+	p.conArchivoConTexto(filepath.Join(carpeta, "decision.md"), decisionCompleta)
 	p.conArchivoConTexto(filepath.Join(carpeta, "spec-design.md"), "# spec\n")
 	p.conArchivoConTexto(filepath.Join(carpeta, "tareas.json"),
 		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1"],"tests":["a_test.go::TestX"]}]}`)

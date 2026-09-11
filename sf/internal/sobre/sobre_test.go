@@ -251,6 +251,59 @@ func TestSobreDeRevisionTraeLosCriterios(t *testing.T) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// El escalón 5 — el sobre sirve la ruta, y nada más
+// ────────────────────────────────────────────────────────────────────────────
+
+// Con el skill de verificación en el repo, el ㉑ lo recibe y puede manejar la
+// app de verdad. `sf` NO lo lanza: sirve la ruta, que es lo mismo que ya hace
+// con la constitución o con los journals.
+func TestSobreDeRevisionTraeElSkillDeVerificacion(t *testing.T) {
+	txt := nuevo(t).enFeature(estado.Revision).
+		archivo(".docs/verificar/SKILL.md", "---\nname: verificar-app\n---\n# manejar la app\n").
+		archivo(".docs/verificar/features/login.md", "# login\n").
+		archivo(".docs/verificar/features/alta.md", "# alta\n").
+		texto()
+
+	for _, q := range []string{"SKILL.md", "login.md", "alta.md", "escalón 5"} {
+		if !strings.Contains(txt, q) {
+			t.Errorf("falta %q en el sobre del ㉑:\n%s", q, txt)
+		}
+	}
+}
+
+// EL MAPA ENTERO, NO SÓLO EL SKILL. Sin la lista de features, la prueba maneja
+// el único camino que el revisor tenía a mano y se declara verificada — que es
+// la versión con evidencia del mismo "anda" que el ㉑ existe para matar.
+func TestSobreDeRevisionTraeTodoElMapaDeFeatures(t *testing.T) {
+	txt := nuevo(t).enFeature(estado.Revision).
+		archivo(".docs/verificar/SKILL.md", "# manejar la app\n").
+		archivo(".docs/verificar/features/uno.md", "# uno\n").
+		archivo(".docs/verificar/features/dos.md", "# dos\n").
+		archivo(".docs/verificar/features/tres.md", "# tres\n").
+		texto()
+
+	for _, q := range []string{"uno.md", "dos.md", "tres.md"} {
+		if !strings.Contains(txt, q) {
+			t.Errorf("el mapa está incompleto, falta %q:\n%s", q, txt)
+		}
+	}
+}
+
+// Y SIN EL SKILL SE DICE POR QUÉ, con el techo explícito. Un "no hay" pelado
+// dejaría al revisor eligiendo entre no declarar nada y declarar un 5 que no
+// puede respaldar, y la segunda es la que sale gratis.
+func TestSobreDeRevisionDiceQueNoHaySkillDeVerificacion(t *testing.T) {
+	txt := nuevo(t).enFeature(estado.Revision).texto()
+
+	if !strings.Contains(txt, "sfx-verificar") {
+		t.Errorf("no dijo cómo conseguir el skill que falta:\n%s", txt)
+	}
+	if !strings.Contains(txt, "escalón 4") {
+		t.Errorf("no dijo cuál es el techo honesto sin él:\n%s", txt)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Lo que falta se DICE, no se omite
 // ────────────────────────────────────────────────────────────────────────────
 

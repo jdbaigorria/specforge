@@ -286,7 +286,7 @@ func revisar(raiz string, i *Informe, fr roadmap.Feature, carpeta string, criter
 	}
 
 	for _, c := range criterios {
-		if rev.Criterios[c] != "cumple" {
+		if !rev.Criterios[c].Cumple() {
 			continue
 		}
 		tests := testsDe(p, c)

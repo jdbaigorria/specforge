@@ -35,19 +35,58 @@ finding. Write it in the spec-design as an assumption you made explicit, and let
 benefits from remembering the two options the ⑫ discarded. The ⑰ reviews the whole block, and
 "I want changes" comes back to the whole block. **Nobody enters or leaves through the middle.**
 
-## Step ⑫: Three options, and exactly three
+## Step ⑫: The yardstick first, then three options, and exactly three
+
+### ⑫a — write the yardstick BEFORE the first option
+
+3 to 6 criteria, `V-1`, `V-2`, …, each with how it gets evaluated. **They go in the file before
+any option exists.**
+
+**Why the order is the whole point.** Counting three headings kills the grossest failure, a hunch
+written up as if it were a comparison. It does not see the one that passes without breaking a
+sweat:
+
+```
+you already decided B while reading the us-#
+   → you write B well
+   → you write A and C as scarecrows, plausible and worse
+   → three headings ✓  ·  the argument that tipped it ✓  ·  gate green
+```
+
+A yardstick written afterwards describes the option you already picked. Written first, it is the
+one thing in the file that did not know the answer.
+
+### ⑫b — the three options
 
 Compose **`sfx-think`** with one added constraint: **three, not "as many as come out"**.
 
 - Each option gets a heading `## A — <name>`, `## B — …`, `## C — …`
 - Each one: what it is, what it costs, what it buys, what it forecloses.
-- Then **the argument that tipped it**, and what got discarded and why.
+
+### ⑫c — the score, then the argument that tipped it
+
+One row per option, criterion by criterion. **Not on overall impression** — that is the same
+shortcut as writing the yardstick last.
+
+Then **the argument that tipped it**, and what got discarded and why.
 
 Write `decision.md` from `templates/decision.tmpl.md`.
 
-> **`sf` counts the headings and requires exactly 3.** This is the cheapest anti-hallucination
-> gate in the flow: a single option written up as if it were a comparison is the shape a
-> confident guess takes. It cannot count as three if only one was ever considered.
+> **`sf` counts the headings and requires exactly 3**, plus 3 to 6 `V-#` rows and one score row
+> per option. All of it is counting. It cannot count as three if only one was ever considered.
+
+### What the score says when it comes out flat
+
+- **The three converge on the same shape.** That is a strong agreement signal. Say so and move on.
+  Do not invent a difference to fill the table.
+- **The three diverge wildly.** Then ⑫a was underspecified, not the options. Reframe the problem
+  and rewrite. **Do not average the divergence** — the middle of three unrelated designs is a
+  fourth design nobody argued for.
+
+> **The honest limit of this, so nobody oversells it.** A yardstick written by the same model that
+> then picks is not a real blind: nothing stops you writing it already knowing the answer. What it
+> does is put the fraud **in writing**, versioned, where the ⑰ is a human reading. That is more
+> than there was.
 
 **The discarded options are the most valuable part of this file for a future reader.** They are
 also why `decision.md` is deliberately **not** in the implementer's envelope — by the ⑱ the
@@ -224,9 +263,10 @@ Awaiting: sf approve  /  sf reject "motivo"  /  sf take <other feature>
 ───────────────────────────────────────
 ```
 
-Then `sf done`. The gate runs five checks — the three files exist, `decision.md` has three
-options, every batch has at least one test, every criterion is covered, and no task points at a
-criterion that does not exist. **All five are counting. None of them is an opinion.**
+Then `sf done`. The gate runs six checks — the three files exist, `decision.md` has three options,
+its yardstick has 3 to 6 criteria and one score row per option, every batch has at least one test,
+every criterion is covered, and no task points at a criterion that does not exist. **All six are
+counting. None of them is an opinion.**
 
 If it comes back rejected, the motive travels first in your next envelope. **Read it before
 anything else** — you are a fresh subagent and without it you will propose the same thing again.
@@ -234,7 +274,10 @@ anything else** — you are a fresh subagent and without it you will propose the
 ## Rules
 
 - Never ask what the feature does. The `us-#` answered it.
+- The yardstick is written before the first option. Written after, it describes your pick.
 - Exactly three options. Not one dressed up as three.
+- One score row per option, criterion by criterion. Three that diverge wildly means reframe, not
+  average.
 - One pass, wide context. Do not split the block.
 - Anti-N/A: a section only if it changes a decision.
 - The batch is a commit you would want to read. Not a topological layer.

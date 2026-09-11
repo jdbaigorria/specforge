@@ -141,6 +141,29 @@ y sus mutantes se guardan en `.docs/<feature>/mutantes/`.
 > and is a different exam. That is why the empty case has to be a decision on the record and not
 > a field nobody read: whoever reviews needs to know which of the two numbers they are holding.
 
+### `verificacion.escalon_minimo` — how hard the ㉑ has to prove a `cumple`
+
+```yaml
+verificacion:
+  escalon_minimo: 3       # or leave it out
+```
+
+The ㉑ now declares, per criterion, **how it knows**: 1 you said so · 2 you pointed at the line ·
+3 you showed the bad case cannot happen · 4 you ran it · 5 you reproduced it in the running app.
+`sf` always requires the rung to be **declared**. This line is what makes a low rung a finding.
+
+**Which rung is acceptable has no single right answer, so it is not `sf`'s (R1).** In a CLI a
+criterion reaches 5 cheaply: start the binary and look. In a type library, 3 is the honest
+ceiling, because there is nothing to "run".
+
+**Leaving it out is a real answer and often the right one.** A floor of 4 in a repo with no way to
+run anything turns every review red, and the first reaction to a gate that blocks everything is to
+loosen it. Set it only once you know the project can clear it.
+
+> **And 5 needs somewhere to come from.** Rung 5 means the reviewer drove the real app. That is
+> what `/sfx-verificar` generates. Do not set `escalon_minimo: 5` before that skill exists in
+> `.docs/verificar/`, or you are asking for evidence nobody can produce.
+
 ## Step 3: Write it, then stop — the ⑧ is Javier's
 
 Write `.docs/constitucion.md` from `templates/constitucion.tmpl.md`, print the gate, and stop:

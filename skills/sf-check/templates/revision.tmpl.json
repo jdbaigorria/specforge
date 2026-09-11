@@ -3,10 +3,26 @@
   "vuelta": 2,
   "veredicto": "con-hallazgos",
   "criterios": {
-    "us-3/CA-1": "cumple",
-    "us-3/CA-2": "no-cumple",
-    "us-3/CA-3": "cumple",
-    "us-5/CA-1": "cumple"
+    "us-3/CA-1": {
+      "veredicto": "cumple",
+      "escalon": 5,
+      "prueba": ".docs/verificar/pruebas/f-1-login.txt"
+    },
+    "us-3/CA-2": {
+      "veredicto": "no-cumple",
+      "escalon": 2,
+      "prueba": "internal/brief/brief.go:42"
+    },
+    "us-3/CA-3": {
+      "veredicto": "cumple",
+      "escalon": 4,
+      "prueba": "internal/suite/suite_test.go::TestCierraElArchivo"
+    },
+    "us-5/CA-1": {
+      "veredicto": "cumple",
+      "escalon": 3,
+      "prueba": "internal/docs/docs.go:88"
+    }
   },
   "mutantes": {
     "herramienta": "gremlins",

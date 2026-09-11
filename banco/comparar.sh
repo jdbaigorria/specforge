@@ -35,6 +35,104 @@ campo() { # campo <archivo> <clave>
   sed -n "s/^$2: *//p" "$1" | head -1
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ⓪ ¿ESTA CORRIDA MIDE ALGO?
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Va ARRIBA de todo porque una corrida contaminada no se compara: se tira. Si
+# el agente encontró la respuesta tirada en el árbol, lo de abajo mide qué tan
+# bien lee, no qué tan bien investiga.
+#
+# Las cuatro reglas de higiene estaban escritas en GUION.md y se rompieron dos
+# veces igual. Una regla que se rompe dos veces no necesita otra oración:
+# necesita un grep. Y es contable, así que no opina.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# POR QUÉ LA LISTA NO ES LA DE pstack
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# El protocolo de ciego de pstack prohíbe `eval`, `test`, `judge`, `rubric`,
+# `score`, `benchmark`, `candidate` y `arena` en todo lo que el candidato ve.
+# Acá `test` y `score` NO sirven: adentro de la corrida hay un proyecto de
+# verdad, con tests de verdad, y prohibir la palabra `test` daría rojo siempre.
+#
+# La lista de abajo es la del experimento de ESTE banco: las palabras que sólo
+# pueden venir de un archivo que explica la corrida, nunca del proyecto.
+VOCABULARIO_DEL_EXPERIMENTO='corrida|banco|semilla|tramo|comparar\.sh|GUION|rubric|benchmark|blinded'
+
+# SEMILLA_SPOILER es la respuesta que la corrida NO puede encontrar servida.
+# Ejemplo del 2026-09-08: "ccusage, 18.4k estrellas". Se declara al invocar:
+#
+#     SEMILLA_SPOILER=ccusage ./comparar.sh
+#
+# Vacío = no se comprueba, y el informe lo dice: un chequeo que no corrió no es
+# un chequeo verde.
+SEMILLA_SPOILER="${SEMILLA_SPOILER:-}"
+
+echo "════════════════════════════════════════════════════════"
+echo " ⓪ ¿ESTA CORRIDA MIDE ALGO?"
+echo "════════════════════════════════════════════════════════"
+echo "  Si acá hay un ✗, lo de abajo NO se lee: la corrida se tira."
+limpia=1
+for d in "$a" "$b"; do
+  n=$(basename "$d")
+
+  # ① el vocabulario del experimento adentro del árbol que el agente camina
+  hits=$(grep -rilE "$VOCABULARIO_DEL_EXPERIMENTO" "$d" 2>/dev/null \
+         | grep -v '/\.git/' | head -5)
+  if [ -n "$hits" ]; then
+    echo "  $n  ✗ hay archivos que hablan del experimento adentro de la corrida:"
+    echo "$hits" | sed 's/^/        /'
+    limpia=0
+  else
+    echo "  $n  ✓ nada adentro habla del experimento"
+  fi
+
+  # ② la respuesta servida
+  #
+  # Se escapan los metacaracteres y se busca con -ril, en vez de con -F.
+  # NO es estilo: en el grep de Git-Bash (Windows, que es donde corre esto)
+  # `-F` junto con `-i` aborta con exit 134 y sin salida — o sea, el chequeo
+  # daba verde sin haber mirado. Probado el 2026-09-11: -rilF revienta, -ril
+  # y -rlF andan. Si alguien lo "simplifica" a -rilF, vuelve el falso verde.
+  spoiler_re=$(printf '%s' "$SEMILLA_SPOILER" | sed 's/[][\.*^$(){}?+|\\]/\\&/g')
+  if [ -z "$SEMILLA_SPOILER" ]; then
+    echo "      · spoiler no declarado — este chequeo NO corrió (SEMILLA_SPOILER=…)"
+  elif grep -ril "$spoiler_re" "$d" 2>/dev/null | grep -qv '/\.git/'; then
+    echo "      ✗ la respuesta de la semilla está servida adentro: \"$SEMILLA_SPOILER\""
+    limpia=0
+  else
+    echo "      ✓ la respuesta de la semilla no aparece en el árbol"
+  fi
+
+  # ③ corridas viejas anidadas — la regla ② de GUION.md
+  if [ -d "$d/corridas" ] || ls -d "$d"/*/.docs/brief.md >/dev/null 2>&1; then
+    echo "      ✗ hay otra corrida archivada adentro de ésta"
+    limpia=0
+  fi
+
+  # ④ el nombre del directorio
+  #
+  # Una letra NO es un spoiler: `A` no le dice nada al agente sobre qué se mide.
+  # Lo que sí lo es son las palabras de arriba, y por eso el chequeo es el mismo
+  # vocabulario y no "el nombre tiene que parecer un proyecto".
+  if echo "$n" | grep -qiE "$VOCABULARIO_DEL_EXPERIMENTO"; then
+    echo "      ✗ el directorio se llama como el experimento: $n"
+    limpia=0
+  fi
+done
+echo
+if [ "$limpia" -eq 1 ]; then
+  echo "  ✓ las dos corridas están limpias. Lo de abajo mide."
+else
+  echo "  ✗ CORRIDA CONTAMINADA. No leas lo de abajo: no estás midiendo el skill,"
+  echo "    estás midiendo lo que el agente encontró tirado. Rehacé la corrida"
+  echo "    en un directorio nuevo — y lo que explica el experimento va al repo,"
+  echo "    fuera del árbol que el agente camina."
+  exit 2
+fi
+
+echo
 echo "════════════════════════════════════════════════════════"
 echo " ① LA VARA DE T1 — evidencia, no veredicto"
 echo "════════════════════════════════════════════════════════"

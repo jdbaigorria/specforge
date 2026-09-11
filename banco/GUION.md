@@ -26,7 +26,7 @@ de ir a buscar la respuesta que debería investigar.
 **Las dos veces la corrida salía verde y medía cero.** No probás el scout: probás lo que
 el agente encontró tirado.
 
-### Las tres reglas que salen de ahí
+### Las cuatro reglas que salen de ahí
 
 ```
 ①  la semilla y su resultado NO se guardan en ninguna memoria
@@ -49,6 +49,48 @@ inyecta nada del banco.
 **El resto que queda, y es tuyo decidirlo:** el path dice `sf-banco/corridas/A`. Eso no
 da la respuesta, pero le avisa al agente que está en una prueba. Si te parece que
 importa, se renombra el árbol a algo neutro.
+
+### ✅ Las cuatro son una sección del script — 2026-09-11
+
+Las cuatro reglas estaban escritas acá arriba y **se rompieron dos veces igual**. Una
+regla que se rompe dos veces no necesita otra oración: necesita un `grep`. Ahora son la
+sección **⓪** de `comparar.sh`, arriba de todo, y **cortan con `exit 2`**:
+
+```
+①  el vocabulario del experimento adentro del árbol de la corrida
+②  la respuesta de la semilla servida       SEMILLA_SPOILER=ccusage ./comparar.sh
+③  otra corrida archivada adentro de ésta
+④  el directorio llamado como el experimento
+```
+
+**Y la lista de palabras NO es la de pstack.** Su protocolo de ciego prohíbe `eval`,
+`test`, `judge`, `rubric`, `score`, `benchmark`, `candidate` y `arena`. Acá `test` y
+`score` no sirven: adentro de la corrida hay un proyecto de verdad con tests de verdad,
+y prohibir la palabra `test` daría rojo siempre. La lista es la de **este** experimento:
+`corrida`, `banco`, `semilla`, `tramo`, `GUION`, `comparar.sh`, `rubric`, `benchmark`,
+`blinded`.
+
+> **El `SEMILLA_SPOILER` vacío no es verde.** El informe dice *"este chequeo NO corrió"*,
+> que es la misma regla de `sfx-buscar`: un verde que significa "no miré" es peor que un
+> rojo.
+
+**Y una que apareció construyendo, que no estaba en el plan.** El primer intento usaba
+`grep -rilF`, y en el grep de Git-Bash —Windows, que es donde corre esto— `-F` junto con
+`-i` **aborta con exit 134 y sin salida**. O sea: el chequeo daba verde sin haber mirado,
+que es exactamente la clase de falla que la sección ⓪ existe para atrapar. Va escrito en
+el script para que nadie lo "simplifique" de vuelta.
+
+### El juez ciego, para cuando exista
+
+Hoy el que compara es Javier, que armó las dos corridas: ver `A` y `B` rotulados está
+bien, ya sabe cuál es cuál.
+
+**El día que el comparador sea un modelo, no.** Entonces entra la regla entera de pstack,
+y se escribe ahora porque cuesta tres líneas y evita que nazca mal:
+
+- el juez ve `corrida-1` / `corrida-2` **barajadas**, nunca el nombre del modelo;
+- ve la vara, que se escribió **antes** de mirar las salidas;
+- el mapeo etiqueta → modelo se revela **después** del veredicto.
 
 ---
 

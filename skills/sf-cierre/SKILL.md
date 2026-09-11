@@ -47,6 +47,29 @@ Write `doc.md` in the feature's folder.
 
 **Write what is true now, not the story of getting here.** The journey is the journal's job.
 
+**Then run `sfx-prosa` over the functional half.** That half has a human reader, and it is the one
+place in the flow where prose quality is the deliverable rather than a side effect. Rule `P-1`
+alone earns the pass: a sentence about this feature that would serve any other project is not
+documentation, it is filler.
+
+### And if this feature added user surface, the map gets its file
+
+Only when `.docs/verificar/features/` exists — that is, when the project has a verification skill
+(`/sfx-verificar` generates it). Skip it silently otherwise; this is not a reason to go build one.
+
+**It is the same move you just made for the documentation**, one floor down: you know what this
+feature built, and you are the last state that will. Add `<feature>.md` to the map with the four
+headings the map uses — what it is, how a user reaches it, how to drive it with the harness, what
+end state proves it works.
+
+> **Why it hangs here and not on a maintenance skill.** A feature map drifts against the app, and
+> a lying map is worse than no map: it sends the next agent to drive a screen that no longer
+> exists. The ㉓ is the only state that runs exactly once per feature, right when what was built
+> is still known — so the cheapest moment to keep the map true is this one.
+>
+> If nobody is keeping it up and it has drifted badly, say so in the journal. **An unmaintained
+> map is a rung-5 claim with nothing behind it**, and deleting it beats leaving it.
+
 ## Step 2: The journal — compose `sfx-journal`
 
 Write `journal.md`: the durable lessons, **anchored in evidence** from this feature. Not "we
@@ -100,6 +123,7 @@ does not touch a remote.
 
 - The doc has two halves. Code alone gives you one of them.
 - Document what is true now. The journey goes in the journal.
+- If the project has a feature map and this feature added user surface, the map gets its file.
 - The journal is lessons, never progress. Progress lives in `estado.json`.
 - Write the journal for a stranger planning a different feature.
 - Propose a promotion to the constitution; never write one yourself.

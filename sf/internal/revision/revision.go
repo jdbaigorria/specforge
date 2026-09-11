@@ -61,14 +61,96 @@ type Revision struct {
 
 	Veredicto string `json:"veredicto"` // "limpio" | "con-hallazgos"
 
-	// Criterios es el veredicto por criterio: "us-1/CA-1" → "cumple".
+	// Criterios es el veredicto por criterio: "us-1/CA-1" → cumple, escalón 4.
 	//
 	// Mapa y no lista porque la pregunta real siempre es "¿opinó sobre ESTE?",
 	// y eso es lo que sf cuenta para que muera el dolor #7.
-	Criterios map[string]string `json:"criterios"`
+	Criterios map[string]Criterio `json:"criterios"`
 
 	Mutantes  Mutantes   `json:"mutantes"`
 	Hallazgos []Hallazgo `json:"hallazgos"`
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LA ESCALERA DE EVIDENCIA — "cumple" no dice CÓMO LO SABÉS
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Hasta el 2026-09-11 el veredicto era un string de dos valores, y adentro de
+// `cumple` cabían tres cosas que no valen lo mismo:
+//
+//	"us-3/CA-1": "cumple"   ← lo corrí y lo vi andar
+//	"us-3/CA-2": "cumple"   ← hay un test con ese nombre y asumo que prueba esto
+//	"us-3/CA-3": "cumple"   ← lo leí y me pareció bien
+//
+// Las tres eran el mismo byte. El skill ya subía el piso —"un criterio cuyo
+// test no encontrás es no-cumple"— pero no distinguía el techo, y ahí vive la
+// mentira cara: el `cumple` de la tercera línea.
+//
+// La escalera sale de `blast-radius` (ver specs/pstack.md §3):
+//
+//	1  lo dijiste                           vale cero
+//	2  señalaste la línea                   file:line real
+//	3  mostraste que el caso malo no llega  caminaste la falla y no alcanza
+//	4  lo corriste                          un test o script que falla fuerte
+//	5  lo reprodujiste en la app corriendo  el skill de verificación
+//
+// Y la regla que la hace servir: lo que no llega al 4 se DICE, no se escribe
+// como cerrado.
+const (
+	// SinEscalera es un criterio escrito antes de que la escalera existiera.
+	//
+	// NO es "escalón bajo". Es "esta revisión es anterior", y la compuerta las
+	// distingue: un archivado sin escalón pasa, uno nuevo sin escalón no.
+	SinEscalera = 0
+
+	// EscalonCorrido es el primero que exige haber ejecutado algo. Desde acá
+	// para arriba `prueba` tiene que apuntar a algo que exista, y eso lo
+	// comprueba la compuerta.
+	EscalonCorrido = 4
+)
+
+// Criterio es el veredicto sobre UN criterio de aceptación, con su respaldo.
+type Criterio struct {
+	Veredicto string `json:"veredicto"` // "cumple" | "no-cumple"
+
+	// Escalon es cuán abajo de la escalera llegó la afirmación.
+	Escalon int `json:"escalon"`
+
+	// Prueba es un PUNTERO, nunca prosa: un `archivo_test.go::TestNombre`, un
+	// `file:line`, o la ruta de un artefacto de evidencia.
+	//
+	// La misma regla que la columna `evidence` del rastro de decisiones: si
+	// necesita un párrafo, no es una prueba.
+	Prueba string `json:"prueba,omitempty"`
+}
+
+// Cumple es la pregunta que hacen el auditor y la compuerta.
+func (c Criterio) Cumple() bool { return c.Veredicto == "cumple" }
+
+// UnmarshalJSON acepta las DOS formas, y ésa es toda su razón de ser.
+//
+//	"cumple"                            → {Veredicto: "cumple", Escalon: 0}
+//	{"veredicto": "cumple", ...}        → tal cual
+//
+// `.docs/archivado/*/revision.json` tiene revisiones en el formato viejo y el
+// auditor las lee. Sin esto, `sf audit` se rompería EN SILENCIO sobre features
+// cerradas y nadie se enteraría hasta la próxima auditoría.
+func (c *Criterio) UnmarshalJSON(b []byte) error {
+	var viejo string
+	if err := json.Unmarshal(b, &viejo); err == nil {
+		*c = Criterio{Veredicto: viejo, Escalon: SinEscalera}
+		return nil
+	}
+
+	// El alias corta la recursión: sin él, Unmarshal volvería a entrar acá.
+	type nuevo Criterio
+	var n nuevo
+	if err := json.Unmarshal(b, &n); err != nil {
+		return fmt.Errorf("un criterio es un veredicto (\"cumple\") o un objeto "+
+			"{veredicto, escalon, prueba}, y esto no es ninguno: %s", b)
+	}
+	*c = Criterio(n)
+	return nil
 }
 
 // Mutantes es el resultado del ㉒, y tiene DOS fuentes que no hacen lo mismo.
