@@ -176,18 +176,25 @@ Tres cosas, y **se niega si los tests no están honestamente en rojo**:
 | **exige el rojo** | contra los tests **exactos** que el plan nombró, no contra "los que haya" |
 | **guarda el hash** | de los archivos de test, para poder comparar en el verde |
 
-Dos formas de fallar:
+Tres formas de fallar:
 
 ```
 ✗ el test planificado no existe: core_test.go::TestSinEstado
 ✗ la suite YA PASA, y todavía no se escribió el código del lote 1.
+✗ la suite falla, pero la salida no nombra NINGUNO de los tests planificados del lote 1.
 ```
 
 > **Un test que pasa antes de que exista el código es un test de mentira.**
+>
+> **Y un rojo que no es tuyo tampoco prueba nada.** El exit code dice que *algo* falló; con una
+> suite que ya venía rota, el lote recibía el rojo de regalo y el hash se tomaba sobre un fallo
+> ajeno. Si te frena sin motivo, la causa es una sola: un `test_cmd` que recorta la salida
+> (`| tail`, `-q`). En un lote sin plan la pregunta no se hace — no hay lista contra la cual
+> comparar.
 
 ---
 
-# Las cinco respuestas a una parada
+# Las seis respuestas a una parada
 
 Las corre **el orquestador**, nunca el subagente. Son cómo le contestás a un 🛑, una ⏸ o un ME
 TRABÉ.
@@ -512,7 +519,7 @@ Sale `0` si anda y `2` si hay algo que arreglar — y cuando hay algo, dice **c�
 
 ### Qué mira, y por qué esas cuatro cosas
 
-SpecForge se instala en dos mitades: el binario por un lado (`install.sh`), los 22 skills por
+SpecForge se instala en dos mitades: el binario por un lado (`install.sh`), los 27 skills por
 otro (el plugin del harness). No es un defecto del instalador — son cosas distintas, y un
 ejecutable compilado no entra en un plugin de Markdown. El precio es que **las dos mitades pueden
 quedar bien cada una por su lado y no verse entre ellas**, que es una familia de error sin

@@ -280,9 +280,27 @@ en vez de detectar**: los mocks salían *"con el contexto al 50%"*.
 
 ```
 ✓ el test que el plan nombró EXISTE
-✓ y FALLA de verdad
+✓ la suite FALLA de verdad
+✓ y el fallo NOMBRA al menos uno de los tests del lote
 → crea la branch · marca el rojo · guarda el hash de los archivos de test
 ```
+
+> **El tercero tapa el hueco que quedaba entre los otros dos.** El exit code dice que *algo* falló;
+> no dice que haya fallado lo tuyo. Con una suite que **ya venía roja** —un test viejo que quedó
+> fallando, un paquete que no compila— el lote recibía el rojo de regalo: los tests planificados
+> podían no haberse ejecutado nunca, y el hash se tomaba igual. Toda la cadena rojo→verde quedaba
+> apoyada sobre un fallo ajeno.
+>
+> No es un parser: es el **mismo `Contains`** que ya comprueba que el test exista adentro del
+> archivo, apuntado a la salida. Todos los runners nombran lo que falla — ninguno dice *"falló un
+> test"* sin decir cuál.
+>
+> **Alcanza con que nombre uno**, porque es normal que el runner corte en el primero. Y si te
+> frena sin motivo, la causa es una sola: un `test_cmd` que recorta la salida (`| tail`, `-q`).
+> Sacale el recorte — esa salida la leen también el ㉑ y el que tiene que arreglar.
+>
+> **En un lote SIN plan la pregunta no se hace**, porque no hay lista contra la cual comparar: el
+> camino corto de un bug y la vuelta del ㉑ vuelven a tener el exit code como todo lo que hay.
 
 **`sf done --msg`** — para cerrar:
 

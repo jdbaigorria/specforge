@@ -187,6 +187,47 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 		ef.falla("    Un test que pasa antes de que exista el código es un test de mentira.")
 		return ef
 	}
+
+	// ③b ¿Y el rojo es DE ELLOS?
+	//
+	// ────────────────────────────────────────────────────────────────────────
+	// EL EXIT CODE DICE QUE ALGO FALLÓ, NO QUE HAYA FALLADO LO TUYO
+	// ────────────────────────────────────────────────────────────────────────
+	//
+	// Entre ② (los tests existen) y ③ (algo falla) quedaba un hueco por el que
+	// pasaba entera la cadena rojo→verde: una suite que YA venía roja —un test
+	// viejo fallando, un paquete que no compila— le regala el rojo al lote. Los
+	// tests planificados podrían no haberse ejecutado nunca, y el hash se toma
+	// igual.
+	//
+	// Sólo se puede preguntar cuando sabemos los nombres, así que va adentro
+	// del `delPlan`: en un lote de corrección o en el camino corto no hay lista
+	// contra la cual comparar, y ahí el exit code sigue siendo todo lo que hay.
+	//
+	// Frena en vez de avisar porque lo que está en juego es la compuerta más
+	// importante del diseño: si el rojo no es del lote, TODO lo que viene
+	// después —el hash, el verde, el "no commiteo en rojo"— está apoyado sobre
+	// un fallo ajeno. Un aviso acá se lee una vez y se aprende a ignorar.
+	//
+	// El falso positivo posible es uno solo y el mensaje lo nombra: una salida
+	// recortada. Se arregla en la constitución, y arreglarlo mejora también
+	// todo lo demás que lee esa salida.
+	if delPlan {
+		nombrados := suite.Nombrados(res.Salida, planificados)
+		if len(nombrados) == 0 {
+			ef.falla("la suite falla, pero la salida no nombra NINGUNO de los tests planificados del lote %d.",
+				l.Lote)
+			ef.falla("    Un rojo que no es tuyo no prueba nada: el hash se tomaría sobre un fallo ajeno.")
+			ef.falla("    ① ¿la suite ya venía roja por otra cosa? Dejala en verde y volvé.")
+			ef.falla("    ② ¿tu `test_cmd` recorta la salida (`| tail`, `-q`)? Sacale el recorte.")
+			return ef
+		}
+		// El "de N" no se repite: el paso anterior ya dijo cuántos son, y
+		// "el rojo nombra 1 de 1 tests planificados" al lado de "los 1 tests
+		// planificados existen" es la misma cifra dos veces.
+		pasos = append(pasos, fmt.Sprintf("el rojo nombra %d de ellos", len(nombrados)))
+	}
+
 	pasos = append(pasos, "rojo confirmado")
 
 	// ④ El hash, que es la memoria de CÓMO eran los tests cuando estaban en

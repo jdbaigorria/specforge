@@ -1,6 +1,6 @@
 # El mapa completo
 
-**Todo el sistema en una página:** los nueve estados, los veinticinco skills, los veinticuatro
+**Todo el sistema en una página:** los nueve estados, los veintisiete skills, los veinticuatro
 paquetes de Go, y qué archivo aparece en cada paso.
 
 > **Cómo leerlo.** El flujo se lee de arriba abajo. En cada paso hay siempre las mismas cuatro
@@ -74,7 +74,7 @@ flowchart TD
         F1["ESTADO 6 · planificación<br/>sf-plan · subagente<br/>📄 decision.md · spec-design.md · tareas.json"]
         G4{"🛑 paso ⑰ · tres puertas<br/>3 opciones · vara 3-6 · 1 test por criterio"}
         F2["ESTADO 7 · implementar<br/>sf-build · un subagente POR LOTE<br/>📄 código + tests + 1 commit por lote"]
-        G5{"⚙️ el rojo primero<br/>los tests nombrados fallan ANTES de existir el código"}
+        G5{"⚙️ el rojo primero<br/>los tests nombrados existen · la suite falla<br/>y el fallo NOMBRA a alguno de ellos"}
         F3["ESTADO 8 · revisión<br/>sf-check · subagente<br/>📄 revision.json + mutantes/"]
         G6{"⚖️ ¿hallazgos abiertos?<br/>todo criterio con veredicto Y escalón"}
         F4["ESTADO 9 · cierre<br/>sf-cierre · subagente<br/>📄 doc.md · journal.md"]
@@ -88,7 +88,7 @@ flowchart TD
     P5 --> F1
     G7 -->|"sf approve · archiva y sigue"| F1
 
-    BUG["🐛 sf new — un bug entra por acá<br/>tipo: bug saltea planificación y revisión"]
+    BUG["🐛 sf new — acá entra lo que llega después<br/>tipo: chico saltea planificación<br/>tipo: bug saltea planificación y revisión"]
     BUG --> P4
     BUG -.->|"atajo"| F2
 
@@ -128,7 +128,7 @@ flowchart LR
         S9["sf-cierre"]
     end
 
-    subgraph UTIL ["Los 16 UTILITARIOS · el método · sirven solos"]
+    subgraph UTIL ["Los 18 UTILITARIOS · el método · sirven solos"]
         direction TD
         U1["sfx-grilling<br/>la entrevista"]
         U2["sfx-buscar<br/>la investigación"]
@@ -199,7 +199,7 @@ flowchart TD
 
     subgraph V3 ["3 · COMPRUEBA — sf done"]
         CO["compuerta<br/>el verbo que importa: da verde o rojo"]
-        CO --> SU["suite<br/>corre los tests y mira si existen"]
+        CO --> SU["suite<br/>corre los tests · mira si existen<br/>y si el rojo los nombra"]
         CO --> RE["revision<br/>criterios · escalones · hallazgos"]
         CO --> FM["frontmatter<br/>parte un .md en cabecera y cuerpo"]
     end
@@ -321,7 +321,7 @@ que probaban un criterio **siguen existiendo**.
 
 ---
 
-## 7. Los veinticinco skills, en una línea cada uno
+## 7. Los veintisiete skills, en una línea cada uno
 
 ### Los nueve de estado — corren donde `sf next` los nombra
 
@@ -337,7 +337,7 @@ que probaban un criterio **siguen existiendo**.
 | `sf-check` | ⑧ revisión | Un veredicto con escalón por **cada** criterio, más los mutantes |
 | `sf-cierre` | ⑨ cierre | La doc en dos mitades, el journal, y el mapa de features si hay |
 
-### Los dieciséis utilitarios — sirven solos, en cualquier proyecto
+### Los dieciocho utilitarios — sirven solos, en cualquier proyecto
 
 | Skill | Qué hace |
 |---|---|
@@ -357,9 +357,17 @@ que probaban un criterio **siguen existiendo**.
 | `sfx-triage` | Investiga un bug hasta la causa raíz |
 | `sfx-explain` | Explica un concepto con el método Feynman |
 | `sfx-audit` | El auditor punta a punta: varias features, y si el implementador mintió |
+| `sfx-skill` | Escribir, arreglar o revisar un skill — y probarlo antes de confiar en él |
+| `sfx-mapa` | El router: qué skill corresponde a esta situación |
 
 > **El prefijo no es decorativo.** Si `sf next` devolviera el nombre de un `sfx-`, el orquestador
 > lanzaría a alguien que **nunca va a llamar a `sf done`**, y el estado no se movería nunca.
+
+> **Y hay un segundo eje, que es quién los puede alcanzar.** Cinco llevan
+> `disable-model-invocation: true` y **sólo los invocás vos**: `sfx-mapa`, `sfx-grill-me`,
+> `sfx-verificar`, `sfx-interrogar` y `sfx-audit`. Son puertas de entrada que elige una persona, y
+> una lista rica de gatillos sobre una puerta de entrada gana carreras que debería perder. Los
+> primitivos **no** se cierran: el que los llama es otro skill.
 
 ---
 
@@ -377,7 +385,7 @@ que probaban un criterio **siguen existiendo**.
 | `tareas` | Lee `tareas.json`: las tareas de una feature y sus lotes | sobre · compuerta |
 | `revision` | Lee `revision.json`: criterios con escalón, mutantes y hallazgos | compuerta · audit |
 | `constitucion` | Lee la cabecera de `constitucion.md`: `test_cmd`, `mutacion`, `git` | sobre · compuerta |
-| `suite` | Corre los tests del proyecto y mira si existen | compuerta |
+| `suite` | Corre los tests, mira si existen y si el rojo los nombra | compuerta |
 | `frontmatter` | Parte un `.md` en cabecera y cuerpo | compuerta |
 | `git` | Shell-out a git, y nada más | sobre · audit |
 | `auditoria` | El punta a punta, y el único que mira **varias** features | `sf audit` |

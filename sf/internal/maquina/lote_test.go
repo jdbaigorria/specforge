@@ -43,11 +43,32 @@ func (p *proyecto) conGit() *proyecto {
 	return p
 }
 
+// rojoReal y verdeReal son los dos `test_cmd` que usan los tests de este archivo.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ EL ROJO IMPRIME, Y NO ES COSMÉTICA
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Estos fixtures eran `exit 1` pelado: fallaban EN SILENCIO. Servía mientras la
+// compuerta del rojo era sólo un exit code, y dejó de servir cuando `sf lote
+// start` empezó a exigir que la salida nombre alguno de los tests del lote.
+//
+// Y lo que rompió es justamente lo que había que arreglar: **un `exit 1` mudo
+// es indistinguible de una suite que ya venía rota**. Ningún runner de verdad
+// se comporta así — go, pytest, jest y cargo nombran todos lo que falla —, así
+// que el fixture que se cayó era el que no se parecía a la realidad.
+//
+// `TestUno` es uno de los dos tests que el plan declara más abajo.
+const (
+	rojoReal  = "echo FAIL TestUno; exit 1"
+	verdeReal = "exit 0"
+)
+
 // listoParaImplementar deja f-1 en implementar, con constitución, plan y tests.
 //
 // `testCmd` es lo que va a decidir el rojo o el verde: los tests le pasan
-// `exit 1` o `exit 0` directamente, porque lo que se prueba acá es la COMPUERTA,
-// no el runner.
+// `rojoReal` o `verdeReal`, porque lo que se prueba acá es la COMPUERTA, no el
+// runner.
 func (p *proyecto) listoParaImplementar(testCmd string) *proyecto {
 	p.productoListo()
 	p.e.FeatureActual = "f-1"
@@ -104,7 +125,7 @@ func branchActual(t *testing.T, raiz string) string {
 // ────────────────────────────────────────────────────────────────────────────
 
 func TestLoteStartCreaLaBranchYConfirmaElRojo(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1") // la suite falla: hay rojo
+	p := nuevo(t).listoParaImplementar(rojoReal) // la suite falla: hay rojo
 
 	ef := EmpezarLote(p.raiz, p.e, p.r)
 	if !ef.Pasa() {
@@ -129,7 +150,7 @@ func TestLoteStartCreaLaBranchYConfirmaElRojo(t *testing.T) {
 // Los lotes se siembran desde tareas.json la primera vez: el estado sólo guarda
 // por cuál va, no cuántos hay.
 func TestLoteStartSiembraLosLotesDesdeElPlan(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	if len(p.e.Features["f-1"].Lotes) != 0 {
 		t.Fatal("el andamio ya traía lotes")
 	}
@@ -147,7 +168,7 @@ func TestLoteStartSiembraLosLotesDesdeElPlan(t *testing.T) {
 // ────────────────────────────────────────────────────────────────────────────
 
 func TestLoteStartNoDejaEmpezarSiLaSuiteYaPasa(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 0") // ya está verde
+	p := nuevo(t).listoParaImplementar(verdeReal) // ya está verde
 
 	ef := EmpezarLote(p.raiz, p.e, p.r)
 	if ef.Pasa() {
@@ -168,7 +189,7 @@ func TestLoteStartNoDejaEmpezarSiLaSuiteYaPasa(t *testing.T) {
 // ────────────────────────────────────────────────────────────────────────────
 
 func TestLoteStartExigeQueLosTestsPlanificadosExistan(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	// El archivo existe pero le falta TestDos: es exactamente "escribí tests"
 	// contra "escribí LOS tests que el plan pedía".
 	p.conArchivoConTexto("a_test.go", "package a\n\nfunc TestUno() {}\n")
@@ -187,7 +208,7 @@ func TestLoteStartExigeQueLosTestsPlanificadosExistan(t *testing.T) {
 // ────────────────────────────────────────────────────────────────────────────
 
 func TestLoteStartSoloAplicaAImplementar(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	p.e.Features["f-1"].Estado = estado.Planificacion
 
 	if ef := EmpezarLote(p.raiz, p.e, p.r); ef.Pasa() {
@@ -198,7 +219,7 @@ func TestLoteStartSoloAplicaAImplementar(t *testing.T) {
 // Correrlo dos veces avisa en vez de volver a exigir el rojo — que ya no
 // existiría, porque el código empezó a escribirse.
 func TestLoteStartDosVecesAvisa(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	if ef := EmpezarLote(p.raiz, p.e, p.r); !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
@@ -218,7 +239,7 @@ func TestLoteStartDosVecesAvisa(t *testing.T) {
 
 // No se commitea en rojo. Es la mitad obvia de la compuerta.
 func TestDoneNoCommiteaEnRojo(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	if ef := EmpezarLote(p.raiz, p.e, p.r); !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
@@ -238,7 +259,7 @@ func TestDoneNoCommiteaEnRojo(t *testing.T) {
 // verde. sf vio el rojo y ve el verde; sin el hash, esto pasa sin que nadie se
 // entere.
 func TestDoneAtrapaElTestAblandadoEntreElRojoYElVerde(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	if ef := EmpezarLote(p.raiz, p.e, p.r); !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
@@ -260,7 +281,7 @@ func TestDoneAtrapaElTestAblandadoEntreElRojoYElVerde(t *testing.T) {
 
 // Con la suite en verde y los tests intactos, el lote cierra y sf commitea.
 func TestDoneCierraElLoteConVerdeYTestsIntactos(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	if ef := EmpezarLote(p.raiz, p.e, p.r); !ef.Pasa() {
 		t.Fatalf("%v", ef.Fallas)
 	}
@@ -294,7 +315,7 @@ func TestDoneCierraElLoteConVerdeYTestsIntactos(t *testing.T) {
 // code, y sigue impidiendo lo que importa: dar por arreglado algo que nunca se
 // vio romper.
 func TestLoteStartSinPlanAflojaPeroSigueExigiendoRojo(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	// Se saca el plan: es el caso del bug.
 	if err := os.Remove(filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo", "tareas.json")); err != nil {
 		t.Fatal(err)
@@ -316,7 +337,7 @@ func TestLoteStartSinPlanAflojaPeroSigueExigiendoRojo(t *testing.T) {
 // Si la suite pasa entera, el bug no está reproducido. Es la misma regla que el
 // "test de mentira", dicha para el caso del arreglo chico.
 func TestLoteStartSinPlanExigeQueElBugEsteReproducido(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 0")
+	p := nuevo(t).listoParaImplementar(verdeReal)
 	if err := os.Remove(filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo", "tareas.json")); err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +381,7 @@ func TestSinLotesMandaALoteStartYNoACerrar(t *testing.T) {
 // lote start contestaba "esto está en planificacion". El bug quedaba sin ninguna
 // forma de escribir código.
 func TestLoteStartAceptaUnBugEnPlanificacion(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	p.conArchivoConTexto(docs.Historia("us-1"), "---\ntipo: bug\nid: us-1\n---\n- **CA-1** — no rompe\n")
 	// El estado guardado es el que quedó después del `sf take`: nadie lo movió.
 	p.e.Features["f-1"].Estado = estado.Planificacion
@@ -380,7 +401,7 @@ func TestLoteStartAceptaUnBugEnPlanificacion(t *testing.T) {
 // Y el guard sigue vivo para las historias normales: una us en planificación no
 // puede saltar a implementar sin pasar por el ⑰.
 func TestLoteStartRechazaUnaUsEnPlanificacion(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	p.conArchivoConTexto(docs.Historia("us-1"), "---\ntipo: us\nid: us-1\n---\n- **CA-1** — x\n")
 	p.e.Features["f-1"].Estado = estado.Planificacion
 
@@ -402,7 +423,7 @@ func TestLoteStartRechazaUnaUsEnPlanificacion(t *testing.T) {
 // La compuerta afloja a lo comprobable —que la suite falle— y NO le echa la
 // culpa al ⑰, que hizo bien su trabajo.
 func TestLoteStartDeCorreccionNoCulpaAlPlan(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	commit := "abc123"
 	f := p.e.Features["f-1"]
 	f.Lotes = []estado.Lote{
@@ -422,7 +443,7 @@ func TestLoteStartDeCorreccionNoCulpaAlPlan(t *testing.T) {
 // Pero un lote que SÍ está en el plan y no tiene tests sigue siendo el error del
 // ⑰. Las dos preguntas dan "cero tests" y no son la misma.
 func TestLoteStartDelPlanSinTestsSigueCulpandoAl17(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	p.conArchivoConTexto(filepath.Join(".docs", "features", "f-1-nucleo", "tareas.json"),
 		`{"tareas":[{"id":"t-1","lote":1,"satisface":["us-1/CA-1"],"tests":[]}]}`)
 
@@ -447,7 +468,7 @@ func TestLoteStartDelPlanSinTestsSigueCulpandoAl17(t *testing.T) {
 // feature a revisión: sin branch, sin tests, sin código y sin commit. Todo el
 // mecanismo del producto se evitaba corriendo un comando una vez.
 func TestDoneNoMueveARevisionSinHaberEmpezadoNingunLote(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	p.e.Features["f-1"].Lotes = nil // el plan se aprobó y nadie corrió lote start
 
 	c := Terminar(p.raiz, p.e, p.r, "feat: nada")
@@ -465,7 +486,7 @@ func TestDoneNoMueveARevisionSinHaberEmpezadoNingunLote(t *testing.T) {
 // Y la misma puerta para el camino corto, donde el salto era peor todavía: un
 // bug llegaba directo a `cierre` —saltea la revisión— sin escribir una línea.
 func TestDoneNoMandaUnBugACierreSinHaberEmpezadoNingunLote(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	p.conArchivoConTexto(docs.Historia("us-1"), "---\ntipo: bug\nid: us-1\n---\n- **CA-1** — x\n")
 	p.e.Features["f-1"].Estado = estado.Planificacion
 	p.e.Features["f-1"].Lotes = nil
@@ -492,7 +513,7 @@ func TestDoneNoMandaUnBugACierreSinHaberEmpezadoNingunLote(t *testing.T) {
 // tenía dónde commitearse, y la única salida era `sf dismiss` — o sea, declarar
 // falso lo que el revisor encontró.
 func TestRevisionConHallazgosAbreUnLoteDeCorreccion(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 0")
+	p := nuevo(t).listoParaImplementar(verdeReal)
 	commit := "abc123"
 	f := p.e.Features["f-1"]
 	f.Estado = estado.Revision
@@ -525,7 +546,7 @@ func TestRevisionConHallazgosAbreUnLoteDeCorreccion(t *testing.T) {
 // que hacer. Es el test que prueba que A5 se cerró de verdad y no sólo que el
 // campo cambió.
 func TestDespuesDeLaVueltaDel21SePuedeEmpezarElLote(t *testing.T) {
-	p := nuevo(t).listoParaImplementar("exit 1")
+	p := nuevo(t).listoParaImplementar(rojoReal)
 	commit := "abc123"
 	f := p.e.Features["f-1"]
 	f.Estado = estado.Revision
@@ -544,5 +565,55 @@ func TestDespuesDeLaVueltaDel21SePuedeEmpezarElLote(t *testing.T) {
 	}
 	if l, _ := f.LoteActual(); !l.Rojo {
 		t.Error("no confirmó el rojo del lote de corrección")
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El hueco entre "existen" y "algo falla": ¿el rojo es DE ELLOS?
+// ────────────────────────────────────────────────────────────────────────────
+
+// Una suite que ya venía rota le regalaba el rojo al lote: los tests
+// planificados podían no haberse ejecutado nunca, y el hash se tomaba igual
+// sobre un fallo ajeno. Toda la cadena rojo→verde quedaba apoyada ahí.
+func TestLoteStartRechazaUnRojoQueNoEsDelLote(t *testing.T) {
+	// La suite falla, y falla por otra cosa: nombra un test que no es del lote.
+	p := nuevo(t).listoParaImplementar("echo FAIL TestDeOtroPaquete; exit 1")
+
+	ef := EmpezarLote(p.raiz, p.e, p.r)
+	if ef.Pasa() {
+		t.Fatal("aceptó un rojo que no menciona ningún test del lote")
+	}
+	if !strings.Contains(strings.Join(ef.Fallas, " "), "no nombra NINGUNO") {
+		t.Errorf("no explicó por qué: %v", ef.Fallas)
+	}
+
+	// Y no anota nada: sin rojo propio, no hay hash que valga.
+	if l, hay := p.e.Features["f-1"].LoteActual(); hay && l.Rojo {
+		t.Error("anotó el rojo igual")
+	}
+}
+
+// Alcanza con que nombre UNO. El lote tiene dos tests planificados y es normal
+// que el runner corte en el primero que falla — exigir los dos convertiría una
+// compuerta en una molestia.
+func TestLoteStartAlcanzaConQueElRojoNombreUnTest(t *testing.T) {
+	p := nuevo(t).listoParaImplementar("echo FAIL TestDos; exit 1")
+
+	if ef := EmpezarLote(p.raiz, p.e, p.r); !ef.Pasa() {
+		t.Fatalf("no pasó nombrando uno de los dos: %v", ef.Fallas)
+	}
+}
+
+// En un lote SIN plan no hay lista contra la cual comparar, así que la pregunta
+// no se hace y el exit code vuelve a ser todo lo que hay. Son los dos casos
+// legítimos: el camino corto de un bug y la vuelta del ㉑.
+func TestUnLoteSinPlanNoExigeQueElRojoLoNombre(t *testing.T) {
+	p := nuevo(t).listoParaImplementar("exit 1") // mudo, y está bien acá
+	if err := os.Remove(filepath.Join(p.raiz, ".docs", "features", "f-1-nucleo", "tareas.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	if ef := EmpezarLote(p.raiz, p.e, p.r); !ef.Pasa() {
+		t.Fatalf("un lote sin plan no puede exigir nombres: %v", ef.Fallas)
 	}
 }

@@ -142,3 +142,51 @@ func TestPartir(t *testing.T) {
 		t.Errorf("sin :: → %q, %q", a, n)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Nombrados — ¿la salida habla de ESTOS tests?
+// ────────────────────────────────────────────────────────────────────────────
+
+// Las salidas son las de verdad, recortadas: lo que se prueba es que el Contains
+// sobrevive a cómo imprime cada runner, y eso no se prueba con strings inventados.
+func TestNombradosReconoceLosRunnersReales(t *testing.T) {
+	plan := []string{"a_test.go::TestUno", "a_test.go::TestDos"}
+
+	casos := []struct {
+		runner string
+		salida string
+		quiero int
+	}{
+		{"go test", "--- FAIL: TestUno (0.00s)\n    a_test.go:12: quería 5\nFAIL", 1},
+		{"pytest", "FAILED a_test.py::TestUno - AssertionError: assert 4 == 5", 1},
+		{"jest", "  ✕ TestUno (3 ms)\n  ✓ otra cosa", 1},
+		{"cargo", "failures:\n    TestUno\n\ntest result: FAILED", 1},
+		{"los dos", "--- FAIL: TestUno\n--- FAIL: TestDos", 2},
+
+		// El caso que motiva todo: la suite falla por otra cosa.
+		{"un fallo ajeno", "--- FAIL: TestDeOtroPaquete (0.01s)\nFAIL\texit status 1", 0},
+		{"no compila", "# proyecto/otro\notro.go:9:2: undefined: Foo", 0},
+		{"salida recortada", "", 0},
+	}
+	for _, c := range casos {
+		t.Run(c.runner, func(t *testing.T) {
+			if got := Nombrados(c.salida, plan); len(got) != c.quiero {
+				t.Errorf("Nombrados = %v (%d), quería %d", got, len(got), c.quiero)
+			}
+		})
+	}
+}
+
+// Un test declarado sin `::` es el archivo entero, y se busca por su basename:
+// los runners imprimen las rutas con separadores distintos y el nombre del
+// archivo es la parte que sobrevive a todos.
+func TestNombradosBuscaPorArchivoCuandoNoHayNombre(t *testing.T) {
+	plan := []string{"tests/unit/a_test.go"}
+
+	if got := Nombrados(`--- FAIL: tests\unit\a_test.go`, plan); len(got) != 1 {
+		t.Errorf("Nombrados = %v, quería encontrarlo por basename", got)
+	}
+	if got := Nombrados("--- FAIL: b_test.go", plan); len(got) != 0 {
+		t.Errorf("Nombrados = %v, quería vacío", got)
+	}
+}

@@ -30,6 +30,31 @@
 // Lo que sí es genérico y sí se hace: comprobar que cada test PLANIFICADO exista
 // en su archivo. Eso no depende del runner — depende de que el nombre esté
 // escrito en el archivo, y eso vale en cualquier lenguaje.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// Y HAY UN TERCER HECHO, QUE TAMPOCO ES UN PARSER: ¿EL ROJO ES DE ELLOS?
+// ────────────────────────────────────────────────────────────────────────────
+//
+// El exit code dice que algo falló. NO dice que haya fallado lo que el lote
+// vino a escribir, y ese hueco era real:
+//
+//	la suite ya venía roja por otra cosa   →  el rojo del lote sale gratis
+//	un test viejo quedó fallando           →  ídem
+//	un paquete no compila                  →  ídem
+//
+// Con eso, `Faltantes` prueba que los tests EXISTEN y el exit code prueba que
+// ALGO falla — y entre las dos cosas nunca se prueba que fallen ÉSTOS. El hash
+// del rojo se toma igual, y toda la cadena rojo→verde queda apoyada en un
+// fallo que no era del lote.
+//
+// `Nombrados` lo cierra sin volverse un parser, con la misma jugada que ya
+// bendijo el ② de vecinos.md: no se estructura la salida, se busca una marca.
+// Y acá la marca no hay ni que tabularla por runner, porque ya la tenemos — es
+// el nombre del test. TODOS los runners nombran lo que falla; ninguno dice
+// "falló un test" sin decir cuál.
+//
+// Es el MISMO Contains de `Faltantes`, movido de blanco: allá se busca el
+// nombre adentro del archivo, acá adentro de la salida.
 package suite
 
 import (
@@ -133,6 +158,56 @@ func Faltantes(raiz string, tests []string) []string {
 		}
 	}
 	return faltan
+}
+
+// Nombrados devuelve los tests planificados que la salida MENCIONA.
+//
+// Es la contracara de Faltantes: aquélla busca el nombre adentro del archivo,
+// ésta adentro de lo que imprimió el runner. Las dos son el mismo Contains
+// sobre un string que ya tenemos, y ninguna sabe en qué lenguaje está escrito
+// el proyecto.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// QUÉ SIGNIFICA UN RESULTADO VACÍO, Y QUÉ NO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Devolver vacío significa "la salida no habla de estos tests". En el rojo eso
+// es fuerte: si el runner nombra lo que falla —y los nombra todos— una salida
+// que no menciona ninguno de los planificados está contando OTRO fallo.
+//
+// Lo que NO significa es "estos tests pasaron". Hay una manera legítima de caer
+// acá con el lote en orden, y es que la salida venga recortada: un `test_cmd`
+// con `| tail -20` puede dejar afuera justo las líneas que los nombran. Por eso
+// el que llama decide qué hacer con el vacío; esta función sólo cuenta.
+//
+// Al revés no es simétrico y conviene decirlo: que un nombre SÍ aparezca no
+// prueba que ese test haya fallado —un runner verboso también imprime los que
+// pasan—. Sirve igual, porque el caso que se quiere atajar es el otro: el rojo
+// que no tiene nada que ver con el lote.
+//
+// Un test declarado sin nombre (`archivo_test.go`, sin `::`) se busca por su
+// ruta y también por el nombre del archivo solo: los runners imprimen las rutas
+// con separadores distintos, y el basename es la parte que sobrevive a todos.
+func Nombrados(salida string, tests []string) []string {
+	var hay []string
+	for _, t := range tests {
+		archivo, nombre := Partir(t)
+
+		var marca string
+		switch {
+		case nombre != "":
+			marca = nombre
+		case archivo != "":
+			marca = filepath.Base(archivo)
+		default:
+			continue
+		}
+
+		if strings.Contains(salida, marca) && !slices.Contains(hay, t) {
+			hay = append(hay, t)
+		}
+	}
+	return hay
 }
 
 // Archivos devuelve los archivos de test de una lista, sin repetir y ordenados.
