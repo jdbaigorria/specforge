@@ -413,7 +413,8 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 	p.paso("con los dos lotes cerrados, sigue la revisión", hayTrabajo, "done")
 
 	// ── ㉑ la revisión ──────────────────────────────────────────────────────
-	p.revision(`{"vuelta":1,"veredicto":"limpio","criterios":{"us-1/CA-1":"cumple"},
+	p.revision(`{"vuelta":1,"veredicto":"limpio","criterios":{
+		"us-1/CA-1":{"veredicto":"cumple","escalon":4,"prueba":"suma_test.go::TestSuma"}},
 		"hallazgos":[]}`)
 	out = p.paso("sf no juzga la revisión: cuenta que haya ocurrido sobre TODOS",
 		esParada, "done")
@@ -422,8 +423,9 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 	// A5: con un hallazgo abierto volvía a `implementar` y NO HABÍA DÓNDE
 	// TRABAJAR — lote start rechazaba, done rebotaba a revisión, y el arreglo
 	// no tenía dónde commitearse.
-	p.revision(`{"vuelta":1,"veredicto":"con-hallazgos",
-		"criterios":{"us-1/CA-1":"cumple","us-2/CA-1":"no-cumple"},
+	p.revision(`{"vuelta":1,"veredicto":"con-hallazgos","criterios":{
+		"us-1/CA-1":{"veredicto":"cumple","escalon":4,"prueba":"suma_test.go::TestSuma"},
+		"us-2/CA-1":{"veredicto":"no-cumple","escalon":3}},
 		"hallazgos":[{"id":"h-1","origen":21,"criterio":"us-2/CA-1","estado":"abierto",
 		 "detalle":"Resta no maneja el caso de resultado negativo"}]}`)
 	out = p.paso("A5 · un hallazgo abierto vuelve a implementar", esParada, "done")
@@ -445,8 +447,10 @@ func TestVueltaCompletaDeUnaHistoria(t *testing.T) {
 		"done", "--msg", "fix: la resta con resultado negativo")
 	p.paso("los lotes vuelven a estar todos cerrados", hayTrabajo, "done")
 
-	p.revision(`{"vuelta":2,"veredicto":"limpio",
-		"criterios":{"us-1/CA-1":"cumple","us-2/CA-1":"cumple"},"hallazgos":[]}`)
+	p.revision(`{"vuelta":2,"veredicto":"limpio","criterios":{
+		"us-1/CA-1":{"veredicto":"cumple","escalon":4,"prueba":"suma_test.go::TestSuma"},
+		"us-2/CA-1":{"veredicto":"cumple","escalon":4,"prueba":"resta_test.go::TestResta"}},
+		"hallazgos":[]}`)
 	p.paso("revisión limpia: sigue el cierre", hayTrabajo, "done")
 
 	// ── ㉓ el cierre y el archivado ──────────────────────────────────────────
@@ -651,17 +655,79 @@ func (p *proyecto) constitucion(testCmd string) {
 }
 
 // plan escribe los tres archivos del ⑫–⑯ con el tareas.json que se le pase.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ EL decision.md DEL ANDAMIO LLEVA LA VARA ENTERA
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Porque la compuerta la cuenta, y el andamio tiene que pasar por la compuerta
+// de verdad. Lo que `compuerta.Planificacion` exige del archivo son tres cosas
+// CONTABLES, y las tres tienen que estar acá:
+//
+//	3 títulos de opción     `## A ` · `## B ` · `## C `   (reOpcion)
+//	de 3 a 6 filas de vara  `| V-# |`                     (reVara)
+//	exactamente 3 de puntaje  `| A |` · `| B |` · `| C |`  (rePuntaje)
+//
+// ESTE FIXTURE YA SE PODRIÓ UNA VEZ, y vale anotar cómo: `revisarVara` entró en
+// d8b1077, un commit cuyo asunto es sobre el banco, y que apretó el ⑫ de paso
+// sin tocar esto. Los cuatro tests del guion quedaron en rojo — y en rojo por
+// el andamio, no por lo que cada uno prueba, que es el peor rojo que hay: el
+// que no habla del bug.
+//
+// La forma sale de `skills/maquina/sf-plan/templates/decision.tmpl.md`, que es
+// la plantilla que el ⑫ le da al modelo. Si la compuerta se vuelve a apretar,
+// los dos lugares que hay que mover son ése y éste.
 func (p *proyecto) plan(tareas string) {
 	p.t.Helper()
 	p.escribir(".docs/features/f-1-suma/decision.md",
-		"# Decisión — f-1\n\n## A — funciones sueltas\nLo más simple. ✅\n\n"+
+		"# Decisión — f-1\n\n"+
+			"## Vara\n\n"+
+			"| | criterio | cómo se evalúa |\n"+
+			"|---|---|---|\n"+
+			"| V-1 | simplicidad | cuántos tipos nuevos entran |\n"+
+			"| V-2 | qué cuesta extender | agregar una operación más |\n"+
+			"| V-3 | se puede testear solo | hace falta armar estado antes |\n\n"+
+			"## A — funciones sueltas\nLo más simple. ✅\n\n"+
 			"## B — un tipo Calculadora\nEstado que no hace falta.\n\n"+
-			"## C — generics\nOverkill.\n")
+			"## C — generics\nOverkill.\n\n"+
+			"## El puntaje\n\n"+
+			"| | V-1 | V-2 | V-3 |\n"+
+			"|---|---|---|---|\n"+
+			"| A | una función por operación | una función más | directo |\n"+
+			"| B | un tipo con estado | un método más | hay que construirlo |\n"+
+			"| C | parámetros de tipo | la firma se complica | el test se llena de tipos |\n\n"+
+			"## Elegida: A\n\n"+
+			"**El argumento que inclinó la balanza:** dos funciones no necesitan un tipo.\n")
 	p.escribir(".docs/features/f-1-suma/spec-design.md",
 		"# Spec — f-1\n\nfunc Suma(a, b int) int\nfunc Resta(a, b int) int\n")
 	p.escribir(".docs/features/f-1-suma/tareas.json", tareas)
 }
 
+// revision escribe el revision.json del ㉑ tal cual se le pase.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// UN CRITERIO ES UN OBJETO, NO UN STRING — Y POR QUÉ IMPORTA ACÁ
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `revision.Criterio` acepta las dos formas a propósito: `"cumple"` pelado es
+// el formato viejo, y sigue entrando para no romper lo ya archivado. Pero la
+// compuerta NO lo acepta en una revisión nueva — un criterio sin `escalon` es
+// "no se sabe cómo lo sabés", y eso frena.
+//
+// Los tres números que hay que tener en la cabeza al escribir un fixture acá:
+//
+//	escalon 0    es "esta revisión es anterior a la escalera", no "escalón bajo".
+//	             Sólo pasa si la feature está archivada.
+//	escalon 4+   exige `prueba`, y que apunte a algo que EXISTA en el repo:
+//	             la compuerta lo resuelve con `suite.Faltantes`.
+//	no-cumple    también declara `escalon`. El chequeo del escalón corre ANTES
+//	             del de `Cumple()`, así que un hallazgo sin escalón frena igual.
+//
+// SE PODRIÓ UNA VEZ, junto con el decision.md: los cuatro tests de este archivo
+// quedaron en rojo por el andamio y no por lo que cada uno prueba. Cuando eso
+// pasa, el rojo no habla del bug — habla del fixture, y hay que leer dos veces
+// para darse cuenta. Si una compuerta se vuelve a apretar, este helper y
+// `plan()` son los dos lugares que hay que mover.
 func (p *proyecto) revision(json string) {
 	p.t.Helper()
 	p.escribir(".docs/features/f-1-suma/revision.json", json)
@@ -709,7 +775,8 @@ func (p *proyecto) productoListo() {
 		"package main\n\nfunc Suma(a, b int) int { return a + b }\n\nfunc main() {}\n")
 	mustSf("done", "--msg", "feat: la suma")
 	mustSf("done")
-	p.revision(`{"vuelta":1,"veredicto":"limpio","criterios":{"us-1/CA-1":"cumple"},
+	p.revision(`{"vuelta":1,"veredicto":"limpio","criterios":{
+		"us-1/CA-1":{"veredicto":"cumple","escalon":4,"prueba":"suma_test.go::TestSuma"}},
 		"hallazgos":[]}`)
 	mustSf("done")
 	p.escribir(".docs/features/f-1-suma/doc.md", "# f-1 — la suma\n")
