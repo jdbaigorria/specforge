@@ -11,7 +11,7 @@ description: >
 
 Design data systems that are reliable, observable, and maintainable. Think in data contracts, lineage, quality gates, and idempotency.
 
-**Always produces a written design.** Model: opus. It goes wherever the user asks — this skill is standalone and does not write inside `.docs/` uninvited.
+**Always produces a written design.** Ask for a reasoning profile — this is a design task, not a mechanical one; naming a concrete model here would bake in one provider, and the whole point of the profile is that it travels. It goes wherever the user asks — this skill is standalone and does not write inside `.docs/` uninvited.
 
 ## Step 1: Understand the Data
 
