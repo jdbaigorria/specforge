@@ -1,12 +1,12 @@
 ---
 name: sfx-verificar
+disable-model-invocation: true
 description: >
   The verification primitive. Generate a project-local skill that drives the REAL app the way a
   user does — launch it, exercise a feature, capture evidence — plus a feature map of what else
-  there is to drive. Any language, framework or platform. Triggers: "/sfx-verificar", "make a
-  verification skill", "how do we prove the app actually works", "there's no way to test this by
-  hand", or a review that can only say "the tests pass". Standalone: it works in any repo, with
-  or without SpecForge.
+  there is to drive. Any language, framework or platform. Run once per project, by hand: it is
+  what makes rung 5 of the ㉑ reachable, so a review can say more than "the tests pass". Works
+  in any repo, with or without SpecForge.
 ---
 
 # sfx-verificar

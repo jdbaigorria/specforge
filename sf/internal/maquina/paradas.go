@@ -13,6 +13,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/frontmatter"
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
+	"github.com/jdbaigorria/specforge/sf/internal/historia"
 	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 )
@@ -675,6 +676,7 @@ func Modelo(e *estado.Estado, g *global.Config, d Declaracion) Efecto {
 	anterior := f.Modelo
 	f.Modelo = nombre
 	f.IntentosFallidos = 0
+	f.RondasRevision = 0 // los dos bucles se destraban con más modelo
 
 	// El "a → b" sólo si de verdad cambió. El caso `a → a` es real y frecuente:
 	// el ⑯ recomendó un modelo, la 🛑 pidió declararlo, y `sf model` lo declara
@@ -694,6 +696,112 @@ func Modelo(e *estado.Estado, g *global.Config, d Declaracion) Efecto {
 			ef.Mensaje += " · " + comando
 		}
 	}
+	return ef
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// sf ampliar
+// ────────────────────────────────────────────────────────────────────────────
+
+// Ampliar sube una feature del camino chico al largo, y no la baja nunca.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// EL TRINQUETE, Y POR QUÉ ES UN COMANDO Y NO UNA DEDUCCIÓN
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `tipo: chico` dice "esto es un cambio acotado sobre código que ya existe", y
+// la complejidad escondida aparece IMPLEMENTANDO — o sea, después de que el
+// camino ya se eligió. El que se entera es el que está adentro del ⑱.
+//
+// Y es lo único de los tres caminos que sf NO puede comprobar solo. Que una
+// historia diga `bug` es un hecho del archivo; que un cambio "resultó más
+// grande de lo que parecía" es un juicio, y sf no juzga (R3). Así que se pide,
+// igual que se piden las otras cinco respuestas de Javier — con la diferencia
+// de que a ésta la puede pedir también el orquestador, sobre el reporte del
+// que estaba implementando.
+//
+// Lo que sí es mecánico es que **no se pueda deshacer**. `Ampliada` no se apaga
+// desde ningún lado: ni editando la historia de vuelta a `tipo: chico`, ni
+// corriendo esto dos veces. El optimismo que erró la clasificación la primera
+// vez no tiene una segunda oportunidad de errarla.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// A DÓNDE LA MANDA, Y POR QUÉ NO AL ⑫ SIEMPRE
+// ────────────────────────────────────────────────────────────────────────────
+//
+// La feature vuelve a `planificacion`, que es el estado que se había salteado.
+// Los lotes que ya cerraron NO se tocan: su commit existe y su rojo se vio, y
+// borrarlos sería mentir sobre lo que pasó. El ⑫–⑯ va a planificar SOBRE eso,
+// que es exactamente lo que hace cuando una feature vuelve del ⑰ rechazada.
+//
+// El motivo viaja en `Rechazo` y no en un campo nuevo: es el mismo lugar donde
+// ya viaja el "pido cambios" del ⑰, lo lee el mismo sobre, y lo necesita el
+// mismo lector — el subagente fresco que va a planificar sin haber estado en la
+// conversación donde se descubrió que esto no era chico.
+func Ampliar(raiz string, e *estado.Estado, r *roadmap.Roadmap, id, motivo string) Efecto {
+	var ef Efecto
+
+	// `sf ampliar "no era chico"` sobre la feature en curso es la forma que se
+	// va a escribir el 90% de las veces, y sin esto el motivo entraba como id y
+	// el comando se quejaba de que falta el motivo — teniéndolo delante.
+	if motivo == "" && id != "" && !strings.HasPrefix(id, "f-") {
+		id, motivo = "", id
+	}
+
+	if motivo == "" {
+		ef.falla("falta el motivo: `sf ampliar [<f-#>] \"por qué no era chico\"`")
+		return ef
+	}
+	if r == nil {
+		ef.falla("todavía no hay roadmap: falta el ⑩")
+		return ef
+	}
+
+	// Sin id se amplía la que está en curso, que es el caso normal: el que
+	// corre esto acaba de leer el reporte del ⑱ sobre esa feature.
+	if id == "" {
+		id = e.FeatureActual
+	}
+	if id == "" {
+		ef.falla("no hay feature en curso: decí cuál con `sf ampliar <f-#> \"…\"`")
+		return ef
+	}
+
+	f, hayF := e.Features[id]
+	if !hayF {
+		ef.falla("%s no arrancó todavía: no hay nada que ampliar", id)
+		return ef
+	}
+	fr, enRoadmap := r.Buscar(id)
+	if !enRoadmap {
+		ef.falla("%s no está en el roadmap", id)
+		return ef
+	}
+
+	// Ampliar algo que ya es largo no es un error que valga la pena frenar,
+	// pero decirlo importa: el que lo corrió creía que estaba salteando la
+	// planificación, y no la estaba salteando. Si se lo tragara en silencio,
+	// se iría convencido de haber arreglado algo.
+	if f.Ampliada {
+		ef.falla("%s ya está ampliada — el trinquete no se corre dos veces", id)
+		return ef
+	}
+	if historia.CaminoDe(raiz, fr.Historias) == estado.Largo {
+		ef.falla("%s ya va por el camino largo: sus historias no son `chico` ni `bug`", id)
+		return ef
+	}
+
+	f.Ampliada = true
+	f.Estado = estado.Planificacion
+	f.Rechazo = motivo
+	f.RondasRevision = 0 // el bucle de revisión se corta: esto se replanifica
+	f.IntentosFallidos = 0
+
+	ef.Cambio = true
+	ef.Estado = estado.Planificacion
+	ef.Mensaje = fmt.Sprintf(
+		"%s se amplió: vuelve a planificación (⑫). Los %d lote(s) cerrados quedan.\n   motivo: %s",
+		id, f.Cerrados(), motivo)
 	return ef
 }
 
@@ -752,6 +860,7 @@ func Descartar(raiz string, e *estado.Estado, r *roadmap.Roadmap, id, motivo str
 	// lo que venía fallando ya no va a fallar por esto.
 	if f, hayF := e.Actual(); hayF {
 		f.IntentosFallidos = 0
+		f.RondasRevision = 0
 	}
 
 	ef.Mensaje = fmt.Sprintf("%s descartado: %s", id, motivo)

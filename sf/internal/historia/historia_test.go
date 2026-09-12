@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
+	"github.com/jdbaigorria/specforge/sf/internal/estado"
 )
 
 // escribirHistoria deja un us-# en disco. Archivos de verdad y no mocks: media
@@ -28,33 +29,43 @@ func escribirHistoria(t *testing.T, raiz, id, tipo string) {
 // El camino corto — quién decide que una feature es de bugs
 // ────────────────────────────────────────────────────────────────────────────
 
-// SonTodasBugs exige TODAS y no "alguna": saltear la planificación de una
-// feature que mezcla un bug con historias nuevas dejaría esas historias sin
-// diseño (artefactos.md §3).
+// CaminoDe exige TODAS y no "alguna": saltear la planificación de una feature
+// que mezcla un bug con historias nuevas dejaría esas historias sin diseño
+// (artefactos.md §3). Con tres caminos, la regla es "gana el más largo".
 func TestSonTodasBugs(t *testing.T) {
 	raiz := t.TempDir()
 	escribirHistoria(t, raiz, "us-1", "bug")
 	escribirHistoria(t, raiz, "us-2", "bug")
 	escribirHistoria(t, raiz, "us-3", "us")
+	escribirHistoria(t, raiz, "us-4", "chico")
 
 	casos := []struct {
 		nombre string
 		ids    []string
-		quiero bool
+		quiero estado.Camino
 	}{
-		{"todas bugs", []string{"us-1", "us-2"}, true},
-		{"un solo bug", []string{"us-1"}, true},
-		{"mezcladas no saltean", []string{"us-1", "us-3"}, false},
-		{"ninguna es bug", []string{"us-3"}, false},
-		{"sin historias no saltea", nil, false},
+		{"todas bugs", []string{"us-1", "us-2"}, estado.Corto},
+		{"un solo bug", []string{"us-1"}, estado.Corto},
+		{"mezcladas no saltean", []string{"us-1", "us-3"}, estado.Largo},
+		{"ninguna es bug", []string{"us-3"}, estado.Largo},
+		{"sin historias no saltea", nil, estado.Largo},
 		// Ante la duda, el camino largo: de más se puede saltear después, de
 		// menos ya se implementó sin diseño.
-		{"una que no se puede leer no saltea", []string{"us-1", "us-99"}, false},
+		{"una que no se puede leer no saltea", []string{"us-1", "us-99"}, estado.Largo},
+
+		// Los tres casos del camino del medio.
+		{"una sola chica", []string{"us-4"}, estado.Chico},
+		// Un bug no estira nada, así que la chica manda: el bug no necesita
+		// revisión pero tampoco la estorba, y la chica sí la necesita.
+		{"un bug y una chica dan chico", []string{"us-1", "us-4"}, estado.Chico},
+		// Y cualquier `us` en la mezcla se lleva todo al camino largo, igual
+		// que hacía con los bugs.
+		{"una chica y una us dan largo", []string{"us-4", "us-3"}, estado.Largo},
 	}
 	for _, c := range casos {
 		t.Run(c.nombre, func(t *testing.T) {
-			if got := SonTodasBugs(raiz, c.ids); got != c.quiero {
-				t.Errorf("SonTodasBugs(%v) = %v, quería %v", c.ids, got, c.quiero)
+			if got := CaminoDe(raiz, c.ids); got != c.quiero {
+				t.Errorf("CaminoDe(%v) = %v, quería %v", c.ids, got, c.quiero)
 			}
 		})
 	}

@@ -1,6 +1,6 @@
 # Los skills
 
-Veinticinco. **Nueve saben hacer un estado; dieciséis son utilitarios que no saben que la máquina
+Veintisiete. **Nueve saben hacer un estado; dieciocho son utilitarios que no saben que la máquina
 existe.**
 
 ```
@@ -45,9 +45,16 @@ nunca.
 
 ---
 
-## Los dieciséis utilitarios
+## Los dieciocho utilitarios
 
-Sirven **solos**, en cualquier proyecto, con o sin SpecForge. Invocalos cuando quieras.
+Sirven **solos**, en cualquier proyecto, con o sin SpecForge. Se parten en dos por **quién los
+puede alcanzar**: trece que el modelo agarra cuando corresponde, y cinco que **sólo vos**.
+
+### Trece que alcanza el modelo
+
+Los primeros cinco son **primitivos**: cada uno es el dueño único de su método, y los skills de
+estado los componen en vez de re-explicarlo. Por eso tienen que seguir siendo alcanzables — un
+primitivo cerrado al modelo es un primitivo que nadie puede componer.
 
 | Skill | Qué hace |
 |---|---|
@@ -55,18 +62,45 @@ Sirven **solos**, en cualquier proyecto, con o sin SpecForge. Invocalos cuando q
 | **`sfx-buscar`** | **el primitivo de investigación**: nivel 0 sin llave antes que los MCPs, con procedencia |
 | **`sfx-vocabulario`** | **el primitivo del glosario**: `vocabulario.md`, perezoso |
 | **`sfx-prototipo`** | **el primitivo de la prueba**: código descartable que contesta UNA pregunta |
-| **`sfx-verificar`** | **el primitivo de la verificación**: genera el skill que maneja la app de verdad, y el mapa de features. Es lo que hace alcanzable el escalón 5 del ㉑ |
 | **`sfx-prosa`** | **el primitivo de la prosa**: reglas `P-#` numeradas y citables, derivadas del castellano de este repo |
-| **`sfx-interrogar`** | varios modelos sobre el mismo diff: lo que dos encuentran solos es la señal alta |
-| **`sfx-think`** | debatir una idea, explorar opciones antes de comprometerse |
-| **`sfx-grill-me`** | la entrevista suelta — compone `sfx-grilling` |
+| **`sfx-think`** | pesar opciones **que ya están sobre la mesa**. Una idea cruda NO viene acá: va a `sfp-scout` |
 | **`sfx-tdd`** | RED → GREEN → REFACTOR, una rebanada por vez |
 | **`sfx-github`** | branch, commit, push, PR, merge |
 | **`sfx-documenter`** | documentación exhaustiva desde el código |
 | **`sfx-journal`** | capturar aprendizajes anclados en evidencia |
 | **`sfx-triage`** | investigar un bug hasta la causa raíz |
 | **`sfx-explain`** | explicar un concepto con el método Feynman |
+| **`sfx-skill`** | escribir, arreglar o revisar un skill — y probarlo antes de confiar en él |
+
+### Y cinco que **sólo los invocás vos**
+
+Llevan `disable-model-invocation: true` en el frontmatter, y eso no es una preferencia: el modelo
+**no los puede alcanzar**, ni siquiera desde adentro de otro skill.
+
+| Skill | Cuándo lo agarrás |
+|---|---|
+| **`sfx-mapa`** | el router: qué skill corresponde a esta situación |
+| **`sfx-grill-me`** | la entrevista suelta, sin repo debajo — compone `sfx-grilling` |
+| **`sfx-verificar`** | una vez por proyecto: genera el skill que maneja la app de verdad. Es lo que hace alcanzable el escalón 5 del ㉑ |
+| **`sfx-interrogar`** | varios modelos sobre el mismo diff: lo que dos encuentran solos es la señal alta |
 | **`sfx-audit`** | el auditor punta a punta — ver [`comandos.md`](comandos.md#sf-audit) |
+
+**El eje no es "importante" ni "caro": es quién puede ganar la carrera.**
+
+> Medido el 2026-09-08. Le llegó una idea difusa a opencode y el trace fue `Read . → Skill
+> "sfx-think"`. **Nunca abrió `AGENTS.md`**, que en su paso 1 dice "corré `sf next`".
+>
+> No fue desobediencia. Las descripciones de los skills están **siempre** en el contexto; el
+> orquestador hay que ir a leerlo. Un archivo que hay que abrir no le gana a un texto que ya está
+> adentro.
+
+Los cinco de arriba son **puertas de entrada que elige una persona**, y una lista rica de gatillos
+sobre una puerta de entrada gana carreras que debería perder. Cerrarlas al modelo es lo que deja
+el campo libre para que la que gane sea la correcta. Los primitivos **no** se cierran: el que los
+llama es otro skill, y un primitivo cerrado dejaría de componerse.
+
+La regla que ordena todo esto, y cómo se prueba un skill antes de confiar en él, viven en
+[`sfx-skill`](../skills/sfx-skill/SKILL.md).
 
 ---
 
@@ -95,9 +129,29 @@ cierre    sf-cierre        compone  →    sfx-documenter · sfx-journal · sfx-
 > `sfx-verificar`: lo que recibe es **el archivo** que ese utilitario dejó en `.docs/verificar/`,
 > servido por el sobre. `sfx-verificar` se corre una vez por proyecto, a mano, y el ㉑ de cada
 > feature cosecha lo que dejó.
+>
+> **Y es también por qué `sfx-verificar` se puede cerrar al modelo sin romper nada.** Nadie lo
+> invoca: lo mencionan `sf-cierre` y `sfp-constitucion`, pero para decir *qué archivo genera*, no
+> para llamarlo. Una mención en prosa no es una llamada.
 
 **Los `sfx-` no se tocan**, y hay motivo: un utilitario que aprendiera a llamar a `sf done`
 dejaría de servir fuera de un proyecto SpecForge — **que es la mitad de su valor**.
+
+---
+
+## Lo que hay que actualizar al tocar el catálogo
+
+Agregar, renombrar, borrar o mudar de lugar un skill toca **tres archivos, en el mismo cambio**:
+
+```
+skills/<nombre>/SKILL.md        el skill
+skills/sfx-mapa/SKILL.md        el router — lo lee el que está perdido
+docs/skills.md                  esta página — la lee un humano
+```
+
+Un router que sigue apuntando a un skill que se mudó es **confiadamente incorrecto justo cuando
+alguien no sabe dónde está parado**, que es el único momento en que alguien lo abre. Peor que no
+tenerlo.
 
 ---
 

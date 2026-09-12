@@ -1,10 +1,9 @@
 ---
 name: sfx-grill-me
+disable-model-invocation: true
 description: >
-  The interview, standalone — no product state behind it, no artifact required. Use when the user
-  wants to stress-test a plan, a design or an idea on its own. Triggers: "/grill-me",
-  "/grill-me <artifact-path>", "grill me", "stress-test this plan", "interview me about",
-  "poke holes in this", "challenge my design".
+  The interview, standalone — stress-test a plan, a design or an idea with nothing behind it.
+  Takes an optional artifact path. The method lives in sfx-grilling.
 ---
 
 # sfx-grill-me

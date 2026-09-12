@@ -122,6 +122,18 @@ func detalleDe(id string, e *estado.Estado, f *estado.Feature) string {
 	if f.IntentosFallidos > 0 {
 		partes = append(partes, fmt.Sprintf("⚠ %d intentos fallidos", f.IntentosFallidos))
 	}
+	// Mismo criterio que el de arriba, sobre el otro bucle: en cero es ruido, y
+	// en dos avisa que la próxima vuelta del ㉑ levanta la parada.
+	if f.RondasRevision > 0 {
+		partes = append(partes, fmt.Sprintf("⚠ %d rondas de revisión", f.RondasRevision))
+	}
+	// Ampliada se muestra siempre que esté, y no es un contador: es por qué
+	// esta feature está planificando algo que se había declarado chico. Sin
+	// esto, `sf status` la muestra igual que cualquier otra y el salto de
+	// camino queda sólo en el estado.json.
+	if f.Ampliada {
+		partes = append(partes, "ampliada")
+	}
 	if id != e.FeatureActual {
 		partes = append(partes, "(no es la actual)")
 	}

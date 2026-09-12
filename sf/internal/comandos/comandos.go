@@ -65,6 +65,7 @@ var Todos = []string{
 	"take",
 	"model",
 	"dismiss",
+	"ampliar",
 	"help",
 }
 

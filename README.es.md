@@ -97,6 +97,20 @@ revisión del plan. Todo lo demás avanza solo.
 Cada estado tiene un skill que sabe hacerlo, y `sf next` te dice cuál — así la tabla
 `estado → skill → modelo` vive en un solo lugar en vez de una copia por harness.
 
+**Y no todo paga la vuelta entera.** El `tipo:` de las historias declara por cuántos estados pasa
+cada feature:
+
+```
+tipo: us      →  planificación → implementar → revisión → cierre
+tipo: chico   →                  implementar → revisión → cierre
+tipo: bug     →                  implementar →            cierre
+```
+
+`chico` es un cambio acotado sobre **un flujo que ya está escrito acá** — un flag más, un campo
+más. Mide el repo, no tu confianza: si no hay flujo para ir a leer, no es chico. Y el trinquete
+sube y no baja: cuando resulta que no era chico, `sf ampliar` lo manda de vuelta al ⑫ y **no
+vuelve a bajar nunca**.
+
 ## Los comandos
 
 ```
@@ -114,6 +128,7 @@ sf reject "motivo"            no sella, y guarda el motivo para el que rehaga
 sf take <f-#>                 saca la próxima del roadmap
 sf model <nombre> [--via …]   sube el modelo — y lo declara si es nuevo
 sf dismiss <h-#> "motivo"     descarta un hallazgo de la revisión
+sf ampliar [<f-#>] "motivo"   no era chico: vuelve a planificación
 
 sf status                     dónde está todo — el único para humanos
 sf audit [f-# …]              el punta a punta: varias features contra sus historias
@@ -148,7 +163,7 @@ No por opinión, por aritmética:
 
 ```
 sf/          el binario — 24 paquetes, 501 tests, una sola dependencia
-skills/      22 skills: 9 de estado (sfp-* · sf-*) + 13 utilitarios (sfx-*)
+skills/      27 skills: 9 de estado (sfp-* · sf-*) + 18 utilitarios (sfx-*)
 specs/       el diseño, y por qué cada decisión es como es
 ```
 
@@ -166,10 +181,10 @@ lo ve.
 |---|---|
 | [`INSTALL.md`](INSTALL.md) | instalarlo |
 | [`docs/primeros-pasos.md`](docs/primeros-pasos.md) | una vuelta completa, de punta a punta |
-| [`docs/comandos.md`](docs/comandos.md) | los 15 comandos |
+| [`docs/comandos.md`](docs/comandos.md) | los 18 comandos |
 | [`docs/estados.md`](docs/estados.md) | los 9 estados y qué exige cada compuerta |
 | [`docs/artefactos.md`](docs/artefactos.md) | cada archivo y su forma |
-| [`docs/skills.md`](docs/skills.md) | los 22 skills |
+| [`docs/skills.md`](docs/skills.md) | los 27 skills |
 | [`docs/problemas.md`](docs/problemas.md) | qué hacer cuando `sf` te frena |
 
 ## El diseño

@@ -346,6 +346,48 @@ eso cambia dos cosas:
 Y el arreglo termina en `sf done --msg "…"`, o sea en un commit: **un lote, un commit**, también
 acá.
 
+### Y a la tercera vuelta, el bucle tiene fondo
+
+Ésta es la única transición que va **para atrás**, y sin tope no termina: el revisor encuentra, el
+implementador no arregla, el revisor encuentra. Al llegar a **tres rondas**, `sf next` levanta una
+parada en vez de seguir proponiendo trabajo:
+
+```
+⚠ ME TRABÉ EN LA REVISIÓN. f-2 volvió del ㉑ 3 veces y los hallazgos siguen abiertos.
+   Adjudicá uno por uno: ¿es portante, o no?
+   h-1 el reintento no cubre el timeout del socket
+```
+
+**Es el hermano de ME TRABÉ sobre el otro bucle, y las salidas son distintas a propósito:**
+
+| | qué falló | qué lo destraba |
+|---|---|---|
+| **ME TRABÉ** | 3 `sf done` en ✗ seguidos | más modelo: `sf model <alias>` |
+| **ME TRABÉ EN LA REVISIÓN** | 3 vueltas del ㉑ | adjudicar: `sf dismiss <h-#> "motivo"` |
+
+En el primero el problema es **capacidad**, y otro intento con un modelo mejor lo puede resolver.
+En el segundo es un **desacuerdo** entre el revisor y el implementador sobre el mismo hallazgo — y
+eso no lo rompe otro intento, lo rompe alguien que decida si el hallazgo es portante. Por eso el
+mensaje lista los hallazgos con su id en vez de contar fallas: la salida es `sf dismiss`, y sin
+los números habría que ir a abrir `revision.json` para saber qué escribir.
+
+El contador se resetea cuando la revisión sale limpia, con `sf model` y con `sf dismiss` — los
+tres son *"el bucle se destrabó"*. Y **no mueve el estado**: la feature se queda en `revision`,
+que es donde la parada la va a encontrar. Moverla a `implementar` y parar después dejaría al
+estado diciendo *"implementá"* mientras la máquina dice que no.
+
+> **Hay dos contadores de vueltas y no son el mismo.** `revision.json` lleva un `vuelta`, y
+> `estado.json` lleva `rondas_revision`:
+>
+> | | quién lo escribe | qué es |
+> |---|---|---|
+> | `vuelta` (en `revision.json`) | el revisor | una **declaración**: por cuál vuelta cree que va |
+> | `rondas_revision` (en `estado.json`) | `sf` | un **hecho**: cuántas veces contó él mismo |
+>
+> La parada sale del segundo, y tenía que salir de ahí: la regla dura es que el estado avanza —y
+> frena— con hechos comprobados, nunca con la palabra del que trabajó. Un revisor que se olvida de
+> incrementar su `vuelta`, o que arranca de cero porque es un subagente nuevo, no desarma el freno.
+
 ## ⑨ `cierre` — la doc y el aprendizaje
 
 ```
@@ -388,36 +430,75 @@ de `f-2` — que es el dolor #3 entrando por la única puerta que quedaba abiert
 
 ---
 
-## El camino corto: `tipo: bug`
+## Los tres caminos
 
-Un bug **saltea `planificacion` y `revision`**:
+Cuánto proceso pide una feature lo declara el `tipo:` de sus historias:
 
 ```
-tipo: us    →  planificacion → implementar → revision → cierre
-tipo: bug   →  implementar → cierre
+tipo: us      →  planificacion → implementar → revision → cierre
+tipo: chico   →                  implementar → revision → cierre     saltea 1
+tipo: bug     →                  implementar →            cierre     saltea 2
 ```
 
 **No es un carril paralelo ni una segunda máquina** — un carril paralelo sería una segunda máquina
-que mantener. Es **un campo que saltea dos estados**, y por eso el rastro no se pierde: el bug
-igual entró por el backlog, que es el embudo.
+que mantener. Es **un campo que saltea estados**, y por eso el rastro no se pierde: los tres
+entraron por el backlog, que es el embudo.
 
-Se exige que **todas** las historias de la feature sean bugs, no *"alguna"*: saltear la
-planificación de una feature que mezcla un bug con dos historias nuevas dejaría esas dos sin
-diseño.
+Se exige que **todas** las historias de la feature pidan lo mismo, no *"alguna"*, y ante la mezcla
+**gana el camino más largo**: saltear la planificación de una feature que mezcla un bug con dos
+historias nuevas dejaría esas dos sin diseño. Un bug y un chico juntos dan chico — el bug no
+necesita revisión, pero tampoco la estorba.
+
+### `chico` mide el repo, no tu confianza
+
+El del medio es el que más fácil se usa mal. **`chico` es un cambio acotado sobre un flujo que ya
+está escrito acá**: un flag más en un comando que existe, un campo más en un endpoint que existe,
+una validación que falta.
+
+**Entender de qué clase de app se trata NO alcanza.** Si no hay un flujo acá para ir a leer, no es
+chico: es largo, aunque suene simple. Un proyecto nuevo no tiene ningún flujo, así que **nada en
+él es chico**.
+
+> Y el que declara chico para ahorrarse la planificación ya contestó que no lo es: **buscar la
+> etiqueta liviana ES la duda**. Ante la duda, el largo — de más se puede saltear después; de
+> menos ya se implementó sin diseño.
+
+### El trinquete: sube y no baja
+
+La complejidad escondida aparece **implementando**, o sea después de que el camino ya se eligió.
+Cuando pasa, el que está adentro del ⑱ corre:
+
+```bash
+sf ampliar "resultó que toca el parser, no sólo el flag"
+```
+
+La feature vuelve al ⑫ con el motivo puesto, y **no vuelve a bajar nunca**: el campo `ampliada`
+del estado no se apaga desde ningún lado — ni editando la historia de vuelta a `tipo: chico`, ni
+corriendo el comando dos veces. El mismo optimismo que erró la clasificación la primera vez no
+tiene una segunda oportunidad de errarla.
+
+Los lotes ya cerrados quedan: su commit existe y su rojo se vio. Ver
+[`sf ampliar`](comandos.md#sf-ampliar-f--motivo).
 
 ---
 
-## Las cuatro paradas
+## Las cinco paradas
 
 | | Cuándo | Cómo se destraba |
 |---|---|---|
 | **🛑 decisión** | ⑥ el brief · ⑧ la constitución · ⑰ el plan | `sf approve` / `sf reject` / `sf take` |
 | **⏸ barata** | ⑨ el backlog · ㉓ el cierre | `sf approve` |
 | **⚠ aviso** | dependencia nueva · el plan que envejeció · 6+ historias | nada: seguís |
-| **ME TRABÉ** | 3 `sf done` fallidos seguidos | `sf model` · `sf dismiss` · entrás vos |
+| **ME TRABÉ** | 3 `sf done` fallidos seguidos | `sf model` · entrás vos |
+| **ME TRABÉ EN LA REVISIÓN** | 3 vueltas del ㉑ con hallazgos abiertos | `sf dismiss` · `sf model` · entrás vos |
 
-**Las tres primeras son de gusto y son configurables. ME TRABÉ no**, porque es de seguridad: sin
-ella, el bucle *"`sf` da rojo → el orquestador relanza"* no termina nunca.
+**Las tres primeras son de gusto y son configurables. Las dos últimas no**, porque son de
+seguridad: cada una le pone fondo a un bucle que sin ella no termina nunca.
+
+```
+sf da rojo → el orquestador relanza → sf da rojo …            ← ME TRABÉ
+el ㉑ encuentra → vuelve a implementar → el ㉑ encuentra …     ← ME TRABÉ EN LA REVISIÓN
+```
 
 ---
 

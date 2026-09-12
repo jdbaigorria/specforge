@@ -70,30 +70,59 @@ const (
 	Cerrada       = "cerrada"
 )
 
-// Efectivo aplica el camino corto del bug sobre el estado guardado.
+// ────────────────────────────────────────────────────────────────────────────
+// Los tres caminos — cuánto proceso pide una feature
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Es UN campo que saltea estados, no tres máquinas (maquina-estados.md §8,
+// H20). Los tres recorren la misma máquina; lo único que cambia es por cuántos
+// de sus estados pasan:
+//
+//	Largo   planificacion → implementar → revision → cierre    tipo: us
+//	Chico                   implementar → revision → cierre    tipo: chico
+//	Corto                   implementar →            cierre    tipo: bug
+//
+// `Chico` es el del medio y es el que faltaba. Sin él, un cambio acotado sobre
+// código que ya existe —un flag, un endpoint, un arreglo de una línea que no es
+// un bug— pagaba las tres opciones, la spec-design y el tareas.json del ⑫–⑯
+// para producir un solo lote. La clasificación la escribe el ⑨ en el
+// frontmatter de la historia; el ⑩ la hereda.
+//
+// **El trinquete corre para un solo lado**, y lo aplica `Feature.Camino`: una
+// feature puede subir de Chico a Largo cuando la máquina comprueba que no era
+// chica, y no puede volver a bajar. Ver `Ampliada`.
+type Camino int
+
+const (
+	// Largo es el default y el que gana ante la duda: de más se puede saltear
+	// después, de menos ya se implementó sin diseño.
+	Largo Camino = iota
+	Chico
+	Corto
+)
+
+// Efectivo aplica el camino sobre el estado guardado.
 //
 // ────────────────────────────────────────────────────────────────────────────
 // UN SOLO LUGAR QUE DECIDA, PORQUE TENERLO EN DOS YA COSTÓ CARO
 // ────────────────────────────────────────────────────────────────────────────
 //
-//	tipo: us    →  planificacion → implementar → revision → cierre
-//	tipo: bug   →  implementar → cierre        (se saltean dos estados)
-//
-// No hay carril paralelo ni segunda máquina: hay un campo que saltea estados
-// (maquina-estados.md §8, H20). Pero la REGLA vivía copiada en `sf next` y en
-// `sf done`, y faltaba en `sf lote start` y en `sf context` — así que los
-// comandos se contradecían sobre la misma feature: `next` decía "implementar,
-// corré lote start" y `lote start` contestaba "esto está en planificacion".
+// La REGLA vivía copiada en `sf next` y en `sf done`, y faltaba en `sf lote
+// start` y en `sf context` — así que los comandos se contradecían sobre la
+// misma feature: `next` decía "implementar, corré lote start" y `lote start`
+// contestaba "esto está en planificacion".
 //
 // Por eso esto es una función y no un `if` en cada uno: el que decide por
 // estado tiene que preguntar acá, y agregar un comando nuevo no puede volver a
 // olvidarse de la regla.
 //
-// `revision` no aparece: el salteo de la revisión no se puede resolver mirando
-// sólo el estado guardado —depende de que TODOS los lotes estén commiteados—,
-// así que lo sigue haciendo `cerrarLote`, que es el que tiene esa información.
-func Efectivo(actual string, esBug bool) string {
-	if esBug && actual == Planificacion {
+// Chico y Corto saltean lo MISMO acá —la planificación—, y eso no es un
+// descuido: se separan más adelante. El salteo de la revisión no se puede
+// resolver mirando sólo el estado guardado —depende de que TODOS los lotes
+// estén commiteados—, así que lo sigue haciendo `cerrarLote`, que es el único
+// que tiene esa información, y ahí Chico y Corto se bifurcan.
+func Efectivo(actual string, c Camino) string {
+	if c != Largo && actual == Planificacion {
 		return Implementar
 	}
 	return actual
@@ -221,6 +250,44 @@ type Feature struct {
 	// El freno ya estaba en el ⑳ ("si falla varias veces, entro yo"); esto lo
 	// convierte de sensación en número. Se resetea a 0 cuando el lote cierra.
 	IntentosFallidos int `json:"intentos_fallidos"`
+
+	// RondasRevision cuenta las veces que el ㉑ mandó esta feature de vuelta.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// EL BUCLE QUE NO TENÍA FONDO
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// `cerrarRevision` es la única transición que va PARA ATRÁS: con un
+	// hallazgo abierto, la feature vuelve a implementar y la revisión se
+	// rehace entera. Eso no tenía tope. Un revisor que encuentra el mismo
+	// problema cinco veces y un implementador que no lo entiende cinco veces
+	// son un bucle que gasta plata y no termina — y nadie se entera hasta la
+	// factura.
+	//
+	// Es el mismo remedio que `IntentosFallidos` le dio al ⑳, aplicado al
+	// otro bucle de la máquina, y por la misma razón: el freno ya existía
+	// como sensación ("esto ya lo vimos") y esto lo convierte en número.
+	//
+	// Se resetea cuando la revisión sale limpia, cuando `sf model` sube el
+	// modelo y cuando `sf dismiss` descarta un hallazgo — los tres son
+	// "el bucle se destrabó", igual que para IntentosFallidos.
+	RondasRevision int `json:"rondas_revision,omitempty"`
+
+	// Ampliada es el trinquete: esta feature se declaró chica y no lo era.
+	//
+	// ────────────────────────────────────────────────────────────────────
+	// POR QUÉ ES UN CAMPO Y NO SE DEDUCE (R6 NO APLICA)
+	// ────────────────────────────────────────────────────────────────────
+	//
+	// La historia sigue diciendo `tipo: chico` — el que la escribió no se
+	// enteró de nada. Lo único que sabe que no era chica es sf, que vio a la
+	// feature pedir un segundo lote. Ese hecho no está escrito en ningún
+	// archivo, así que si sf no lo anota se pierde, y en el próximo `sf next`
+	// el camino corto vuelve a aplicarse y la feature queda dando vueltas.
+	//
+	// Que sea de una sola vía es el punto: `Camino` lo lee y nunca lo apaga.
+	// Una feature que se amplió no vuelve a ser chica ni editando la historia.
+	Ampliada bool `json:"ampliada,omitempty"`
 
 	// Rechazo es el motivo del "pido cambios" del ⑰.
 	//
@@ -405,6 +472,29 @@ func (f *Feature) LoteActual() (*Lote, bool) {
 		}
 	}
 	return nil, false
+}
+
+// Camino aplica el trinquete sobre lo que declararon las historias.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// SUBE, NO BAJA — Y POR ESO NO ES EL CLASIFICADOR
+// ────────────────────────────────────────────────────────────────────────────
+//
+// `historia.CaminoDe` contesta qué se DECLARÓ; ésta contesta por dónde va de
+// verdad. Son dos preguntas distintas y la segunda tiene memoria: una vez que
+// la máquina comprobó que una feature chica necesitaba más, editar la historia
+// para volver a `tipo: chico` no la baja.
+//
+// La regla sale de mirar cómo se rompe la clasificación en la práctica: nadie
+// declara chico algo que sabe grande. Se declara chico lo que PARECE chico, y
+// la complejidad escondida aparece implementando — o sea, después de que el
+// camino ya se eligió. Un trinquete de dos vías dejaría que el mismo optimismo
+// que erró la primera vez vuelva a errar; de una vía, el error se paga una vez.
+func (f *Feature) Camino(declarado Camino) Camino {
+	if f.Ampliada {
+		return Largo
+	}
+	return declarado
 }
 
 // SinSembrar dice que esta feature nunca pasó por `sf lote start`.

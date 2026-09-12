@@ -638,3 +638,91 @@ func TestApproveMuestraLosAvisosDeLaCompuerta(t *testing.T) {
 		t.Errorf("el texto arranca raro: %q", ef.Texto())
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// sf ampliar — el trinquete del camino chico
+// ────────────────────────────────────────────────────────────────────────────
+
+// chica deja un proyecto con f-1 declarada `tipo: chico` y ya implementando.
+func chica(t *testing.T) *proyecto {
+	t.Helper()
+	p := nuevo(t).productoListo()
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\ntipo: chico\ntitulo: un flag mas\n---\n"+
+			"## Criterios de aceptación\n- **CA-1** — acepta --json\n")
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Implementar}
+	return p
+}
+
+// Ampliar manda la feature de vuelta al ⑫ y deja el motivo donde lo va a leer
+// el que planifique: el mismo campo que usa el "pido cambios" del ⑰, porque el
+// lector es el mismo subagente fresco.
+func TestAmpliarVuelveAPlanificacionConElMotivo(t *testing.T) {
+	p := chica(t)
+
+	ef := Ampliar(p.raiz, p.e, p.r, "f-1", "toca tres módulos, no uno")
+	if !ef.Pasa() {
+		t.Fatalf("no pasó: %v", ef.Fallas)
+	}
+
+	f := p.e.Features["f-1"]
+	if f.Estado != estado.Planificacion {
+		t.Errorf("estado %q, quería planificacion", f.Estado)
+	}
+	if !f.Ampliada {
+		t.Error("no marcó Ampliada: sin eso el camino chico se vuelve a aplicar")
+	}
+	if f.Rechazo != "toca tres módulos, no uno" {
+		t.Errorf("Rechazo = %q", f.Rechazo)
+	}
+}
+
+// El trinquete no se corre dos veces, y decirlo importa: el que lo intenta cree
+// estar salteando algo que ya no se saltea.
+func TestAmpliarDosVecesNoPasa(t *testing.T) {
+	p := chica(t)
+
+	if ef := Ampliar(p.raiz, p.e, p.r, "f-1", "no era chico"); !ef.Pasa() {
+		t.Fatalf("la primera no pasó: %v", ef.Fallas)
+	}
+	if ef := Ampliar(p.raiz, p.e, p.r, "f-1", "tampoco ahora"); ef.Pasa() {
+		t.Error("la segunda pasó: el trinquete se corrió dos veces")
+	}
+}
+
+// Ampliar algo que ya va por el camino largo no hace nada y lo dice.
+func TestAmpliarUnaFeatureLargaNoPasa(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.conHistoria("us-1")
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion}
+
+	ef := Ampliar(p.raiz, p.e, p.r, "f-1", "por las dudas")
+	if ef.Pasa() {
+		t.Error("amplió una feature que ya era larga")
+	}
+}
+
+// Sin motivo no hay ampliación: el motivo es el único artefacto que produce
+// este comando, y sin él el que replanifica no sabe qué se descubrió.
+func TestAmpliarSinMotivoNoPasa(t *testing.T) {
+	p := chica(t)
+	if ef := Ampliar(p.raiz, p.e, p.r, "f-1", ""); ef.Pasa() {
+		t.Error("amplió sin motivo")
+	}
+}
+
+// `sf ampliar "motivo"` sobre la feature en curso es la forma que se va a
+// escribir casi siempre. Sin esto, el motivo entraba como id.
+func TestAmpliarSinIdUsaLaFeatureEnCurso(t *testing.T) {
+	p := chica(t)
+
+	ef := Ampliar(p.raiz, p.e, p.r, "resultó que toca el parser", "")
+	if !ef.Pasa() {
+		t.Fatalf("no pasó: %v", ef.Fallas)
+	}
+	if f := p.e.Features["f-1"]; f.Rechazo != "resultó que toca el parser" {
+		t.Errorf("Rechazo = %q: no tomó el argumento suelto como motivo", f.Rechazo)
+	}
+}

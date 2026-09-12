@@ -42,12 +42,13 @@ import (
 	"strings"
 
 	"github.com/jdbaigorria/specforge/sf/internal/docs"
+	"github.com/jdbaigorria/specforge/sf/internal/estado"
 	"github.com/jdbaigorria/specforge/sf/internal/frontmatter"
 )
 
 // Historia es un us-# ya leído.
 type Historia struct {
-	Tipo   string `yaml:"tipo"` // "us" | "bug"
+	Tipo   string `yaml:"tipo"` // "us" | "chico" | "bug"
 	ID     string `yaml:"id"`
 	Titulo string `yaml:"titulo"`
 
@@ -93,6 +94,25 @@ type Historia struct {
 // saltea dos estados, y por eso el rastro no se pierde: el bug igual entró por
 // el backlog, que es el embudo.
 func (h *Historia) EsBug() bool { return h.Tipo == "bug" }
+
+// EsChica dice que esto es un cambio acotado sobre código que ya existe.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// QUÉ ES CHICO, Y QUÉ NO ALCANZA PARA SERLO
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Chico mide EL REPO, no la confianza del que clasifica. El flujo que vas a
+// tocar tiene que estar ya escrito y ser legible: un flag más en un comando que
+// existe, un campo más en un endpoint que existe, una validación que falta.
+//
+// Entender de qué clase de app se trata NO alcanza. Si no hay un flujo acá para
+// ir a leer, no es chico: es largo, aunque suene simple. Un proyecto nuevo no
+// tiene ningún flujo, así que nada en él es chico.
+//
+// Y el que declara chico para ahorrarse la planificación ya contestó que no lo
+// es: buscar la etiqueta liviana ES la duda, y ante la duda el camino es el
+// largo. De más se puede saltear después; de menos ya se implementó sin diseño.
+func (h *Historia) EsChica() bool { return h.Tipo == "chico" }
 
 // reCriterio caza las líneas de criterio del cuerpo.
 //
@@ -240,10 +260,10 @@ func tieneMarcas(raiz, id string) bool {
 	return false
 }
 
-// SonTodasBugs dice si un conjunto de historias va por el camino corto.
+// CaminoDe dice por cuántos estados pasa un conjunto de historias.
 //
 // ────────────────────────────────────────────────────────────────────────────
-// TODAS, Y NO "ALGUNA"
+// TODAS, Y NO "ALGUNA" — Y ANTE LA MEZCLA, EL MÁS LARGO
 // ────────────────────────────────────────────────────────────────────────────
 //
 // Saltear la planificación de una feature que mezcla un bug con dos historias
@@ -251,25 +271,49 @@ func tieneMarcas(raiz, id string) bool {
 // ⑩ ya estaba mal: un bug y una feature nueva no comparten solución técnica
 // (artefactos.md §3).
 //
+// Con tres caminos la regla es la misma con una vuelta más: el resultado es el
+// MÁS LARGO de los que pidan las historias. Un bug y un chico juntos dan Chico,
+// no Corto — porque el chico necesita su revisión y el bug no la estorba. Y
+// cualquier `us` entre ellas da Largo.
+//
 // Vive acá y no en `maquina` porque la pregunta es sobre las historias, y
 // porque el que la necesita ya no es uno solo: `sf next`, `sf done`, `sf lote
 // start` y `sf context` tienen que contestarla igual. Recibe []string y no
 // roadmap.Feature para que `historia` no dependa de `roadmap`.
 //
-// Una historia ilegible cuenta como "no es bug": el que se queja de eso es la
+// Una historia ilegible cuenta como Largo: el que se queja de eso es la
 // compuerta del ⑨, y ante la duda conviene el camino largo — de más se puede
-// saltear después, de menos ya se implementó sin diseño.
-func SonTodasBugs(raiz string, ids []string) bool {
+// saltear después, de menos ya se implementó sin diseño. Por lo mismo, una
+// lista vacía es Largo y no Corto.
+func CaminoDe(raiz string, ids []string) estado.Camino {
 	if len(ids) == 0 {
-		return false
+		return estado.Largo
 	}
+
+	// NO se compara `Camino` con < ni >, a propósito. El cero de ese tipo es
+	// `Largo` —para que un valor sin inicializar caiga en el camino seguro y no
+	// en el que saltea estados—, así que su orden numérico va al revés de su
+	// largo. Preguntar por el tipo de cada historia no tiene esa trampa.
+	hayChico := false
 	for _, id := range ids {
 		h, err := Leer(raiz, id)
-		if err != nil || !h.EsBug() {
-			return false
+		if err != nil {
+			return estado.Largo
+		}
+		switch {
+		case h.EsBug():
+			// Corto es el piso: no estira nada.
+		case h.EsChica():
+			hayChico = true
+		default:
+			return estado.Largo
 		}
 	}
-	return true
+
+	if hayChico {
+		return estado.Chico
+	}
+	return estado.Corto
 }
 
 // Ids devuelve los ids de todas las historias del backlog, ordenados.
@@ -326,7 +370,7 @@ func numero(id string) int {
 // y salen de la conversación con Javier.
 func Esqueleto(id, prdHash string) string {
 	return fmt.Sprintf(`---
-tipo: us                    # us | bug
+tipo: us                    # us | chico | bug — chico saltea el ⑫–⑯
 id: %s
 titulo: ""
 deriva_de: prd

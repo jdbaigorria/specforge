@@ -306,7 +306,7 @@ func deFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *global.Conf
 	// Y se perdía loQueRompio, que cuelga de la rama `implementar`: la spec
 	// archivada de la feature que el bug rompió es justo lo que evita que el
 	// que lo arregla arranque de cero sin saber qué se había decidido.
-	est := estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
+	est := estado.Efectivo(f.Estado, f.Camino(historia.CaminoDe(raiz, fr.Historias)))
 	s := &Sobre{Estado: est, Feature: fr.ID}
 
 	switch est {

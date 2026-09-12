@@ -101,6 +101,20 @@ reviewing the plan. Everything else advances on its own.
 Each state has a skill that knows how to do it, and `sf next` tells you which one — so the
 `state → skill → model` table lives in one place instead of one copy per harness.
 
+**And not everything pays for the full lap.** The stories' `tipo:` declares how many states a
+feature passes through:
+
+```
+tipo: us      →  planning → implement → review → close
+tipo: chico   →             implement → review → close
+tipo: bug     →             implement →          close
+```
+
+`chico` is a bounded change to **a flow that is already written here** — one more flag, one more
+field. It measures the repo, not your confidence: if there is no flow to go read, it is not small.
+And the ratchet turns one way only: when it turns out it was not small, `sf ampliar` sends it back
+to the ⑫ and it never comes back down.
+
 ## Commands
 
 ```
@@ -118,6 +132,7 @@ sf reject "motivo"            doesn't seal, and keeps the reason for whoever red
 sf take <f-#>                 pulls the next one off the roadmap
 sf model <name> [--via …]     raises the model — and declares it if it's new
 sf dismiss <h-#> "motivo"     discards a review finding
+sf ampliar [<f-#>] "motivo"   it was not small: back to planning
 
 sf status                     where everything is — the only one for humans
 sf audit [f-# …]              end to end: many features against their stories
@@ -153,7 +168,7 @@ Not by opinion — by arithmetic:
 
 ```
 sf/          the binary — 24 packages, 501 tests, one dependency
-skills/      22 skills: 9 for the states (sfp-* · sf-*) + 13 utilities (sfx-*)
+skills/      27 skills: 9 for the states (sfp-* · sf-*) + 18 utilities (sfx-*)
 specs/       the design, and why each decision is the way it is
 ```
 
@@ -170,10 +185,10 @@ that matter most here live in the **seam between commands**, and no package test
 |---|---|
 | [`INSTALL.md`](INSTALL.md) | install it |
 | [`docs/primeros-pasos.md`](docs/primeros-pasos.md) | a complete run, end to end |
-| [`docs/comandos.md`](docs/comandos.md) | the 15 commands |
+| [`docs/comandos.md`](docs/comandos.md) | the 18 commands |
 | [`docs/estados.md`](docs/estados.md) | the 9 states and what each gate checks |
 | [`docs/artefactos.md`](docs/artefactos.md) | every file and its shape |
-| [`docs/skills.md`](docs/skills.md) | the 22 skills |
+| [`docs/skills.md`](docs/skills.md) | the 27 skills |
 | [`docs/problemas.md`](docs/problemas.md) | what to do when `sf` stops you |
 
 ## The design

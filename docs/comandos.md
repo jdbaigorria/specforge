@@ -1,15 +1,15 @@
 # Los comandos
 
-Dieciséis, y **el reparto importa tanto como la lista**: quién llama a cada uno es quién es dueño
+Dieciocho, y **el reparto importa tanto como la lista**: quién llama a cada uno es quién es dueño
 de qué.
 
 ```
-el orquestador    next · approve · reject · take · new · model · dismiss
+el orquestador    next · approve · reject · take · new · model · dismiss · ampliar
 el que trabaja    context · lote start · done
-vos               status · audit · install · uninstall · init
+vos               status · audit · init · install · uninstall · doctor · version
 ```
 
-**No hay solapamiento**, y no es casualidad: los siete del orquestador son *cómo se le contesta a
+**No hay solapamiento**, y no es casualidad: los ocho del orquestador son *cómo se le contesta a
 una parada*, y los tres del que trabaja son *pedí tu sobre, avisá que terminaste*.
 
 ---
@@ -322,6 +322,43 @@ roto, y vuelta.
 vuelta siguiente lo vuelve a encontrar porque el código sigue igual.
 
 **El motivo es obligatorio:** descartar sin decir por qué es perder la razón.
+
+---
+
+## `sf ampliar [<f-#>] "motivo"`
+
+**Sube una feature del camino chico al largo — y no la baja nunca.**
+
+```bash
+sf ampliar "resultó que toca el parser, no sólo el flag"
+sf ampliar f-3 "son tres módulos, no uno"
+```
+
+Sin id, amplía la feature en curso, que es el caso normal: el que corre esto acaba de leer el
+reporte del ⑱.
+
+**Es el trinquete del [camino chico](estados.md#los-tres-caminos).** Una historia declarada `tipo:
+chico` saltea la planificación, y la complejidad escondida aparece **implementando** — o sea,
+después de que el camino ya se eligió. El que se entera es el que está adentro del ⑱, y esto es
+cómo lo dice.
+
+La feature vuelve a `planificacion` y el motivo viaja en el mismo campo que el "pido cambios" del
+⑰, porque **el lector es el mismo**: un subagente fresco que no estuvo en la conversación donde se
+descubrió que esto no era chico.
+
+**Los lotes ya cerrados no se tocan.** Su commit existe y su rojo se vio; borrarlos sería mentir
+sobre lo que pasó. El ⑫–⑯ planifica *sobre* eso, igual que cuando una feature vuelve rechazada.
+
+### Por qué es un comando y no una deducción
+
+De los tres caminos, éste es **el único que `sf` no puede comprobar solo**. Que una historia diga
+`bug` es un hecho del archivo. Que un cambio *"resultó más grande de lo que parecía"* es un juicio,
+y `sf` no juzga (R3). Así que se pide.
+
+Lo que sí es mecánico es que **no se pueda deshacer**: `ampliada` no se apaga desde ningún lado —
+ni editando la historia de vuelta a `tipo: chico`, ni corriendo el comando dos veces (eso falla y
+lo dice). El mismo optimismo que erró la clasificación la primera vez no tiene una segunda
+oportunidad de errarla.
 
 ---
 

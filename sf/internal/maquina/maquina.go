@@ -43,6 +43,7 @@ import (
 	"github.com/jdbaigorria/specforge/sf/internal/git"
 	"github.com/jdbaigorria/specforge/sf/internal/global"
 	"github.com/jdbaigorria/specforge/sf/internal/historia"
+	"github.com/jdbaigorria/specforge/sf/internal/revision"
 	"github.com/jdbaigorria/specforge/sf/internal/roadmap"
 	"github.com/jdbaigorria/specforge/sf/internal/tareas"
 )
@@ -100,6 +101,21 @@ func (t Tipo) String() string {
 // Es el único número mágico del paquete y está acá arriba, solo, para que se
 // vea. Cuando haya constitución de verdad, sale de ahí.
 const TopeIntentos = 3
+
+// TopeRondas es cuántas veces el ㉑ puede mandar la misma feature de vuelta.
+//
+// Es el hermano de TopeIntentos sobre el OTRO bucle de la máquina, y por eso
+// tiene su propio número en vez de compartirlo: los dos cuentan cosas distintas
+// y se destraban distinto.
+//
+//	TopeIntentos   `sf done` que dan ✗ seguidos          se destraba con más modelo
+//	TopeRondas     revisión → implementar → revisión     se destraba adjudicando
+//
+// Tres, igual que el otro, y por la misma razón: a la tercera vez que el revisor
+// escribe el mismo hallazgo, lo que falta no es otro intento — es alguien que
+// decida si el hallazgo es portante o no. Dos sería poco (la primera vuelta
+// suele ser real) y cinco es una tarde de subagentes.
+const TopeRondas = 3
 
 // Instruccion es lo que `sf next` le contesta al orquestador.
 //
@@ -510,6 +526,30 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 		}
 	}
 
+	// El otro bucle, y va acá al lado por la misma razón que el primero: si el
+	// ㉑ ya mandó la feature de vuelta tres veces, no importa qué falta —
+	// importa que las tres vueltas no lo arreglaron.
+	//
+	// La diferencia con ME TRABÉ está en las salidas. Allá el problema es
+	// capacidad y la salida es más modelo; acá el problema es un desacuerdo
+	// entre el revisor y el implementador sobre el mismo hallazgo, y eso no lo
+	// rompe otro intento: lo rompe alguien que decida. Por eso `sf dismiss` va
+	// primero, y por eso el mensaje nombra los hallazgos en vez de contar
+	// fallas.
+	if f.RondasRevision >= TopeRondas {
+		return Instruccion{
+			Tipo:    MeTrabe,
+			Estado:  f.Estado,
+			Feature: e.FeatureActual,
+			Mensaje: fmt.Sprintf("⚠ ME TRABÉ EN LA REVISIÓN. %s volvió del ㉑ %d veces "+
+				"y los hallazgos siguen abiertos.\n"+
+				"   Adjudicá uno por uno: ¿es portante, o no?\n"+
+				"   %s",
+				e.FeatureActual, f.RondasRevision, abiertosDe(raiz, fr)),
+			Sugerido: []string{"sf dismiss <h-#> \"motivo\"", "sf model <alias>"},
+		}
+	}
+
 	// El camino corto (maquina-estados.md §8): un bug no pasa por planificación
 	// ni por revisión. No es un carril paralelo —eso sería una segunda máquina
 	// que mantener— sino la MISMA máquina con estados salteados.
@@ -520,7 +560,7 @@ func siguienteDeFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, g *gl
 	// función — que exista una sola es el arreglo: tenerla copiada acá y en
 	// `done` mientras faltaba en `lote start` dejaba a los comandos
 	// contradiciéndose sobre la misma feature.
-	actual := estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
+	actual := estado.Efectivo(f.Estado, f.Camino(historia.CaminoDe(raiz, fr.Historias)))
 
 	switch actual {
 	case estado.Planificacion:
@@ -1008,6 +1048,33 @@ func conQueSeTrabo(raiz string, fr roadmap.Feature, f *estado.Feature, g *global
 		return pedido
 	}
 	return fmt.Sprintf("%s (%s)", m.Alias, pedido)
+}
+
+// abiertosDe lista los hallazgos que hay que adjudicar, con su id adelante.
+//
+// El id es lo que importa: la salida de esta parada es `sf dismiss <h-#>`, y sin
+// los números el que la lee tiene que ir a abrir revision.json para saber qué
+// escribir. El detalle va recortado porque son varios y la parada entra en
+// pantalla; el texto entero está en el archivo, que es donde vive.
+//
+// Un error al leer devuelve vacío y no un mensaje de error: el que se queja de
+// un revision.json ilegible es la compuerta del ㉑, y esta función sólo decora
+// una parada que ya se decidió por otro lado.
+func abiertosDe(raiz string, fr roadmap.Feature) string {
+	rev, err := revision.Leer(filepath.Join(raiz, fr.Carpeta(), docs.Revision))
+	if err != nil {
+		return ""
+	}
+
+	var l []string
+	for _, h := range rev.Abiertos() {
+		d := strings.TrimSpace(h.Detalle)
+		if len(d) > 60 {
+			d = d[:60] + "…"
+		}
+		l = append(l, fmt.Sprintf("%s %s", h.ID, d))
+	}
+	return strings.Join(l, "\n   ")
 }
 
 // avisos envuelve un aviso que puede estar vacío.

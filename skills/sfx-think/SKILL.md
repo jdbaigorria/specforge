@@ -1,13 +1,15 @@
 ---
 name: sfx-think
 description: >
-  Weigh options that are ALREADY on the table: compare approaches, follow a decision to its
-  consequences, reach a documented conclusion. Triggers: "/think", "/think <topic>",
-  "/debate", "should I use X or Y", "pros and cons of", "evaluate this approach", "what if
-  we", "I'm considering", "let's think about <this decision>". NOT for a raw product idea —
-  "quiero armar X", "tengo una idea", "is this worth building" go to `sfp-scout`, which
-  starts by researching whether the thing already exists. Composed by `sf-plan` for the ⑫
-  decision, and by `sfx-grilling` when no fact separates the options.
+  Weigh two or more NAMED options that are already on the table: compare them, follow each to
+  its consequences, reach a documented conclusion. The options are the precondition — if you
+  cannot name them yet, this is not the skill. Triggers: "/sfx-think", "/think <topic>",
+  "/debate", "should I use X or Y", "pros and cons of X", "evaluate this approach". A raw
+  product idea is NOT one of them: "quiero armar X", "tengo una idea", "is this worth
+  building", "what if we", "I'm considering" all go to `sfp-scout`, which starts by researching
+  whether the thing already exists — arriving here instead skips that and debates an idea
+  nobody checked. Composed by `sf-plan` for the ⑫ decision, and by `sfx-grilling` when no fact
+  separates the options.
 ---
 
 # Think

@@ -1147,3 +1147,80 @@ func TestUnEstadoDesconocidoNoTieneHorizonte(t *testing.T) {
 		t.Errorf("horizonte inventado: %v %q", corren, parada)
 	}
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// ME TRABÉ EN LA REVISIÓN — el fondo del otro bucle
+// ────────────────────────────────────────────────────────────────────────────
+
+// `cerrarRevision` es la única transición que va para atrás, y hasta acá no
+// tenía tope: revisor encuentra → implementador no arregla → revisor encuentra,
+// para siempre. Al llegar a TopeRondas `sf next` levanta la parada en vez de
+// seguir proponiendo trabajo.
+func TestRondasDeRevisionLevantanLaParada(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{
+		Estado:         estado.Revision,
+		RondasRevision: TopeRondas,
+	}
+
+	i := p.next()
+	if i.Tipo != MeTrabe {
+		t.Fatalf("tipo %v, quería MeTrabe", i.Tipo)
+	}
+	if !strings.Contains(i.Mensaje, "REVISIÓN") {
+		t.Errorf("el mensaje no distingue este bucle del otro: %q", i.Mensaje)
+	}
+	// La salida de ESTE bucle es adjudicar, no subir el modelo: el problema es
+	// un desacuerdo sobre un hallazgo, y otro intento no lo rompe.
+	if len(i.Sugerido) == 0 || i.Sugerido[0] != `sf dismiss <h-#> "motivo"` {
+		t.Errorf("sugirió %v, quería sf dismiss primero", i.Sugerido)
+	}
+}
+
+func TestPorDebajoDelTopeDeRondasSigueTrabajando(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{
+		Estado:         estado.Revision,
+		RondasRevision: TopeRondas - 1,
+	}
+
+	if i := p.next(); i.Tipo == MeTrabe {
+		t.Errorf("con %d rondas ya paró: tiene que quedar una vuelta", TopeRondas-1)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// El camino chico y su trinquete
+// ────────────────────────────────────────────────────────────────────────────
+
+// Una feature cuyas historias son todas `chico` no pasa por planificación: el
+// ⑫–⑯ no corre y `sf next` manda a implementar directo.
+func TestElCaminoChicoSalteaLaPlanificacion(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\ntipo: chico\ntitulo: un flag mas\n---\n"+
+			"## Criterios de aceptación\n- **CA-1** — acepta --json\n")
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion}
+
+	if i := p.next(); i.Estado != estado.Implementar {
+		t.Errorf("estado %q, quería implementar: `tipo: chico` saltea el ⑫–⑯", i.Estado)
+	}
+}
+
+// Y el trinquete: una vez ampliada, la misma feature con las mismas historias
+// vuelve a pasar por planificación. Nadie editó el us-#, y tiene que alcanzar.
+func TestUnaFeatureAmpliadaVuelveAPlanificar(t *testing.T) {
+	p := nuevo(t).productoListo()
+	p.conArchivoConTexto(docs.Historia("us-1"),
+		"---\nid: us-1\ntipo: chico\ntitulo: un flag mas\n---\n"+
+			"## Criterios de aceptación\n- **CA-1** — acepta --json\n")
+	p.e.FeatureActual = "f-1"
+	p.e.Features["f-1"] = &estado.Feature{Estado: estado.Planificacion, Ampliada: true}
+
+	if i := p.next(); i.Estado != estado.Planificacion {
+		t.Errorf("estado %q, quería planificacion: el trinquete no bajó", i.Estado)
+	}
+}

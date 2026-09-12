@@ -1,14 +1,13 @@
 ---
 name: sfx-audit
+disable-model-invocation: true
 description: >
   Verify end to end that what was actually built satisfies the user stories it was supposed to
   serve — across several features at once, or the whole project. The auditor: it re-checks work
   that already passed its own review, looking for what a per-feature review structurally cannot
-  see, and for places the implementer's claims no longer hold. Use when the user says
-  "sfx-audit", "audit the project", "audit this module", "does the whole thing hold together",
-  "verify end to end", "check everything against the stories", or after several features have
-  closed. Runs on a big model. Unlike sf-check, which validates ONE feature at the moment it
-  ends, this looks at many, long after.
+  see, and for places the implementer's claims no longer hold. Runs on a big model, and worth
+  reaching for after several features have closed. Unlike sf-check, which validates ONE feature
+  at the moment it ends, this looks at many, long after.
 ---
 
 # sfx-audit

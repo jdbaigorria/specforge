@@ -133,7 +133,7 @@ func despachar() int {
 		return lanzarPaso(os.Args[2:])
 	case "log":
 		return verRegistro(os.Args[2:])
-	case "approve", "reject", "take", "model", "dismiss":
+	case "approve", "reject", "take", "model", "dismiss", "ampliar":
 		return parada(os.Args[1], os.Args[2:])
 	case "lote":
 		// `sf lote start` es el único comando de dos palabras del inventario.
@@ -388,6 +388,8 @@ func parada(cmd string, args []string) int {
 		ef = maquina.Modelo(e, g, maquina.Declaracion(fm))
 	case "dismiss":
 		ef = maquina.Descartar(raiz, e, r, arg(0), arg(1))
+	case "ampliar":
+		ef = maquina.Ampliar(raiz, e, r, arg(0), arg(1))
 	case "lote start":
 		ef = maquina.EmpezarLote(raiz, e, r)
 	case "new":
@@ -1445,12 +1447,13 @@ func uso() {
   sf doctor       ¿esta instalación sirve? binario · skills · harness
   sf version      la versión, en una línea
 
-las cinco respuestas a una parada:
+las seis respuestas a una parada:
   sf approve              sella lo que estés mirando
   sf reject "motivo"      no sella, y el motivo viaja en el sobre
   sf take <feature>       el ⑪: elige de la cola
   sf model <alias>        sube el modelo        \
   sf dismiss <h-#> "…"    descarta un hallazgo  /  las salidas de ME TRABÉ
+  sf ampliar [<f-#>] "…"  no era chico: vuelve a planificación (el trinquete)
 
 salidas:
   0  hay trabajo     2  parada (🛑 ⏸ ⚠)

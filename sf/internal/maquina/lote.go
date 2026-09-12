@@ -59,8 +59,8 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	// de esto. Comparar contra el crudo era pedirle al bug que hiciera primero
 	// lo que la máquina dice que se saltea, y dejaba `sf lote start`
 	// contradiciendo a `sf next` sobre la misma feature.
-	esBug := historia.SonTodasBugs(raiz, fr.Historias)
-	if estado.Efectivo(f.Estado, esBug) != estado.Implementar {
+	camino := f.Camino(historia.CaminoDe(raiz, fr.Historias))
+	if estado.Efectivo(f.Estado, camino) != estado.Implementar {
 		ef.falla("%s está en %q, y `sf lote start` es de implementar", e.FeatureActual, f.Estado)
 		return ef
 	}
@@ -212,7 +212,7 @@ func EmpezarLote(raiz string, e *estado.Estado, r *roadmap.Roadmap) Efecto {
 	//
 	// `sf next` no puede hacer esto porque es consulta pura; `sf lote start` sí
 	// escribe —ya guarda Rojo y HashTests—, así que es el lugar correcto.
-	f.Estado = estado.Efectivo(f.Estado, esBug)
+	f.Estado = estado.Efectivo(f.Estado, camino)
 
 	ef.Mensaje = fmt.Sprintf("lote %d de %d listo — %s.\n   Podés implementar.",
 		l.Lote, len(f.Lotes), joinConY(pasos))

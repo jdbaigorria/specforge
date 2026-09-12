@@ -176,7 +176,7 @@ func terminarFeature(raiz string, e *estado.Estado, r *roadmap.Roadmap, msg stri
 	// `sf done` es el que mueve el estado. La regla vive en estado.Efectivo —
 	// tenerla copiada en cada comando fue lo que dejó a `sf lote start`
 	// contradiciendo a `sf next`.
-	f.Estado = estado.Efectivo(f.Estado, historia.SonTodasBugs(raiz, fr.Historias))
+	f.Estado = estado.Efectivo(f.Estado, f.Camino(historia.CaminoDe(raiz, fr.Historias)))
 
 	// El estado en el que se ENTRÓ, tomado antes de que ninguna rama lo mueva:
 	// una línea del registro tiene que decir de dónde salía el `sf done`, no
@@ -250,7 +250,12 @@ func cerrarLote(raiz string, f *estado.Feature, fr roadmap.Feature, msg string) 
 		// Que acá "no hay lote en curso" signifique de verdad "todos cerrados"
 		// y no "nunca empezó" lo garantiza compuerta.Implementar, que corrió
 		// arriba y frena con f.Lotes vacío.
-		if historia.SonTodasBugs(raiz, fr.Historias) {
+		// Acá es donde Chico y Corto se separan, y es el único lugar donde se
+		// separan: los dos se saltearon la planificación, pero la revisión la
+		// saltea SÓLO el bug. Un cambio chico produce comportamiento nuevo y
+		// sus criterios necesitan veredicto; un bug vuelve a poner algo que ya
+		// tenía el suyo.
+		if f.Camino(historia.CaminoDe(raiz, fr.Historias)) == estado.Corto {
 			f.Estado = estado.Cierre
 			return Cierre{Movio: true, Cambio: true,
 				Mensaje: "lotes cerrados — es un bug, se saltea la revisión: sigue el cierre (㉓)"}
@@ -302,16 +307,39 @@ func cerrarRevision(raiz string, f *estado.Feature, fr roadmap.Feature) Cierre {
 		// implementar — no es un error del revisor. Se distingue mirando el
 		// archivo, no el texto de la falla.
 		if hayAbiertos(raiz, fr) {
+			f.RondasRevision++
+
+			// ────────────────────────────────────────────────────────────
+			// EL FONDO DEL BUCLE — Y POR QUÉ NO MUEVE EL ESTADO
+			// ────────────────────────────────────────────────────────────
+			//
+			// Al llegar al tope la feature NO vuelve a implementar: se queda
+			// en `revision`, que es donde la va a encontrar `sf next` para
+			// levantar la parada. Moverla y parar después sería dejar el
+			// estado diciendo "implementá" mientras la máquina dice "no".
+			//
+			// Y no se abre el lote de corrección, que es la otra mitad: un
+			// lote abierto sin nadie que lo trabaje es un lote que después
+			// hay que explicar.
+			if f.RondasRevision >= TopeRondas {
+				return Cierre{Cambio: true, Resultado: res,
+					Mensaje: fmt.Sprintf(
+						"%d rondas de revisión sobre %s y los hallazgos siguen abiertos. "+
+							"Corré `sf next`: hay que adjudicar.", f.RondasRevision, fr.ID)}
+			}
+
 			f.Estado = estado.Implementar
 			l := abrirLoteDeCorreccion(f)
 			return Cierre{Movio: true, Cambio: true, Resultado: res,
 				Mensaje: fmt.Sprintf(
-					"hay hallazgos abiertos — vuelve a implementar en el lote %d", l)}
+					"hay hallazgos abiertos — vuelve a implementar en el lote %d (ronda %d de %d)",
+					l, f.RondasRevision, TopeRondas)}
 		}
 		return c
 	}
 
 	f.Estado = estado.Cierre
+	f.RondasRevision = 0 // la revisión salió limpia: el bucle terminó
 	c.Movio, c.Cambio = true, true
 	c.Mensaje = "revisión limpia — sigue el cierre (㉓)"
 	return c

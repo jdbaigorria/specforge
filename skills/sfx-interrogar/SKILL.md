@@ -1,11 +1,11 @@
 ---
 name: sfx-interrogar
+disable-model-invocation: true
 description: >
   The adversarial review primitive. Several models review the same diff independently, and what
   two of them find on their own is the high-signal finding. Produces findings in `revision.json`
-  shape, ready to paste. Triggers: "/sfx-interrogar", "interrogá esto", "que lo rompan", "review
-  this with several models", "find the blind spots", or a high-risk feature before the ㉑.
-  Standalone: works on any diff, with or without SpecForge.
+  shape, ready to paste. For a high-risk feature before the ㉑. Works on any diff, with or
+  without SpecForge.
 ---
 
 # sfx-interrogar

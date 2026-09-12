@@ -333,20 +333,60 @@ func TestEfectivoSalteaPlanificacionSoloParaBugs(t *testing.T) {
 	casos := []struct {
 		nombre string
 		actual string
-		esBug  bool
+		camino Camino
 		quiero string
 	}{
-		{"un bug saltea la planificación", Planificacion, true, Implementar},
-		{"una us no la saltea", Planificacion, false, Planificacion},
-		{"un bug ya en implementar no se mueve", Implementar, true, Implementar},
-		{"el cierre no se toca nunca", Cierre, true, Cierre},
-		{"la revisión no se saltea acá: depende de los lotes", Revision, true, Revision},
+		{"un bug saltea la planificación", Planificacion, Corto, Implementar},
+		{"un cambio chico también la saltea", Planificacion, Chico, Implementar},
+		{"una us no la saltea", Planificacion, Largo, Planificacion},
+		{"un bug ya en implementar no se mueve", Implementar, Corto, Implementar},
+		{"el cierre no se toca nunca", Cierre, Corto, Cierre},
+		{"la revisión no se saltea acá: depende de los lotes", Revision, Corto, Revision},
 	}
 	for _, c := range casos {
 		t.Run(c.nombre, func(t *testing.T) {
-			if got := Efectivo(c.actual, c.esBug); got != c.quiero {
-				t.Errorf("Efectivo(%q, %v) = %q, quería %q", c.actual, c.esBug, got, c.quiero)
+			if got := Efectivo(c.actual, c.camino); got != c.quiero {
+				t.Errorf("Efectivo(%q, %v) = %q, quería %q", c.actual, c.camino, got, c.quiero)
 			}
 		})
+	}
+}
+
+// El cero de Camino tiene que ser Largo, y no es un detalle de estilo: un valor
+// sin inicializar —un struct nuevo, un campo que nadie escribió— cae en el
+// camino que NO saltea estados. Si el cero fuera Corto, olvidarse de clasificar
+// significaría implementar sin diseño y sin revisión.
+func TestElCeroDeCaminoEsElLargo(t *testing.T) {
+	var c Camino
+	if c != Largo {
+		t.Fatalf("el cero de Camino es %v, tiene que ser Largo", c)
+	}
+	if got := Efectivo(Planificacion, c); got != Planificacion {
+		t.Errorf("un Camino sin inicializar salteó la planificación: dio %q", got)
+	}
+}
+
+// El trinquete sube y no baja. Una feature que la máquina ya amplió no vuelve a
+// ser chica ni aunque sus historias sigan diciendo `tipo: chico` — que es
+// exactamente lo que van a seguir diciendo, porque nadie las edita al ampliar.
+func TestElTrinqueteNoBaja(t *testing.T) {
+	f := &Feature{}
+
+	// Antes de ampliar, la feature va por donde digan las historias.
+	if got := f.Camino(Chico); got != Chico {
+		t.Errorf("sin ampliar, Camino(Chico) = %v, quería Chico", got)
+	}
+
+	f.Ampliada = true
+
+	for _, declarado := range []Camino{Chico, Corto, Largo} {
+		if got := f.Camino(declarado); got != Largo {
+			t.Errorf("ampliada, Camino(%v) = %v, quería Largo", declarado, got)
+		}
+	}
+
+	// Y lo que importa de verdad: ampliada, ya no saltea la planificación.
+	if got := Efectivo(Planificacion, f.Camino(Chico)); got != Planificacion {
+		t.Errorf("una feature ampliada salteó la planificación: dio %q", got)
 	}
 }
