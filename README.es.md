@@ -147,7 +147,7 @@ No por opinión, por aritmética:
 ## La estructura
 
 ```
-sf/          el binario — 24 paquetes, 529 tests, una sola dependencia
+sf/          el binario — 25 paquetes, 529 tests, una sola dependencia
 skills/
   maquina/   los 9 de estado (sfp-* · sf-*) — sf doctor los EXIGE
   utiles/    los 16 utilitarios (sfx-*) — fuera de la máquina, standalone

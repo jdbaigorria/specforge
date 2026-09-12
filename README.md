@@ -152,7 +152,7 @@ Not by opinion — by arithmetic:
 ## Layout
 
 ```
-sf/          the binary — 24 packages, 529 tests, one dependency
+sf/          the binary — 25 packages, 529 tests, one dependency
 skills/
   maquina/   the 9 of the states (sfp-* · sf-*) — sf doctor REQUIRES these
   utiles/    the 16 utilities (sfx-*) — outside the machine, standalone
