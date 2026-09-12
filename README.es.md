@@ -74,7 +74,7 @@ se lanza un subagente, y eso el harness ya lo sabe hacer.
 
 ```bash
 cd sf && go build -o ~/go/bin/sf ./cmd/sf
-cp -r skills/* ~/.claude/skills/
+cp -r skills/maquina/*/ skills/utiles/*/ ~/.claude/skills/
 
 cd <tu proyecto>
 sf install    # CLAUDE.md + AGENTS.md · ~/.specforge/ con tus modelos
@@ -148,7 +148,10 @@ No por opinión, por aritmética:
 
 ```
 sf/          el binario — 24 paquetes, 501 tests, una sola dependencia
-skills/      22 skills: 9 de estado (sfp-* · sf-*) + 13 utilitarios (sfx-*)
+skills/
+  maquina/   los 9 de estado (sfp-* · sf-*) — sf doctor los EXIGE
+  utiles/    los 16 utilitarios (sfx-*) — fuera de la máquina, standalone
+  contrib/   skills de la comunidad — en el repo, NO los publica el plugin
 specs/       el diseño, y por qué cada decisión es como es
 ```
 
@@ -169,7 +172,7 @@ lo ve.
 | [`docs/comandos.md`](docs/comandos.md) | los 15 comandos |
 | [`docs/estados.md`](docs/estados.md) | los 9 estados y qué exige cada compuerta |
 | [`docs/artefactos.md`](docs/artefactos.md) | cada archivo y su forma |
-| [`docs/skills.md`](docs/skills.md) | los 22 skills |
+| [`docs/skills.md`](docs/skills.md) | los 25 skills |
 | [`docs/problemas.md`](docs/problemas.md) | qué hacer cuando `sf` te frena |
 
 ## El diseño

@@ -385,13 +385,35 @@ func revisarPerfiles(raiz string, g *global.Config) []Perfil {
 // Se busca en todos y se reporta el PRIMERO que aparece, con su ruta. Que la
 // ruta se muestre no es adorno: la mitad de los problemas de instalación se
 // entienden viendo de dónde salió el archivo.
+// LAS DOS RAÍCES QUE ESPEJAN EL REPO, Y POR QUÉ LLEVAN UN NIVEL MÁS
+//
+// Las raíces de harness —`~/.claude/skills/`, `.agents/`, opencode— son PLANAS
+// por definición: ahí cada skill llega como un symlink o una copia nombrada con
+// el nombre del skill, y el que instala es quien aplana.
+//
+// Las otras dos no: el cache del plugin y el clon del marketplace son el árbol
+// del REPO tal cual, y en este repo los skills viven agrupados
+// (`skills/maquina/` y `skills/utiles/`). Con un solo `*` el glob encontraba
+// `maquina/`, no veía `SKILL.md` adentro, y `sf doctor` reportaba los nueve
+// como ausentes teniéndolos instalados.
+//
+// Por eso se buscan LOS DOS niveles y no sólo el de abajo: un plugin ajeno
+// —o éste, antes de agrupar— tiene sus skills como hijos directos, y ése sigue
+// siendo el caso normal. El `os.Stat` del `SKILL.md` es el que decide: una
+// carpeta `references/` o `templates/` cae en el glob y no pasa el filtro.
+//
+// PENDIENTE DE MEDICIÓN: el nivel extra sale de leer el layout del repo, no de
+// una sonda como la del 29/08. Falta comprobarlo contra un `/plugin install`
+// real y anotar acá la fecha, igual que las seis de arriba.
 func raicesDeSkills(raiz string) []string {
 	var r []string
 	if h, err := os.UserHomeDir(); err == nil {
 		r = append(r,
 			filepath.Join(h, ".claude", "skills", "*"),
 			filepath.Join(h, ".claude", "plugins", "cache", "*", "*", "*", "skills", "*"),
+			filepath.Join(h, ".claude", "plugins", "cache", "*", "*", "*", "skills", "*", "*"),
 			filepath.Join(h, ".claude", "plugins", "marketplaces", "*", "skills", "*"),
+			filepath.Join(h, ".claude", "plugins", "marketplaces", "*", "skills", "*", "*"),
 			filepath.Join(h, ".config", "opencode", "skills", "*"),
 			filepath.Join(h, ".commandcode", "skills", "*"),
 			filepath.Join(h, ".agents", "skills", "*"),

@@ -66,31 +66,53 @@ copiándolos a donde tu harness los busque.
 /plugin install specforge
 ```
 
-El plugin trae los 18 y sabe actualizarlos. Es el camino recomendado.
+El plugin trae los 25 y sabe actualizarlos. Es el camino recomendado.
+
+> **Los skills están agrupados** —`skills/maquina/` los 9 de la máquina, `skills/utiles/` los
+> 16 utilitarios, `skills/contrib/` los de la comunidad— y el plugin publica los 25 primeros
+> enumerando sus rutas en `plugin.json`. Instalados quedan **planos**: el nombre con el que el
+> harness los llama sale del `name:` del frontmatter, no de la carpeta, así que agrupar no le
+> cambia nada al que los usa.
 
 Si preferís no pasar por el marketplace —porque estás editándolos, por ejemplo— un symlink por
 skill al repo:
 
 ```bash
-for d in "$PWD"/skills/*/; do ln -s "${d%/}" ~/.claude/skills/"$(basename "$d")"; done
+for d in skills/maquina/*/ skills/utiles/*/; do
+  ln -sfn "$PWD/${d%/}" ~/.claude/skills/"$(basename "$d")"
+done
 ```
 
-> **Uno por skill, no uno a la carpeta.** Un symlink único a `skills/` deja cada `SKILL.md` un
-> nivel más abajo de donde el harness los busca, y no aparece ninguno.
+> **Uno por skill, no uno a la carpeta.** Un symlink único a `skills/` deja cada `SKILL.md` dos
+> niveles más abajo de donde el harness los busca, y no aparece ninguno. El loop aplana: recorre
+> los dos buckets publicados y linkea cada skill por su nombre. `contrib/` queda afuera a
+> propósito — no es parte del core.
 
 ### Otro harness
 
-Copiá `skills/` a donde tu harness lea sus skills. **No hay nada específico de Claude Code
-adentro**: son 18 archivos Markdown con frontmatter.
+Copiá el CONTENIDO de `skills/maquina/` y `skills/utiles/` a donde tu harness lea sus skills —
+las carpetas de skill, no los buckets. **No hay nada específico de Claude Code adentro**: son 25
+archivos Markdown con frontmatter.
+
+```bash
+cp -r skills/maquina/*/ skills/utiles/*/ <donde-tu-harness-los-lea>/
+```
 
 ### Qué se instala
 
 ```
-skills/
+skills/maquina/     LOS NUEVE DE LA MÁQUINA — sf doctor los exige
   sfp-scout · sfp-po · sfp-constitucion · sfp-backlog · sfp-roadmap    los 5 de PRODUCTO
   sf-plan · sf-build · sf-check · sf-cierre                            los 4 de FEATURE
-  sfx-think · sfx-grill-me · sfx-tdd · sfx-github · sfx-documenter
-  sfx-journal · sfx-triage · sfx-explain · sfx-audit                   los 9 UTILITARIOS
+
+skills/utiles/      LOS DIECISÉIS UTILITARIOS — sf doctor sólo avisa
+  sfx-think · sfx-grill-me · sfx-grilling · sfx-interrogar · sfx-tdd
+  sfx-github · sfx-documenter · sfx-journal · sfx-triage · sfx-explain
+  sfx-audit · sfx-buscar · sfx-prosa · sfx-prototipo · sfx-verificar
+  sfx-vocabulario
+
+skills/contrib/     NO SE PUBLICA — está en el repo, el plugin no lo trae
+  sfx-aws-architect · sfx-data-engineer
 ```
 
 **El prefijo dice algo:** `sfp-` corre una vez por producto, `sf-` una vez por feature, y `sfx-`

@@ -1,10 +1,15 @@
 package doctor
 
 import (
+	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/jdbaigorria/specforge/sf/internal/maquina"
 )
 
 // escribirSkill deja un SKILL.md en el home falso del test.
@@ -194,32 +199,142 @@ func TestCuandoFallaDiceComoSeArregla(t *testing.T) {
 func TestLosSkillsDelRepoEstanAlineados(t *testing.T) {
 	raiz := filepath.Join("..", "..", "..", "skills")
 
-	dirs, err := os.ReadDir(raiz)
-	if err != nil {
-		t.Fatalf("no encontré skills/ desde %s: %v", raiz, err)
-	}
-
+	// Se CAMINA el árbol en vez de leer un nivel: los skills están agrupados
+	// (`skills/maquina/`, `skills/utiles/`, `skills/contrib/`), y un `ReadDir`
+	// del nivel de arriba devuelve las tres carpetas, ninguna con `SKILL.md`.
+	// Eso no falla: pasa en verde contando cero, que es la forma exacta en que
+	// un chequeo deja de chequear sin que nadie se entere — el mismo riesgo que
+	// el `vistos < 9` de abajo ya cubría, y que agrupar volvió real.
+	//
+	// `contrib/` entra a propósito: no se publica en `plugin.json`, pero si
+	// nombra un `sf` que no existe está roto igual, y alguien lo va a copiar.
 	var vistos int
-	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
+	err := filepath.WalkDir(raiz, func(ruta string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		ruta := filepath.Join(raiz, d.Name(), "SKILL.md")
-		if _, err := os.Stat(ruta); err != nil {
-			continue
+		if d.IsDir() || d.Name() != "SKILL.md" {
+			return nil
 		}
 		vistos++
 
 		if c := comandosDesconocidos(ruta); len(c) > 0 {
 			t.Errorf("%s le pide al agente `sf %s`, y este binario no lo tiene",
-				d.Name(), strings.Join(c, "` y `sf "))
+				filepath.Base(filepath.Dir(ruta)), strings.Join(c, "` y `sf "))
 		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("no pude caminar skills/ desde %s: %v", raiz, err)
 	}
 
 	// Sin esta línea el test pasaría en verde si la ruta a skills/ cambiara y
-	// el ReadDir devolviera una carpeta vacía — que es la forma exacta en que
-	// un chequeo deja de chequear sin que nadie se entere.
+	// el walk no encontrara nada — que es la forma exacta en que un chequeo
+	// deja de chequear sin que nadie se entere.
 	if vistos < 9 {
 		t.Fatalf("esperaba al menos los 9 de la máquina y encontré %d en %s", vistos, raiz)
+	}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LA CARPETA COMO HECHO, NO COMO CONVENCIÓN
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Agrupar los skills en `maquina/`, `utiles/` y `contrib/` sirve para leer el
+// repo, y eso es todo lo que sirve mientras la agrupación sea una costumbre.
+// Una costumbre se rompe sin ruido: alguien agrega un skill de estado en
+// `utiles/`, o publica uno y se olvida del `plugin.json`, y nada falla hasta
+// que alguien instala.
+//
+// Los dos tests de abajo le ponen contrato a las dos mitades:
+//
+//	qué hay en maquina/     tiene que ser EXACTAMENTE lo que la máquina nombra
+//	qué hay en disco        tiene que ser EXACTAMENTE lo que el plugin publica
+//
+// Es la misma jugada de `internal/comandos` con la lista de comandos: el dato
+// vive en un lugar, y un test comprueba que la copia no se le escapó. La
+// diferencia es que acá el lugar donde vive es `maquina.SkillsDeEstado()`, que
+// ya existía y ya era la única copia.
+
+// skillsEn devuelve los nombres de skill que hay bajo una carpeta del repo.
+//
+// Un nombre es el de la carpeta que tiene el SKILL.md, que es de donde lo
+// toma el harness cuando el frontmatter no declara `name`.
+func skillsEn(t *testing.T, rel string) []string {
+	t.Helper()
+	var n []string
+	base := filepath.Join("..", "..", "..", rel)
+	err := filepath.WalkDir(base, func(ruta string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && d.Name() == "SKILL.md" {
+			n = append(n, filepath.Base(filepath.Dir(ruta)))
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("no pude caminar %s: %v", base, err)
+	}
+	slices.Sort(n)
+	return n
+}
+
+func TestLaCarpetaMaquinaEsExactamenteLosNueve(t *testing.T) {
+	quiere := maquina.SkillsDeEstado()
+	slices.Sort(quiere)
+
+	hay := skillsEn(t, filepath.Join("skills", "maquina"))
+
+	if !slices.Equal(hay, quiere) {
+		t.Errorf("skills/maquina/ no es lo que la máquina nombra.\n  en disco: %v\n  la máquina pide: %v",
+			hay, quiere)
+	}
+}
+
+func TestElPluginPublicaLoQueHayEnDisco(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m struct {
+		Skills []string `json:"skills"`
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+
+	// El array tiene que ser explícito. Con `"skills": "./skills/"` —un string,
+	// que es lo que había antes de agrupar— el harness ESCANEA, y un escaneo
+	// plano encuentra `maquina/` en vez de los nueve. El tipo del campo es
+	// parte del contrato.
+	if len(m.Skills) == 0 {
+		t.Fatal("plugin.json no publica un array de rutas: con los skills agrupados, el escaneo por defecto no los encuentra")
+	}
+
+	publica := make([]string, 0, len(m.Skills))
+	for _, r := range m.Skills {
+		publica = append(publica, filepath.Base(r))
+	}
+	slices.Sort(publica)
+
+	// `contrib/` queda afuera a propósito: está en el repo y NO se publica,
+	// que es exactamente lo que era `skills-community/` antes de mudarse.
+	hay := append(skillsEn(t, filepath.Join("skills", "maquina")),
+		skillsEn(t, filepath.Join("skills", "utiles"))...)
+	slices.Sort(hay)
+
+	if !slices.Equal(publica, hay) {
+		t.Errorf("plugin.json y el disco no coinciden.\n  publica (%d): %v\n  en disco (%d): %v",
+			len(publica), publica, len(hay), hay)
+	}
+
+	for _, r := range m.Skills {
+		if _, err := os.Stat(filepath.Join("..", "..", "..", r, "SKILL.md")); err != nil {
+			t.Errorf("plugin.json publica %s y ahí no hay SKILL.md", r)
+		}
+		if strings.Contains(r, "/contrib/") {
+			t.Errorf("plugin.json publica %s, y contrib/ no se publica", r)
+		}
 	}
 }

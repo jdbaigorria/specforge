@@ -42,12 +42,18 @@ jobs:
       #
       # Ya se rompió una vez de la forma silenciosa (skills.md §12): un skill se
       # renombra, el binario compila, los tests pasan, y revienta en producción.
+      #
+      # Los nueve viven en `skills/maquina/`, y que estén AHÍ y no en otro bucket
+      # lo comprueba un test de Go contra `maquina.SkillsDeEstado()`
+      # (TestLaCarpetaMaquinaEsExactamenteLosNueve). Acá se comprueba la ruta,
+      # que es lo que el plugin publica.
       - name: Los nueve skills del mapa existen
         run: |
           set -euo pipefail
           for s in sfp-scout sfp-po sfp-constitucion sfp-backlog sfp-roadmap \
                    sf-plan sf-build sf-check sf-cierre; do
-            test -f "skills/$s/SKILL.md" || { echo "falta skills/$s/SKILL.md"; exit 1; }
+            test -f "skills/maquina/$s/SKILL.md" \
+              || { echo "falta skills/maquina/$s/SKILL.md"; exit 1; }
           done
 
       # NINGÚN nombre de modelo concreto puede vivir donde un MODELO lo lea.
@@ -98,10 +104,14 @@ jobs:
       - name: El name de cada skill coincide con su carpeta
         run: |
           set -euo pipefail
-          for d in skills/*/; do
-            n="$(basename "$d")"
-            f="$(grep -m1 '^name:' "$d/SKILL.md" | sed 's/^name: *//')"
-            [ "$n" = "$f" ] || { echo "$d: carpeta=$n name=$f"; exit 1; }
+          # Se busca el SKILL.md y se sube un nivel: `skills/*/` son los
+          # buckets (maquina · utiles · contrib), no los skills. Con el glob
+          # viejo este chequeo no reventaba — recorría tres carpetas sin
+          # SKILL.md y el grep fallaba por otra razón.
+          find skills -name SKILL.md -print0 | while IFS= read -r -d '' f; do
+            n="$(basename "$(dirname "$f")")"
+            d="$(grep -m1 '^name:' "$f" | sed 's/^name: *//')"
+            [ "$n" = "$d" ] || { echo "$f: carpeta=$n name=$d"; exit 1; }
           done
 
       # Los skills nombran comandos de sf, y eso es una PROMESA VERIFICABLE.

@@ -1,7 +1,7 @@
 {
   "name": "specforge",
   "version": "1.0.0",
-  "description": "SpecForge: a state machine that guides the harness. `sf` knows where you are, what comes next and whether you can advance; 9 states, 22 skills, and a four-line orchestrator. The state advances on checked facts, never on the worker's word.",
+  "description": "SpecForge: a state machine that guides the harness. `sf` knows where you are, what comes next and whether you can advance; 9 states, 25 skills, and a four-line orchestrator. The state advances on checked facts, never on the worker's word.",
   "author": {
     "name": "Javier Baigorria"
   },
@@ -13,5 +13,31 @@
     "state-machine",
     "workflow"
   ],
-  "skills": "./skills/"
+  "skills": [
+    "./skills/maquina/sfp-scout",
+    "./skills/maquina/sfp-po",
+    "./skills/maquina/sfp-constitucion",
+    "./skills/maquina/sfp-backlog",
+    "./skills/maquina/sfp-roadmap",
+    "./skills/maquina/sf-plan",
+    "./skills/maquina/sf-build",
+    "./skills/maquina/sf-check",
+    "./skills/maquina/sf-cierre",
+    "./skills/utiles/sfx-audit",
+    "./skills/utiles/sfx-buscar",
+    "./skills/utiles/sfx-documenter",
+    "./skills/utiles/sfx-explain",
+    "./skills/utiles/sfx-github",
+    "./skills/utiles/sfx-grill-me",
+    "./skills/utiles/sfx-grilling",
+    "./skills/utiles/sfx-interrogar",
+    "./skills/utiles/sfx-journal",
+    "./skills/utiles/sfx-prosa",
+    "./skills/utiles/sfx-prototipo",
+    "./skills/utiles/sfx-tdd",
+    "./skills/utiles/sfx-think",
+    "./skills/utiles/sfx-triage",
+    "./skills/utiles/sfx-verificar",
+    "./skills/utiles/sfx-vocabulario"
+  ]
 }

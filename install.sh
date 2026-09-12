@@ -12,7 +12,7 @@
 # correr ANTES de que el binario exista, y lo único que se puede dar por
 # supuesto en una máquina ajena es un shell.
 #
-# Por eso mismo esto instala UNA sola cosa. Los 22 skills son Markdown y los
+# Por eso mismo esto instala UNA sola cosa. Los 25 skills son Markdown y los
 # trae el plugin del harness, que ya sabe versionarlos y actualizarlos:
 #
 #   /plugin marketplace add jdbaigorria/specforge
@@ -288,7 +288,7 @@ main() {
   avisar_del_viejo
 
   di ""
-  di "Falta la otra mitad — los 22 skills. En Claude Code:"
+  di "Falta la otra mitad — los 25 skills. En Claude Code:"
   di ""
   di "    /plugin marketplace add $REPO"
   di "    /plugin install specforge"
