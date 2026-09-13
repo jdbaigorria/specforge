@@ -18,12 +18,24 @@ Javier dice que siente que se está enroscando. No es una sensación: está en e
 | código Go, sin tests | **15.133** líneas |
 | documentos de diseño en `specs/` | **30 archivos · 17.302 líneas** |
 | skills | 27 archivos · 5.948 líneas |
-| corridas reales con agentes, registradas | **0** |
+| corridas reales con agentes | **3 registradas** (T1 el 09-05, el 09-08, y la de 7 vueltas) |
 | releases públicos | **0** |
 
-> **Hay más líneas de diseño que de producto.** 17.302 contra 15.133. Cada documento nuevo abre
-> pendientes que se cierran escribiendo otro documento, y la única fuente de trabajo del repo es el
-> repo.
+> **Hay más líneas de diseño que de producto.** 17.302 contra 15.133. Lo mismo que mide
+> `el-mapa.md` §1 con otras palabras: *"no es un proyecto que se empieza de nuevo, es un proyecto
+> que perdió el índice"*.
+
+**Corrección del 2026-09-13.** La primera versión de este documento decía *"cero corridas reales"* y
+*"el bucle de feedback está cerrado sobre sí mismo"*. **Las dos son falsas**, y la evidencia está en
+`el-arnes-ciego.md`: la corrida de T1 del 2026-09-05 midió dos modelos sobre la misma semilla —
+`no-lo-hagas` con 13 links contra `hacelo` con 0— y `compuerta.Brief` aceptó los dos. De ahí salió
+la regla del proyecto y el arreglo `4d7cc28`. Los tres hallazgos más caros del repo salieron de
+**correr**, no de leer. Las corridas viven fuera del árbol (`banco/diagnosticos/` está en
+`.gitignore`) y por eso no se vieron.
+
+**Lo que sí sobrevive a la corrección** es lo de abajo: el plan T0–T7 no tiene renglón de publicar,
+y `salir-a-la-cancha.md` ① quedó huérfano cuando `el-mapa.md` reemplazó a `retomar.md` como puerta
+de entrada.
 
 Y el dato que lo vuelve urgente en vez de filosófico:
 
