@@ -492,6 +492,10 @@ Para no releer 792K. **Ordenados por cuánto valen hoy.**
 | `superficie-sf.md` | los comandos de `sf` y por qué cada uno (H1–H16) | ✅ referencia |
 | `headless.md` | el contrato de `sf lanzar` | ✅ referencia |
 | `arreglos.md` | A0–A9 + M1–M3 | ⚠️ **cerrado — todo hecho.** Histórico |
+| **`traspaso-2026-09-13.md`** | **el traspaso del 13-09: el plan nuevo, el backlog y las correcciones** | ✅ **empezá por acá** |
+| `primitivos.md` | los consumidores de los 27 skills, contados · los 4 métodos sin dueño | ✅ 13-09 |
+| `vecinos-metodos.md` | superpowers y Matt Pocock, método por método · los 2 agujeros | ✅ 13-09 |
+| `el-mercado.md` | las tres capas de la categoría y dónde cae `sf` | ✅ 13-09 |
 | `retomar.md` | el traspaso del 05-09 | ⚠️ **lo reemplaza este documento** |
 | `artefactos.md`, `flujo-real.md`, `que-sobrevive.md`, `agnostico-al-harness.md`, `session*.md`, `skills.md`, `construccion.md`, `install-interactivo.md`, `salir-a-la-cancha.md`, `anexo-determinismo.md` | diseño anterior a las corridas | ⚠️ **sin auditar contra el código.** Ver abajo |
 
