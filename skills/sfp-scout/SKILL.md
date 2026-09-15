@@ -38,6 +38,8 @@ does not repeat them. Four primitives do the work:
 | a word means two things | `sfx-grilling` calls `sfx-vocabulario` on its own |
 | only running code answers it | `sfx-grilling` calls `sfx-prototipo`, **after Javier approves** |
 | no fact separates the options | `sfx-grilling` calls `sfx-think` — the rare branch |
+| a criterion surfaces | `sfx-grilling` hands it to `sfx-vara`, with the round it was born in |
+| the verdict itself | `Call the Skill tool with "sfx-decidir"` — see Step 2 |
 
 **You call `sfx-grilling` once and it drives.** Do not re-explain how to interview, do not run your
 own question loop, do not batch the research into a separate phase. **Research is a branch of the
@@ -63,7 +65,18 @@ empty:
 
 The interview ends when the frontier is empty. Not when it feels long enough.
 
-## Step 2 — write the brief (⑤)
+## Step 2 — the verdict, against the rubric
+
+`Call the Skill tool with "sfx-decidir"` with the interviewed idea and the rubric the interview
+grew. It scores the options against criteria that were written **before** each option was on the
+table, and returns the verdict with its reason and its `?`s.
+
+**The rubric for an idea is bespoke and it grew during the interview** — it is not a questionnaire
+you hand Javier. It is what he already said, caught in the round he said it. That order is the
+whole value: a rubric written once the options are visible describes the option you had already
+picked.
+
+## Step 3 — write the brief (⑤)
 
 Write `.docs/brief.md` from `templates/brief.tmpl.md`.
 
@@ -84,7 +97,7 @@ the gate line. `sf approve` means *"sí, sellalo con lo que dice"*, so the file 
 something; an empty `veredicto` deadlocks the ⑥ and the only way out is editing the file by hand.
 Javier's move is `approve` or `reject`, never filling in a blank.
 
-## Step 3 — the ⑥, and it is Javier's
+## Step 4 — the ⑥, and it is Javier's
 
 You do not seal. Print the gate and stop:
 
@@ -93,6 +106,7 @@ You do not seal. Print the gate and stop:
 🛑 ⑥ — brief listo: "<la idea en una línea>"
 Propongo: <hacelo | pivotea | no-lo-hagas>
 Evidencia: retrieved N / model-prior M / probado P  ·  links L
+Vara: N criterios, nacidos en rondas [..]  ·  ✓N / ✗N / ?N
 Ronda(s): R  ·  preguntas abiertas: 0
 Diferencial: <una línea>
 No pude comprobar: <lo que quedó afuera, o "nada">
@@ -116,6 +130,7 @@ judgment, and judgment is Javier's.
 - Compose, never re-explain. The method belongs to the primitive.
 - De-risk, never claim validation. Name what AI cannot know.
 - Research is a branch of the interview, not a phase before it.
+- The rubric grows DURING the interview, never after the options. Each criterion carries its round.
 - Differentiate **and** stock up. Both halves.
 - `no-lo-hagas` is a success. The value of the ⑥ is being able to say no.
 - The brief argues and cites. The evidence lives in `evidencia.md`.

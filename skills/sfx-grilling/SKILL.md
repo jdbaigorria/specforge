@@ -3,7 +3,7 @@ name: sfx-grilling
 description: >
   The interview primitive. Work an idea, a plan or a design as a decision tree: ask the whole
   frontier in rounds, each question numbered and carrying your recommended answer, until the
-  frontier is empty. This is the SINGLE OWNER of the interview method in SpecForge — every skill
+  frontier is empty. It also feeds the rubric: when a criterion surfaces it hands it to `sfx-vara` with its round. This is the SINGLE OWNER of the interview method in SpecForge — every skill
   that interviews composes this one instead of re-explaining how. Triggers: "grill", "interview
   me", "stress-test this", "poke holes in this", or any composing skill calling it.
 ---
@@ -66,10 +66,31 @@ If an answer reveals a term meaning two different things, stop the round and
 `Call the Skill tool with "sfx-vocabulario"`. A tree built on a word that means two things branches
 wrong, and every round after that is wasted.
 
+## When a criterion surfaces
+
+If an answer reveals a **criterion** — something the user says has to be true for this to be a
+good answer, like *"esto tiene que poder probarse sin construirlo entero"* — do not let it sink
+into the transcript. `Call the Skill tool with "sfx-vara"` with the criterion **and the round it
+appeared in**.
+
+Same gesture as the one above, different trigger:
+
+```
+a word is doing two jobs   →  sfx-vocabulario
+a criterion surfaces       →  sfx-vara
+```
+
+You are not adding work. **The criteria are what the user already said**, caught at the moment
+they pass. Do not interrogate them for a rubric and do not invent criteria they did not state.
+
+And the rubric pays the interview back: a question that moves no criterion is a question not worth
+asking. Prune the frontier with it.
+
 ## The cut
 
 **The session is done when the frontier is empty**: every branch visited, nothing silently assumed.
-That is the criterion — not "the user got tired", not a question count.
+**And, when there is a rubric, when every criterion has something to answer it with** — that is a
+cut on the decision, not on the tree. That is the criterion — not "the user got tired", not a question count.
 
 If the user says "enough" before that, stop immediately **and say what is still open**. An interview
 cut short with three branches unvisited is a fine outcome; one that pretends it finished is not.
@@ -98,5 +119,6 @@ Every load-bearing answer carries provenance when it came from outside the user'
 - Every question numbered, every question with your recommended answer.
 - Facts are yours, decisions are theirs.
 - A deferred question gets said out loud, with what it waits on.
+- A criterion that surfaces goes to `sfx-vara` with its round, never into the prose.
 - The cut is an empty frontier, not fatigue.
 - Never lecture. You are extracting their thinking, not teaching them yours.
