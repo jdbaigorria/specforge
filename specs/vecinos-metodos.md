@@ -110,13 +110,34 @@ Y en `sf` el camino del bug es un carril entero de la máquina:
 tipo: bug  →  implementar  →  cierre
 ```
 
-**Nadie dice cómo se encuentra el bug.** Se salta la planificación —correcto— y se cae directo en
-`sf-build`, que es un skill de implementar contra un plan que en este camino no existe. El único
-método cercano es `sfx-triage`, que clasifica el ticket; no diagnostica el defecto.
+Se salta la planificación —correcto— y se cae directo en `sf-build`, que es un skill de
+implementar contra un plan que en este camino no existe. Lo que reemplaza a ese plan es el
+diagnóstico.
 
-> **Es el agujero más grande de los tres repos comparados, y es de los nuestros.** Los dos
-> vecinos coincidieron solos en que el debugging es un método propio y que va **antes** de tocar
-> código. Acá el camino existe y el método no.
+> ## 🔴 CORRECCIÓN — 2026-09-16
+>
+> **Este apartado decía que el método no existía acá, y que `sfx-triage` "clasifica el ticket; no
+> diagnostica el defecto". Es falso**, y basta abrir `skills/sfx-triage/SKILL.md` para verlo:
+> tiene la ley de hierro (*"No fixes without investigation first"*), el rastreo hacia atrás desde
+> el síntoma, el diff contra un caso que sí funciona, hipótesis rankeadas con evidencia a favor y
+> en contra, un límite duro de 3, el test que falla **antes** del arreglo, `cannot-reproduce` como
+> resultado válido, y la prohibición de aplicar el arreglo durante el triage.
+>
+> **El error se cometió leyendo `primitivos.md` §4② —que habla del triage como clasificador— sin
+> cruzarlo con el archivo.** Es la misma forma de error que este repo ya se había anotado el
+> 2026-09-13 en el traspaso §3: leer un documento sin verificarlo contra el código.
+>
+> **Y costó caro:** el 2026-09-15 se escribió un `sfx-diagnosticar` entero que duplicaba a
+> `sfx-triage`. Se borró el 09-16 y lo que aportaba de nuevo se le agregó al que ya estaba.
+>
+> **Lo que sí faltaba**, y ahora está: (a) una puerta que rutee un síntoma al triage
+> (`sf-entrar-bug`); (b) instrumentar las costuras en un sistema de varias capas; (c) el segundo
+> corte —3 **arreglos** fallidos es la arquitectura, distinto de 3 hipótesis rechazadas—; y (d)
+> que el triage entregue candidatos **sin recomendar**, porque elegir es decidir contra una vara.
+>
+> Lo que quedó en pie del apartado: los dos vecinos coincidieron solos en que el debugging es un
+> método propio y que va **antes** de tocar código. Nosotros también lo teníamos. Nadie lo había
+> comprobado.
 
 Y no es casual: es la puerta *"llego con un bug"* que `FUNDAMENTOS.md` ④ dejó sin abrir. Abrirla
 le da a `sfx-triage` su segundo consumidor y resuelve su ⚠️ de `primitivos.md` §4②.
@@ -171,7 +192,8 @@ Hoy es model-invoked y compite en la carrera de ruteo sin que nadie lo necesite.
 YA CUBIERTO      11 métodos · nada que hacer
 ADOPTAR          2  · la doble cara del test que falta (+ mirror assertion)
                     · recibir una revisión  ← tapa un hueco abierto AYER
-ABRIR            1  · diagnosticar un bug — el carril existe y el método no
+ABRIR            1  · diagnosticar un bug — el carril y EL MÉTODO existían;
+                    faltaba la puerta. Ver la corrección del 09-16 en §4.1
 UN DUEÑO SOLO    1  · la procedencia, hoy repartida en cuatro
 SÓLO NUESTRO     1  · la vara antes de las opciones — no está en ninguno de los tres
 DESCARTAR        7  · con el motivo escrito, arriba

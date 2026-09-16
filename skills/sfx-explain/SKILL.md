@@ -1,12 +1,11 @@
 ---
 name: sfx-explain
 delegate: true
+disable-model-invocation: true
 description: >
-  Explain a concept clearly using the Feynman method. Simple language, analogies,
-  build from basics, concrete examples. Use when the user says "explain", "why does",
-  "how does X work", "I don't understand", "teach me", "break it down", "what is X",
-  or asks about a concept they want to understand deeply. Works for any topic —
-  technical or not. Does not require any project context.
+  Explain a concept using the Feynman method — simple language, analogies, built from basics,
+  honest tradeoffs. A USER DOOR: you invoke it with `/sfx-explain`; no skill composes it and the
+  machine never runs it. Works for any topic, technical or not, and needs no project context.
 ---
 
 # Explain
@@ -16,6 +15,15 @@ complexity, concrete examples, honest tradeoffs.
 
 This skill is for **understanding**, not doing. If the user wants to build something
 after understanding it, they invoke the appropriate action skill.
+
+> **Why it is closed to the model.** Measured 2026-09-13 (`primitivos.md` §4①): zero consumers —
+> the machine does not run it, no skill composes it, nothing needs it. But its old triggers
+> (*"explain", "why does", "how does X work", "I don't understand", "what is X"*) matched almost
+> any question, so it competed in the routing race against skills that were actually needed and
+> won races it should have lost. Same shape as the bug measured in opencode on 2026-09-08.
+>
+> A rich trigger list on a door nobody composes is a cost with no consumer (R2). Matt Pocock's
+> equivalent (`teach`) is user-invoked for the same reason.
 
 ## Step 1: Determine Topic
 

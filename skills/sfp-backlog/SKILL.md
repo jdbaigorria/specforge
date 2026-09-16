@@ -3,10 +3,11 @@ name: sfp-backlog
 description: >
   Cut the PRD into user stories with stable IDs and testable acceptance criteria — the `us-#.md`
   files that everything downstream references. State `backlog` (step ⑨) of the SpecForge machine,
-  invoked when `sf next` returns `skill: sfp-backlog`, running in a fresh subagent. Also handles
-  entries that arrive later through `sf new`: a new capability, or a bug (which composes
-  sfx-triage). Also usable standalone: "cut this into stories", "write the backlog", "split the
-  PRD", "/sfp-backlog". Produces stories only — grouping and ordering are the ⑩'s job.
+  invoked when `sf next` returns `skill: sfp-backlog`, running in a fresh subagent. It composes
+  sfx-criterio for the criteria. Also usable standalone: "cut this into stories", "write the
+  backlog", "split the PRD", "/sfp-backlog". Produces stories only — grouping and ordering are
+  the ⑩'s job, and work that arrives LATER does not come through here: that is an entry node
+  (`sf-entrar-feature`, `sf-entrar-bug`).
 ---
 
 # sfp-backlog
@@ -54,67 +55,36 @@ The role comes from the PRD's actor list — do not invent a new cast.
 **Size heuristic:** a story that cannot be finished inside one feature is two stories. A story
 with one criterion is usually a criterion of another story.
 
-## Step 2: Write the criteria in EARS, and this is not decoration
+## Step 2: The criteria — compose, do not re-explain
 
-Read `references/ears-notation.md`. The reason EARS survives when everything around it was cut:
+`Call the Skill tool with "sfx-criterio"`, telling it the stories you just cut and that the
+criteria go in each `us-#.md` as `- **CA-1** — …`.
 
-```
-a test needs   →   trigger · state · expected behaviour
-EARS asks for  →   trigger · state · behaviour
-```
+**It owns the method** — EARS, the test-name check, and the six-defect rubric. Do not restate the
+rule here and do not run your own quality pass: the skill that writes a criterion and the skills
+that have to turn it into a test (`sf-plan` ⑭⑮) and walk it with a verdict (`sf-check` ㉑) are
+three different skills, and the rule that binds them has one owner so the other two are not
+improvising.
 
-**It is the same triple.** That is why a criterion written in EARS converts into a test at the
-⑮ without inventing anything. The failure mode is concrete:
+What comes back is criteria with ids, each with a named test, and a list of what was moved to
+*"what does NOT get in"* with the reason.
 
-```
-CA-1  acepta --json y devuelve el estado serializado     ← ubiquitous ✔
-CA-2  si no hay estado, sale con código 1 y mensaje      ← IF…THEN ✔
-CA-3  --json es incompatible con --verbose               ← ⚠ and then what?
-```
+## Step 3: Work that arrives later does NOT come through here
 
-The third one does not say what happens, **so no test can be written against it.** EARS would
-have forced it.
+When the product already exists and something new arrives — a capability, a bug — it enters
+through its own door: `sf-entrar-feature` or `sf-entrar-bug`. Those understand it, decide whether
+it gets in, and write `tipo` themselves, because **how much process something needs is the output
+of deciding, not a checkbox somebody fills in afterwards.**
 
-**Format matters, because `sf` counts these with a pattern match:**
+> **This used to live here, and that was the bug.** Measured 2026-09-13: the machine routes on
+> `tipo: chico`, `sfx-mapa` explains it and the story skeleton offers it — and this skill, the one
+> that actually writes the frontmatter, only ever knew `us` and `bug`. **A field the machine
+> enforces and no skill writes.** Whoever decided how much process it needs is the one who can
+> write it.
 
-```markdown
-## Criterios de aceptación
-- **CA-1** — <criterion>
-- **CA-2** — <criterion>
-```
+This skill is now only the ⑨: the PRD, cut into stories.
 
-## Step 3: Run the quality rubric over your own criteria
-
-Read `references/requirement-quality.md` and apply its six defects to what you just wrote.
-**`sf` cannot catch a single one of them** — ambiguity, two-criteria-in-one, unverifiable — they
-are all judgment (R3). This rubric is the only thing between a vague criterion and a feature
-that ships half-done.
-
-The sharpest one is R5 in rubric form: **if you cannot write the test, it is not a criterion.**
-"The UI should feel responsive" is not one. Turn it into something observable or drop it — and
-if you drop it, say so, do not leave it as prose nobody will ever check.
-
-**There is no priority field on a criterion.** A criterion either exists or it does not. There
-is no "nice to have" tier — that is what deleting is for.
-
-## Step 4: Entries that arrive later (`sf new`)
-
-When the product already exists, new work enters here — **the backlog is the funnel**, all three
-entries converge on it. `sf new` has already created the skeleton with Javier's text in
-`## Contexto`. You fill in the title, the story and the criteria.
-
-- **A new capability** — same as above.
-- **A bug** — set `tipo: bug` and **compose `sfx-triage`**: find the root cause first, then write
-  the criteria against the *actual* defect. Fill `relacionado_a` with the original `us-#`.
-
-> **`tipo: bug` is what routes it.** A bug skips `planificacion` and `revision` and goes straight
-> `implementar → cierre`. There is no parallel lane and no second machine — one field that skips
-> two states, which is why the trail is never lost.
-
-**A bug still needs criteria.** "It should not crash" is not one; "given input X the command
-exits 0 and prints Y" is.
-
-## Step 5: What does NOT go in the story
+## Step 4: What does NOT go in the story
 
 The `us-#.md` stays **100% human: the text and the criteria.** Everything else was removed
 because it can be derived, and what is derived cannot go stale:
@@ -129,7 +99,7 @@ lane / modo: → the machine skips states; there is no second lane
 > If a model forgets to update a frontmatter field when the feature closes, the file lies
 > forever and nobody notices. **What is computed cannot go stale.**
 
-## Step 6: Write them, then the ⏸
+## Step 5: Write them, then the ⏸
 
 Write `.docs/backlog/us-<n>.md` — one file per story, from `templates/us.tmpl.md` — then:
 
@@ -149,7 +119,6 @@ cheapest to fix. **A wrong story is expensive; a wrong order is one number.**
 - Source is the PRD. The constitution is context.
 - Stories, never features. Grouping is the ⑩.
 - Every story has at least one `CA-#`. `sf` will not move without them.
-- EARS, because a criterion that is not a trigger/state/behaviour cannot become a test.
-- Untestable → not a criterion. Delete it or rewrite it.
+- The criteria are `sfx-criterio`'s. Compose it; never restate EARS or the rubric here.
 - The story is text and criteria. No state, no priority, no lane.
-- A bug composes `sfx-triage` and carries `relacionado_a`.
+- Work that arrives later is an entry node, not this skill.

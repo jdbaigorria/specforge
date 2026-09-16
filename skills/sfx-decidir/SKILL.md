@@ -43,7 +43,7 @@ of them, and grows during the interview for the fourth.
 
 **If you were handed a material that has not been understood yet, stop and say so.** Deciding about
 an idea nobody interviewed, or a bug nobody reproduced, is guessing with a table around it. The
-understanding comes first: `sfx-grilling` for the first two, `sfx-diagnosticar` for a defect.
+understanding comes first: `sfx-grilling` for the first two, `sfx-triage` for a defect.
 
 ## Step 1 — the rubric, before the options
 

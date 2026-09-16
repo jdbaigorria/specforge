@@ -101,7 +101,7 @@ COMPOSITOR DE ENTRADA
 |---|---|---|---|---|
 | llego con una idea | `sfx-grilling` | ¿vale construirlo? | el brief con veredicto | `sfp-scout` (ya existe) |
 | llego con una feature | `sfx-grilling`, arrancando en el repo | ¿entra? ¿cuánto proceso pide? | la historia con criterios | `sf-entrar-feature` |
-| llego con un bug | `sfx-diagnosticar` | ¿cuál arreglo? | la causa + el test que falla | `sf-entrar-bug` |
+| llego con un bug | `sfx-triage` | ¿cuál arreglo? | la causa + el test que falla | `sf-entrar-bug` |
 
 **Las tres escriben lo mismo, además de su artefacto:**
 
@@ -209,10 +209,11 @@ entonces, queda marcada para volver a mirarla. *(Idea mía, no de ellos.)*
 | `sfx-vara` | las 4 decisiones | nuevo, primitivo |
 | `sfx-grilling` | idea + feature = 2 | existe, se le agrega la vara |
 | `sfx-buscar` | adentro de `grilling` y de `diagnosticar` | existe |
-| `sfx-diagnosticar` | bug, un test que se pone en rojo, un hallazgo que resulta ser un bug | nuevo, primitivo |
+| `sfx-triage` | bug, un test que se pone en rojo, un hallazgo que resulta ser un bug | **existe** — se le agregaron 3 cosas, ver §11 |
+| `sfx-criterio` | `sfp-backlog` · `sf-entrar-feature` · `sf-plan` ⑭⑮ · `sf-check` ㉑ = 4 | nuevo, extraído de `sfp-backlog` |
 | `sfx-leer-repo` | entradas ② y ③ en un repo que ya existe | nuevo, primitivo |
 
-**Tres primitivos nuevos y un compositor. El resto es reuso.**
+**Dos primitivos nuevos, uno extraído, uno afilado, y un compositor. El resto es reuso.**
 
 Y tres cosas dejan de ser un skill aparte:
 
@@ -231,7 +232,7 @@ Y tres cosas dejan de ser un skill aparte:
 | el molde del compositor | `sfp-scout`, leído | 2026-09-15 |
 | las dos caras del test que falta + la trampa del espejo | `superpowers/test-driven-development` | 2026-09-13 |
 | la vara de catálogo del hallazgo | `superpowers/receiving-code-review`, sus seis razones | 2026-09-15 |
-| el método del bug | `superpowers/systematic-debugging` | 2026-09-15 |
+| las 3 cosas que le faltaban a `sfx-triage` | `superpowers/systematic-debugging` | 2026-09-15 |
 | la forma de `.docs/repo/` y el validador | `commandcode.ai/docs/taste` | 2026-09-15 |
 | la vara | **de nadie** — no está en ninguno de los tres | — |
 
@@ -242,12 +243,40 @@ Y dos cosas que ellos tienen y confirman lo nuestro sin habernos leído:
 - `receiving-code-review` dice *"si no lo podés verificar, decilo"*. Es la tercera salida —
   el `?` de `FUNDAMENTOS.md` ③ — llegando desde otro lado.
 
-## 10. Lo que queda abierto
+## 10. Lo que se corrigió el 16-09, y por qué queda escrito
+
+Cuatro cosas de la primera pasada estaban mal. Quedan acá porque el error es fácil de repetir.
+
+| se dijo el 15-09 | la verdad | por qué se falló |
+|---|---|---|
+| hacía falta un `sfx-diagnosticar` nuevo | **`sfx-triage` ya era el método de diagnóstico** — ley de hierro, rastreo hacia atrás, diff contra lo que funciona, hipótesis con evidencia, límite duro, test antes del arreglo | se leyó `vecinos-metodos.md` §4.1 sin abrir el archivo del skill |
+| `sfx-triage` se disuelve en `sfx-decidir` | **no**: es el ENTENDER del nodo del bug. Triage diagnostica, decidir elige | mismo origen: se lo creyó clasificador |
+| faltaba el método del bug | **faltaba la puerta**, más tres detalles | ídem |
+| `sfp-backlog` era un compositor sano | tenía **un primitivo atrapado adentro** — el criterio, con tres consumidores y ningún dueño (`primitivos.md` §3.3) | no se lo había mirado con la regla nueva |
+
+**El patrón del error es uno solo: leer un documento del repo sin cruzarlo con el código.** El
+traspaso del 13-09 §3 ya lo había anotado como la forma de sus cuatro correcciones anteriores.
+Volvió a pasar nueve días después.
+
+Lo que se hizo: se borró `sfx-diagnosticar`; a `sfx-triage` se le agregaron las tres cosas que
+aportaba (instrumentar las costuras, el corte de 3 **arreglos** fallidos, y entregar candidatos
+sin recomendar) y se le sacó el Step 7 que recomendaba el alcance; se extrajo `sfx-criterio` de
+`sfp-backlog`; y se corrigió `vecinos-metodos.md` §4.1, que es de donde salió todo.
+
+> **Y `sfx-criterio` resolvió gratis el choque que quedaba abierto.** `sfp-backlog` y
+> `sf-entrar-feature` competían porque los dos escribían criterios. Ahora los dos llaman al mismo
+> primitivo y cada uno se queda con lo suyo: `sfp-backlog` sólo el camino del producto (PRD →
+> historias), `sf-entrar-feature` sólo lo que llega después.
+
+## 11. Lo que queda abierto
 
 1. Si `sfx-decidir` aguanta las cuatro materias en un solo skill o hay que partirlo. Se prueba
    corriéndolo, no discutiéndolo — y si se parte, los primitivos no se tocan.
+2. Si `sf-plan` ⑭⑮ y `sf-check` ㉑ tienen que llamar a `sfx-criterio` cuando un criterio se les
+   resiste, o les alcanza con consumirlo. Hoy no lo llaman: sólo lo hacen los dos que ESCRIBEN
+   criterios.
 2. El validador de `.docs/repo/` (el `lint` de ellos). Está decidido que va; no está escrito.
-3. `sfx-triage` y `sfx-explain`: el primero se disuelve en `sfx-decidir`, el segundo tiene cero
-   consumidores (`primitivos.md` §4①) y su destino es puerta de usuario o borrarse. Ninguno de los
-   dos se tocó todavía.
+3. **Resuelto el 16-09** — ver §10. `sfx-triage` NO se disuelve: es el ENTENDER del nodo del bug.
+   `sfx-explain` quedó cerrado al modelo (`disable-model-invocation: true`): es puerta de usuario,
+   como el `teach` de Matt.
 4. Nada de esto está cableado al motor. Es la capa de skills sola, a propósito.

@@ -23,6 +23,7 @@ methods:
 | this project has no `.docs/repo/` and no constitution | `Call the Skill tool with "sfx-leer-repo"` **first** |
 | understanding what the request really is | `Call the Skill tool with "sfx-grilling"` |
 | does it get in, and how much process | `Call the Skill tool with "sfx-decidir"` |
+| writing the acceptance criteria | `Call the Skill tool with "sfx-criterio"` |
 
 Three calls, three artefacts. Nothing else: the interview opens its own branches (search,
 glossary, prototype) and the decision reads its own rubric.
@@ -49,9 +50,8 @@ branches have to be covered before the frontier can be empty:
 3. **What already exists here** — is there a flow in this repo doing something similar? Go read
    it. This is the branch that decides how much process the request needs, and it is answered by
    reading, not by feeling confident.
-4. **What has to be true for this to be done** — the criteria, and each one has to be writable as
-   a test. If a criterion cannot be written as a test, it is not an acceptance criterion: it goes
-   to *"what does NOT get in"*.
+4. **What has to be true for this to be done** — the raw material for the criteria. Do not write
+   them here: that method has an owner (Step 3).
 
 **The rubric grows here.** When the user says what matters, `sfx-grilling` hands it to `sfx-vara`
 with the round it was born in. Do not interrogate them for a rubric; catch what they already said.
@@ -70,7 +70,17 @@ and answers two things at once:
 is bounded; if there is nothing to read, it is not. And the ratchet turns one way only — a bounded
 change that turns out not to be bounded goes up, and never comes back down.
 
-## Step 3 — the story
+## Step 3 — the criteria
+
+`Call the Skill tool with "sfx-criterio"` with what came out of the interview. It owns EARS, the
+test-name check and the six-defect rubric, and it is the same primitive `sfp-backlog` composes —
+so a story that entered through this door and one that came out of the PRD are judged by the same
+rule, instead of by two copies of it that drift.
+
+What comes back: criteria with ids, each with a named test, and what was moved to *"what does NOT
+get in"* with the reason.
+
+## Step 4 — the story
 
 Write the story with its frontmatter filled in. It carries the verdict, how much process, and the
 criteria with ids.
@@ -88,7 +98,7 @@ veredicto: va
 > and no skill writes.** How much process a change needs is the *output* of deciding, not a
 > checkbox somebody remembers later.
 
-## Step 4 — the acta, and it is the user's
+## Step 5 — the acta, and it is the user's
 
 ```
 ───────────────────────────────────────
@@ -107,7 +117,7 @@ Then stop. You do not seal.
 
 - Compose, never re-explain. Three calls, and each method belongs to its owner.
 - The tree starts in the repo. "Is there an existing flow to read" is answered by reading.
-- A criterion that cannot be written as a test is not a criterion. Move it out.
+- The criteria belong to `sfx-criterio`. Compose it; never restate the rule here.
 - `tipo` is written here, by whoever decided.
 - `no va` is a success. A door that never refuses anything is not a door.
 - One interruption: the acta.

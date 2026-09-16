@@ -21,7 +21,7 @@ door exists because the lane had no method in it.
 | when | call |
 |---|---|
 | this project has no `.docs/repo/` and no constitution | `Call the Skill tool with "sfx-leer-repo"` **first** |
-| reproducing and finding the cause | `Call the Skill tool with "sfx-diagnosticar"` |
+| reproducing and finding the cause | `Call the Skill tool with "sfx-triage"` |
 | choosing among the candidate fixes | `Call the Skill tool with "sfx-decidir"` |
 
 Two calls, plus the ground if it is missing. Do not run your own investigation loop alongside the
@@ -30,7 +30,7 @@ candidates **without a recommendation**, so that the rubric is what picks.
 
 ## Step 1 — the cause
 
-`Call the Skill tool with "sfx-diagnosticar"` with the symptom exactly as it arrived: the full
+`Call the Skill tool with "sfx-triage"` with the symptom exactly as it arrived: the full
 error, the steps, what the user was doing.
 
 **This entire step runs without the user.** Reading the error, reproducing it, checking what
@@ -90,11 +90,15 @@ shape of the thing. Stop, say so, and put it to the user. Do not attempt a fourt
 
 ## Why this exists
 
-Measured 2026-09-13 (`vecinos-metodos.md` §4.1): `tipo: bug` skips planning and lands straight in a
-build skill, against a plan that in this lane is never written — and **nobody said how the bug gets
-found**. The nearest thing, `sfx-triage`, classifies the ticket without diagnosing the defect.
+`tipo: bug` skips planning and lands straight in a build skill, against a plan that in this lane is
+never written. The diagnosis is what replaces that plan — and **it had no door**: `sfx-triage` did
+the work and nothing routed a symptom to it, so a bug arriving cold landed on whoever answered
+first.
 
-Both neighbours had already concluded, separately, that debugging is a method of its own and that
-it goes **before** touching code: Matt Pocock has `diagnosing-bugs`, superpowers has
-`systematic-debugging` — *"for any bug, BEFORE proposing a fix"*. Here the lane existed and the
-method did not. It was the biggest gap of the three repos compared.
+> **Correction, 2026-09-16.** `vecinos-metodos.md` §4.1 said the method did not exist here and
+> that *"`sfx-triage` classifies the ticket without diagnosing the defect"*. **That was false** —
+> the file has the iron law, backward tracing, the working-example diff, ranked hypotheses with
+> evidence, a hard limit, and the failing test before the fix. What was missing was the door and
+> three details, not the method. Both neighbours (Matt's `diagnosing-bugs`, superpowers'
+> `systematic-debugging`) agree debugging goes **before** touching code; so did we, and nobody had
+> checked.
