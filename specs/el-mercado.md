@@ -66,6 +66,9 @@ banco todavía no produjo **un solo resultado**.
 
 ## 2. La categoría se partió en tres capas
 
+> **Actualizado el 2026-09-17:** gentle-ai pisa las tres igual que nosotros, con diez veces el
+> tamaño. Ver §2.4.
+
 Leído el 2026-09-12. Lo que importa no es la lista: es que `sf` hoy pisa las tres, y sólo una es
 suya.
 
@@ -128,6 +131,116 @@ plugin, el catálogo de modelos, el banco— es reparto.
 
 **Una frase, y es la única que hay que defender:** *el resto de la categoría te ayuda a escribir el
 spec; `sf` es el único que no te deja pasar sin cumplirlo.*
+
+---
+
+## 2.4 gentle-ai — el que más se nos parece, y el que fue para el otro lado
+
+**Leído el 2026-09-17**, clonando `Gentleman-Programming/gentle-ai` (último commit `9bf454d`,
+2026-09-16) y `gentle-shell` (`ce47bae`, 2026-09-17). Lo que sigue sale del código; la nota de
+release se usó sólo para ubicar qué mirar.
+
+### Los números, para saber contra qué medimos
+
+```
+                        gentle-ai        specforge
+Go productivo           133.832 líneas    13.623
+Go de tests             231.743 líneas    11.078
+prompts instalados      177 archivos · 15.785 líneas
+orquestadores           12, uno por arnés
+issues abiertos         809
+releases                v3.0.0, brew, archivos firmados       0
+```
+
+**Son diez veces nosotros.** No es un vecino: es la versión con recursos del mismo problema.
+
+### Su v3.0.0 hace por defecto lo que nosotros llamamos el nodo de entrada
+
+`internal/components/agentguidance/routing.go:42-52` escribe un protocolo obligatorio en **todo**
+pedido, y va en los doce orquestadores:
+
+```
+1  Authorize              ¿esto autoriza un cambio, o es sólo leer?
+2  Explore                el código que ya está, antes de proponer nada
+3  Resolve uncertainty    investigar sólo una incertidumbre con nombre;
+                          UNA pregunta si hay una decisión de producto real
+4  Classify               ¿sustancial o chico?
+5  Track before the first write
+6  Implement task by task
+7  Close
+```
+
+**Los pasos 2-3-4 son nuestro nodo de entrada**, y en dos cosas están mejor:
+
+**① Su `Classify` es el piso que nosotros no escribimos.** Textual (`routing.go:48`): *"el trabajo
+es sustancial cuando explorar da dos o más pasos de implementación con sentido, o progreso que
+valga la pena recuperar después de una interrupción. El trabajo chico y entendido se queda chico y
+no crea artefactos durables."* Es nuestro `tipo: chico` —el campo que el motor rutea y ningún
+skill escribe— definido y por defecto.
+
+**② Su `Authorize` es un paso que no tenemos.** Distingue un pedido de **leer** de un pedido de
+**cambiar**, y se queda read-only hasta que esté claro. Nuestras tres entradas asumen que todo lo
+que llega es trabajo: un *"¿por qué esto anda así?"* entra como si fuera un ticket.
+
+### Pero su protocolo es prosa en el prompt, no enforcement
+
+**Medido:** las únicas dos menciones de `odd/tasks` en código Go que no es de tests
+(`routing.go:49` y `:83`) están **adentro de los strings del prompt**. No hay nada que compruebe
+que el archivo existe, cuente las tareas, ni se niegue a avanzar.
+
+### Y en la misma versión sacaron las compuertas que tenían
+
+```
+sdd-verify ya no bloquea sdd-archive
+se retiró el "research admission"
+se retiró el governance de intentos (budget/exhaustion)
+archive procede "with truthful, possibly unfinished, task state"
+```
+
+El motivo lo escriben ellos: *"ceremony that had become gatekeeping rather than value"*.
+
+**Fueron en la dirección contraria a la nuestra.** Tenían compuertas y las sacaron.
+
+### La lección, y es la parte que vale
+
+Esto no nos da la razón: es un dato **en contra**, de alguien con diez veces nuestros recursos y
+muchos más usuarios. Pero mirá **qué conservaron**: *"live grant integrity, artifact locators,
+task-progress routing, safe archive composition"* — o sea, **qué carpetas puede tocar un cambio
+autorizado sigue siendo duro.**
+
+```
+lo que se les murió    una verificación · una atestación · un presupuesto de intentos
+                       → las tres frenan sobre un JUICIO
+
+lo que conservaron     qué carpetas se pueden tocar
+                       → frena sobre un HECHO
+```
+
+**Es R3 confirmada desde afuera, y con datos de campo en vez de razonamiento:** *una compuerta
+frena sobre un hecho; un juez opina.* Las que se les murieron eran jueces disfrazados de
+compuerta.
+
+> **Y el aviso que trae para nosotros:** si ellos, con ese tamaño, concluyeron que su propia
+> ceremonia estorbaba, **nuestro riesgo de ceremonia es peor, no menor.** Nueve estados y 27
+> skills sigue siendo el punto de máxima ceremonia de la categoría.
+
+### Lo que hay que hacer con esto
+
+| # | qué | tamaño |
+|---|---|---|
+| 1 | robar **`Authorize`** como paso 0 de las tres entradas — hoy no existe | chico |
+| 2 | robar la redacción de su **`Classify`** para el nodo de entrada | chico |
+| 3 | releer **las nueve compuertas** con una sola pregunta: *¿frena sobre un hecho o sobre un juicio?* La que frene sobre un juicio se va a morir igual que se les murió a ellos | mediano |
+| 4 | robar **cómo miden**: su evidencia de campo es un experimento **con control** — el protocolo corre en un pedido que nunca menciona workflow, y un control de sólo-documentación no crea nada. Nosotros no corremos controles | mediano |
+
+### Lo que NO cambia
+
+La vara sigue sin estar en ninguno de los cuatro repos leídos. En gentle-ai el paso 3 investiga,
+pero **no escribe con qué va a elegir antes de ver las opciones**. Se buscó `rubric`, `scorecard` y
+`criteria before` en superpowers y en `mattpocock/skills` el 2026-09-13, y en gentle-ai el 09-17:
+nada.
+
+**Lo que cambia es el mapa competitivo, no el diseño de `specs/nodos/`.**
 
 ---
 

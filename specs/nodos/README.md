@@ -234,7 +234,8 @@ Y tres cosas dejan de ser un skill aparte:
 | la vara de catálogo del hallazgo | `superpowers/receiving-code-review`, sus seis razones | 2026-09-15 |
 | las 3 cosas que le faltaban a `sfx-triage` | `superpowers/systematic-debugging` | 2026-09-15 |
 | la forma de `.docs/repo/` y el validador | `commandcode.ai/docs/taste` | 2026-09-15 |
-| la vara | **de nadie** — no está en ninguno de los tres | — |
+| la vara | **de nadie** — no está en ninguno de los CUATRO | — |
+| `Authorize` y la redacción de `Classify` (pendientes, ver §11) | `gentle-ai` v3.0.0, `routing.go:42-52` | 2026-09-17 |
 
 Y dos cosas que ellos tienen y confirman lo nuestro sin habernos leído:
 
@@ -280,3 +281,18 @@ sin recomendar) y se le sacó el Step 7 que recomendaba el alcance; se extrajo `
    `sfx-explain` quedó cerrado al modelo (`disable-model-invocation: true`): es puerta de usuario,
    como el `teach` de Matt.
 4. Nada de esto está cableado al motor. Es la capa de skills sola, a propósito.
+5. **Falta el paso 0 de las tres entradas: `Authorize`.** Leído en `gentle-ai` el 2026-09-17
+   (`el-mercado.md` §2.4): antes de entender nada hay que establecer si el pedido **autoriza un
+   cambio** o es sólo leer, y quedarse en solo-lectura hasta que esté claro. Hoy las tres entradas
+   asumen que todo lo que llega es trabajo, así que un *"¿por qué esto anda así?"* entra como
+   ticket. Es chico y no está hecho.
+6. **La redacción de "cuánto proceso pide" se puede mejorar copiándoles.** Su `Classify` dice
+   *"sustancial cuando explorar da dos o más pasos con sentido, o progreso que valga la pena
+   recuperar después de una interrupción"*. Es lo mismo que nuestra V-2 de la vara de la feature,
+   dicho mejor. Chico.
+
+> **Y un aviso que no es de esta capa pero la condiciona** (`el-mercado.md` §2.4): gentle-ai sacó
+> en su v3.0.0 las compuertas que frenaban sobre un juicio —verificación, atestación, presupuesto
+> de intentos— por *"ceremonia"*, y conservó la única que frena sobre un hecho. Cuando esto se
+> cablee al motor, cada compuerta tiene que pasar esa pregunta: **¿frena sobre un hecho o sobre un
+> juicio?** La que frene sobre un juicio se va a morir igual.
